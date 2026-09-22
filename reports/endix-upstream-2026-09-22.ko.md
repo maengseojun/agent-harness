@@ -11,7 +11,7 @@
 - 실제 HyperEVM 의존성은 `endix-foundation-v1/hyper-evm-toolkit`의 `e5b6e9c4a0f0c08e059a4e93874f85d432e1551c`다. 공개 upstream `hyperliquid-dev/hyper-evm-lib`의 main과 다르다.
 - OpenZeppelin Contracts: `fcbae5394ae8ad52d8e580a3477db99814b9d565`, 패키지 버전 5.5.0. Contracts Upgradeable: `aa677e9d28ed78fc427ec47ba2baef2030c58e7c`, v5.5.0.
 - 수집 범위: hyper-evm-lib 기본 브랜치 최근 commit 10건, 생성순 issue/PR 20건과 관련 본문·댓글·diff; OpenZeppelin 최근 commit 5건과 사용 버전에 직접 관련된 PR #5944 및 로컬 changelog. 전체 페이지를 순회하거나 별도 GitHub Discussions 전체를 검색하지 않았다. 여기서 토론은 issue/PR 댓글을 뜻한다.
-- 상태·날짜는 GitHub API로 확인했다. 최신 목록은 탐색에 쓰고, 아래 네 항목은 Endix의 실제 의존성과 연결되는 정도로 선정했다. 특정 기간의 모든 변경을 망라한 목록은 아니다.
+- 상태·날짜는 GitHub API로 확인했다. GitHub 날짜는 UTC, 로컬 fork commit 날짜는 기록된 +09:00 기준이다. 최신 목록은 탐색에 쓰고, 아래 네 항목은 Endix의 실제 의존성과 연결되는 정도로 선정했다. 특정 기간의 모든 변경을 망라한 목록은 아니다.
 
 증거 표기: VERIFIED는 직접 읽은 코드·도구 결과, DOCUMENTED는 upstream 문서·제보, INFERRED는 그로부터의 추론, RECOMMENDATION은 제안, UNKNOWN은 확인하지 않은 사항이다.
 
@@ -43,9 +43,9 @@
 
 [Hyperliquid 공식 문서](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/hyperevm/interacting-with-hypercore)는 CoreWriter가 로그를 내보내고 HyperCore가 action으로 처리하며, 주문 등의 enqueue와 execution이 나뉜다고 설명한다. precompile 읽기 역시 EVM block 생성 시점의 HyperCore 상태를 반영한다.
 
-**VERIFIED / 적용 판정: 비동기 확인 경계에 직접 관련.** Endix의 현재 `src/executor/VaultTradeEngine.sol:646` wrapper는 모듈에 위임한다. 실제 단건 확인은 1587행, 일괄 확인은 1609행, fill 검사는 2160행의 모듈 구현이다. keeper가 성공 여부 bool을 넣는 방식이 아니라 CLOID를 넣으면 계약이 잔고 증가를 검사한다. 출력 자산 잔고의 증가량이 최소 기준을 넘으면 확인하며, 초기 `minFillBps`는 500, 즉 5%다. 이는 주문별 체결 응답이나 100% 체결의 증명과는 범위가 다르다.
+**VERIFIED / 적용 판정: 비동기 확인 경계에 직접 관련.** Endix의 현재 `src/executor/VaultTradeEngine.sol:646` wrapper는 모듈에 위임한다. 실제 단건 확인은 1587행, 일괄 확인은 1609행, fill 검사는 2160행의 모듈 구현이다. keeper가 성공 여부 bool을 넣는 방식이 아니라 CLOID를 넣으면 계약이 잔고 증가를 검사한다. 출력 자산 잔고의 증가량이 최소 기준 이상이면 확인하며, 초기 `minFillBps`는 500, 즉 5%다. 이는 주문별 체결 응답이나 100% 체결의 증명과는 범위가 다르다.
 
-일괄 확인은 미존재·비-PENDING 항목을 false로 남기지만, PENDING 항목의 fill 검사 실패는 전체 호출을 revert시킨다. `test/executor/VaultTradeEngineHardening.t.sol:830`에는 잔고 증가 없음 거부, 939행 이후에는 dust 거부 및 10% 부분 체결 허용 테스트가 있다. 이번 검색에서 `src/test/script` 내부의 `confirmTradeChunks` 호출 테스트는 찾지 못했다. 기존 통합 테스트는 simulator 잔고를 강제로 바꾸고 단건 확인을 호출하므로 실제 주문별 귀속이나 batch 실행의 검증으로 확대하지 않았다.
+일괄 확인은 미존재·비-PENDING 항목을 false로 남기지만, PENDING 항목의 fill 검사 실패는 전체 호출을 revert시킨다. `test/executor/VaultTradeEngineHardening.t.sol:830`에는 잔고 증가 없음 거부, 939행 이후에는 dust 거부 및 10% 부분 체결 허용 테스트가 있다. 이번 검색에서 `src`, `test`, `script` 내부의 `confirmTradeChunks` 호출 테스트는 찾지 못했다. 기존 통합 테스트는 simulator 잔고를 강제로 바꾸고 단건 확인을 호출하므로 실제 주문별 귀속이나 batch 실행의 검증으로 확대하지 않았다.
 
 **RECOMMENDATION:** 기존 잔고 증가 검사를 출발점으로, 같은 출력 자산을 쓰는 여러 chunk와 무관한 입금이 주문별 확인에 어떤 영향을 주는지 재현한다. batch에는 유효·미체결·중복 CLOID를 함께 넣어 전체 revert와 재시도 동작을 확인한다. 부분 체결, 늦은 확인, timeout 직후 확인, keeper 재시작도 기존 검사와 연결한다. API wallet 제보의 재현과 Endix 체결 검증은 별개의 테스트이며, 이번 관찰만으로 악용 가능한 취약성이 입증된 것은 아니다.
 
