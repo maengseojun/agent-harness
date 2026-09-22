@@ -1,0 +1,75 @@
+{
+  "skills": [
+    {
+      "name": "skill-creator",
+      "path": ".harness/skills/skill-creator/SKILL.md",
+      "repository": "openai/skills",
+      "commit": "49f948faa9258a0c61caceaf225e179651397431",
+      "source_path": "skills/.system/skill-creator/SKILL.md",
+      "sha256": "a17383bfb1448637ac1f757ad891ddb9676fa30b0eff620200f0e1cbc0cc0d50",
+      "url": "https://github.com/openai/skills/blob/49f948faa9258a0c61caceaf225e179651397431/skills/.system/skill-creator/SKILL.md"
+    },
+    {
+      "path": ".harness/skills/notion-knowledge-capture/SKILL.md",
+      "source_path": "skills/.curated/notion-knowledge-capture/SKILL.md",
+      "repository": "openai/skills",
+      "commit": "49f948faa9258a0c61caceaf225e179651397431",
+      "sha256": "b49383b229bc766190ea22bb58502cfcf7e08449f5fce55a104eef1e54e27f00",
+      "name": "notion-knowledge-capture",
+      "url": "https://github.com/openai/skills/blob/49f948faa9258a0c61caceaf225e179651397431/skills/.curated/notion-knowledge-capture/SKILL.md"
+    },
+    {
+      "name": "cli-creator",
+      "path": ".harness/skills/cli-creator/SKILL.md",
+      "source_path": "skills/.curated/cli-creator/SKILL.md",
+      "repository": "openai/skills",
+      "commit": "49f948faa9258a0c61caceaf225e179651397431",
+      "sha256": "24058eabf0aafce6def3fb937ac93cbe3fa341c653c658dc589edb77f73d6152",
+      "url": "https://github.com/openai/skills/blob/49f948faa9258a0c61caceaf225e179651397431/skills/.curated/cli-creator/SKILL.md"
+    }
+  ],
+  "resources": [
+    {
+      "path": ".harness/skills/skill-creator/LICENSE.txt",
+      "source_path": "skills/.system/skill-creator/LICENSE.txt",
+      "repository": "openai/skills",
+      "commit": "49f948faa9258a0c61caceaf225e179651397431",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": ".harness/skills/skill-creator/scripts/init_skill.py",
+      "source_path": "skills/.system/skill-creator/scripts/init_skill.py",
+      "repository": "openai/skills",
+      "commit": "49f948faa9258a0c61caceaf225e179651397431",
+      "sha256": "bcb8982d3f033a094f2f1be43123ac8537e2562d25d8ba4d8ef2196ae514d96d"
+    },
+    {
+      "path": ".harness/skills/skill-creator/scripts/generate_openai_yaml.py",
+      "source_path": "skills/.system/skill-creator/scripts/generate_openai_yaml.py",
+      "repository": "openai/skills",
+      "commit": "49f948faa9258a0c61caceaf225e179651397431",
+      "sha256": "b8f6be33a9d72dd7a8da02e7a9fffea23dc79e94862e6dd6358b57a8899d8f73"
+    },
+    {
+      "path": ".harness/skills/skill-creator/scripts/quick_validate.py",
+      "source_path": "skills/.system/skill-creator/scripts/quick_validate.py",
+      "repository": "openai/skills",
+      "commit": "49f948faa9258a0c61caceaf225e179651397431",
+      "sha256": "6cc9dc3199c935916cf6f73fcbbbb0e3bb1b58c8f5109fefa499978908164f51"
+    },
+    {
+      "path": ".harness/skills/skill-creator/references/openai_yaml.md",
+      "source_path": "skills/.system/skill-creator/references/openai_yaml.md",
+      "repository": "openai/skills",
+      "commit": "49f948faa9258a0c61caceaf225e179651397431",
+      "sha256": "9fb5928b7f4a746fdb39df503ebbd7a659d5e64b47f85a60626aa1a03fd76b17"
+    },
+    {
+      "path": ".harness/skills/notion-knowledge-capture/reference/documentation-database.md",
+      "source_path": "skills/.curated/notion-knowledge-capture/reference/documentation-database.md",
+      "repository": "openai/skills",
+      "commit": "49f948faa9258a0c61caceaf225e179651397431",
+      "sha256": "727f6bb7a341e871ba8afe155f9b261fe6f5ecf7f5ca7a43db3ad646fee7244d"
+    }
+  ]
+}
