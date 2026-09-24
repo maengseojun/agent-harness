@@ -3,12 +3,16 @@
 CLI: python3 harness/ledger.py --db /absolute/state.sqlite COMMAND < request.json
 Every request has task_id; mutations also have owner (except create). Commands:
   create: kind(doc|code), description, acceptance[str], authorization_scope[str],
-          publication_required(bool), refs[str] (optional)
+          publication_required(bool), refs[str] (optional), closeout (optional)
+          closeout={mode:managed,github_paths:[repo-relative paths]} or
+          {mode:local-only|read-only,reason:text}; omitted keeps legacy behavior
   claim / status / context / pause / resume / complete: no additional fields
-  route: skills[{name, path, sha256, repository(owner/repo), commit, source_path, url}]
+  route: skills[{name, path, sha256, source:"local"}] or immutable GitHub pins
+         {name, path, sha256, repository(owner/repo), commit, source_path, url}
   artifact: path, worker_id
   check: artifact_sha256, evidence_path, check_id, agent_id, exit_code;
-         failure_kind(check|auth|access, optional)
+         failure_kind(check|auth|access, optional); source_paths maps declared
+         GitHub paths to absolute local files (filled automatically by runner)
   review: artifact_sha256, evidence_path, agent_id, verdict(approved|changes),
           covered_conditions[zero-based acceptance indices]
   repair: reason_ref
@@ -20,6 +24,9 @@ Every request has task_id; mutations also have owner (except create). Commands:
   publish: publication_id
   publication-error: publication_id, kind(auth|access|io|uncertain), reason_ref
   receipt: publication_id, target, artifact_sha256, readback_path, receipt_ref
+  closeout: service(notion|github), receipt_ref; notion uses target, summary_path,
+            readback_path; github uses repository, commit, files[{path,
+            local_path,readback_path}]. The runner fills local_path from path.
 
 One primary file per task; split larger work into bounded native-agent tasks.
 Only summaries, references, hashes, and supplied skill text are retained. Do not
@@ -153,13 +160,24 @@ def current(record):
         return False
 
 
+def plain_summary(data):
+    """Compare simple Markdown summaries without changing content-bearing lines."""
+    try:
+        body = data.decode("utf-8").replace("\r\n", "\n")
+    except UnicodeDecodeError:
+        raise LedgerError("summary must be UTF-8") from None
+    if re.search(r"(?m)^\s*(?:```|~~~|\$\$|\\\[|\\\])", body):
+        return body.rstrip("\n")
+    return "\n".join(line for line in body.splitlines() if line.strip())
+
+
 # Required fields beyond task_id/owner; strict schemas keep accidental payloads out.
 FIELDS = {
-    "create": ("kind description acceptance authorization_scope publication_required", "refs"),
+    "create": ("kind description acceptance authorization_scope publication_required", "refs closeout"),
     "status": ("", ""), "claim": ("", ""), "context": ("", ""),
     "pause": ("", ""), "resume": ("", ""), "complete": ("", ""),
     "route": ("skills", ""), "artifact": ("path worker_id", ""),
-    "check": ("artifact_sha256 evidence_path check_id agent_id exit_code", "failure_kind"),
+    "check": ("artifact_sha256 evidence_path check_id agent_id exit_code", "failure_kind source_paths"),
     "review": ("artifact_sha256 evidence_path agent_id verdict covered_conditions", ""),
     "repair": ("reason_ref", ""), "block": ("kind reason_ref", ""),
     "clear-blocker": ("resolution_ref", "publication_id"),
@@ -169,13 +187,14 @@ FIELDS = {
     "publish": ("publication_id", ""),
     "publication-error": ("publication_id kind reason_ref", ""),
     "receipt": ("publication_id target artifact_sha256 readback_path receipt_ref", ""),
+    "closeout": ("service receipt_ref", "target summary_path readback_path repository commit files"),
 }
 
 NEXT_ACTION = {
     "created": "claim", "routing": "route", "working": "artifact", "verifying": "check",
     "review-ready": "review", "repair-required": "repair", "blocked": "resolve-blocker",
     "awaiting-approval": "approve-publication", "publishing": "publish-or-reconcile",
-    "ready-to-complete": "complete", "done": "none", "paused": "resume",
+    "awaiting-closeout": "closeout", "ready-to-complete": "complete", "done": "none", "paused": "resume",
 }
 
 
@@ -257,7 +276,27 @@ class Ledger:
             return "awaiting-approval"
         if any(p["status"] != "verified" for p in pubs):
             return "publishing"
+        if self.closeout_missing():
+            return "awaiting-closeout"
         return "done" if t["completion_requested"] else "ready-to-complete"
+
+    def closeout_missing(self):
+        policy = self.task["request"].get("closeout")
+        if not policy or policy["mode"] != "managed":
+            return False
+        recorded = self.task.get("closeouts", {})
+        return ("notion" not in recorded
+                or (self.task["request"]["kind"] == "code" and not policy["github_paths"])
+                or bool(policy["github_paths"] and "github" not in recorded))
+
+    def source_paths(self):
+        policy = self.task["request"].get("closeout", {})
+        return policy.get("github_paths", []) if policy.get("mode") == "managed" else []
+
+    def sources_current(self, record):
+        sources = record.get("sources", {})
+        return (set(sources) == set(self.source_paths())
+                and all(self.work_current(item) for item in sources.values()))
 
     def work_current(self, record):
         try:
@@ -269,6 +308,11 @@ class Ledger:
 
     def refresh(self):
         t = self.task
+        if any(record and not self.sources_current(record) for record in (t["check"], t["review"])):
+            t["check"] = t["review"] = None
+            t["closeouts"] = {}
+            t["work_status"] = "repair-required"
+            t["completion_requested"] = False
         if t["artifact"] and not self.work_current(t["artifact"]):
             t["check"] = t["review"] = None
             t["work_status"] = "repair-required"
@@ -282,6 +326,14 @@ class Ledger:
             t["review"] = None
             t["work_status"] = "repair-required"
             t["completion_requested"] = False
+        for service, record in list(t.get("closeouts", {}).items()):
+            snapshots = ([record["summary"], record["readback"]] if service == "notion"
+                         else [snapshot for file in record["files"]
+                               for snapshot in (file["source"], file["readback"])])
+            if (not t["artifact"] or record["artifact_sha256"] != t["artifact"]["sha256"]
+                    or not all(self.work_current(item) for item in snapshots)):
+                del t["closeouts"][service]
+                t["completion_requested"] = False
         for p in self.pubs:
             if p["status"] == "verified":
                 evidence = ({"path": p["target"], "sha256": p["artifact_sha256"]}
@@ -355,6 +407,24 @@ class Ledger:
                    "authorization_scope": strings(d["authorization_scope"], "authorization_scope"),
                    "publication_required": d["publication_required"],
                    "refs": strings(d.get("refs", []), "refs", empty=True)}
+        if "closeout" in d:
+            policy = d["closeout"]
+            require(isinstance(policy, dict) and "mode" in policy, "invalid closeout policy")
+            mode = choice(policy["mode"], {"managed", "local-only", "read-only"})
+            if mode == "managed":
+                require(set(policy) == {"mode", "github_paths"}, "invalid managed closeout policy")
+                paths = strings(policy["github_paths"], "github_paths", empty=True)
+                require(d["kind"] != "code" or paths,
+                        "managed code requires github_paths or an explicit local-only/read-only exception")
+                for value in paths:
+                    path = PurePosixPath(value)
+                    require(not path.is_absolute() and ".." not in path.parts and str(path) == value
+                            and value != ".", "invalid github path")
+                require(len(set(paths)) == len(paths), "duplicate github paths")
+                request["closeout"] = {"mode": mode, "github_paths": paths}
+            else:
+                require(set(policy) == {"mode", "reason"}, "invalid closeout exception")
+                request["closeout"] = {"mode": mode, "reason": text(policy["reason"], "reason")}
         row = self.db.execute("SELECT request,state FROM tasks WHERE id=?", (d["task_id"],)).fetchone()
         self.pubs = []
         if row:
@@ -369,7 +439,8 @@ class Ledger:
                      "stage": "created", "stages": [], "next_action": "claim", "blocker": None,
                      "retry_count": 0, "repair_open": False, "created_at": now(), "updated_at": now(),
                      "skills": [], "artifact": None, "artifact_history": [], "workers": [],
-                     "check": None, "review": None, "feedback": [], "completion_requested": False}
+                     "check": None, "review": None, "feedback": [], "closeouts": {},
+                     "completion_requested": False}
         self.db.execute("INSERT INTO tasks VALUES (?,?,?)", (d["task_id"], canonical(request), canonical(self.task)))
         self.save()
         self.db.commit()
@@ -398,10 +469,18 @@ class Ledger:
         require(isinstance(d["skills"], list) and 0 < len(d["skills"]) <= 16, "invalid skill list")
         pins = []
         for p in d["skills"]:
-            require(isinstance(p, dict) and set(p) == {"name", "path", "sha256", "repository", "commit", "source_path", "url"},
+            local_fields = {"name", "path", "sha256", "source"}
+            github_fields = {"name", "path", "sha256", "repository", "commit", "source_path", "url"}
+            require(isinstance(p, dict) and (set(p) == local_fields or set(p) == github_fields),
                     "invalid skill pin fields")
             text(p["name"], "skill name", 128)
             digest(p["sha256"])
+            path_name(p["path"])
+            if set(p) == local_fields:
+                require(p["source"] == "local", "invalid local skill source")
+                require(Path(p["path"]).name == "SKILL.md", "local skill must be a SKILL.md file")
+                pins.append(dict(p))
+                continue
             require(isinstance(p["repository"], str) and re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", p["repository"]),
                     "invalid GitHub repository")
             require(isinstance(p["commit"], str) and re.fullmatch(r"[a-f0-9]{40}", p["commit"]), "immutable 40-digit Git commit required")
@@ -410,9 +489,8 @@ class Ledger:
                     and rel.name == "SKILL.md", "invalid skill repository path")
             require(p["url"] == "https://github.com/" + p["repository"] + "/blob/" + p["commit"] + "/" + quote(str(rel), safe="/"),
                     "GitHub URL must match repository, immutable commit and path")
-            path_name(p["path"])
             pins.append(dict(p))
-        require(len({p["url"] for p in pins}) == len(pins)
+        require(len({p.get("url", p["path"]) for p in pins}) == len(pins)
                 and len({p["name"] for p in pins}) == len(pins), "duplicate skills")
         if self.task["skills"]:
             require(pins == [{k: v for k, v in p.items() if k != "text"} for p in self.task["skills"]],
@@ -468,6 +546,11 @@ class Ledger:
         record = {"artifact_sha256": d["artifact_sha256"], "evidence": snapshot(d["evidence_path"]),
                   "check_id": text(d["check_id"]), "agent_id": identifier(d["agent_id"]),
                   "exit_code": d["exit_code"], "failure_kind": kind}
+        paths = d.get("source_paths", {})
+        require(isinstance(paths, dict) and set(paths) == set(self.source_paths()),
+                "check source_paths must match declared GitHub paths")
+        if paths:
+            record["sources"] = {path: snapshot(local) for path, local in paths.items()}
         if self.task["check"] == record:
             return
         self.task["check"] = record
@@ -481,6 +564,7 @@ class Ledger:
         self.exact_artifact(d["artifact_sha256"])
         require(self.task["check"] and self.task["check"]["exit_code"] == 0
                 and self.task["work_status"] != "repair-required", "valid mechanical check required")
+        require(self.sources_current(self.task["check"]), "checked source files changed; repair required")
         agent = identifier(d["agent_id"])
         require(agent not in self.task["owners"] + self.task["workers"], "reviewer must be independent of coordinator and workers")
         choice(d["verdict"], {"approved", "changes"})
@@ -492,6 +576,8 @@ class Ledger:
                 "review must cover every acceptance condition")
         record = {"artifact_sha256": d["artifact_sha256"], "agent_id": agent, "verdict": d["verdict"],
                   "covered_conditions": covered, "evidence": snapshot(d["evidence_path"])}
+        if self.source_paths():
+            record["sources"] = self.task["check"]["sources"]
         if self.task["review"] == record:
             return
         self.task["review"] = record
@@ -507,6 +593,7 @@ class Ledger:
         self.task["retry_count"] += 1
         self.task["repair_open"] = True
         self.task["check"] = self.task["review"] = None
+        self.task["closeouts"] = {}
         self.task["completion_requested"] = False
         self.task["work_status"] = "working"
 
@@ -536,13 +623,74 @@ class Ledger:
                 and self.task["check"] and self.task["check"]["exit_code"] == 0
                 and self.task["review"] and self.task["review"]["verdict"] == "approved", "checked and independently reviewed work required")
         self.exact_artifact(self.task["artifact"]["sha256"])
+        require(self.sources_current(self.task["review"])
+                and self.task["review"].get("sources", {}) == self.task["check"].get("sources", {}),
+                "checked and reviewed source files changed; repair required")
 
     def complete(self, d):
         self.verified_work()
         require(all(p["artifact_sha256"] == self.task["artifact"]["sha256"]
                     for p in self.pubs if p["status"] != "superseded"),
                 "publication is bound to an older artifact")
+        require(not self.closeout_missing(), "required closeout evidence is absent or stale")
         self.task["completion_requested"] = True
+
+    def closeout(self, d):
+        self.verified_work()
+        policy = self.task["request"].get("closeout")
+        require(policy and policy["mode"] == "managed", "managed closeout was not declared")
+        service = choice(d["service"], {"notion", "github"})
+        reference = text(d["receipt_ref"], "receipt_ref")
+        artifact_sha256 = self.task["artifact"]["sha256"]
+        if service == "notion":
+            require(set(d) == {"task_id", "owner", "service", "target", "summary_path",
+                               "readback_path", "receipt_ref"}, "invalid Notion closeout fields")
+            target = text(d["target"], "Notion target", 4096)
+            url = urlsplit(target)
+            require(url.scheme == "https" and (url.hostname in {"notion.so", "www.notion.so"}
+                    or bool(url.hostname and url.hostname.endswith(".notion.site"))
+                    or (url.hostname == "app.notion.com" and
+                        re.fullmatch(r"/p/[a-f0-9]{32}/?", url.path)))
+                    and url.path.strip("/") and not url.username and not url.password
+                    and not url.query and not url.fragment, "invalid Notion page URL")
+            require(d["summary_path"] != d["readback_path"], "Notion readback must be separate")
+            summary, readback = snapshot(d["summary_path"]), snapshot(d["readback_path"])
+            body = plain_summary(read_file(summary["path"]))
+            require(body and body == plain_summary(read_file(readback["path"])),
+                    "Notion summary body readback mismatch")
+            record = {"artifact_sha256": artifact_sha256, "target": target,
+                      "summary": summary, "readback": readback,
+                      "body_sha256": sha(body.encode("utf-8")), "receipt_ref": reference, "at": now()}
+        else:
+            require(set(d) == {"task_id", "owner", "service", "repository", "commit",
+                               "files", "receipt_ref"}, "invalid GitHub closeout fields")
+            require(policy["github_paths"], "GitHub closeout paths were not declared")
+            repository = text(d["repository"], "repository", 256)
+            require(re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository),
+                    "invalid GitHub repository")
+            commit = d["commit"]
+            require(isinstance(commit, str) and re.fullmatch(r"[a-f0-9]{40}", commit),
+                    "immutable 40-digit Git commit required")
+            files = d["files"]
+            require(isinstance(files, list) and len(files) == len(policy["github_paths"])
+                    and all(isinstance(item, dict) and set(item) == {"path", "local_path", "readback_path"}
+                            for item in files)
+                    and sorted(item["path"] for item in files) == sorted(policy["github_paths"]),
+                    "GitHub files must match declared paths")
+            bound = []
+            for item in files:
+                require(item["local_path"] != item["readback_path"], "GitHub readback must be separate")
+                source, readback = snapshot(item["local_path"]), snapshot(item["readback_path"])
+                require(source == self.task["review"]["sources"][item["path"]],
+                        "GitHub source differs from reviewed bytes; repair required")
+                require(source["sha256"] == readback["sha256"], "GitHub file readback mismatch")
+                bound.append({"path": item["path"], "source": source, "readback": readback,
+                              "url": "https://github.com/" + repository + "/blob/" + commit + "/"
+                                     + quote(item["path"], safe="/")})
+            record = {"artifact_sha256": artifact_sha256, "repository": repository,
+                      "commit": commit, "files": bound, "receipt_ref": reference, "at": now()}
+        self.task["closeouts"][service] = record
+        self.task["completion_requested"] = False
 
     def publication(self, d):
         identifier(d["publication_id"])
