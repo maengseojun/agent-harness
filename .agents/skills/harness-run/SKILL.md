@@ -120,6 +120,11 @@ uncertainty about the work. A skill being listed does not prove its tools or
 account access work: check required capabilities, report missing ones, and use a
 suitable available fallback without silently installing skills or expanding scope.
 
+For decks and diagrams, read **Visual artifact routing and review** in the
+bundled `references/README.md` after selecting the relevant specialist skill.
+Apply its format and visual-check guidance only to visual deliverables; a supplied
+example skill is reference material unless the user asks to adopt its style.
+
 Pass the selected local `SKILL.md` paths through `start.skill_paths`; the harness
 is included automatically. Record the selection reasons and unavailable routes
 in the task brief or referenced evidence. For skills read through another host,
