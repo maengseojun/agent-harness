@@ -26,6 +26,8 @@ class CloseoutHookTest(unittest.TestCase):
             (root / 'nested').mkdir()
             tasks = [
                 {'task_id': 'mine', 'owner': 'session', 'request': {'closeout': {'mode': 'managed'}}},
+                {'task_id': 'historical-done', 'owner': 'session', 'stage': 'done',
+                 'completion_requested': True, 'request': {'closeout': {'mode': 'managed'}}},
                 {'task_id': 'other', 'owner': 'other', 'request': {'closeout': {'mode': 'managed'}}},
                 {'task_id': 'legacy', 'owner': 'session', 'request': {}},
                 {'task_id': 'blocked', 'owner': 'session', 'request': {'closeout': {'mode': 'managed'}}, 'blocker': {'kind': 'auth'}},

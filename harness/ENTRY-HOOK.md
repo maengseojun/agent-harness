@@ -24,6 +24,10 @@ also require GitHub readback at an immutable revision. The separate
 unfinished managed tasks in the current project. It then reports unresolved
 work rather than looping during an outage. The runner's Done gate remains in
 force. Explicit blocked/paused tasks may be reported without claiming success.
+The Stop reminder ignores runs already saved as Done: those receipts describe
+their pinned revision, even when later personal source changes make a new live
+status check report repair-required. Unfinished runs still require current
+closeout evidence; later changes belong to a separate task or explicit audit.
 
 ## Ownership and continuity
 

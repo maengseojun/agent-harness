@@ -31,7 +31,8 @@ def pending(event):
         tasks = [json.loads(row[0]) for row in connection.execute('SELECT state FROM tasks')]
     tasks = [t for t in tasks if t.get('owner') == session
              and t.get('request', {}).get('closeout', {}).get('mode') == 'managed'
-             and not t.get('paused') and not t.get('blocker')]
+             and not t.get('paused') and not t.get('blocker')
+             and not (t.get('stage') == 'done' and t.get('completion_requested') is True)]
     deadline = time.monotonic() + 6
     remaining = []
     for task in tasks:
