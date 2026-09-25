@@ -262,6 +262,8 @@ Classify feedback: one-off scope belongs in the task; reusable preferences in th
 relevant specialist skill; missing behavior in the skill plus representative
 cases; retry/dedup defects in code plus regression checks. This workflow grants
 no new external-write, billing, deployment or background-execution rights.
+For a reusable skill change, use the standalone `skill-feedback` skill when it is
+available; keep its source in its own folder and verify installation separately.
 
 ## Record outcomes and close the loop
 

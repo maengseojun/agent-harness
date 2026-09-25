@@ -5,6 +5,34 @@ any permitted local workspace. The host agent coordinates work, relevant
 specialist skills and an independent reviewer. Python's standard library saves
 progress and evidence. No new server, paid API, scheduler or background daemon.
 
+## Independent skill library
+
+This private repository stores each standalone personal skill under its own
+`skills/<name>/SKILL.md` path. GitHub is the versioned source; a skill is usable in
+a local host only after that host installs or discovers that folder. A commit to
+this repository does not update an installed copy. The separate
+`skills/skill-feedback/SKILL.md` skill turns observed,
+reusable task feedback into a focused skill revision. It can be used without
+`harness-run`; the harness remains an optional coordinator for substantial work.
+
+For ordinary work, select the relevant specialist skill directly, complete the
+request and apply its relevant checks to the actual result. Record what worked
+and any concrete gap; correct that gap. When feedback is reusable, apply
+`skill-feedback` to the matching skill's canonical source. Check the revised
+skill on a representative request, review, commit and push only its source files,
+fetch and compare those files from the exact remote commit, install the reviewed
+version, and inspect the next real use. Keep one-off
+corrections in the task. This is a host-directed loop, not an automatic
+background learner or a claim that every task produces a new skill.
+
+The existing private `maengseojun/agent-harness` repository is the single
+publication path. Skill folders are independent; they do not need separate GitHub
+repositories to be selected independently. The older local `Documents/ChatGPT/Skills`
+draft is not an installation or publication source. Create a separate repository
+only when a skill needs distinct access, licensing or release ownership.
+Existing skills can have another canonical path: `harness-run` is sourced from
+`.agents/skills/harness-run/SKILL.md` and packaged by `harness/install.py`.
+
 ## Notion workspace
 
 Use the standalone [Harness hub](https://www.notion.so/3e3e203190cd8143bdf5df0b46c1cb57)
@@ -45,6 +73,13 @@ It never changes shell startup, model configuration, permission settings or othe
 skills. User-created conflicting files are preserved. Reinstall to adopt reviewed
 changes; old releases remain available for in-flight tasks. There is no automatic
 update. You may move the source checkout after installation.
+
+`harness/install.py` manages only `harness-run`. Install a reviewed standalone
+skill folder separately in each host's user-level skill directory, then compare
+its `SKILL.md` with the exact reviewed GitHub revision. This keeps each skill's
+availability and update independent of the harness release. On this machine,
+`skill-feedback` is copied to both `~/.agents/skills/skill-feedback` and
+`~/.codex/skills/skill-feedback` after its first reviewed publication.
 
 Open a fresh local task so its skill catalog can discover **harness-run**, or ask
 an existing task to read `~/.agents/skills/harness-run/SKILL.md` explicitly. Say:

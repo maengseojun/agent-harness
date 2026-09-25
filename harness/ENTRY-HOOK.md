@@ -6,13 +6,14 @@ uses the current request and settled conversation context to choose `personal`,
 
 `UserPromptSubmit` supplies that decision contract and creates a private pending
 receipt. `PreToolUse` denies supported local tools until the host submits the
-exact entry command. The hook reads and emits the selected instructions,
-records their hash, and releases that turn. Codex may supply a spill-file reference
-for long context. After the hook delivers the full entry, the command prints a
-short receipt rather than duplicating the same text in the turn. If the command
-runs before hook delivery, it retains the full-text fallback. Read the hook
-context or its spill file when the short receipt appears. This reduces duplicate
-context; it does not establish the cause of an app-server Bad Request.
+exact entry command. The hook emits a short owner-specific route, records its
+hash, and releases that turn. A personal route points to the installed
+`harness-run` skill but does not inject its body; the host reads it only when the
+task needs tracked execution. Its absence does not block ordinary personal work;
+the host reports that limitation if tracked work needs it. After the hook delivers
+the route, the command
+prints a short receipt rather than duplicating the same text in the turn. If the
+command runs before hook delivery, it retains the route-text fallback.
 The receipt does not prove the model read it, or that the shell command succeeded.
 Clarification and ending a voice call remain possible while entry is pending.
 Ordinary answers without tools do not need a ledger or an entry command.
@@ -31,8 +32,10 @@ closeout evidence; later changes belong to a separate task or explicit audit.
 
 ## Ownership and continuity
 
-- Personal/non-Endix outputs use the installed `harness-run`. It selects relevant
-  specialist skills and uses the existing execution/check/review/closeout loop.
+- Personal/non-Endix outputs use relevant specialist skills directly. Substantial
+  work needing saved progress, independent review or durable closeout uses the
+  installed `harness-run` in addition. Reusable feedback can use the independent
+  `skill-feedback` skill.
 - Actual Endix outputs use the current project entry and applicable F0 procedure.
   The hook supplies source locators, not a Lighthouse stamp or permission to write.
   A missing deployment becomes a bounded handoff. Do not create a personal proxy
@@ -48,12 +51,14 @@ flowchart TD
     U[User request] --> H[UserPromptSubmit hook]
     H --> D[Host determines output owner]
     D --> G{PreToolUse delivers selected entry and records receipt}
-    G -->|Personal| P[Personal harness and specialist skills]
+    G -->|Personal| P[Short personal route]
     G -->|Endix| E[Read current Endix entry / F0]
     G -->|Mixed| M[Separate bounded outputs]
     M --> P
     M --> E
-    P --> L[Personal Linear: task and progress]
+    P --> O{Tracked work needed?}
+    O -->|No| S[Specialist skill and result check]
+    O -->|Yes| L[Personal Linear: task and progress]
     L --> C[Codex: execution, checks, independent review]
     C --> R[GitHub: code, skills, immutable revisions]
     R --> N[Notion: accepted result, knowledge and links]
@@ -72,9 +77,8 @@ read-only/local-only tasks use a reasoned scope exception.
 
 ## Enforcement limits
 
-The mechanical invariant is **entry context delivered before supported local
-tool calls in a turn observed by UserPromptSubmit** (full text or a runtime
-spill-file reference). It does not prove correct
+The mechanical invariant is **short entry context delivered before supported local
+tool calls in a turn observed by UserPromptSubmit**. It does not prove correct
 semantic classification, live project access, compliance with every later step,
 or successful Linear/Notion/GitHub delivery. The existing ledger enforces its
 artifact/check/review transitions; the host verifies required external receipts.

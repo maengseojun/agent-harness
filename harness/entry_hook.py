@@ -19,6 +19,19 @@ import time
 ROUTES = ("personal", "endix", "mixed")
 BASE = Path.home() / ".local/share/agent-harness/entry-state"
 SKILL = Path.home() / ".codex/skills/harness-run/SKILL.md"
+PERSONAL = """Personal workflow entry:
+Use the relevant specialist skill for the requested result. Apply its relevant
+checks to the actual output, note what worked and any concrete gap, and correct
+the gap. Ordinary answers and small edits need no harness ledger.
+For substantial work needing saved progress, independent review or durable
+closeout, read harness-run SKILL.md and its relevant references if installed.
+If unavailable, report that limit and continue independent permitted work.
+When observed feedback is reusable, use the separate skill-feedback skill if
+available; a one-off correction stays with its task. GitHub storage alone does
+not install or activate a skill.
+Personal work stays in personal destinations. Endix team writes require the
+current team entry and explicit authorization; this entry grants neither.
+"""
 ENDIX = """Endix project entry (read-only bootstrap, not a Lighthouse stamp):
 Read the current target project's AGENTS.md and actual entry configuration, then
 the relevant live entry/flow sources. Locators: https://linear.app/endix-labs/issue/END-462
@@ -115,7 +128,7 @@ def entry(route):
         raise ValueError("Unknown entry route")
     if route == "endix":
         return ENDIX
-    personal = SKILL.read_text()
+    personal = PERSONAL + f"Harness-run path, if installed: {SKILL}\n"
     if route == "personal":
         return "Selected PERSONAL entry.\n" + personal
     return ("Selected MIXED entry. Separate outputs and permissions by owner. "
@@ -126,7 +139,7 @@ def entry(route):
 def command_output(state, route):
     if state["route"] == route:
         return (f"Selected {route.upper()} entry (sha256 {state['entry_sha256']}). "
-                "Full entry was delivered by the PreToolUse hook; read its context "
+                "Route context was delivered by the PreToolUse hook; read its context "
                 "or spill file when needed.")
     return entry(route)  # PreToolUse did not deliver it; retain the full fallback.
 

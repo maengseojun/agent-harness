@@ -23,12 +23,15 @@ def check():
         pre["tool_input"]["command"] = hook.command(key, "personal") + "; touch injected"
         assert hook.handle(pre)["hookSpecificOutput"]["permissionDecision"] == "deny"
         pre["tool_input"]["command"] = hook.command(key, "personal")
-        assert "Selected PERSONAL" in hook.handle(pre)["hookSpecificOutput"]["additionalContext"]
+        body = hook.handle(pre)["hookSpecificOutput"]["additionalContext"]
+        assert "Selected PERSONAL" in body and "skill-feedback" in body
+        assert "Personal specialist selection" not in body and len(body) < 1200
         assert hook.read(key)["route"] == "personal"
         receipt = hook.command_output(hook.read(key), "personal")
         assert "Selected PERSONAL entry" in receipt and hook.read(key)["entry_sha256"] in receipt
+        assert "Route context" in receipt and "Full entry" not in receipt
         assert "Personal specialist selection" not in receipt and len(receipt) < 250
-        assert "Personal specialist selection" in hook.command_output({"route": None}, "personal")
+        assert "Personal specialist selection" not in hook.command_output({"route": None}, "personal")
         hook.handle(event)
         assert hook.handle({**pre, "tool_name": "mcp__notion__fetch"}) == {}
         for route in ("endix", "mixed"):
@@ -79,17 +82,14 @@ def check():
         assert sum(d.get("permissionDecision") == "deny" for d in results) == 1
         selected = hook.read(shared)["route"]
         assert choose(selected) == {}
-        # An unreadable personal skill leaves the turn locked.
+        # Ordinary personal work remains available without the optional harness.
         broken = {**event, "turn_id": "missing-skill"}
         hook.handle(broken)
         broken_key = hook.key_for(broken)
         hook.SKILL.unlink()
-        try:
-            hook.handle({**pre, "turn_id": "missing-skill", "tool_input": {"command": hook.command(broken_key, "personal")}})
-            assert False, "Missing skill accepted"
-        except OSError:
-            assert hook.read(broken_key)["route"] is None
-    print(json.dumps({"result": "pass", "cases": ["pending denial", "exact bootstrap", "shell suffix rejection", "semantic ownership contract", "prompt privacy", "retry idempotence", "turn isolation", "personal/endix/mixed", "Endix read-only context", "legacy lifecycle boundary", "invalid key", "malformed receipt rejection", "concurrent route selection", "missing skill stays locked"]}))
+        body = hook.handle({**pre, "turn_id": "missing-skill", "tool_input": {"command": hook.command(broken_key, "personal")}})["hookSpecificOutput"]["additionalContext"]
+        assert "If unavailable" in body and hook.read(broken_key)["route"] == "personal"
+    print(json.dumps({"result": "pass", "cases": ["pending denial", "exact bootstrap", "shell suffix rejection", "semantic ownership contract", "short personal entry", "prompt privacy", "retry idempotence", "turn isolation", "personal/endix/mixed", "Endix read-only context", "legacy lifecycle boundary", "invalid key", "malformed receipt rejection", "concurrent route selection", "missing optional harness allows ordinary work"]}))
 
 
 if __name__ == "__main__":
