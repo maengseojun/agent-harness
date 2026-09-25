@@ -22,6 +22,12 @@ FIXTURE = {
 }
 
 
+def preserved_metadata(path):
+    state = path.lstat()
+    # Reading a symlink can advance atime; retain all other tuple fields and ns precision.
+    return (*state[:7], state.st_mtime_ns, state.st_ctime_ns)
+
+
 class InstallTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
@@ -55,9 +61,9 @@ class InstallTests(unittest.TestCase):
         for name, data in expected.items():
             self.assertFalse((release / name).is_symlink())
             self.assertEqual((release / name).read_bytes(), data)
-        before = [path.lstat() for path in [release, *self.links()]]
+        before = [preserved_metadata(path) for path in [release, *self.links()]]
         self.assertEqual(install(self.source, self.home), release)
-        self.assertEqual([path.lstat() for path in [release, *self.links()]], before)
+        self.assertEqual([preserved_metadata(path) for path in [release, *self.links()]], before)
         other_home = self.root / 'other-home'
         self.assertEqual(install(self.source, other_home).parent.name, release.parent.name)
 
@@ -108,12 +114,12 @@ class InstallTests(unittest.TestCase):
                         (conflict / 'note').write_text('user data')
                     else:
                         conflict.symlink_to(outside if kind == 'symlink' else self.root / 'missing')
-                    before = [link.lstat() for link in links]
+                    before = [preserved_metadata(link) for link in links]
                     runner = self.source / 'harness/run.py'
                     runner.write_bytes(runner.read_bytes() + b'# changed\n')
                     with self.assertRaisesRegex(ValueError, 'Unmanaged'):
                         install(self.source, home)
-                    self.assertEqual([link.lstat() for link in links], before)
+                    self.assertEqual([preserved_metadata(link) for link in links], before)
                     self.assertEqual(links[1 - index].resolve(), old)
                     if kind == 'file':
                         self.assertEqual(conflict.read_text(), 'user data')
@@ -128,10 +134,10 @@ class InstallTests(unittest.TestCase):
         release = install(self.source, self.home)
         (release / 'scripts/ledger.py').write_text('tampered')
         (self.source / 'harness/run.py').write_text('print("upgrade")\n')
-        before = [link.lstat() for link in self.links()]
+        before = [preserved_metadata(link) for link in self.links()]
         with self.assertRaisesRegex(ValueError, 'managed release'):
             install(self.source, self.home)
-        self.assertEqual([link.lstat() for link in self.links()], before)
+        self.assertEqual([preserved_metadata(link) for link in self.links()], before)
         self.assertEqual((release / 'scripts/ledger.py').read_text(), 'tampered')
 
     def test_corrupt_unlinked_release_is_not_reused(self):
