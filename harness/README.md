@@ -15,6 +15,21 @@ New personal runs require a Notion closeout receipt before Done. The host agent
 performs the authorized connector write and readback; the runner validates saved
 evidence. No background synchronization service is installed.
 
+### Learning from actual reuse
+
+The [reuse feedback contract](NOTION-WORKSPACE.md#reuse-feedback) links the entry
+question, inspected Knowledge/source, actual use and observed result through the
+existing Run. `Last Used` and `Reuse Outcome` make that evidence findable in the
+existing Knowledge database; they do not imply user acceptance or source freshness.
+This adapts OSK's distinction between navigation and evidence and Hindsight's
+retain/recall/reflect cycle without a second store or agent runtime. A single
+reuse is a functional check, not proof of reduced cost or better general recall.
+
+Design references checked 2026-09-25: [OSK navigation and evidence](https://github.com/lpaiu-cs/osk-system/blob/bf32df027350b9dcfeafac43881d2ffd80d8e8d0/_governance/records/2026-08-29-navigation-evidence-separation.md),
+[Hindsight concepts](https://github.com/vectorize-io/hindsight/blob/ac1962e6f577339ef10a39f2c72b03306b377cbf/README.md#core-concepts),
+[Superpowers requirement/quality review](https://github.com/obra/superpowers/blob/5bf4e78011075bcfc0dc295f0724994cd123ee71/skills/subagent-driven-development/task-reviewer-prompt.md),
+and [Strands stop reasons](https://github.com/strands-agents/harness-sdk/blob/7ae759d3ad43916d373cf0f3251ac7f57e95339c/site/src/content/docs/user-guide/sdk/agents/agent-loop.mdx#stop-reasons).
+
 ## Install once for this user
 
 From the source repository:

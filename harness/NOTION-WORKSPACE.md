@@ -1,6 +1,6 @@
 # Harness Notion workspace
 
-Updated: 2026-09-24 (Asia/Seoul).
+Updated: 2026-09-25 (Asia/Seoul).
 
 The user selected this standalone private Harness page as the durable source of truth for personal managed work. Store requirements, decisions and their reasons, maintained knowledge, accepted results, evidence links and recovery context here. Personal Linear is the short-term queue, not a substitute for these records. GitHub holds executable sources and their exact versions. This standing scope authorizes relevant personal Harness records and reviewed personal harness synchronization, not unrelated external actions.
 
@@ -56,6 +56,56 @@ the review trigger fired, reconcile the same page and record what changed. A
 short-term personal Linear issue links to the canonical Notion item and the Run
 links back to the issue. Notion retains the decision and result after Linear is
 done. Do not create a parallel task queue or treat agent review as owner approval.
+
+## Reuse feedback
+
+The personal Knowledge source also has `Last Used` (date) and `Reuse Outcome`
+(`Applied`, `Revised`, `Not useful`, `Blocked`). These summarize the latest
+evaluated use, not lifetime value or approval. Existing empty values stay unknown.
+The linked Run retains the evidence and earlier outcomes; do not add a use counter
+or reconstruct past uses from page views. `Last Used` is the date of the evaluated
+attempt, including a blocked attempt; `Updated` remains the source-check date.
+Changing either reuse field never promotes `Review Status`.
+
+When a managed task actually considers a Knowledge item, record in its Run:
+
+- The question, canonical key/page and inspected source/version.
+- The outcome: Applied (used unchanged), Revised (material guidance changed),
+  Not useful (read but irrelevant or without useful effect), or Blocked (needed
+  evidence/access unavailable). An inaccessible page gets a Run-only note until
+  access returns. A search with no match records the query/scope, not a fake item.
+- What changed in the work, with a concrete artifact or decision, or explicitly
+  that no useful effect was observed. One successful reuse is not a cost/quality
+  benchmark. Distinguish source facts, run observations and inferred guidance.
+- Any conflicting evidence, limits, next use and event that requires a recheck.
+
+Update only the same Knowledge item's latest-use fields and link this Run, with
+content/property readback. If a claim changed, preserve its prior reasoning in
+the Run and update the canonical claim under the acceptance rules above. If only
+reuse metadata changed, leave `Updated` and `Review Status` alone. An unresolved
+staleness trigger sets the current claim to `Unreviewed` while preserving historical
+acceptance evidence. Related links aid navigation; cite the specific source that
+supports each material claim instead of adding evidence links to satisfy a count.
+For read-only work, report the observation without writing these fields.
+
+Two views of the existing database make the feedback visible:
+
+- **Review needed**: maintained items whose Review Status is empty/Unreviewed or
+  whose latest Reuse Outcome is Blocked. This is a knowledge filter, not a task
+  queue or exhaustive stale-source detector; body review triggers still matter.
+- **Recently used**: items with Last Used set, newest first, showing Reuse Outcome,
+  Review Status, Source and Runs. Neither recency nor frequency proves correctness.
+
+Use the existing personal Linear issue for an actionable review/reuse request.
+Keep the question, Knowledge link, concrete done condition and verified Run link
+on that issue; close it only after durable evidence is fetched. If nothing remains
+actionable, record that terminal outcome instead of manufacturing a follow-up.
+
+These are host-directed capture rules and native Notion fields/views. They do not
+install a memory service, schedule a review, capture conversations, or enforce
+retrieval automatically. Current scopes and write permissions still apply.
+
+## Delivery verification
 
 Use `In progress` during delivery and `Blocked` for a required inaccessible
 destination. Only promote a result to `Completed` after local verification,

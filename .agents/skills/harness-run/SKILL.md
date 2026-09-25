@@ -151,6 +151,10 @@ fresh design for an unchanged approved brief. Use deterministic tools for checks
 prefer Terra for routine independent review and Sol for consequential integration
 review when available. Lead acceptance never replaces the independent-agent rule.
 
+Worker handoffs include the observed stop reason and unfinished required items.
+A normal model stop is not task completion; a limit, cancellation or lost access
+preserves a checkpoint without claiming success or silently raising a budget.
+
 Before execution, require a brief grounded in actual sources: objective, scope,
 inputs, outputs, acceptance criteria, planned checks, permitted writes, and open
 decisions. Execution should not silently resolve a material design ambiguity.
@@ -214,6 +218,8 @@ for Dribbble; references do not replace the relevant design/implementation skill
    save its real output. Ask a different native verifier to inspect the request,
    artifact and evidence, not just the worker's summary. Record its actual ID,
    findings and every acceptance condition covered by the `review`.
+   In the same review, check missing, extra and misunderstood requirements before
+   judging implementation quality; a clean implementation can still miss the task.
 5. Fix concrete failures within scope using `repair` (at most three cycles).
    Re-record artifact/check/review after changes. Stop for missing authentication,
    access, conflicting requirements or genuinely missing authorization; continue
@@ -288,6 +294,14 @@ Unreviewed otherwise until the user accepts the revised claim. Leave older unkno
 unset rather than backfilling a verdict. Link a concrete next action in personal
 Linear to that Notion record and link the issue from the Run when relevant. On the
 next task, resolve those links and re-read the maintained record before acting.
+
+For knowledge actually considered in a managed task, leave a compact reuse result
+in the Run: question, canonical record and source version, applied/revised/not
+useful/blocked outcome, and the observed effect or lack of one. Separate source
+facts, this run's observations and inferred guidance; a navigation link is not
+supporting evidence. Use the Notion contract's reuse fields and views when writes
+are authorized. Do not refresh source-check dates merely because a page was read,
+or turn missing access into a claim that no relevant knowledge exists.
 
 When a maintained decision changes, update its canonical Knowledge page and link
 the Run that explains why. At task closeout, the Run must record the objective,
