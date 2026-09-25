@@ -25,6 +25,10 @@ def check():
         pre["tool_input"]["command"] = hook.command(key, "personal")
         assert "Selected PERSONAL" in hook.handle(pre)["hookSpecificOutput"]["additionalContext"]
         assert hook.read(key)["route"] == "personal"
+        receipt = hook.command_output(hook.read(key), "personal")
+        assert "Selected PERSONAL entry" in receipt and hook.read(key)["entry_sha256"] in receipt
+        assert "Personal specialist selection" not in receipt and len(receipt) < 250
+        assert "Personal specialist selection" in hook.command_output({"route": None}, "personal")
         hook.handle(event)
         assert hook.handle({**pre, "tool_name": "mcp__notion__fetch"}) == {}
         for route in ("endix", "mixed"):
@@ -37,6 +41,10 @@ def check():
             body = hook.handle(pending)["hookSpecificOutput"]["additionalContext"]
             assert "READ-ONLY" in body and "END-471" in body
             assert hook.read(other_key)["route"] == route
+            receipt = hook.command_output(hook.read(other_key), route)
+            assert hook.read(other_key)["entry_sha256"] in receipt and len(receipt) < 250
+            assert "READ-ONLY" not in receipt
+            assert "READ-ONLY" in hook.command_output({"route": None}, route)
         assert hook.handle({**pre, "turn_id": "unobserved-subagent"}) == {}
         assert "not enforced" in hook.handle({"hook_event_name": "PreToolUse"})["systemMessage"]
         try:

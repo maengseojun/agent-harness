@@ -8,7 +8,11 @@ uses the current request and settled conversation context to choose `personal`,
 receipt. `PreToolUse` denies supported local tools until the host submits the
 exact entry command. The hook reads and emits the selected instructions,
 records their hash, and releases that turn. Codex may supply a spill-file reference
-for long context; the command itself prints the full entry for the host to read.
+for long context. After the hook delivers the full entry, the command prints a
+short receipt rather than duplicating the same text in the turn. If the command
+runs before hook delivery, it retains the full-text fallback. Read the hook
+context or its spill file when the short receipt appears. This reduces duplicate
+context; it does not establish the cause of an app-server Bad Request.
 The receipt does not prove the model read it, or that the shell command succeeded.
 Clarification and ending a voice call remain possible while entry is pending.
 Ordinary answers without tools do not need a ledger or an entry command.

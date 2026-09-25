@@ -123,6 +123,14 @@ def entry(route):
             "or synchronize team state.\n" + ENDIX + "\nPersonal portion:\n" + personal)
 
 
+def command_output(state, route):
+    if state["route"] == route:
+        return (f"Selected {route.upper()} entry (sha256 {state['entry_sha256']}). "
+                "Full entry was delivered by the PreToolUse hook; read its context "
+                "or spill file when needed.")
+    return entry(route)  # PreToolUse did not deliver it; retain the full fallback.
+
+
 def output(event, **fields):
     return {"hookSpecificOutput": {"hookEventName": event, **fields}}
 
@@ -185,7 +193,7 @@ def main():
             state = read(sys.argv[2])
             if state is None or state.get("route") not in (None, sys.argv[3]):
                 raise ValueError("No matching entry event; use the current turn's entry command")
-            print(entry(sys.argv[3]))
+            print(command_output(state, sys.argv[3]))
         elif len(sys.argv) == 1:
             event = json.load(sys.stdin)
             if not isinstance(event, dict):
