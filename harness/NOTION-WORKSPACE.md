@@ -34,8 +34,28 @@ Runs schema adds `Task ID` (text), `Linear Issue`, `Codex Task`, and
 `Status` and page bodies remain intact. Use `Knowledge` for the reciprocal link
 to the relevant maintained record. Knowledge schema adds `Canonical Key` and
 `Installed Release` (text); `Source` points to the exact executable revision.
+Knowledge also has `Review Status` (`Unreviewed`, `Evidence checked`, `User accepted`).
+This is distinct from `State` (`Maintained`, `Reference`, `Historical`) and from
+a Run's completion. An agent may set `Evidence checked` only after reading the
+cited source; `User accepted` needs an explicit user decision, never an inferred
+approval. `User accepted` applies to the current material claims and version,
+not to later edits. After a material change, preserve the prior decision in its
+Run, then downgrade the current page to `Evidence checked` if the new source was
+checked or `Unreviewed` otherwise; only a new explicit decision can restore
+`User accepted`. This status is Notion metadata, not OSK's protected snapshot or
+approval ledger. Existing empty values mean unknown, not approved. For each changed
+knowledge claim, record source/version, reason, evidence, limits, intended reuse
+and a concrete review trigger in the page body; `Updated` is the checked date.
 Unknown or inapplicable references stay empty with an explanation in the body.
 Do not create a fake Linear issue merely to fill a field.
+
+At entry, look up the relevant canonical key and linked Runs, or search by topic
+or title and inspect candidate pages when the key is unknown; then fetch the
+source before applying a rule or resuming an issue. If the source has changed or
+the review trigger fired, reconcile the same page and record what changed. A
+short-term personal Linear issue links to the canonical Notion item and the Run
+links back to the issue. Notion retains the decision and result after Linear is
+done. Do not create a parallel task queue or treat agent review as owner approval.
 
 Use `In progress` during delivery and `Blocked` for a required inaccessible
 destination. Only promote a result to `Completed` after local verification,

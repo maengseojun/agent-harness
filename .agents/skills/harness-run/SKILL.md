@@ -271,6 +271,24 @@ Search by stable Task ID or Canonical Key before creating a page; retain page ID
 on retries. Save the intended summary and actual fetched page body separately.
 Never fill a readback file from the intended draft or a write acknowledgement.
 
+Before planning from saved knowledge, search by canonical key when known; otherwise
+search Notion Knowledge by topic or title, inspect candidates and resolve their
+canonical keys. Retrieve the relevant Knowledge
+record, its source and linked Run; check its Review Status, source version,
+Updated date and any review trigger in the body. Treat a missing or stale source
+as a reason to recheck, not as accepted guidance. Distinguish an agent's evidence
+check from the user's explicit acceptance; a completed Run never grants the
+latter. At a material decision, update the same Knowledge record with the claim,
+reason, source/version, evidence, limits, next use and review trigger. Set Review
+Status to Evidence checked only after checking the cited source; set User accepted
+only when the user's actual decision is evidenced for the current material claim
+and version. A material edit invalidates that acceptance: retain its historical
+evidence, then set the current page to Evidence checked after source recheck or
+Unreviewed otherwise until the user accepts the revised claim. Leave older unknown records
+unset rather than backfilling a verdict. Link a concrete next action in personal
+Linear to that Notion record and link the issue from the Run when relevant. On the
+next task, resolve those links and re-read the maintained record before acting.
+
 When a maintained decision changes, update its canonical Knowledge page and link
 the Run that explains why. At task closeout, the Run must record the objective,
 key decisions, result, validation, limits and next action; link real Codex/Linear
