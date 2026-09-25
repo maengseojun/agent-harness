@@ -134,10 +134,22 @@ existing authorization; do not silently change the frozen route.
 
 ## Choose models by phase
 
-For projects and ambiguous requirements, prefer **Astra for design**, **Luna for
-bounded execution**, **Terra for routine verification**, and **Sol for complex
-integration or consequential review**. Skip a fresh design phase for an unchanged,
-previously specified routine task. These are preferred roles, not proven savings.
+Use the user's adopted **upper-model lead → Luna Max execution** policy. The
+current upper-capability model (prefer Astra when selecting a lead) owns design,
+material decisions, decomposition, integration and final acceptance. Keep that
+lead in charge; do not spawn a second orchestrator just to delegate.
+
+Delegate well-specified execution to **`gpt-6-luna` with reasoning effort `max`**
+when the active host supports that exact selection. Provide a compact brief and
+relevant files rather than the full conversation; use an isolated context when
+the tool supports it. Parallelize only independent work with disjoint write
+scopes. Workers escalate material decisions or plan changes to the lead, preserve
+others' edits, and do not spawn further agents. Require results, changed paths or
+evidence, checks and unresolved issues; inspect the actual artifacts on return.
+Keep trivial, tightly coupled or open-ended judgment work with the lead. Skip
+fresh design for an unchanged approved brief. Use deterministic tools for checks;
+prefer Terra for routine independent review and Sol for consequential integration
+review when available. Lead acceptance never replaces the independent-agent rule.
 
 Before execution, require a brief grounded in actual sources: objective, scope,
 inputs, outputs, acceptance criteria, planned checks, permitted writes, and open
@@ -158,14 +170,19 @@ ledger do not switch models. Check the available model IDs, reasoning settings,
 tools and authorization on that host before dispatch. A requested routing policy
 does not grant billing, credential, publication or deployment permissions. Do not
 silently substitute a model, launch a paid API route, or change global defaults.
-If the preferred model cannot be selected, state the limitation and follow the
-host's permitted fallback; do not claim the preferred route ran.
+If Luna Max cannot be selected, report the exact host limitation. The lead may
+continue permitted work directly while recording that fallback; do not silently
+delegate to another model or claim Luna execution. Do not change a provider or
+global default to evade the host's limits. Adoption is not proof of model access
+or measured savings.
 
 Record requested and actual model, selection reason, role, real agent/run ID,
 artifact/check references, retries, elapsed time and usage when exposed. Mark
 unavailable usage or billing information unknown. Compare total effort to accepted
 completion, not per-call price. See the bundled CLI guide's **Design-first model
-routing** section for the full operating policy and representative cases.
+routing** section for the full operating policy and representative cases. For UI
+work needing visual references, consult its **UI reference selection** section
+for Dribbble; references do not replace the relevant design/implementation skill.
 
 ## Execute and recover
 

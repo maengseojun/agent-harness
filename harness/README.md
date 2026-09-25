@@ -55,7 +55,8 @@ files; this installation does not synchronize local SQLite or credentials.
 
 ## Design-first model routing
 
-Status: user-selected operating policy, recorded on 2026-09-22. The host follows
+Status: user-adopted upper-model lead / Luna Max policy, updated on 2026-09-25.
+The host follows
 this policy when its available tools and permissions allow model selection. The
 Python ledger does not dispatch models. Its `route` command freezes skills; it is
 not a model router. This update does not implement automatic model switching or
@@ -63,10 +64,13 @@ establish a measured cost or quality advantage.
 
 ### Preferred phase assignments
 
-- Design: GPT-6 Astra (`gpt-6-astra`). Interpret requirements, inspect the existing
-  system, resolve material ambiguity, divide work and define acceptance checks.
-- Execution: GPT-5.6 Luna (`gpt-5.6-luna`). Execute bounded, well-specified work,
-  including collection, transformation, drafting and scoped implementation.
+- Lead: the current upper-capability model, preferably GPT-6 Astra (`gpt-6-astra`)
+  when selecting a lead. Own design, material decisions, decomposition,
+  integration and final acceptance; do not create a second orchestrator.
+- Execution: GPT-6 Luna (`gpt-6-luna`), reasoning effort `max`. Explicitly select
+  it for bounded, well-specified collection, transformation, drafting and scoped
+  implementation when supported by the active dispatch tool. This is the default
+  delegation rule, not a claim that every host offers this model.
 - Routine verification: GPT-5.6 Terra (`gpt-5.6-terra`). Compare artifacts with the
   original requirements, execute relevant checks and investigate simple failures.
 - Complex verification: GPT-5.6 Sol (`gpt-5.6-sol`). Review integration behavior,
@@ -74,8 +78,15 @@ establish a measured cost or quality advantage.
 - Design revision: return to Astra when evidence exposes a requirement conflict
   or architectural defect. Do not repeat the entire project for a local defect.
 
-For an unchanged, previously specified routine task, start with Luna and the
-existing acceptance checks. A small format conversion does not need four agents.
+For an unchanged approved brief, delegate to Luna Max without another design
+phase. Keep trivial, tightly coupled and open-ended judgment work with the lead.
+Parallel workers need independent tasks and disjoint write scopes. Workers must
+preserve others' edits, escalate material decisions and plan changes, and must
+not spawn further agents. Return result, changed paths/evidence, checks and open
+issues. The lead inspects actual artifacts and diagnoses failures before retrying.
+Use compact briefs and referenced files; request isolated context when supported
+instead of assuming a full-history fork will select the intended worker model.
+A small format conversion does not need four agents.
 Deterministic comparison, arithmetic, hashes and tests should use existing code
 or tools; models choose and interpret checks rather than replace execution.
 Important tasks may need a specialist review regardless of the chosen model.
@@ -112,8 +123,12 @@ Use only a host-supported model-selection mechanism, such as an authorized Codex
 execution with an explicit model or an available native agent tool. Verify exact
 model IDs, allowed reasoning effort, tool access and current authorization first.
 Availability may differ between the desktop app, CLI, native subagents and Work.
-If a requested model is unavailable, report it and use only a permitted fallback;
-do not silently relabel an inherited model as Luna, Terra, Sol or Astra.
+If Luna Max is unavailable in the active dispatch tool, disclose that limitation.
+The lead may continue authorized work directly and record the fallback; do not
+silently delegate to another model or label that work as Luna execution. A model
+listed in another surface is not proof it can be selected by this dispatch tool.
+For review roles, report unavailable preferences and use a permitted independent
+reviewer. A lead's final acceptance does not replace independent review.
 
 This policy does not change global model settings, create scheduled jobs, enable
 new billing routes, forward credentials, or authorize external publication. A
@@ -142,8 +157,9 @@ and a successful mixed-model run are separate claims from a performance benchmar
 5. Conflicting requirements or an unsafe architectural assumption: return to Astra;
    do not ask Luna to invent a new design to make a test pass.
 6. Login or network failure: report/reconcile the environment, without model escalation.
-7. Luna absent from the selected host: disclose the capability gap; do not claim
-   this preferred route executed or bypass host restrictions with another provider.
+7. Luna absent from the selected host: disclose the capability gap, keep permitted
+   work with the lead and record the fallback; do not claim Luna execution or
+   bypass host restrictions with another provider.
 
 ### Maintenance and evidence
 
@@ -156,9 +172,22 @@ Source of the phase preference: the user's design-first proposal in this task.
 Platform references: [Models](https://learn.chatgpt.com/docs/models) and
 [Advanced configuration](https://learn.chatgpt.com/docs/config-file/config-advanced).
 These document model selection and configuration, not the effectiveness of this
-particular workflow. Change recorded: 2026-09-22, initial design-first policy.
+particular workflow. Change recorded: 2026-09-22, initial design-first policy;
+2026-09-25, adopted upper-model lead and Luna Max execution at the user's request,
+informed by [Baton](https://github.com/w00ing/skills/blob/4acf4c45cab7876fa63e4f8ae046bc95abf6bbc6/baton/SKILL.md).
 Mixed-model execution and comparative efficiency benchmarks remain untested by
 this documentation update.
+
+## UI reference selection
+
+For UI work needing a visual direction, use [Dribbble](https://dribbble.com/) to
+find relevant dashboard, landing-page, mobile-app or portfolio examples. Start
+with the audience and task, select a few examples, and save each source URL,
+author and useful pattern in the task's Notion record. Explain which patterns
+fit the actual content before implementing an original design. Treat imagery as
+reference, not automatically reusable assets. Verify accessibility, responsive
+behavior and loading/error states in the implementation; a shot proves none of
+these. Use the relevant specialist skill rather than a new generic UI wrapper.
 
 ## Start, inspect, resume
 
