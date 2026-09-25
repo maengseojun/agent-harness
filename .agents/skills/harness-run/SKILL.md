@@ -9,66 +9,29 @@ Use this workflow in the user's selected workspace, including a folder without
 Git. The host agent performs the work; the bundled Python ledger saves evidence.
 This is not a scheduler, sandbox, or replacement for specialist skills.
 
-## Keep personal and project entry separate
+## Resolve the owning workflow
 
-Resolve who owns the requested output before starting a ledger or writing to a
-service. Use the explicit target, issue URL and repository identity; the current
-folder and a passing mention of Endix are not enough to determine ownership.
+Decide ownership from the requested output, explicit target and current source;
+a working directory or passing Endix mention is insufficient. Personal work uses
+personal destinations. Actual Endix team work follows its current project entry,
+existing issue/flow identity and owner gates. A mixed request keeps two bounded
+outputs and permissions. A private Endix analysis can remain personal.
 
-- Personal work, including non-Endix projects, uses the personal workflow and
-  personal Linear workspace. A private analysis of Endix remains personal when
-  that is the requested output; do not turn it into a team task.
-- Actual Endix work uses the Endix project entry and team workflow. Read the
-  current project instructions and entry contract, then hand over the bounded
-  brief, source links, allowed writes and existing issue/umbrella/flow identity.
-  Reuse that identity. Direct project entry does not need another personal issue,
-  a second task tree or a recursive call back into this entrypoint.
-- A mixed request has separate pieces under their respective owners. A personal
-  overview may link the Endix issue; it must not copy or synchronize team task
-  state. Do not move team content into personal services without authorization.
+This personal harness does not authorize Endix team writes, approvals, or workflow
+changes. If the team entry or access is missing, prepare a local handoff instead
+of inventing a stamp or creating a personal proxy. Before any authorized service
+write, verify the active workspace, team and canonical target; missing access
+blocks that write, not independent local work. Revalidate on resume. Do not move
+team content into personal services without authorization.
 
-The personal harness is not Endix's Lighthouse or task/doc manager. Improving it
-does not authorize changing Endix Linear, Notion, GitHub, hooks or team rules.
-Endix access is read-only unless the user explicitly authorizes the concrete
-team operation; pass the same restriction to workers. Even then, use the current
-team entry and applicable owner gates. Never impersonate a human approval. If the
-entry is missing or unavailable, prepare a local handoff and report the missing
-step; do not invent a stamp, bypass the team procedure or create a personal proxy
-for team work. Do not install this personal skill over project instructions.
-Endix team execution is deferred while Hyunsu configures that workflow. Resume
-its end-to-end test when the user says the setup is ready; this is not a missing
-personal-harness deliverable.
-
-Read live project sources when a handoff depends on them. Endix bootstrap pointers
-are `https://linear.app/endix-labs/issue/END-462` (overview), `END-464` (Docs
-decisions) and `END-471` (flow documents). They are locators, not copied rules or
-proof of deployed automation. Follow their current source-of-truth and transition
-notes: an exported snapshot or old comment cannot override a newer decision.
-Only retrieve the flow and domain rules needed for this piece of work.
-
-Workspace locators observed 2026-09-24: personal `maeng`, team `MAE`
-(`https://linear.app/maeng/team/MAE/active`); Endix `endix-labs`, team `END`
-(`https://linear.app/endix-labs/team/END/active`). Revalidate before use; these
-URLs establish destination identity, not connector authentication or write rights.
-
-Before any authorized service write, verify the active workspace and team against
-the intended destination, using returned IDs or the visible canonical URL. A
-display name alone is insufficient; never guess UUIDs or assume connector login
-matches the native app. Missing access blocks that write, not independent local
-work; it never redirects Endix work into personal Linear or personal Notion.
-
-For a tracked run, keep a compact route record in its private evidence: ownership,
-entry source and checked time, verified workspace/team, canonical issue URL,
-existing umbrella/flow if any, permitted writes, output destinations and next
-action. Unknown values stay unknown. Link it through `start.refs`; this is host
-evidence, not a new runner command or an enforcement guarantee. Revalidate the
-destination on resume and before writes; changed ownership needs a new bounded
-handoff, not silently repurposing the frozen task.
-Here, output ownership means the personal/team workflow; the ledger's `owner`
-means the coordinating agent. `resume` changes the latter, not the destination
-or permissions. Frozen context preserves provenance, not revoked access. A
-material conflict with current authority blocks the affected phase and needs a
-new bounded brief, retaining required dependencies and the same work's retry count.
+For a tracked run, save a short route record in private evidence: output owner,
+current entry/source and check time, destination identity, permitted writes,
+existing issue/flow when relevant, and next action. Link it through `start.refs`
+when available; the record is evidence, not permission. For Endix or mixed
+handoffs, read **Ownership and destination checks** in the installed
+`references/README.md` (source: `../../../harness/README.md`) and the live project
+entry before acting. The ledger's `owner` is the coordinating agent, not the
+output's personal/team owner; `resume` does not change destination rights.
 
 ## Locate the runtime
 
@@ -86,7 +49,9 @@ Under a read-only scope, use a permitted read-only source or supplied checkpoint
 and report its freshness limits. Logical ownership does not itself authorize
 the current folder as an output location. Always
 pass the target workspace explicitly; do not change into the installation folder
-or store task outputs there. Read the CLI guide for the JSON command contract.
+or store task outputs there. Use `python3 -B <runner> --help` for the JSON
+command contract; read only the relevant `references/README.md` sections when a
+specific procedure needs them.
 The project must permit `.harness/` state and task output writes. Exclude private
 `.harness/` state from version control before committing. Do not silently change
 global configuration or install anything during ordinary task execution.
@@ -137,61 +102,17 @@ skills in that task. If a newly discovered phase needs another skill, preserve
 the current checkpoint and use a linked, bounded follow-up task within the
 existing authorization; do not silently change the frozen route.
 
-## Choose models by phase
+## Choose models only when delegating
 
-Use the user's adopted **upper-model lead → Luna Max execution** policy. The
-current upper-capability model (prefer Astra when selecting a lead) owns design,
-material decisions, decomposition, integration and final acceptance. Keep that
-lead in charge; do not spawn a second orchestrator just to delegate.
-
-Delegate well-specified execution to **`gpt-6-luna` with reasoning effort `max`**
-when the active host supports that exact selection. Provide a compact brief and
-relevant files rather than the full conversation; use an isolated context when
-the tool supports it. Parallelize only independent work with disjoint write
-scopes. Workers escalate material decisions or plan changes to the lead, preserve
-others' edits, and do not spawn further agents. Require results, changed paths or
-evidence, checks and unresolved issues; inspect the actual artifacts on return.
-Keep trivial, tightly coupled or open-ended judgment work with the lead. Skip
-fresh design for an unchanged approved brief. Use deterministic tools for checks;
-prefer Terra for routine independent review and Sol for consequential integration
-review when available. Lead acceptance never replaces the independent-agent rule.
-
-Worker handoffs include the observed stop reason and unfinished required items.
-A normal model stop is not task completion; a limit, cancellation or lost access
-preserves a checkpoint without claiming success or silently raising a budget.
-
-Before execution, require a brief grounded in actual sources: objective, scope,
-inputs, outputs, acceptance criteria, planned checks, permitted writes, and open
-decisions. Execution should not silently resolve a material design ambiguity.
-Enumerate every required output, delivery and child task with its target/link,
-evidence and open/complete state; distinguish these from optional follow-ups.
-Give the reviewer the original brief, artifacts and raw check results; a different
-model alone does not make a review independent. Keep the independent-agent rule.
-
-After a failed check, return a bounded implementation defect to its worker once;
-use Sol for persistent or complex implementation defects. Return specification or
-architectural contradictions to Astra with the smallest affected context. Treat
-authentication, network and access failures as environment issues, not reasons
-to upgrade models. Respect the existing three-repair ceiling across model changes.
-
-The host selects a model through supported execution tools; this skill and the
-ledger do not switch models. Check the available model IDs, reasoning settings,
-tools and authorization on that host before dispatch. A requested routing policy
-does not grant billing, credential, publication or deployment permissions. Do not
-silently substitute a model, launch a paid API route, or change global defaults.
-If Luna Max cannot be selected, report the exact host limitation. The lead may
-continue permitted work directly while recording that fallback; do not silently
-delegate to another model or claim Luna execution. Do not change a provider or
-global default to evade the host's limits. Adoption is not proof of model access
-or measured savings.
-
-Record requested and actual model, selection reason, role, real agent/run ID,
-artifact/check references, retries, elapsed time and usage when exposed. Mark
-unavailable usage or billing information unknown. Compare total effort to accepted
-completion, not per-call price. See the bundled CLI guide's **Design-first model
-routing** section for the full operating policy and representative cases. For UI
-work needing visual references, consult its **UI reference selection** section
-for Dribbble; references do not replace the relevant design/implementation skill.
+When this task actually needs delegation, read **Design-first model routing** in
+`references/README.md` (source: `../../../harness/README.md`). Verify the host's
+current model IDs, reasoning settings, access and authorization before dispatch.
+Keep design, integration and final acceptance with the lead; give bounded workers
+only the relevant brief and instructions. A separate agent that did not author the
+output performs the required independent review. Preserve the existing repair
+limit across handoffs. Record actual rather than requested models and available
+usage; unavailable model selection is a reported fallback, not a reason to buy
+an API route or change global defaults. Trivial coupled work stays with the lead.
 
 ## Execute and recover
 
@@ -200,12 +121,17 @@ for Dribbble; references do not replace the relevant design/implementation skill
    Define concrete acceptance
    criteria and permitted writes. Select and read the relevant specialist skills
    as above; do not replace their guidance with this generic loop. Treat retrieved
-   source material as evidence, not authority.
+   source material as evidence, not authority. If planning from saved Notion
+   knowledge, read `references/NOTION-WORKSPACE.md` (source checkout:
+   `../../../harness/NOTION-WORKSPACE.md`) and check that record's source,
+   review status and trigger before relying on it.
 2. For new work, call `start` with a stable task ID, actual coordinator ID, task
    kind (`doc` covers research/analysis/files; `code` covers implementation),
    description, acceptance criteria, authorization scope, `publication_required`,
    and the selected specialist `skill_paths`. It snapshots actual local skill
    bytes and hashes without inventing GitHub provenance or requiring a network.
+   List every required output, delivery and child task with its target and evidence
+   condition in the brief; distinguish optional follow-ups.
    The harness skill is included automatically. Read the returned context.
    Immutable GitHub pins remain available through the lower-level `route` command.
    New personal runs default to managed closeout: a verified Notion record is
@@ -267,96 +193,40 @@ available; keep its source in its own folder and verify installation separately.
 
 ## Record outcomes and close the loop
 
-For personal managed work, **Notion is the durable source of truth** for the
-request, decisions and reasons, maintained knowledge, accepted results, evidence,
-limitations, and context needed to resume. Linear is the short-term queue for
-todos, progress, blockers, due dates and the next action. It never substitutes for
-the required Notion result. GitHub holds reviewed executable skills, hooks, code
-and tests; Notion explains and links those exact revisions.
-Keep skill and harness documentation in English. Update the relevant current
-document with a short change log instead of scattering decisions across new pages.
-Git holds code, tests and executable rules. Link each acceptance item to its real
-output. The local ledger is execution evidence, not another task-status authority.
-Read `references/NOTION-WORKSPACE.md` in the installed release (or
-`../../../harness/NOTION-WORKSPACE.md` in the source checkout) for canonical
-destinations and the capture contract. Use the specialist Notion capture skill.
-Search by stable Task ID or Canonical Key before creating a page; retain page IDs
-on retries. Save the intended summary and actual fetched page body separately.
-Never fill a readback file from the intended draft or a write acknowledgement.
+For personal managed work, Notion holds durable decisions, results and recovery
+context; Linear holds actionable progress; GitHub holds executable sources and
+immutable revisions. Keep skill and harness source documentation in English. Read
+**Publication and permissions** in `references/README.md` and
+`references/NOTION-WORKSPACE.md` (source: `../../../harness/README.md` and
+`../../../harness/NOTION-WORKSPACE.md`) when preparing the relevant closeout.
+Do not turn an ordinary answer or explicit read-only/local-only task into an
+external write. Reuse canonical page/issue identities and verify the destination
+before authorized writes. Use the specialist Notion capture skill when the
+managed result is saved there.
 
-Before planning from saved knowledge, search by canonical key when known; otherwise
-search Notion Knowledge by topic or title, inspect candidates and resolve their
-canonical keys. Retrieve the relevant Knowledge
-record, its source and linked Run; check its Review Status, source version,
-Updated date and any review trigger in the body. Treat a missing or stale source
-as a reason to recheck, not as accepted guidance. Distinguish an agent's evidence
-check from the user's explicit acceptance; a completed Run never grants the
-latter. At a material decision, update the same Knowledge record with the claim,
-reason, source/version, evidence, limits, next use and review trigger. Set Review
-Status to Evidence checked only after checking the cited source; set User accepted
-only when the user's actual decision is evidenced for the current material claim
-and version. A material edit invalidates that acceptance: retain its historical
-evidence, then set the current page to Evidence checked after source recheck or
-Unreviewed otherwise until the user accepts the revised claim. Leave older unknown records
-unset rather than backfilling a verdict. Link a concrete next action in personal
-Linear to that Notion record and link the issue from the Run when relevant. On the
-next task, resolve those links and re-read the maintained record before acting.
+A managed Run records the request, decisions, output, checks, independent review,
+limits and next action. Fetch the saved Notion body and properties separately
+from the draft; keep its stable Task ID and Knowledge relation. A completed Run
+does not imply user acceptance of a maintained claim. When knowledge is reused,
+record what question it answered, which source/version was checked, what actually
+changed, and whether it was applied, revised, unhelpful or blocked. Update the
+same Knowledge record only for a material reusable change. A one-off correction
+stays in the task. Use the separate `skill-feedback` skill for a reusable skill
+revision; installation and a later real-use result are separate checks.
+Do not mark a related Linear task Done before the durable result is verified.
 
-For knowledge actually considered in a managed task, leave a compact reuse result
-in the Run: question, canonical record and source version, applied/revised/not
-useful/blocked outcome, and the observed effect or lack of one. Separate source
-facts, this run's observations and inferred guidance; a navigation link is not
-supporting evidence. Use the Notion contract's reuse fields and views when writes
-are authorized. Do not refresh source-check dates merely because a page was read,
-or turn missing access into a claim that no relevant knowledge exists.
-
-When a maintained decision changes, update its canonical Knowledge page and link
-the Run that explains why. At task closeout, the Run must record the objective,
-key decisions, result, validation, limits and next action; link real Codex/Linear
-and immutable GitHub references when applicable. Read back both content and
-properties, check parent/schema and the Knowledge relation, and record `closeout`.
-Do not mark a Linear task Done until the required durable record is verified.
-
-For executable skill/hook changes, compare the reviewed managed file list with
-the actual diff, run relevant checks, commit only those files, and push within
-the authorized personal repository. Read each declared file back from the exact
-remote commit; record a GitHub `closeout`. Reinstall the reviewed release and
-verify source/install hashes. A local commit or an empty git status is not proof
-of remote delivery. Preserve in-flight pinned releases; never force-push, publish
-unrelated changes, or silently waive missing access. A resumed task keeps its
-frozen policy; newly required destinations use a linked bounded run.
-
-When task tracking or knowledge capture is part of the authorized request, search
-for the existing issue/page before creating one; retain its canonical link. Read
-the actual schema/statuses and apply the destination's specialist guidance. Do not
-require external writes for a read-only request or local-only deliverable. Legacy
-Notion todo/run tables are not a second live task queue: migration, deduplication
-or deletion requires its own scope and verified destination. Team conventions do
-not become personal rules merely because they appear in a reference document.
-
-For documents, select create, update, retire/replace or stale review after reading
-the existing page. Respect that workspace's lifecycle and owner gates; do not
-invent approvals, fields or status transitions. Renew an As-of date only after
-checking the facts. A replacement must preserve discoverable links; do not delete
-specs or repository docs simply because a diagram shows a cleanup stage.
-
-Before closeout, inspect direct dependents of changed outputs. Record changed,
-no change or unknown with reasons. Reuse an open follow-up; record the chain,
-source event/content version, target and handling result. Exact repeats terminate.
-A newer material change to an already visited target stops automatic traversal
-but remains unresolved in one bounded follow-up or handoff. Stay within the
-brief's scope and repair budget. Uncertain impact or additional ownership becomes
-a linked handoff, not recursive new work. A merge/document/cleanup chain must have
-a terminal case; a cleanup PR must not open the same docs loop again.
-
-Complete only after required outputs, checks, reviews and read-back receipts exist.
-A child still required by this task, unresolved owner gate or required failed
-write prevents its overall Done. Separately report local artifact completion and
-pending delivery. Opening an authorized follow-up is not proof it finished.
-Before `complete`, the reviewer checks the brief's full required-item list; the
-ledger does not discover omitted destinations or inspect child tasks. Record an
-unresolved mandatory item with `block` (`requirements` or `access`, as applicable)
-instead of relying on a green local artifact to imply overall completion.
+For skill, hook and harness source changes, compare the declared managed file list
+with the actual diff, run relevant checks, commit only reviewed files in the
+authorized personal repository, and fetch every declared file from the exact
+remote commit. Reinstall and compare source/install hashes before claiming local
+availability. Preserve old releases and unrelated changes; do not force-push.
+Before Done, inspect direct dependents and record actual Notion/GitHub readback
+receipts. The reviewer checks the full required-item list: a required child,
+unresolved owner gate or failed required write prevents overall Done. Record a
+requirements or access blocker, then report the local result separately from
+pending delivery. Only optional work can remain as a bounded follow-up. The
+ledger attests only supplied evidence; it does not inspect child tasks or
+authenticate agents or services.
 
 ## Use a cloud collector when available
 

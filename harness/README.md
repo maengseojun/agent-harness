@@ -14,6 +14,8 @@ this repository does not update an installed copy. The separate
 `skills/skill-feedback/SKILL.md` skill turns observed,
 reusable task feedback into a focused skill revision. It can be used without
 `harness-run`; the harness remains an optional coordinator for substantial work.
+The [personal skill catalog](https://github.com/maengseojun/agent-harness/blob/feat/harness-v1/skills/README.md) lists the independent skills
+currently stored here and how to install a selected skill from a reviewed commit.
 
 For ordinary work, select the relevant specialist skill directly, complete the
 request and apply its relevant checks to the actual result. Record what worked
@@ -32,6 +34,36 @@ draft is not an installation or publication source. Create a separate repository
 only when a skill needs distinct access, licensing or release ownership.
 Existing skills can have another canonical path: `harness-run` is sourced from
 `.agents/skills/harness-run/SKILL.md` and packaged by `harness/install.py`.
+
+## Ownership and destination checks
+
+Resolve the owner from the requested output, explicit target, issue and live
+project entry. A folder name or Endix mention does not decide ownership. Personal
+work uses the personal workflow; actual Endix work follows the current project
+entry and reuses its existing issue, umbrella and flow identity. Mixed work keeps
+separate outputs, destinations and permissions. A private analysis about Endix
+can remain personal. This personal harness cannot stand in for Endix's team
+workflow, approve a gate, or change Endix services. When its entry or access is
+missing, make a bounded read-only handoff.
+
+Endix bootstrap locators last checked 2026-09-24: [END-462](https://linear.app/endix-labs/issue/END-462)
+(overview), END-464 (Docs decisions) and END-471 (flows). They are locators, not
+copies of current instructions or proof that automation is deployed. Read only
+the live flow and domain sources this handoff needs. The observed personal
+Linear team was `maeng` / `MAE`, and Endix was `endix-labs` / `END`; revalidate
+the active workspace, team and canonical target before every authorized write.
+Do not infer access or permission from a display name or a saved URL. Missing
+access blocks that write; it never redirects a team result into personal Notion
+or Linear. Do not send team messages or impersonate a human approval.
+
+For a tracked run, keep a private route record with source/check time,
+destination and existing issue/flow, permitted writes and next action. Unknowns
+stay unknown. `start.refs` can link this evidence; it is not a gate or a new
+runner command. Recheck on resume. The ledger's `owner` denotes its coordinating
+agent, not the personal/team output owner. A material change in destination or
+authority needs a new bounded handoff rather than silently repurposing the frozen
+task. The [entry hook](https://github.com/maengseojun/agent-harness/blob/feat/harness-v1/harness/ENTRY-HOOK.md) explains the configured local routing and
+its limits.
 
 ## Notion workspace
 
@@ -334,6 +366,12 @@ coordinator ID. These commands require only `task_id` and `owner`. A ledger paus
 does not interrupt native agents. Retain the prior output's absolute `runtime`
 path when resuming after an installation upgrade. A stopped host does not keep
 this workflow running.
+
+`list` checks whether tracked source files are still current. A historical Run
+that was saved Done may display `repair-required` after later edits to those
+sources. Inspect its saved completion and remote receipts before treating it as
+unfinished work; a new revision belongs in a new task. The Stop reminder excludes
+stored completed Runs rather than reopening them on later source changes.
 
 One task tracks one primary artifact file. Split independently mutable outputs
 into separate tasks. A hash of a manifest alone does not monitor its children.

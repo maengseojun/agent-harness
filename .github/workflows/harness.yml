@@ -4,11 +4,13 @@ on:
   push:
     paths:
       - '.agents/skills/harness-run/**'
+      - 'skills/**'
       - 'harness/**'
       - '.github/workflows/harness.yml'
   pull_request:
     paths:
       - '.agents/skills/harness-run/**'
+      - 'skills/**'
       - 'harness/**'
       - '.github/workflows/harness.yml'
   workflow_dispatch:
