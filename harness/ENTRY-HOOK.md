@@ -129,3 +129,14 @@ They are not a task queue. Retention is manual; removing old receipts does not
 delete task artifacts, and active-turn receipts must be preserved.
 
 Primary platform reference: [Codex hooks](https://learn.chatgpt.com/docs/hooks).
+
+
+## Runtime gates after entry
+
+The selected personal entry leads to the installed harness-run skill. New tracked
+runs configure four cooperative runner gates: `before-write`, `after-write`,
+`before-delegate`, and the automatic `complete` gate. See **Four runtime hooks**
+in `README.md`. The host calls the first three at the real service/delegation
+boundaries, forwards contracts and supplies actual fetched evidence. They are
+not additional global Codex handlers; local entry selection alone does not prove
+these gates ran. Existing global hook registration and trust remain unchanged.

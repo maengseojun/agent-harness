@@ -6,6 +6,17 @@ Every request has task_id; mutations also have owner (except create). Commands:
           publication_required(bool), refs[str] (optional), closeout (optional)
           closeout={mode:managed,github_paths:[repo-relative paths]} or
           {mode:local-only|read-only,reason:text}; omitted keeps legacy behavior
+  configure-hooks: output_owner(personal|endix|mixed), destinations[objects],
+                   write_paths[absolute paths], requirements[{id,kind:evidence|child,target}]
+  before-write: operation_id, destination_id, workspace, target, operation,
+                payload_path, payload_sha256, authorization_ref
+  after-write: operation_id, attempt, workspace, target,
+               outcome(verified|absent|uncertain|conflict), evidence_path;
+               readback_path required only for verified
+  before-delegate: delegation_id, role(worker|reviewer), description,
+                   acceptance[str], write_paths[absolute paths], refs[str]
+  after-delegate: delegation_id, agent_id, outcome(finished|blocked), evidence_path
+  requirement: requirement_id, evidence_path, agent_id (independent verifier)
   claim / status / context / pause / resume / complete: no additional fields
   route: skills[{name, path, sha256, source:"local"}] or immutable GitHub pins
          {name, path, sha256, repository(owner/repo), commit, source_path, url}
@@ -188,13 +199,19 @@ FIELDS = {
     "publication-error": ("publication_id kind reason_ref", ""),
     "receipt": ("publication_id target artifact_sha256 readback_path receipt_ref", ""),
     "closeout": ("service receipt_ref", "target summary_path readback_path repository commit files"),
+    "configure-hooks": ("output_owner destinations write_paths requirements", ""),
+    "before-write": ("operation_id destination_id workspace target operation payload_path payload_sha256 authorization_ref", ""),
+    "after-write": ("operation_id attempt workspace target outcome evidence_path", "readback_path"),
+    "before-delegate": ("delegation_id role description acceptance write_paths refs", ""),
+    "after-delegate": ("delegation_id agent_id outcome evidence_path", ""),
+    "requirement": ("requirement_id evidence_path agent_id", ""),
 }
 
 NEXT_ACTION = {
     "created": "claim", "routing": "route", "working": "artifact", "verifying": "check",
     "review-ready": "review", "repair-required": "repair", "blocked": "resolve-blocker",
     "awaiting-approval": "approve-publication", "publishing": "publish-or-reconcile",
-    "awaiting-closeout": "closeout", "ready-to-complete": "complete", "done": "none", "paused": "resume",
+    "awaiting-requirements": "resolve-requirements", "awaiting-closeout": "closeout", "ready-to-complete": "complete", "done": "none", "paused": "resume",
 }
 
 
@@ -278,6 +295,8 @@ class Ledger:
             return "publishing"
         if self.closeout_missing():
             return "awaiting-closeout"
+        if self.requirements_missing():
+            return "blocked" if t["blocker"] else "awaiting-requirements"
         return "done" if t["completion_requested"] else "ready-to-complete"
 
     def closeout_missing(self):
@@ -322,7 +341,7 @@ class Ledger:
             t["work_status"] = "repair-required"
             t["completion_requested"] = False
         if t["review"] and (not self.work_current(t["review"]["evidence"])
-                            or t["review"]["agent_id"] in t["owners"]):
+                            or t["review"]["agent_id"] in t["owners"] + t["workers"]):
             t["review"] = None
             t["work_status"] = "repair-required"
             t["completion_requested"] = False
@@ -360,6 +379,8 @@ class Ledger:
         result["skills"] = [{k: v for k, v in pin.items() if k != "text"} for pin in result["skills"]]
         # A status read is non-mutating but reports the current effective next action.
         result["next_action"] = NEXT_ACTION[result["stage"]]
+        if hasattr(self, "hook_result"):
+            result["hook"] = self.hook_result
         return result
 
     def dispatch(self, action, data):
@@ -378,6 +399,7 @@ class Ledger:
                         or (action == "resume" and self.task["paused"])
                         or owner == data["owner"], "owner conflict; explicit pause/resume required")
                 require(not self.task["paused"] or action in {"pause", "resume", "context"}, "task paused")
+            self.hook_result = None
             self.refresh()
             if action == "status":
                 return self.result()
@@ -517,6 +539,10 @@ class Ledger:
         require(old is None or self.task["repair_open"], "changed artifact requires a bounded repair")
         self.task["artifact"] = artifact
         self.task["artifact_history"].append({**artifact, "at": now(), "run_id": self.task["run_id"]})
+        for record in self.task.get("runtime_hooks", {}).get("writes", {}).values():
+            if record["outcome"] in {"verified", "absent"} and record["binding"]["artifact_sha256"] != artifact["sha256"]:
+                record["resolution_outcome"] = record["outcome"]
+                record["outcome"] = "superseded"
         if worker not in self.task["workers"]:
             self.task["workers"].append(worker)
         self.task["check"] = self.task["review"] = None
@@ -622,6 +648,8 @@ class Ledger:
         require(self.task["work_status"] == "verified" and self.task["artifact"]
                 and self.task["check"] and self.task["check"]["exit_code"] == 0
                 and self.task["review"] and self.task["review"]["verdict"] == "approved", "checked and independently reviewed work required")
+        require(self.task["review"]["agent_id"] not in self.task["owners"] + self.task["workers"],
+                "reviewer must remain independent")
         self.exact_artifact(self.task["artifact"]["sha256"])
         require(self.sources_current(self.task["review"])
                 and self.task["review"].get("sources", {}) == self.task["check"].get("sources", {}),
@@ -633,6 +661,7 @@ class Ledger:
                     for p in self.pubs if p["status"] != "superseded"),
                 "publication is bound to an older artifact")
         require(not self.closeout_missing(), "required closeout evidence is absent or stale")
+        require(not self.requirements_missing(), "required outputs, children, writes or delegations are incomplete")
         self.task["completion_requested"] = True
 
     def closeout(self, d):
@@ -691,6 +720,214 @@ class Ledger:
                       "commit": commit, "files": bound, "receipt_ref": reference, "at": now()}
         self.task["closeouts"][service] = record
         self.task["completion_requested"] = False
+
+    def configure_hooks(self, d):
+        """Freeze cooperative runtime contracts; supplied references are not permission."""
+        require(self.task["artifact"] is None, "configure hooks before recording work")
+        choice(d["output_owner"], {"personal", "endix", "mixed"})
+        strings(d["write_paths"], "write_paths", empty=True)
+        for path in d["write_paths"]:
+            path_name(path)
+        require(isinstance(d["destinations"], list) and len(d["destinations"]) <= 64,
+                "invalid destinations")
+        for dest in d["destinations"]:
+            require(isinstance(dest, dict) and set(dest) ==
+                    {"id", "service", "workspace", "target", "output_owner", "operations", "authorization_ref"},
+                    "invalid destination")
+            identifier(dest["id"])
+            choice(dest["output_owner"], {"personal", "endix"})
+            require(d["output_owner"] in {"mixed", dest["output_owner"]}, "destination ownership mismatch")
+            for field in ("service", "workspace", "target", "authorization_ref"):
+                text(dest[field], field, 4096)
+            strings(dest["operations"], "operations")
+        require(len({x["id"] for x in d["destinations"]}) == len(d["destinations"]), "duplicate destination")
+        require(isinstance(d["requirements"], list) and len(d["requirements"]) <= 64,
+                "invalid requirements")
+        for item in d["requirements"]:
+            require(isinstance(item, dict) and set(item) == {"id", "kind", "target"}, "invalid requirement")
+            identifier(item["id"])
+            choice(item["kind"], {"evidence", "child"})
+            text(item["target"], "requirement target", 4096)
+            if item["kind"] == "child":
+                identifier(item["target"])
+                require(item["target"] != self.task["task_id"], "task cannot depend on itself")
+        require(len({x["id"] for x in d["requirements"]}) == len(d["requirements"]), "duplicate requirement")
+        policy = {k: d[k] for k in ("output_owner", "destinations", "write_paths", "requirements")}
+        old = self.task.get("runtime_hooks")
+        if old:
+            require(old["policy"] == policy, "runtime hook policy is frozen")
+            return
+        self.task["runtime_hooks"] = {"policy": policy, "writes": {}, "delegations": {}, "evidence": {}}
+
+    def hooks(self):
+        require(self.task.get("runtime_hooks"), "configure runtime hooks first")
+        return self.task["runtime_hooks"]
+
+    def before_write(self, d):
+        self.verified_work()
+        hooks = self.hooks()
+        identifier(d["operation_id"])
+        dest = next((x for x in hooks["policy"]["destinations"] if x["id"] == d["destination_id"]), None)
+        require(dest is not None, "destination is not authorized by the frozen policy")
+        require(all(d[k] == dest[k] for k in ("workspace", "target", "authorization_ref"))
+                and d["operation"] in dest["operations"], "write destination, operation or authorization mismatch")
+        payload = snapshot(d["payload_path"])
+        require(payload["sha256"] == digest(d["payload_sha256"]), "write payload changed")
+        binding = {k: d[k] for k in ("destination_id", "workspace", "target", "operation", "authorization_ref")}
+        binding.update(payload=payload, artifact_sha256=self.task["artifact"]["sha256"])
+        existing = hooks["writes"].get(d["operation_id"])
+        # A second ID must not silently duplicate an existing logical write.
+        require(not any(key != d["operation_id"]
+                        and all(x["binding"][field] == binding[field] for field in
+                                ("destination_id", "workspace", "target", "operation", "authorization_ref", "artifact_sha256"))
+                        and x["binding"]["payload"]["sha256"] == payload["sha256"]
+                        for key, x in hooks["writes"].items()), "reuse the existing operation id")
+        if existing:
+            require(existing["binding"] == binding, "operation id is bound to different content")
+            if existing["outcome"] == "verified":
+                require(self.work_current(existing["readback"]) and self.work_current(existing["evidence"]), "verified readback is stale")
+                self.hook_result = {"should_write": False, "reason": "already verified"}
+                return
+            require(existing["outcome"] == "absent" and self.work_current(existing["evidence"]),
+                    "reconcile the previous attempt before retrying")
+        attempt = existing["attempt"] + 1 if existing else 1
+        hooks["writes"][d["operation_id"]] = {"binding": binding, "attempt": attempt,
+                                              "outcome": "pending", "at": now()}
+        self.task["completion_requested"] = False
+        self.hook_result = {"should_write": True, "attempt": attempt, "operation_id": d["operation_id"]}
+
+    def after_write(self, d):
+        record = self.hooks()["writes"].get(d["operation_id"])
+        require(record is not None, "no prepared write")
+        require(type(d["attempt"]) is int and d["attempt"] == record["attempt"], "stale write attempt")
+        require(all(d[k] == record["binding"][k] for k in ("workspace", "target")), "readback destination mismatch")
+        outcome = choice(d["outcome"], {"verified", "absent", "uncertain", "conflict"})
+        evidence = snapshot(d["evidence_path"])
+        if outcome == "verified":
+            # A delayed receipt may reconcile an old reviewed version after repair.
+            require(self.work_current(record["binding"]["payload"]), "write version is stale")
+            require("readback_path" in d and d["readback_path"] != record["binding"]["payload"]["path"],
+                    "write readback must be separate")
+            readback = snapshot(d["readback_path"])
+            require(readback["sha256"] == record["binding"]["payload"]["sha256"], "write readback mismatch")
+        else:
+            require("readback_path" not in d, "nonverified write cannot carry a readback")
+            readback = None
+        require(record["outcome"] not in {"verified", "superseded"} or
+                (outcome == "verified" and record["readback"] == readback and record["evidence"] == evidence),
+                "verified write receipt cannot be replaced")
+        stored_outcome = ("superseded" if outcome in {"verified", "absent"} and self.task["artifact"]
+                          and record["binding"]["artifact_sha256"] != self.task["artifact"]["sha256"] else outcome)
+        record.update(outcome=stored_outcome, resolution_outcome=outcome,
+                      evidence=evidence, readback=readback, at=now())
+        self.task["completion_requested"] = False
+        self.hook_result = {"verified": outcome == "verified", "retry_allowed": outcome == "absent"}
+
+    def before_delegate(self, d):
+        hooks = self.hooks()
+        require(self.task["skills"], "route skills before delegation")
+        identifier(d["delegation_id"])
+        role = choice(d["role"], {"worker", "reviewer"})
+        text(d["description"], "description")
+        strings(d["acceptance"], "acceptance")
+        strings(d["refs"], "refs", empty=True)
+        strings(d["write_paths"], "write_paths", empty=True)
+        allowed = [Path(p) for p in hooks["policy"]["write_paths"]]
+        for path in d["write_paths"]:
+            path_name(path)
+            require(any(Path(path).is_relative_to(p) for p in allowed), "delegation exceeds allowed write paths")
+        if role == "reviewer":
+            require(not d["write_paths"], "reviewer is read-only; coordinator saves its evidence")
+            require(self.task["check"] and self.task["check"]["exit_code"] == 0
+                    and self.task["work_status"] != "repair-required", "reviewer needs current check and artifact")
+        contract = {k: d[k] for k in ("role", "description", "acceptance", "write_paths", "refs")}
+        contract.update(task_id=self.task["task_id"], output_owner=hooks["policy"]["output_owner"],
+                        authorization_scope=self.task["request"]["authorization_scope"],
+                        skills=self.task["skills"], artifact=self.task["artifact"], check=self.task["check"])
+        old = hooks["delegations"].get(d["delegation_id"])
+        if old:
+            require(old["contract"] == contract and old["outcome"] == "pending", "delegation id is already used")
+        else:
+            for record in hooks["delegations"].values():
+                if record["outcome"] == "pending":
+                    require(not any(Path(a).is_relative_to(Path(b)) or Path(b).is_relative_to(Path(a))
+                                    for a in d["write_paths"] for b in record["contract"]["write_paths"]),
+                            "active delegation write paths overlap")
+            hooks["delegations"][d["delegation_id"]] = {"contract": contract, "outcome": "pending"}
+        self.task["completion_requested"] = False
+        self.hook_result = {"contract": contract}
+
+    def after_delegate(self, d):
+        record = self.hooks()["delegations"].get(d["delegation_id"])
+        require(record is not None, "no prepared delegation")
+        agent = identifier(d["agent_id"])
+        require(agent not in self.task["owners"], "delegate must be a different agent")
+        if record["contract"]["role"] == "reviewer":
+            require(agent not in self.task["workers"], "review delegate authored task work")
+        outcome = choice(d["outcome"], {"finished", "blocked"})
+        result = {"agent_id": agent, "outcome": outcome, "evidence": snapshot(d["evidence_path"])}
+        if record["outcome"] == "finished":
+            require(all(record[k] == v for k, v in result.items()), "delegation result is already recorded")
+        record.update(result)
+        if record["contract"]["role"] == "worker" and agent not in self.task["workers"]:
+            self.task["workers"].append(agent)
+        self.refresh()
+        self.task["completion_requested"] = False
+
+    def requirement(self, d):
+        hooks = self.hooks()
+        item = next((x for x in hooks["policy"]["requirements"] if x["id"] == d["requirement_id"]), None)
+        require(item and item["kind"] == "evidence", "unknown evidence requirement")
+        agent = identifier(d["agent_id"])
+        require(agent not in self.task["owners"] + self.task["workers"], "requirement verifier must be independent")
+        self.verified_work()
+        hooks["evidence"][item["id"]] = {"target": item["target"], "agent_id": agent,
+                                         "artifact_sha256": self.task["artifact"]["sha256"],
+                                         "sources": self.task["review"].get("sources", {}),
+                                         "evidence": snapshot(d["evidence_path"])}
+        self.task["completion_requested"] = False
+
+    def requirements_missing(self):
+        hooks = self.task.get("runtime_hooks")
+        if not hooks:
+            return False  # Existing tasks retain their original completion contract.
+        seen = getattr(self, "dependency_stack", set()) | {self.task["task_id"]}
+        if len(seen) > 16:
+            return True
+        for record in hooks["writes"].values():
+            if record["outcome"] == "superseded":
+                continue
+            if (record["outcome"] != "verified" or not self.work_current(record["evidence"])
+                    or not self.work_current(record["readback"]) or not self.work_current(record["binding"]["payload"])
+                    or not self.task["artifact"]
+                    or record["binding"]["artifact_sha256"] != self.task["artifact"]["sha256"]):
+                return True
+        if any(r["outcome"] != "finished" or not self.work_current(r["evidence"])
+               for r in hooks["delegations"].values()):
+            return True
+        for item in hooks["policy"]["requirements"]:
+            if item["kind"] == "evidence":
+                record = hooks["evidence"].get(item["id"])
+                if (not record or not self.work_current(record["evidence"])
+                        or not self.task["artifact"]
+                        or record["artifact_sha256"] != self.task["artifact"]["sha256"]
+                        or not self.sources_current(record)
+                        or record["agent_id"] in self.task["owners"] + self.task["workers"]):
+                    return True
+            else:
+                if item["target"] in seen:
+                    return True
+                row = self.db.execute("SELECT state FROM tasks WHERE id=?", (item["target"],)).fetchone()
+                if not row:
+                    return True
+                child = Ledger(self.path)
+                child.db, child.task, child.dependency_stack = self.db, json.loads(row[0]), seen
+                child.pubs = [json.loads(r[0]) for r in self.db.execute(
+                    "SELECT state FROM outbox WHERE task_id=? ORDER BY id", (item["target"],))]
+                child.refresh()
+                if child.stage() != "done":
+                    return True
+        return False
 
     def publication(self, d):
         identifier(d["publication_id"])

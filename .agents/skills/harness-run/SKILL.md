@@ -65,6 +65,19 @@ only one agent has performed the work.
 
 ## Select specialist skills from the task
 
+Distinguish task requirements from advisory guidance. User requirements,
+repository constraints and applicable correctness, security and accessibility
+checks remain binding. A reference skill supplies optional methods, not extra
+acceptance gates. Consider it when its capability helps; read only useful parts,
+adapt or skip recommendations, and preserve the requested style and scope.
+Two upstream routes are available: read relevant GitHub skills/files and apply
+useful guidance, or acquire a reviewed skill folder for reuse. The user's standing
+request authorizes task-relevant personal skill acquisition without repeated
+confirmation. See **Advisory skill routing** for review, overlap and installation
+boundaries; acquisition is not permission to run bundled software or hooks.
+For overlap decisions and upstream references, consult **Advisory skill routing**
+in `references/README.md` (source: `../../../harness/README.md`).
+
 The user can name the desired outcome without naming skills. Before `start`, infer
 the deliverables, domain, available inputs, and intended reads/writes from the
 request and project context. Use the current host's skill catalog to select the
@@ -83,7 +96,8 @@ Briefly state which skills were selected and why; do not ask the user to choose
 between skills when the requested outcome is clear. Clarify only a material
 uncertainty about the work. A skill being listed does not prove its tools or
 account access work: check required capabilities, report missing ones, and use a
-suitable available fallback without silently installing skills or expanding scope.
+suitable available fallback. Announce any acquisition under the standing scope;
+do not expand the task or install unrelated tools.
 
 For decks and diagrams, read **Visual artifact routing and review** in the
 bundled `references/README.md` after selecting the relevant specialist skill.
@@ -120,6 +134,29 @@ output performs the required independent review. Preserve the existing repair
 limit across handoffs. Record actual rather than requested models and available
 usage; unavailable model selection is a reported fallback, not a reason to buy
 an API route or change global defaults. Trivial coupled work stays with the lead.
+
+## Apply the four runtime hooks
+
+For a new tracked run, use the installed runner's four cooperative gates. Read
+**Four runtime hooks** in `references/README.md` for the JSON contract. After
+`start`, call `configure-hooks` before recording work: freeze output ownership,
+exact authorized destinations, worker write paths and required evidence/child
+Task IDs. Explicitly use empty lists for actions not needed. Existing frozen runs
+keep their original contract; do not claim these gates intercepted arbitrary tools.
+
+Immediately before a reviewed external write, call `before-write` with the actual
+observed workspace/target, existing authorization and current payload hash. Honor
+`hook.should_write`; keep its operation ID and attempt. After the connector call,
+fetch real saved content/properties and call `after-write`. Unknown success requires
+reconciliation; only verified absence permits a retry. Never fabricate readback.
+
+Before native delegation, call `before-delegate`, pass its actual returned contract
+and relevant source context, then record the real result with `after-delegate`.
+No second dispatch for an already running delegation. Keep reviewer writes empty.
+Before `complete`, record independently checked mandatory evidence via `requirement`;
+required child tasks must reach current Done in the same project ledger. The
+completion gate runs automatically. These hooks neither grant authority nor make
+external calls, register global event handlers, or authenticate agent/service facts.
 
 ## Execute and recover
 

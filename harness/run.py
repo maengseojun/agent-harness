@@ -125,9 +125,11 @@ def execute(project, action, data):
         return {**info, "tasks": tasks}
     ledger.validate(action, data)
     data = dict(data)
-    for field in ("path", "evidence_path", "readback_path"):
+    for field in ("path", "evidence_path", "readback_path", "payload_path"):
         if field in data:
             data[field] = project_path(project, data[field])
+    if action in {"configure-hooks", "before-delegate"}:
+        data["write_paths"] = [project_path(project, path) for path in data["write_paths"]]
     if action == "check":
         ledger.require("source_paths" not in data, "runner resolves source_paths from the frozen policy")
         status = store.dispatch("status", {"task_id": data["task_id"]})
