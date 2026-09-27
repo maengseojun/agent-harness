@@ -227,6 +227,39 @@ class ToolHookTests(unittest.TestCase):
         with self.assertRaisesRegex(LedgerError, 'incomplete'):
             self.call('complete')
 
+    def test_native_connector_namespace_matches_normalized_plan(self):
+        self.write_plan()
+        write_name = 'mcp__codex_apps__notion__notion_update_page'
+        read_name = 'mcp__codex_apps__notion__fetch'
+        pre = self.event('PreToolUse', write_name, self.write_args)
+        self.assertEqual('allow', pre['hookSpecificOutput']['permissionDecision'])
+        self.event('PostToolUse', write_name, self.write_args, {'ok': True})
+        self.event('PreToolUse', read_name, self.read_args, event_id='native-fetch')
+        self.event('PostToolUse', read_name, self.read_args, self.read_response(), event_id='native-fetch')
+        self.assertEqual('verified', self.call('status')['runtime_hooks']['writes']['save']['outcome'])
+        self.assertEqual('mcp__codex_apps__linear_save_issue',
+                         tool_hook.tool_name('mcp__codex_apps__linear__save_issue'))
+        self.assertEqual('mcp__codex_apps__github_update_issue',
+                         tool_hook.tool_name('mcp__codex_apps__github__update_issue'))
+
+    def test_native_json_text_preserves_delegation_readback_and_error_flags(self):
+        self.config(); self.ready(complete=False)
+        args = {'message': 'Read-only review', 'fork_context': False}
+        gate = {'delegation_id': 'reviewer', 'role': 'reviewer', 'description': 'native JSON response',
+                'acceptance': ['Confirm actual result'], 'write_paths': [], 'refs': []}
+        self.prepare('review-call', 'delegate', 'spawn_agent', args, gate)
+        pre = self.event('PreToolUse', 'spawn_agent', args)
+        self.event('PostToolUse', 'spawn_agent', pre['hookSpecificOutput']['updatedInput'],
+                   json.dumps({'agent_id': 'actual-reviewer', 'nickname': 'fixture'}))
+        self.event('PostToolUse', 'wait_agent', response=json.dumps({'status': {
+            'actual-reviewer': {'completed': 'Actual final result'}}}), event_id='native-wait')
+        self.assertEqual('finished', self.call('status')['runtime_hooks']['delegations']['reviewer']['outcome'])
+        self.setUp(); self.write_plan(); self.do_write()
+        failed = self.read_response(); failed['isError'] = True
+        self.assertEqual('block', self.fetch(json.dumps(failed), 'failed-native-read')['decision'])
+        self.fetch(json.dumps(self.read_response()), 'native-read')
+        self.assertEqual('verified', self.call('status')['runtime_hooks']['writes']['save']['outcome'])
+
     def test_malformed_wire_input_fails_closed(self):
         for raw in ('{', 'x' * (2 * 1024 * 1024 + 1)):
             with self.subTest(raw_size=len(raw)), patch('sys.stdin', io.StringIO(raw)), patch('sys.stderr', io.StringIO()):

@@ -53,6 +53,10 @@ def bind_session(project, task_id, session):
 
 
 def tool_name(name):
+    for service in ('notion', 'linear', 'github'):
+        prefix = 'mcp__codex_apps__' + service + '__'
+        if name.startswith(prefix):
+            return 'mcp__codex_apps__' + service + '_' + name[len(prefix):]
     if name in ('Bash', 'exec_command') or name.endswith('__exec_command'):
         return 'Bash'
     if name in ('Agent', 'spawn_agent') or name.endswith('__spawn_agent'):
@@ -112,6 +116,7 @@ def protected(name, args):
 
 # Supported provider operations are deliberately typed. Unknown writes are denied.
 def provider(name):
+    name = tool_name(name)
     ledger.require(name.startswith('mcp__codex_apps__'), 'unsupported provider namespace')
     return name.removeprefix('mcp__codex_apps__')
 
@@ -263,6 +268,7 @@ def read_request(write, write_args, name, args):
 
 
 def actual_payload(write, write_args, read_name, read_args, raw):
+    raw = wire_value(raw)
     ledger.require(not isinstance(raw, dict) or (not raw.get('isError') and raw.get('exit_code', 0) == 0), 'readback tool failed')
     value = response_value(raw)
     ledger.require(isinstance(value, dict) and not value.get('isError') and not value.get('error'), 'provider readback failed')
@@ -297,7 +303,18 @@ def actual_payload(write, write_args, read_name, read_args, raw):
         result = {key: value[key] for key in expected}
     return ledger.canonical(result).encode()
 
+def wire_value(raw):
+    # Native Codex hooks serialize tool_response as JSON text.
+    if isinstance(raw, str):
+        try:
+            return json.loads(raw)
+        except ValueError:
+            raise ledger.LedgerError('tool response is not valid JSON') from None
+    return raw
+
+
 def response_value(raw):
+    raw = wire_value(raw)
     value = raw
     if isinstance(raw, dict):
         if isinstance(raw.get('output'), str):
@@ -488,7 +505,7 @@ def event(store, d):
     path = evidence(store, call_id, event_id, 'response', raw_bytes)
     if item['kind'] == 'write':
         gate = item['gate']
-        if gate['operation'] == 'create' and isinstance(raw, dict) and not raw.get('isError'):
+        if gate['operation'] == 'create' and isinstance(wire_value(raw), dict) and not wire_value(raw).get('isError'):
             value = response_value(raw)
             if isinstance(value, dict):
                 if item['service'] == 'notion':
