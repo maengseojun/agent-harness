@@ -140,3 +140,14 @@ in `README.md`. The host calls the first three at the real service/delegation
 boundaries, forwards contracts and supplies actual fetched evidence. They are
 not additional global Codex handlers; local entry selection alone does not prove
 these gates ran. Existing global hook registration and trust remain unchanged.
+
+### Four automatic lifecycle gates
+
+The optional `install_tool_hooks.py` installer adds a frozen release handler for
+PreToolUse, PostToolUse, SubagentStop and Stop, preserving the entry and closeout
+handlers above. The four behaviors are write preparation, actual write readback,
+delegation contracts and completion requirements. The session index follows CLI
+start/resume into managed worktrees. Prepared tool input hashes bind events to
+real task ownership; remote fetches and final native wait results provide evidence.
+Registration needs a separate Codex trust review. See Four runtime hooks in
+README.md for coverage, JSON plans, failure behavior and installation boundaries.

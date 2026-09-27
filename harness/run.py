@@ -9,6 +9,7 @@ doctor and list take no stdin. --help includes the underlying command contract.
 
 import argparse
 import json
+import os
 from pathlib import Path
 import sqlite3
 import sys
@@ -35,7 +36,8 @@ def verify_install():
     data = json.loads(manifest.read_text())
     expected_files = {"SKILL.md", "agents/openai.yaml", "scripts/ledger.py",
                       "scripts/run.py", "references/README.md"}
-    allowed_files = (expected_files, expected_files | {"references/NOTION-WORKSPACE.md"})
+    allowed_files = (expected_files, expected_files | {"references/NOTION-WORKSPACE.md"},
+                     expected_files | {"references/NOTION-WORKSPACE.md", "scripts/tool_hook.py"})
     ledger.require(isinstance(data, dict) and set(data) == {"files", "release_id"}
                    and isinstance(data["files"], dict) and set(data["files"]) in allowed_files,
                    "invalid install manifest")
@@ -125,11 +127,18 @@ def execute(project, action, data):
         return {**info, "tasks": tasks}
     ledger.validate(action, data)
     data = dict(data)
-    for field in ("path", "evidence_path", "readback_path", "payload_path"):
+    for field in ("path", "evidence_path", "readback_path", "payload_path", "input_path"):
         if field in data:
             data[field] = project_path(project, data[field])
     if action in {"configure-hooks", "before-delegate"}:
         data["write_paths"] = [project_path(project, path) for path in data["write_paths"]]
+    if action == "prepare-tool":
+        ledger.require(isinstance(data["gate"], dict), "invalid tool gate")
+        data["gate"] = dict(data["gate"])
+        if data["kind"] == "write":
+            data["gate"]["payload_path"] = project_path(project, data["gate"]["payload_path"])
+        elif data["kind"] == "delegate":
+            data["gate"]["write_paths"] = [project_path(project, path) for path in data["gate"]["write_paths"]]
     if action == "check":
         ledger.require("source_paths" not in data, "runner resolves source_paths from the frozen policy")
         status = store.dispatch("status", {"task_id": data["task_id"]})
@@ -173,6 +182,10 @@ def main():
             ledger.require(len(raw) <= 128 * 1024, "request too large")
             data = json.loads(raw, object_pairs_hook=ledger.unique_object)
         result = execute(args.project, args.command, data)
+        session = os.environ.get("CODEX_THREAD_ID")
+        if args.command in {"start", "resume"} and session and result.get("owner") == session:
+            from tool_hook import bind_session
+            bind_session(result["project"], result["task_id"], session)
         print(ledger.canonical(result))
         return 1 if result.get("stage") == "blocked" else 0
     except ledger.LedgerError as exc:

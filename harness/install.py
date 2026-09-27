@@ -18,10 +18,12 @@ FILES = {
     'agents/openai.yaml': '.agents/skills/harness-run/agents/openai.yaml',
     'scripts/ledger.py': 'harness/ledger.py',
     'scripts/run.py': 'harness/run.py',
+    'scripts/tool_hook.py': 'harness/tool_hook.py',
     'references/README.md': 'harness/README.md',
     'references/NOTION-WORKSPACE.md': 'harness/NOTION-WORKSPACE.md',
 }
-PREVIOUS_FILES = set(FILES) - {'references/NOTION-WORKSPACE.md'}
+PREVIOUS_FILES = set(FILES) - {'scripts/tool_hook.py'}
+FIVE_FILES = PREVIOUS_FILES - {'references/NOTION-WORKSPACE.md'}
 
 
 def _manifest(payload):
@@ -45,7 +47,7 @@ def _verify(release):
         raise ValueError(error) from None
     if (not isinstance(saved, dict) or set(saved) != {'files', 'release_id'}
             or not isinstance(saved['files'], dict)
-            or set(saved['files']) not in (PREVIOUS_FILES, set(FILES))):
+            or set(saved['files']) not in (FIVE_FILES, PREVIOUS_FILES, set(FILES))):
         raise ValueError(error)
     paths = [release / name for name in (*saved['files'], 'manifest.json')]
     if any(path.is_symlink() or not path.is_file() for path in paths):

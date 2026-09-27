@@ -137,26 +137,34 @@ an API route or change global defaults. Trivial coupled work stays with the lead
 
 ## Apply the four runtime hooks
 
-For a new tracked run, use the installed runner's four cooperative gates. Read
-**Four runtime hooks** in `references/README.md` for the JSON contract. After
-`start`, call `configure-hooks` before recording work: freeze output ownership,
-exact authorized destinations, worker write paths and required evidence/child
-Task IDs. Explicitly use empty lists for actions not needed. Existing frozen runs
-keep their original contract; do not claim these gates intercepted arbitrary tools.
+For a new tracked run, configure the four existing gates after `start` and before
+recording work. Freeze output ownership, exact destinations, worker paths and
+mandatory evidence/children; explicitly use empty lists when not needed. New
+runs require this policy mechanically; historical frozen runs keep their contract.
+Read **Four runtime hooks** in `references/README.md` for the JSON contract.
 
-Immediately before a reviewed external write, call `before-write` with the actual
-observed workspace/target, existing authorization and current payload hash. Honor
-`hook.should_write`; keep its operation ID and attempt. After the connector call,
-fetch real saved content/properties and call `after-write`. Unknown success requires
-reconciliation; only verified absence permits a retry. Never fabricate readback.
+On hosts with the native bridge registered and trusted, use the actual Codex
+session ID (`CODEX_THREAD_ID`) as owner. CLI `start`/`resume` binds managed worktree
+projects to that session. Freeze each planned write, delegate and actual readback
+using `prepare-tool` with its exact JSON tool input and gate metadata. The actual
+native event automatically calls the existing gate; do not call before/after gates
+again for that operation. Omitting a protected call's plan denies execution.
+The bridge injects delegation contracts, records real responses and final native
+`wait_agent` results, and checks completion at Stop. A write response alone stays
+uncertain: fetch actual saved content/properties, using the supported provider adapter and prepared readback
+resource identity, before completion or retry. Never label a draft
+as fetched evidence or infer absence from timeout. No phase guessing is required.
 
-Before native delegation, call `before-delegate`, pass its actual returned contract
-and relevant source context, then record the real result with `after-delegate`.
-No second dispatch for an already running delegation. Keep reviewer writes empty.
-Before `complete`, record independently checked mandatory evidence via `requirement`;
-required child tasks must reach current Done in the same project ledger. The
-completion gate runs automatically. These hooks neither grant authority nor make
-external calls, register global event handlers, or authenticate agent/service facts.
+If the host lacks a registered/trusted bridge, explicitly use `before-write`,
+`after-write`, `before-delegate` and `after-delegate` as described in the reference,
+honor their results and forward the returned contract to the actual worker.
+Disclose that this fallback is cooperative rather than automatic. These gates
+neither grant authority nor authenticate supplied agent/service facts. Named
+service tools and direct GitHub commands have native coverage; arbitrary scripts,
+hosted tools and UI actions do not become universally intercepted.
+Before `complete`, record independently checked mandatory evidence via
+`requirement`; required children must reach current Done in the same ledger.
+The completion gate runs automatically and includes prepared required actions.
 
 ## Execute and recover
 

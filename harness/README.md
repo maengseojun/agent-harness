@@ -586,12 +586,78 @@ was not verified; no team automation, schedule, merge or deployment is enabled.
 
 ## Four runtime hooks
 
-The runner exposes four cooperative lifecycle gates: `before-write`,
-`after-write`, `before-delegate`, and the gate inside `complete`. They do not
-register four global Codex event handlers, intercept arbitrary connector calls,
-execute a service write, spawn an agent, or authenticate supplied evidence. The
-host must call the gate immediately before the corresponding action and honor
-its result. Existing UserPromptSubmit/PreToolUse/Stop handlers stay unchanged.
+The existing four lifecycle gates now have an optional native event bridge:
+`PreToolUse` runs write/delegation checks, `PostToolUse` records write responses,
+actual fetch readback and final native agent results, and `Stop` checks completion.
+`SubagentStop` requests final confirmation because another hook may continue the
+agent; it does not alone certify termination. No phase classifier or new model
+call is needed. Existing entry and managed closeout handlers are preserved.
+
+Install the reviewed package, then explicitly register its frozen handler:
+`python3 -B harness/install_tool_hooks.py --release <absolute-installed-release>`.
+The installer preserves unrelated config and old releases and backs up hooks.json.
+New definitions still require Codex's hook trust review; registration and synthetic
+wire tests do not prove desktop dispatch. Never manufacture trusted_hash entries.
+
+Use the actual Codex session ID (`CODEX_THREAD_ID`) as the coordinator owner.
+The runner CLI automatically indexes `start`/`resume` projects for that session,
+including managed worktrees outside the session cwd. Hooks check live ownership,
+not just cached task IDs. Historical tasks without the creation marker keep their
+contract; ordinary untracked tools and other sessions are unaffected.
+
+Before an intended action, freeze its exact input once with `prepare-tool`:
+`call_id`, `kind` (`write`, `delegate`, `readback`), `tool_name`, `input_path`
+(a JSON object containing actual tool arguments), and `gate`. This is an action
+plan, not a successful check or permission grant. The actual native event runs
+the gate atomically; omitting the plan denies protected calls. Arguments and the
+planned file must still match. Do not manually run before/after gates for a call
+already managed by the bridge. Existing direct runner gates remain available
+for hosts without native event support.
+
+- Write `gate`: existing `before-write` fields, including reviewed payload/hash.
+  The bridge records any write response as uncertain, never as proof of storage.
+- Delegate `gate`: existing `before-delegate` fields. The pre-hook injects the
+  returned frozen contract into `message` or text `items` with `updatedInput`.
+  The actual created agent ID and final `wait_agent` result are recorded.
+- Readback `gate`: only `write_call_id`. The provider adapter binds the fetch
+  tool, account and resource to the actual write and compares returned fields
+  with the reviewed canonical JSON payload. Caller-selected projections and
+  local echoed JSON are not storage evidence.
+
+```json
+{"task_id":"TASK","owner":"ACTUAL_CODEX_SESSION_ID","call_id":"fetch-run","kind":"readback","tool_name":"mcp__codex_apps__notion_fetch","input_path":"evidence/fetch-input.json","gate":{"write_call_id":"save-run"}}
+```
+
+Supported writes use the exact `mcp__codex_apps__` provider names: Notion single
+page creation, full content replacement and property updates; Linear issue
+creation/update; GitHub issue creation/update and file creation/update. Unsupported
+fields or operations are denied. Linear `link_id` must equal the authorized
+workspace/account. Notion content uses the existing plain-summary normalization;
+other requested fields use canonical JSON. Full native Notion fetch envelopes
+supply body/properties and parent identity; truncated/unknown-block results fail.
+Each create should include a stable task marker. Plan its fetch after the write
+returns the actual created ID; an unavailable ID requires explicit reconciliation
+instead of certifying an unrelated matching record. GitHub file identity is fixed
+by its repository/branch/path.
+
+Direct GitHub pushes require `git push REMOTE SOURCE:BRANCH`, an explicit working
+directory (or `git -C`), a GitHub remote and no force flags. Authorize the exact
+API ref URL (`https://api.github.com/repos/OWNER/REPO/git/refs/heads/BRANCH`) with
+payload `{"commit":"LOCAL_COMMIT_SHA","ref":"refs/heads/BRANCH"}`. Read back with
+plain `gh api repos/OWNER/REPO/git/ref/heads/BRANCH`. All shell arguments, including
+working directory, remain part of the frozen input. Other mutating `gh` commands
+are intercepted but require a supported typed connector instead. Actual raw
+provider responses are retained privately, separate from normalized readback.
+
+The bridge observes named Linear/GitHub/Notion MCP writes, native `spawn_agent`,
+and direct `git push`/mutating `gh` calls. Indirect shell scripts, hosted search,
+UI actions and tool paths bypassing native hooks are outside that coverage; use
+the existing explicit runner gates for these host limitations. This is not an OS sandbox,
+service-account authenticator or complete permission boundary. It binds actual
+calls to coordinator-supplied, authorized destinations and reviewed versions.
+Unknown write outcomes block retries; reliable absence can be supplied through
+the existing reconciliation gate before another admitted attempt. A fresh fetch
+showing drift after verification records a blocker rather than weakening receipts.
 
 New tasks start in `configuring` with next action `configure-hooks`; recording
 an artifact or completing is rejected until the policy is frozen. Call

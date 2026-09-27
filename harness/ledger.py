@@ -6,6 +6,8 @@ Every request has task_id; mutations also have owner (except create). Commands:
           publication_required(bool), refs[str] (optional), closeout (optional)
           closeout={mode:managed,github_paths:[repo-relative paths]} or
           {mode:local-only|read-only,reason:text}; omitted keeps legacy behavior
+  prepare-tool: call_id, kind(write|delegate|readback), tool_name, input_path, gate
+  tool-event: event (native hook wire object; caller attestations remain cooperative)
   configure-hooks: output_owner(personal|endix|mixed), destinations[objects],
                    write_paths[absolute paths], requirements[{id,kind:evidence|child,target}]
   before-write: operation_id, destination_id, workspace, target, operation,
@@ -200,6 +202,8 @@ FIELDS = {
     "receipt": ("publication_id target artifact_sha256 readback_path receipt_ref", ""),
     "closeout": ("service receipt_ref", "target summary_path readback_path repository commit files"),
     "configure-hooks": ("output_owner destinations write_paths requirements", ""),
+    "prepare-tool": ("call_id kind tool_name input_path gate", ""),
+    "tool-event": ("event", ""),
     "before-write": ("operation_id destination_id workspace target operation payload_path payload_sha256 authorization_ref", ""),
     "after-write": ("operation_id attempt workspace target outcome evidence_path", "readback_path"),
     "before-delegate": ("delegation_id role description acceptance write_paths refs", ""),
@@ -547,6 +551,16 @@ class Ledger:
             if record["outcome"] in {"verified", "absent"} and record["binding"]["artifact_sha256"] != artifact["sha256"]:
                 record["resolution_outcome"] = record["outcome"]
                 record["outcome"] = "superseded"
+        hooks = self.task.get("runtime_hooks", {})
+        for call in hooks.get("tool_calls", {}).values():
+            if (call["kind"] == "write" and (
+                    call["phase"] == "prepared" and call["artifact_sha256"] != artifact["sha256"]
+                    or call["phase"] == "observed" and hooks["writes"].get(call["gate"]["operation_id"], {}).get("outcome") == "superseded")):
+                call["phase"] = "superseded"
+        for call in hooks.get("tool_calls", {}).values():
+            if (call["kind"] == "readback"
+                    and hooks["tool_calls"][call["gate"]["write_call_id"]]["phase"] == "superseded"):
+                call["phase"] = "superseded"
         if worker not in self.task["workers"]:
             self.task["workers"].append(worker)
         self.task["check"] = self.task["review"] = None
@@ -769,6 +783,14 @@ class Ledger:
         require(self.task.get("runtime_hooks"), "configure runtime hooks first")
         return self.task["runtime_hooks"]
 
+    def prepare_tool(self, d):
+        from tool_hook import prepare
+        prepare(self, d)
+
+    def tool_event(self, d):
+        from tool_hook import event
+        self.hook_result = event(self, d)
+
     def before_write(self, d):
         self.verified_work()
         hooks = self.hooks()
@@ -899,6 +921,9 @@ class Ledger:
             return bool(self.task.get("runtime_hooks_required"))  # Only historical tasks are exempt.
         seen = getattr(self, "dependency_stack", set()) | {self.task["task_id"]}
         if len(seen) > 16:
+            return True
+        if any(call["kind"] in {"write", "delegate"} and call["phase"] not in {"observed", "finished", "superseded"}
+               for call in hooks.get("tool_calls", {}).values()):
             return True
         for record in hooks["writes"].values():
             if record["outcome"] == "superseded":
