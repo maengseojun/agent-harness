@@ -251,7 +251,7 @@ class ToolHookTests(unittest.TestCase):
         pre = self.event('PreToolUse', 'spawn_agent', args)
         self.event('PostToolUse', 'spawn_agent', pre['hookSpecificOutput']['updatedInput'],
                    json.dumps({'agent_id': 'actual-reviewer', 'nickname': 'fixture'}))
-        self.event('PostToolUse', 'wait_agent', response=json.dumps({'status': {
+        self.event('PostToolUse', 'multi_agent_v1wait_agent', response=json.dumps({'status': {
             'actual-reviewer': {'completed': 'Actual final result'}}}), event_id='native-wait')
         self.assertEqual('finished', self.call('status')['runtime_hooks']['delegations']['reviewer']['outcome'])
         self.setUp(); self.write_plan(); self.do_write()
@@ -259,6 +259,28 @@ class ToolHookTests(unittest.TestCase):
         self.assertEqual('block', self.fetch(json.dumps(failed), 'failed-native-read')['decision'])
         self.fetch(json.dumps(self.read_response()), 'native-read')
         self.assertEqual('verified', self.call('status')['runtime_hooks']['writes']['save']['outcome'])
+
+    def test_final_wait_preserves_prior_explicit_reconciliation(self):
+        self.config(); self.ready(complete=False)
+        args = {'message': 'Read-only review', 'fork_context': False}
+        gate = {'delegation_id': 'reviewer', 'role': 'reviewer', 'description': 'reconciliation',
+                'acceptance': ['Confirm result'], 'write_paths': [], 'refs': []}
+        self.prepare('review-call', 'delegate', 'spawn_agent', args, gate)
+        pre = self.event('PreToolUse', 'spawn_agent', args)
+        self.event('PostToolUse', 'spawn_agent', pre['hookSpecificOutput']['updatedInput'],
+                   {'agent_id': 'actual-reviewer'})
+        response = {'status': {'actual-reviewer': {'completed': 'Actual final result'}}}
+        self.event('PostToolUse', 'wait', response=response, event_id='exec-cell-wait')
+        self.assertEqual('pending', self.call('status')['runtime_hooks']['delegations']['reviewer']['outcome'])
+        self.event('PostToolUse', 'wait_agent', response={'status': {}, 'timed_out': True}, event_id='timeout')
+        self.assertEqual('pending', self.call('status')['runtime_hooks']['delegations']['reviewer']['outcome'])
+        path = self.project / 'actual-final.json'
+        path.write_text(json.dumps(response))
+        self.call('after-delegate', delegation_id='reviewer', agent_id='actual-reviewer',
+                  outcome='finished', evidence_path=str(path))
+        recorded = self.call('status')['runtime_hooks']['delegations']['reviewer']
+        self.event('PostToolUse', 'wait_agent', response=response, event_id='later-wait')
+        self.assertEqual(recorded, self.call('status')['runtime_hooks']['delegations']['reviewer'])
 
     def test_malformed_wire_input_fails_closed(self):
         for raw in ('{', 'x' * (2 * 1024 * 1024 + 1)):

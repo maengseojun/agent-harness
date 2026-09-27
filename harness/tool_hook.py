@@ -61,7 +61,7 @@ def tool_name(name):
         return 'Bash'
     if name in ('Agent', 'spawn_agent') or name.endswith('__spawn_agent'):
         return 'spawn_agent'
-    if name == 'wait_agent' or name.endswith('__wait_agent'):
+    if name in ('wait_agent', 'multi_agent_v1wait_agent') or name.endswith('__wait_agent'):
         return 'wait_agent'
     return name
 
@@ -450,6 +450,8 @@ def event(store, d):
             final = statuses.get(item.get('agent_id'))
             if item['kind'] != 'delegate' or item['phase'] == 'finished' or not isinstance(final, dict):
                 continue
+            if store.hooks()['delegations'][item['gate']['delegation_id']]['outcome'] == 'finished':
+                continue  # Preserve an already reconciled final result and its evidence.
             message = final.get('completed') or final.get('errored')
             if not isinstance(message, str) or not message.strip():
                 continue
