@@ -107,6 +107,13 @@ existing authorization; do not silently change the frozen route.
 When this task actually needs delegation, read **Design-first model routing** in
 `references/README.md` (source: `../../../harness/README.md`). Verify the host's
 current model IDs, reasoning settings, access and authorization before dispatch.
+For the user's explicit or standing Luna Max request, prefer the native subagent
+tool with `model="gpt-6-luna"`, `reasoning_effort="max"` and isolated context
+(`fork_context=false` when supported). Omitting `model` inherits the lead; it
+does not delegate to Luna. When the tool permits the requested model string,
+dispatch one useful bounded task before treating an incomplete model list as
+unavailability. Confirm its result or concrete failure; do not create a new
+user-owned task for internal execution. See the reference for fallback evidence.
 Keep design, integration and final acceptance with the lead; give bounded workers
 only the relevant brief and instructions. A separate agent that did not author the
 output performs the required independent review. Preserve the existing repair

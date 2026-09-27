@@ -137,7 +137,7 @@ files; this installation does not synchronize local SQLite or credentials.
 
 ## Design-first model routing
 
-Status: user-adopted upper-model lead / Luna Max policy, updated on 2026-09-25.
+Status: user-adopted upper-model lead / Luna Max policy, updated on 2026-09-27.
 The host follows
 this policy when its available tools and permissions allow model selection. The
 Python ledger does not dispatch models. Its `route` command freezes skills; it is
@@ -205,7 +205,30 @@ Use only a host-supported model-selection mechanism, such as an authorized Codex
 execution with an explicit model or an available native agent tool. Verify exact
 model IDs, allowed reasoning effort, tool access and current authorization first.
 Availability may differ between the desktop app, CLI, native subagents and Work.
-If Luna Max is unavailable in the active dispatch tool, disclose that limitation.
+For the user's explicit or standing Luna Max request, prefer a native subagent
+for internal execution. Supply the handoff contract in `message` and set
+`model="gpt-6-luna"`, `reasoning_effort="max"`, and `fork_context=false` when
+supported. Omitting `model` inherits the lead model and is not Luna execution.
+An internal worker does not require switching the lead, changing global settings,
+or creating a new user-owned Work task.
+
+A discovery list that omits Luna is insufficient evidence of unavailability.
+When the tool permits an explicit user-requested model string, dispatch one
+useful bounded task and inspect its returned result or error. Respect an explicit
+tool restriction or a schema that rejects that selection; do not bypass it.
+An unrestricted string field alone does not authorize overriding an explicit
+model allowlist. Distinguish a discovery omission from a stated prohibition;
+a completed run with runtime model metadata is evidence for that same host and
+dispatch mechanism, not for other surfaces.
+A returned agent ID proves creation only: check completion, the actual artifact
+and runtime model metadata when exposed. Record requested and observed model
+separately; unavailable metadata leaves the observed model unknown.
+A terminal run without a usable result is incomplete. Record its status/error
+and inspect existing outputs before any justified retry; do not automatically
+dispatch a duplicate worker.
+
+If the dispatch is prohibited or returns a concrete model, access or quota failure,
+record that restriction/error and disclose the unavailable route.
 The lead may continue authorized work directly and record the fallback; do not
 silently delegate to another model or label that work as Luna execution. A model
 listed in another surface is not proof it can be selected by this dispatch tool.
@@ -239,9 +262,12 @@ and a successful mixed-model run are separate claims from a performance benchmar
 5. Conflicting requirements or an unsafe architectural assumption: return to Astra;
    do not ask Luna to invent a new design to make a test pass.
 6. Login or network failure: report/reconcile the environment, without model escalation.
-7. Luna absent from the selected host: disclose the capability gap, keep permitted
-   work with the lead and record the fallback; do not claim Luna execution or
-   bypass host restrictions with another provider.
+7. Luna absent from a discovery list but accepted by the native tool: dispatch the
+   bounded task with an explicit Luna Max override and inspect completion; do not
+   substitute an inherited worker solely because the list omitted Luna.
+8. Native dispatch rejects or prohibits Luna: record the exact restriction/error,
+   disclose the gap and keep permitted work with the lead; do not claim Luna
+   execution or bypass host restrictions with another provider.
 
 ### Maintenance and evidence
 
@@ -257,8 +283,9 @@ These document model selection and configuration, not the effectiveness of this
 particular workflow. Change recorded: 2026-09-22, initial design-first policy;
 2026-09-25, adopted upper-model lead and Luna Max execution at the user's request,
 informed by [Baton](https://github.com/w00ing/skills/blob/4acf4c45cab7876fa63e4f8ae046bc95abf6bbc6/baton/SKILL.md).
-Mixed-model execution and comparative efficiency benchmarks remain untested by
-this documentation update.
+2026-09-27, made native subagent dispatch and failure evidence explicit after a
+run substituted inherited Sol workers without attempting the requested Luna route.
+Comparative efficiency benchmarks remain untested by this documentation update.
 
 ## UI reference selection
 
