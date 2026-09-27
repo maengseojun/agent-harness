@@ -593,11 +593,12 @@ execute a service write, spawn an agent, or authenticate supplied evidence. The
 host must call the gate immediately before the corresponding action and honor
 its result. Existing UserPromptSubmit/PreToolUse/Stop handlers stay unchanged.
 
-For a new tracked run, call `configure-hooks` after `start` and before recording
-an artifact. This freezes the output owner, exact authorized destinations,
-worker write paths and mandatory requirements. Empty arrays explicitly mean
-no planned service writes, worker writes or extra requirements. Existing tasks
-without a policy keep their original completion contract; do not retroactively
+New tasks start in `configuring` with next action `configure-hooks`; recording
+an artifact or completing is rejected until the policy is frozen. Call
+`configure-hooks` after `start` and before recording an artifact. This freezes
+the output owner, exact authorized destinations, worker write paths and mandatory requirements. Empty arrays explicitly mean
+no planned service writes, worker writes or extra requirements. Historical tasks
+created before mandatory configuration (without the creation marker) keep their original completion contract; do not retroactively
 change an active task's requirements. No reference grants new authorization.
 
 ```json

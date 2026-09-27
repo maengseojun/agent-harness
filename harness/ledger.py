@@ -208,7 +208,7 @@ FIELDS = {
 }
 
 NEXT_ACTION = {
-    "created": "claim", "routing": "route", "working": "artifact", "verifying": "check",
+    "created": "claim", "routing": "route", "configuring": "configure-hooks", "working": "artifact", "verifying": "check",
     "review-ready": "review", "repair-required": "repair", "blocked": "resolve-blocker",
     "awaiting-approval": "approve-publication", "publishing": "publish-or-reconcile",
     "awaiting-requirements": "resolve-requirements", "awaiting-closeout": "closeout", "ready-to-complete": "complete", "done": "none", "paused": "resume",
@@ -280,6 +280,8 @@ class Ledger:
             return "created"
         if not t["skills"]:
             return "routing"
+        if t.get("runtime_hooks_required") and not t.get("runtime_hooks"):
+            return "configuring"
         if t["repair_open"] or not t["artifact"]:
             return "working"
         if t["work_status"] == "repair-required":
@@ -462,7 +464,7 @@ class Ledger:
                      "retry_count": 0, "repair_open": False, "created_at": now(), "updated_at": now(),
                      "skills": [], "artifact": None, "artifact_history": [], "workers": [],
                      "check": None, "review": None, "feedback": [], "closeouts": {},
-                     "completion_requested": False}
+                     "completion_requested": False, "runtime_hooks_required": True}
         self.db.execute("INSERT INTO tasks VALUES (?,?,?)", (d["task_id"], canonical(request), canonical(self.task)))
         self.save()
         self.db.commit()
@@ -530,6 +532,8 @@ class Ledger:
         self.task["work_status"] = "working"
 
     def artifact(self, d):
+        require(not self.task.get("runtime_hooks_required") or self.task.get("runtime_hooks"),
+                "configure runtime hooks first")
         require(self.task["skills"], "route real skill files first")
         worker = identifier(d["worker_id"])
         artifact = {**snapshot(d["path"]), "worker_id": worker}
@@ -656,6 +660,8 @@ class Ledger:
                 "checked and reviewed source files changed; repair required")
 
     def complete(self, d):
+        require(not self.task.get("runtime_hooks_required") or self.task.get("runtime_hooks"),
+                "configure runtime hooks first")
         self.verified_work()
         require(all(p["artifact_sha256"] == self.task["artifact"]["sha256"]
                     for p in self.pubs if p["status"] != "superseded"),
@@ -890,7 +896,7 @@ class Ledger:
     def requirements_missing(self):
         hooks = self.task.get("runtime_hooks")
         if not hooks:
-            return False  # Existing tasks retain their original completion contract.
+            return bool(self.task.get("runtime_hooks_required"))  # Only historical tasks are exempt.
         seen = getattr(self, "dependency_stack", set()) | {self.task["task_id"]}
         if len(seen) > 16:
             return True

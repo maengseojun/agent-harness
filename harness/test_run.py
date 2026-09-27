@@ -36,7 +36,9 @@ class ProjectRunnerTests(unittest.TestCase):
         return execute(self.project, action, data)
 
     def ready(self, complete=True, artifact="summary.md"):
-        execute(self.project, "start", self.request)
+        state = execute(self.project, "start", self.request)
+        if not state.get("runtime_hooks"):
+            self.call("configure-hooks", output_owner="personal", destinations=[], write_paths=[], requirements=[])
         (self.project / artifact).write_text("A grounded action\n")
         (self.project / "check.txt").write_text("fixture check passed\n")
         (self.project / "review.txt").write_text("fixture independent review\n")
@@ -150,6 +152,7 @@ class ProjectRunnerTests(unittest.TestCase):
         source = self.project / "source.py"
         source.write_text("checked source\n")
         execute(self.project, "start", self.request)
+        self.call("configure-hooks", output_owner="personal", destinations=[], write_paths=[], requirements=[])
         for name in ("report.md", "check.txt", "review.txt"):
             (self.project / name).write_text("fixture evidence\n")
         digest = self.call("artifact", path="report.md", worker_id="fixture-worker")["artifact"]["sha256"]
@@ -262,7 +265,7 @@ class ProjectRunnerTests(unittest.TestCase):
         self.assertFalse((self.project / ".harness").exists())
         started = subprocess.run([*cmd, "start"], input=json.dumps(self.request), cwd=self.root,
                                  capture_output=True, text=True, check=True)
-        self.assertEqual("working", json.loads(started.stdout)["stage"])
+        self.assertEqual("configuring", json.loads(started.stdout)["stage"])
         listing = subprocess.run([*cmd, "list"], cwd=self.root, capture_output=True, text=True, check=True)
         self.assertEqual("same-id", json.loads(listing.stdout)["tasks"][0]["task_id"])
 
@@ -294,6 +297,7 @@ class ProjectRunnerTests(unittest.TestCase):
             with self.subTest(target=target), self.assertRaisesRegex(LedgerError, "symlink"):
                 self.call("artifact", path="alias/../output.md", worker_id="fixture-worker")
         self.assertIsNone(self.call("status")["artifact"])
+        self.call("configure-hooks", output_owner="personal", destinations=[], write_paths=[], requirements=[])
         regular = self.call("artifact", path="first/../output.md", worker_id="fixture-worker")
         self.assertEqual(str(self.project / "output.md"), regular["artifact"]["path"])
 
@@ -312,7 +316,7 @@ class ProjectRunnerTests(unittest.TestCase):
         result = subprocess.run([*cmd, "start"], input=json.dumps(self.request), cwd=self.root,
                                 capture_output=True, text=True, check=True)
         self.assertEqual("user", json.loads(result.stdout)["installation"])
-        self.assertEqual("working", json.loads(result.stdout)["stage"])
+        self.assertEqual("configuring", json.loads(result.stdout)["stage"])
         manifest = release / "manifest.json"
         original = manifest.read_bytes()
         manifest.write_text('{"files": {}, "release_id": "invalid"}')

@@ -11,6 +11,46 @@ class RuntimeHooksTests(unittest.TestCase):
     call = runner_fixture.ProjectRunnerTests.call
     ready = runner_fixture.ProjectRunnerTests.ready
     # Reuse the isolated project/runner fixture, not its inherited test suite.
+    def test_new_task_requires_configuration_and_legacy_keeps_contract(self):
+        import json
+        import sqlite3
+        from contextlib import closing
+        state = execute(self.project, 'start', self.request)
+        self.assertEqual(('configuring', 'configure-hooks'), (state['stage'], state['next_action']))
+        replay = execute(self.project, 'start', self.request)
+        self.assertTrue(replay['runtime_hooks_required'])
+        self.assertEqual('configuring', replay['stage'])
+        managed = {k: v for k, v in self.request.items() if k != 'closeout'}
+        managed['task_id'] = 'new-managed'
+        self.assertTrue(execute(self.project, 'start', managed)['runtime_hooks_required'])
+        with self.assertRaisesRegex(LedgerError, 'configure runtime hooks first'):
+            execute(self.project, 'complete', {'task_id': 'new-managed', 'owner': 'fixture-coordinator'})
+        (self.project / 'summary.md').write_text('isolated artifact')
+        with self.assertRaisesRegex(LedgerError, 'configure runtime hooks first'):
+            self.call('artifact', path='summary.md', worker_id='fixture-worker')
+        with self.assertRaisesRegex(LedgerError, 'configure runtime hooks first'):
+            self.call('complete')
+        # Represent an actual pre-upgrade state: it has no creation marker.
+        with closing(sqlite3.connect(state['database'])) as db, db:
+            old = json.loads(db.execute('SELECT state FROM tasks WHERE id=?', ('same-id',)).fetchone()[0])
+            old.pop('runtime_hooks_required')
+            db.execute('UPDATE tasks SET state=? WHERE id=?', (json.dumps(old), 'same-id'))
+        self.assertEqual('working', execute(self.project, 'start', self.request)['stage'])
+        digest = self.call('artifact', path='summary.md', worker_id='fixture-worker')['artifact']['sha256']
+        (self.project / 'check.txt').write_text('synthetic check')
+        (self.project / 'review.txt').write_text('synthetic review')
+        self.call('check', artifact_sha256=digest, evidence_path='check.txt', check_id='fixture',
+                  agent_id='fixture-worker', exit_code=0)
+        self.call('review', artifact_sha256=digest, evidence_path='review.txt', agent_id='fixture-reviewer',
+                  verdict='approved', covered_conditions=[0])
+        self.assertEqual('done', self.call('complete')['stage'])
+        with closing(sqlite3.connect(state['database'])) as db, db:
+            old = json.loads(db.execute('SELECT state FROM tasks WHERE id=?', ('same-id',)).fetchone()[0])
+            old['runtime_hooks_required'] = True
+            db.execute('UPDATE tasks SET state=? WHERE id=?', (json.dumps(old), 'same-id'))
+        with self.assertRaisesRegex(LedgerError, 'configure runtime hooks first'):
+            self.call('complete')
+
     def configured(self, requirements=None):
         execute(self.project, 'start', self.request)
         self.dest = {'id': 'notion', 'service': 'notion', 'workspace': 'personal-space',
@@ -157,6 +197,7 @@ class RuntimeHooksTests(unittest.TestCase):
         def call(action, **extra):
             return execute(self.project, action, {'task_id': 'child-task',
                            **({} if action == 'status' else {'owner': 'fixture-coordinator'}), **extra})
+        call('configure-hooks', output_owner='personal', destinations=[], write_paths=[], requirements=[])
         (self.project / 'child.md').write_text('child artifact')
         digest = call('artifact', path='child.md', worker_id='child-worker')['artifact']['sha256']
         call('check', artifact_sha256=digest, evidence_path='check.txt', check_id='child-check',
