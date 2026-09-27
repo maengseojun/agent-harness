@@ -613,7 +613,8 @@ def handle(e):
                 (c['input_sha256'], c.get('effective_input_sha256')) for c in t.get('runtime_hooks', {}).get('tool_calls', {}).values())]
     if name == 'PostToolUse' and tool_name(e.get('tool_name', '')) == 'wait_agent':
         for t in tasks:
-            ledger.Ledger(t['_database']).dispatch('tool-event', {'task_id': t['task_id'], 'owner': t['owner'], 'event': e})
+            if not t.get('blocker'):
+                ledger.Ledger(t['_database']).dispatch('tool-event', {'task_id': t['task_id'], 'owner': t['owner'], 'event': e})
         return {}
     if not selected:
         if name == 'PreToolUse' and protected(e.get('tool_name', ''), args):

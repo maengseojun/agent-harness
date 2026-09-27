@@ -269,6 +269,11 @@ class ToolHookTests(unittest.TestCase):
         pre = self.event('PreToolUse', 'spawn_agent', args)
         self.event('PostToolUse', 'spawn_agent', pre['hookSpecificOutput']['updatedInput'],
                    {'agent_id': 'actual-reviewer'})
+        sibling = {'task_id': 'blocked-sibling', 'owner': 'fixture-coordinator'}
+        execute(self.project, 'start', {**self.request, **sibling})
+        execute(self.project, 'configure-hooks', {**sibling, 'output_owner': 'personal',
+                'destinations': [], 'write_paths': [], 'requirements': []})
+        execute(self.project, 'block', {**sibling, 'kind': 'requirements', 'reason_ref': 'actual blocker'})
         response = {'status': {'actual-reviewer': {'completed': 'Actual final result'}}}
         self.event('PostToolUse', 'wait', response=response, event_id='exec-cell-wait')
         self.assertEqual('pending', self.call('status')['runtime_hooks']['delegations']['reviewer']['outcome'])
@@ -281,6 +286,7 @@ class ToolHookTests(unittest.TestCase):
         recorded = self.call('status')['runtime_hooks']['delegations']['reviewer']
         self.event('PostToolUse', 'wait_agent', response=response, event_id='later-wait')
         self.assertEqual(recorded, self.call('status')['runtime_hooks']['delegations']['reviewer'])
+        self.assertEqual('blocked', execute(self.project, 'status', {'task_id': sibling['task_id']})['stage'])
 
     def test_malformed_wire_input_fails_closed(self):
         for raw in ('{', 'x' * (2 * 1024 * 1024 + 1)):
