@@ -17,6 +17,9 @@ FIXTURE = {
     'agents/openai.yaml': ('.agents/skills/harness-run/agents/openai.yaml', b'interface: {}\n'),
     'scripts/ledger.py': ('harness/ledger.py', b'def message(): return "snapshot v1"\n'),
     'scripts/run.py': ('harness/run.py', b'from ledger import message\nprint(message())\n'),
+    'scripts/tool_hook.py': ('harness/tool_hook.py', b'from ledger import message\nimport run\ndef main(): print(message())\n'),
+    'scripts/work_records.py': ('harness/work_records.py', b'def main(): print("records")\n'),
+    'references/work-records/SKILL.md': ('skills/work-records/SKILL.md', b'---\nname: work-records\ndescription: Work records\n---\n'),
     'references/README.md': ('harness/README.md', b'Local harness reference.\n'),
     'references/NOTION-WORKSPACE.md': ('harness/NOTION-WORKSPACE.md', b'Canonical personal locators.\n'),
 }
@@ -79,21 +82,23 @@ class InstallTests(unittest.TestCase):
         self.assertEqual({str(path.relative_to(old)): path.read_bytes()
                           for path in old.rglob('*') if path.is_file()}, before)
 
-    def test_upgrade_accepts_valid_previous_five_file_release(self):
-        notion = self.source / 'harness/NOTION-WORKSPACE.md'
-        notion.unlink()
+    def test_upgrade_accepts_previous_five_and_six_file_releases(self):
         from install import FILES
-        old = FILES.pop('references/NOTION-WORKSPACE.md')
-        try:
-            prior = install(self.source, self.home)
-        finally:
-            FILES['references/NOTION-WORKSPACE.md'] = old
-        notion.write_text('Canonical personal locators.\n')
-        upgraded = install(self.source, self.home)
-        self.assertNotEqual(prior, upgraded)
-        self.assert_links(upgraded)
-        self.assertEqual(set(json.loads((prior / 'manifest.json').read_text())['files']),
-                         set(FILES) - {'references/NOTION-WORKSPACE.md'})
+        for count in (5, 6):
+            with self.subTest(count=count):
+                home = self.root / f'previous-{count}'
+                omitted = ['scripts/tool_hook.py', 'scripts/work_records.py', 'references/work-records/SKILL.md']
+                if count == 5:
+                    omitted.append('references/NOTION-WORKSPACE.md')
+                removed = {name: FILES.pop(name) for name in omitted}
+                try:
+                    prior = install(self.source, home)
+                finally:
+                    FILES.update(removed)
+                upgraded = install(self.source, home)
+                self.assertNotEqual(prior, upgraded)
+                self.assert_links(upgraded, home)
+                self.assertEqual(len(json.loads((prior / 'manifest.json').read_text())['files']), count)
 
     def test_conflicts_leave_both_entrypoints_untouched(self):
         outside = self.root / 'user-skill'

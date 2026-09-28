@@ -18,10 +18,15 @@ FILES = {
     'agents/openai.yaml': '.agents/skills/harness-run/agents/openai.yaml',
     'scripts/ledger.py': 'harness/ledger.py',
     'scripts/run.py': 'harness/run.py',
+    'scripts/tool_hook.py': 'harness/tool_hook.py',
+    'scripts/work_records.py': 'harness/work_records.py',
+    'references/work-records/SKILL.md': 'skills/work-records/SKILL.md',
     'references/README.md': 'harness/README.md',
     'references/NOTION-WORKSPACE.md': 'harness/NOTION-WORKSPACE.md',
 }
-PREVIOUS_FILES = set(FILES) - {'references/NOTION-WORKSPACE.md'}
+SEVEN_FILES = set(FILES) - {'scripts/work_records.py', 'references/work-records/SKILL.md'}
+PREVIOUS_FILES = SEVEN_FILES - {'scripts/tool_hook.py'}
+FIVE_FILES = PREVIOUS_FILES - {'references/NOTION-WORKSPACE.md'}
 
 
 def _manifest(payload):
@@ -45,7 +50,7 @@ def _verify(release):
         raise ValueError(error) from None
     if (not isinstance(saved, dict) or set(saved) != {'files', 'release_id'}
             or not isinstance(saved['files'], dict)
-            or set(saved['files']) not in (PREVIOUS_FILES, set(FILES))):
+            or set(saved['files']) not in (FIVE_FILES, PREVIOUS_FILES, SEVEN_FILES, set(FILES))):
         raise ValueError(error)
     paths = [release / name for name in (*saved['files'], 'manifest.json')]
     if any(path.is_symlink() or not path.is_file() for path in paths):
@@ -58,6 +63,11 @@ def _verify(release):
 def _entrypoint(link, releases):
     if link.is_symlink():
         target = Path(os.path.abspath(link.parent / link.readlink()))
+        if link.name == 'work-records' and target.parts[-2:] == ('references', 'work-records'):
+            root = target.parent.parent
+            if root.name == 'harness-run' and root.parent.parent == releases:
+                _verify(root)
+                return
         if target.name == 'harness-run' and target.parent.parent == releases:
             _verify(target)
             return
@@ -74,7 +84,10 @@ def install(source_root, home):
     store = home / '.local/share/agent-harness'
     releases = store / 'releases'
     release = releases / release_id / 'harness-run'
-    links = [home / name / 'skills/harness-run' for name in ('.agents', '.codex')]
+    links = {home / name / 'skills/harness-run': release for name in ('.agents', '.codex')}
+    if 'references/work-records/SKILL.md' in payload:
+        links.update({home / name / 'skills/work-records': release / 'references/work-records'
+                      for name in ('.agents', '.codex')})
     store.mkdir(parents=True, exist_ok=True)
     # One per-home lock serializes threads and processes through both switches.
     with (store / 'install.lock').open('a') as lock:
@@ -96,14 +109,14 @@ def install(source_root, home):
         # corresponding filesystem so replace remains atomic.
         with ExitStack() as cleanup:
             pending = []
-            for link in links:
-                if link.is_symlink() and link.readlink() == release:
+            for link, target in links.items():
+                if link.is_symlink() and link.readlink() == target:
                     continue
                 link.parent.mkdir(parents=True, exist_ok=True)
                 stage = cleanup.enter_context(tempfile.TemporaryDirectory(
                     prefix='.harness-run-', dir=link.parent))
                 temporary = Path(stage) / 'harness-run'
-                temporary.symlink_to(release, target_is_directory=True)
+                temporary.symlink_to(target, target_is_directory=True)
                 pending.append((temporary, link))
             for temporary, link in pending:
                 temporary.replace(link)

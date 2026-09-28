@@ -35,7 +35,79 @@ only when a skill needs distinct access, licensing or release ownership.
 Existing skills can have another canonical path: `harness-run` is sourced from
 `.agents/skills/harness-run/SKILL.md` and packaged by `harness/install.py`.
 
+## Advisory skill routing
+
+Skills can supply optional guidance without turning their entire workflow into
+task requirements. Consider relevant guidance from the requested outcome, not
+only a keyword. Read it when it adds value; skip redundant advice. A requested
+style or existing design system wins over aesthetic preferences. Repository
+rules, safety boundaries and necessary artifact checks remain binding.
+
+Keep one existing skill responsible for each capability. Explicitly requesting
+an upstream workflow is different from consulting its advice.
+
+### Reading or acquiring a skill
+
+The user authorizes both routes for personal tasks, without a fresh confirmation
+for each task-relevant skill:
+
+1. **Read and apply:** inspect relevant GitHub SKILL.md files, references or other
+   source files; apply useful recommendations as advisory guidance. This is enough
+   for a one-off question or guidance already covered by an existing skill.
+2. **Acquire and use:** when a task needs a missing capability or repeated use
+   benefits from a packaged skill, inspect and bring in only the selected folder.
+   Prefer the linked mattpocock/skills and pbakaus/impeccable repositories first;
+   search other GitHub sources when they do not fit. No blanket collection install.
+
+Before acquisition, review SKILL.md, referenced files, scripts, agent metadata,
+license and required dependencies at an exact commit. Compare with installed
+skills: reuse an existing owner when equivalent; add only useful missing guidance
+to its canonical source, or install a distinct capability under a non-conflicting
+name. Preserve local edits and old versions; do not overwrite namesakes.
+Announce the source, capability and overlap decision, then use skill-installer
+where available and compare installed bytes with the reviewed source. Preserve
+provenance and explain any adaptation instead of claiming it is an unmodified
+upstream install. Newly installed skills may need a catalog refresh; for the
+current task, explicitly read their verified local files before using them.
+
+The standing authorization covers skill files, not executing bundled code,
+automatic runtime downloads, hook registration, paid services, account changes,
+external publication or team installations. Evaluate those actions under the
+actual task authorization. Optional acquisition failures do not block independent
+work; report the concrete gap. Acquiring a skill does not make every upstream
+recommendation mandatory or override the user's style and scope.
+
+| Request or action | Existing owner | Optional addition and overlap decision |
+| --- | --- | --- |
+| General website or app UI, including a named style | frontend-guidance | Read selected Impeccable guidance or acquire its reviewed skill folder when justified; bundled runtime/hook execution is separate. |
+| Dithered artwork and purposeful motion | dither-motion-landing | Keep its asset and motion guidance; frontend-guidance only for a distinct design question. |
+| HTML presentation | frontend-slides | Keep deck-specific layout; do not substitute general web rules. |
+| UI compliance audit | web-design-guidelines | Keep the existing reviewer; avoid a duplicate Impeccable audit. |
+| Clarify an assignment | task-brief | [Grilling](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/productivity/grilling/SKILL.md) can inform questions; omit exhaustive interviews and confirmation gates unless requested. |
+| Implement or debug agreed work | execute-code-brief | [Diagnosis](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/engineering/diagnosing-bugs/SKILL.md) for difficult repros; [TDD](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/engineering/tdd/SKILL.md) for behavior tests. No new pre-test approval ritual. |
+| Review a code change | Installed code-review and project checks | [Two review axes](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/engineering/code-review/SKILL.md) can distinguish requirements from code quality; no duplicate skill or tracker setup. |
+| Create or revise agent instructions | skill-creator / skill-feedback | [Writing for agents](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/productivity/writing-for-agents/SKILL.md) can inform pruning and conditional references; keep canonical local sources. |
+
+The Matt Pocock pointers above are pinned to reviewed revision
+`c55ee46073ed923f86ce59a5eb3b6d895095d1b7`. Fetch only useful sections as reading
+material. Do not execute embedded setup, install hooks, publish to a tracker or
+apply unconditional upstream instructions merely because a reference was read.
+Missing optional access does not block permitted implementation.
+
+For tracked work, snapshot the selected local adapters in `start.skill_paths`.
+Record external reading URL/revision and the useful or skipped recommendation in
+existing brief/evidence; do not put raw advisory upstream skills into the frozen
+required-skill set. Review the user's acceptance conditions and the checks needed
+for the artifact, not compliance with every advisory recommendation. Additional
+optional reading can be recorded without changing frozen requirements; a genuine
+new requirement still follows the existing bounded follow-up rule.
+
+Discovery uses skill descriptions and these conditional pointers, not an enforced
+classifier. It permits implicit selection but does not guarantee every request
+will load a guide. Check routing and actual benefit on representative real tasks.
+
 ## Ownership and destination checks
+
 
 Resolve the owner from the requested output, explicit target, issue and live
 project entry. A folder name or Endix mention does not decide ownership. Personal
@@ -68,12 +140,21 @@ its limits.
 ## Notion workspace
 
 Use the standalone [Harness hub](https://www.notion.so/3e3e203190cd8143bdf5df0b46c1cb57)
-as the durable source of truth for personal managed work. Linear holds the
-short-term queue; Notion preserves decisions, results and recovery context.
+as the personal library of concluded work. Linear is the brain/memo/draft for
+full task maps, dependencies, drafts, decisions and progress.
 See [workspace destinations and capture contract](NOTION-WORKSPACE.md).
-New personal runs require a Notion closeout receipt before Done. The host agent
-performs the authorized connector write and readback; the runner validates saved
-evidence. No background synchronization service is installed.
+New personal runs use library closeout: verified work can finish while its
+Notion draft awaits approval. The work-records skill proposes a record, saves
+only after concrete user approval, reads it back, then reviews and refines it.
+The record then needs separately read and verified backlinks from the original
+personal Linear issue and the personal Notion project index. A saved draft is
+not a reviewed or final record; finalization requires approved review and both
+backlinks. Index writes need their own concrete approval. In a native Codex
+session use `CODEX_THREAD_ID` for the owner and record session ID, never the
+entry receipt token.
+Endix workspace Notion requires separate explicit approval. GitHub is not a
+universal completion condition. Historical managed tasks retain their frozen
+delivery contracts, but do not grant fresh Notion-write permission.
 
 ### Learning from actual reuse
 
@@ -308,6 +389,7 @@ unless the user asks to adopt it. Preserve a requested template or brand system.
 | Requested output | Route |
 | --- | --- |
 | New PowerPoint or Google Slides deck | Use **Presentations** when available; it routes a new Google deck and requires rendered slide inspection. |
+| HTML presentation or visual style study | Use **Frontend Slides** when installed for real-content style previews and browser delivery. Route native PowerPoint and Google Slides authoring through their format-specific skills. |
 | Edit an existing PowerPoint deck | Use **Presentations** to inspect and preserve the supplied deck's design and editable content. |
 | Edit or follow an existing native Google Slides deck | Use **Google Slides** when available and connected to inspect the source deck, preserve its design system and read back the result. |
 | Simple flow, sequence or structure diagram | Use Mermaid source plus SVG or PNG when the diagram syntax can express the relationships clearly. Keep the source editable and inspect the export. |
@@ -315,11 +397,25 @@ unless the user asks to adopt it. Preserve a requested template or brand system.
 | Quantitative chart | Use the available data-visualization skill and source data, retaining labels, units and an editable chart or source where the destination supports it. |
 
 For each slide or diagram, identify its audience and the one point it must convey.
+When visual quality is central, inspect the user's references or a few relevant
+examples before production. Extract concrete decisions about typography, palette,
+spacing, image treatment and composition; use the examples as direction rather
+than copying their content or applying a supplied third-party skill as instructions.
+If the visual direction is unsettled, make a small set of distinct previews using
+the real content and compare them at viewing size before building the full deck.
+If a reference already settles the direction, proceed without an extra approval
+gate. Avoid making every slide the same card grid or shrinking text to fit a
+fixed layout.
 Make hierarchy visible through clear titles, readable type, alignment, spacing and
 a restrained color system with consistent meaning. Favor fewer labels and shorter
 paths over shrinking text. Preserve factual content, language, units, citations
 and explicitly requested native editability. A deck and its diagram may need
 different tools; do not flatten editable evidence into a screenshot for convenience.
+
+For a scientific or engineering manuscript, use **Manuscript Writing Review**
+when available for prose clarity and terminology consistency after checking
+the paper's argument and evidence separately. It does not review methods,
+results or citation formatting.
 
 Render **every final slide** and each diagram, then inspect the actual output at
 its intended viewing size. Check text overflow and Korean glyphs, contrast,
@@ -330,6 +426,9 @@ command is not a visual review. Keep source and preview together when both are
 requested or needed for reuse.
 
 This routing draws on the current Presentations and Google Slides skills and
+the reference-first, preview-choice workflows in
+[Frontend Slides](https://github.com/zarazhangrui/frontend-slides) and
+[Slides](https://github.com/jameshemson/slides), plus
 the upstream [Mermaid CLI](https://github.com/mermaid-js/mermaid-cli) and
 [Excalidraw export utilities](https://github.com/excalidraw/excalidraw/blob/master/packages/utils/README.md).
 Community Excalidraw MCP projects such as
@@ -412,8 +511,23 @@ or transition. Only a current `stage: done` proves recorded completion.
 
 ## Publication and permissions
 
-New runner tasks default to `closeout: {"mode":"managed","github_paths":[]}`.
-Notion is required for this personal managed mode. Declare every intended changed
+New runner tasks default to `closeout: {"mode":"library","source_paths":[]}`.
+Declare changed code, skill and hook paths in `source_paths`; checks and review
+bind these bytes without requiring remote publication. A source change requires
+repair and renewed verification. Work completion and Notion record approval are
+separate. Use the work-records skill and its approval hook for that record.
+While a tracked task remains active in the same session, its tool gate also
+requires a prepared exact Notion call. Both admissions are required; neither
+approval bypasses the other. After task completion, the record gate remains.
+When GitHub delivery is requested, use a separate `github` task with
+`github_paths` for the exact reviewed files. Its closeout requires an immutable
+remote commit and byte-matched file readbacks, without requiring a Notion write.
+Keep the personal Linear issue as the work map; add a cross-linked GitHub issue
+only for a distinct actionable repository problem. Link the resulting commit
+and PR after separate remote fetches. PR merge remains a separate decision.
+
+Explicit `managed` delivery is retained for historical or separately requested
+contracts. Notion is required in that mode. Declare every intended changed
 skill, hook and harness file in `github_paths` when GitHub delivery is required.
 Managed code tasks must declare a nonempty file list or use an applicable
 reasoned scope exception. The declaration is frozen; the reviewer compares it
@@ -425,11 +539,11 @@ Use `{"mode":"local-only","reason":"..."}` or
 `{"mode":"read-only","reason":"..."}` only for an explicit request with that
 scope. An outage is not an exemption. Existing older tasks retain their original
 policy. `publication_required` still controls the primary-artifact outbox below;
-false does not waive the managed closeout requirement. Existing user authorization
-for the personal hub and reviewed personal repository changes is sufficient.
-Do not ask for the same permission twice or extend it to unrelated destinations.
+false does not waive an explicit managed closeout requirement. The 2026-09-28
+draft-first policy supersedes older standing personal Notion-write permission.
+Reviewed personal repository synchronization retains its existing scope.
 
-After review and the real Notion write/fetch, keep a simple intended summary and
+For an approved record, after review and the real Notion write/fetch, keep a simple intended summary and
 the independently fetched body as separate files. For example:
 
 ```json
@@ -494,3 +608,198 @@ The previously published v1 is in the private repository
 [maengseojun/agent-harness](https://github.com/maengseojun/agent-harness).
 Local edits are not published merely by installing them. Existing Endix policy
 was not verified; no team automation, schedule, merge or deployment is enabled.
+
+## Four runtime hooks
+
+The existing four lifecycle gates now have an optional native event bridge:
+`PreToolUse` runs write/delegation checks, `PostToolUse` records write responses,
+actual fetch readback and final native agent results, and `Stop` checks completion.
+`SubagentStop` requests final confirmation because another hook may continue the
+agent; it does not alone certify termination. No phase classifier or new model
+call is needed. Existing entry and managed closeout handlers are preserved.
+
+Install the reviewed package, then explicitly register its frozen handler:
+`python3 -B harness/install_tool_hooks.py --release <absolute-installed-release> --module all`.
+This switches the tool and work-record launchers to the same frozen release in
+one configuration update; compare both registered paths before claiming sync.
+The installer preserves unrelated config and old releases and backs up hooks.json.
+New definitions still require Codex's hook trust review; registration and synthetic
+wire tests do not prove desktop dispatch. Never manufacture trusted_hash entries.
+
+Use the actual Codex session ID (`CODEX_THREAD_ID`) as the coordinator owner.
+The runner CLI automatically indexes `start`/`resume` projects for that session,
+including managed worktrees outside the session cwd. Hooks check live ownership,
+not just cached task IDs. Historical tasks without the creation marker keep their
+contract; ordinary untracked tools and other sessions are unaffected.
+
+Before an intended action, freeze its exact input once with `prepare-tool`:
+`call_id`, `kind` (`write`, `delegate`, `readback`), `tool_name`, `input_path`
+(a JSON object containing actual tool arguments), and `gate`. This is an action
+plan, not a successful check or permission grant. The actual native event runs
+the gate atomically; omitting the plan denies protected calls. Arguments and the
+planned file must still match. Do not manually run before/after gates for a call
+already managed by the bridge. Existing direct runner gates remain available
+for hosts without native event support.
+
+- Write `gate`: existing `before-write` fields, including exact payload/hash.
+  For PR creation, also supply `expected_head_sha` at the top level from the
+  reviewed remote delivery commit; readback must confirm that exact PR head.
+  Add `purpose: "working-context"` only for authorized personal Linear issue
+  drafts and progress. This checks destination, input and actual readback before
+  a final artifact exists. Delivery writes retain the check/review prerequisite.
+  The bridge records any write response as uncertain, never as proof of storage.
+- Delegate `gate`: existing `before-delegate` fields. The pre-hook injects the
+  returned frozen contract into `message` or text `items` with `updatedInput`.
+  The actual created agent ID and final `wait_agent` result are recorded.
+- Readback `gate`: only `write_call_id`. The provider adapter binds the fetch
+  tool, account and resource to the actual write and compares returned fields
+  with the reviewed canonical JSON payload. Caller-selected projections and
+  local echoed JSON are not storage evidence.
+
+```json
+{"task_id":"TASK","owner":"ACTUAL_CODEX_SESSION_ID","call_id":"fetch-run","kind":"readback","tool_name":"mcp__codex_apps__notion_fetch","input_path":"evidence/fetch-input.json","gate":{"write_call_id":"save-run"}}
+```
+
+Supported writes use the exact `mcp__codex_apps__` provider names: Notion single
+page creation, full content replacement and property updates; Linear issue
+creation/update; GitHub issue creation/update, file creation/update and PR creation.
+PR creation uses explicit base/head branches, title, body and draft state; fetch
+the actual created PR number to verify the branch and content. `gh pr create`
+remains unsupported for tracked runs; use the typed GitHub connector. Unsupported
+fields or operations are denied. Native `mcp__linear__save_issue/get_issue` and
+`mcp__linear_endix__save_issue/get_issue` are also supported. Before native writes,
+fetch `get_workspace` through the same connector: its actual PostToolUse result
+binds the workspace to the frozen destination. Wrong workspace/connector owner
+or failed identity reads deny writes. Native tools do not take `link_id`; legacy
+Codex Apps Linear still requires it to equal the authorized workspace/account.
+Fetch referenced issues first when using UUIDs so returned identifier aliases
+can be compared. Personal working-context permission never grants Endix writes.
+Issue project/parent/blockedBy/blocks/relatedTo/links/labels are supported;
+fetch with `includeRelations:true` for relation writes. Additive relations/links
+must contain every requested item; existing unrelated items are preserved.
+Use complete supported values rather than an unverified description patch.
+Notion creation supports exactly one explicit page or data-source parent; actual
+fetch ancestry is checked against that parent. Notion content uses the existing plain-summary normalization;
+other requested fields use canonical JSON. Full native Notion fetch envelopes
+supply body/properties and parent identity; truncated/unknown-block results fail.
+Each create should include a stable task marker. Plan its fetch after the write
+returns the actual created ID; an unavailable ID requires explicit reconciliation
+instead of certifying an unrelated matching record. GitHub file identity is fixed
+by its repository/branch/path.
+
+Direct GitHub pushes require `git push REMOTE SOURCE:BRANCH`, an explicit working
+directory (or `git -C`), a GitHub remote and no force flags. Authorize the exact
+API ref URL (`https://api.github.com/repos/OWNER/REPO/git/refs/heads/BRANCH`) with
+payload `{"commit":"LOCAL_COMMIT_SHA","ref":"refs/heads/BRANCH"}`. Read back with
+plain `gh api repos/OWNER/REPO/git/ref/heads/BRANCH`. All shell arguments, including
+working directory, remain part of the frozen input. Other mutating `gh` commands
+are intercepted but require a supported typed connector instead. Actual raw
+provider responses are retained privately, separate from normalized readback.
+
+The bridge observes named Linear/GitHub/Notion MCP writes, native `spawn_agent`,
+and direct `git push`/mutating `gh` calls. Indirect shell scripts, hosted search,
+UI actions and tool paths bypassing native hooks are outside that coverage; use
+the existing explicit runner gates for these host limitations. This is not an OS sandbox,
+service-account authenticator or complete permission boundary. It binds actual
+calls to coordinator-supplied, authorized destinations and reviewed versions.
+Unknown write outcomes block retries; reliable absence can be supplied through
+the existing reconciliation gate before another admitted attempt. A fresh fetch
+showing drift after verification records a blocker rather than weakening receipts.
+
+New tasks start in `configuring` with next action `configure-hooks`; recording
+an artifact or completing is rejected until the policy is frozen. Call
+`configure-hooks` after `start` and before recording an artifact. This freezes
+the output owner, exact authorized destinations, worker write paths and mandatory requirements. Empty arrays explicitly mean
+no planned service writes, worker writes or extra requirements. Historical tasks
+created before mandatory configuration (without the creation marker) keep their original completion contract; do not retroactively
+change an active task's requirements. No reference grants new authorization.
+
+```json
+{"task_id":"TASK","owner":"COORDINATOR","output_owner":"personal","destinations":[{"id":"run-page","service":"notion","workspace":"VERIFIED_WORKSPACE_ID","target":"EXACT_RESOURCE_URL","output_owner":"personal","operations":["update"],"authorization_ref":"EXISTING_USER_AUTHORIZATION"}],"write_paths":["output"],"requirements":[{"id":"installation","kind":"evidence","target":"source/install hashes and installed doctor"},{"id":"appendix","kind":"child","target":"APPENDIX_TASK_ID"}]}
+```
+
+Paths are project-relative through `run.py`; the lower-level ledger requires
+canonical absolute paths. Worker scopes cannot escape the selected project or
+use symlinks. A mixed run lists bounded personal and team destinations separately;
+team writes still need their live team entry and actual permission. Prefer separate
+runs where destinations or outputs change independently.
+
+### Before external writes
+
+For deliveries, after current checks and independent review, prepare a payload file representing
+all intended content and properties. For GitHub, use a canonical manifest of the
+exact revision/files and their hashes. Call `before-write` with a stable
+`operation_id`, destination ID, observed workspace and target, operation, payload
+path/hash and the same authorization reference frozen in the policy. Save the
+returned attempt number before calling the connector. Its `hook.should_write`
+is false for an already verified operation: skip the write. Pending, uncertain
+or conflicting attempts deny another write. A second ID cannot bypass an
+identical binding. Destination comparison is exact, not URL-prefix guessing.
+
+Personal Linear working context uses the same exact-input, authorized-destination
+and readback path, with `purpose:"working-context"`. It needs no final artifact or
+review and its verified receipts remain valid when a later artifact is recorded.
+Pending/uncertain progress writes still require reconciliation before completion.
+Notion, GitHub and team deliveries cannot use this purpose to bypass review.
+
+This hook binds a reviewed work version and durable intent before the side effect.
+It checks coordinator-supplied destination facts; it cannot validate an account
+or decode every service's payload. A create operation must use the canonical
+parent/collection as its target and include the stable Task ID/marker in the
+payload. The host separately checks the newly created resource's parent and ID.
+
+### After writes and before retries
+
+Call `after-write` with the matching operation ID/attempt, workspace and target,
+`evidence_path`, and `outcome`: `verified`, `absent`, `uncertain` or `conflict`.
+Only `verified` accepts `readback_path`, which must be a separate file whose bytes
+match the intended payload. Normalize actual fetched content/properties to the
+same canonical representation; preserve the raw fetch privately as evidence.
+Do not copy the intended payload and label it fetched evidence.
+
+An `absent` result needs a real reliable lookup proving no result for that intent;
+only then can the same operation prepare another attempt. A timeout, missing
+access, partial result or multiple matching records is not absence. Inspect the
+known target/Task ID/marker before recording a result. Uncertain/conflicting
+writes prevent completion. A delayed valid receipt can reconcile an older version.
+A repair supersedes verified or confirmed-absent old-version intents while
+preserving their resolution and history; it never discards pending or uncertain
+writes. Confirmed absence after repair also terminates that historical intent;
+prepare a new operation ID for the new version when a write is still required.
+
+### Before delegation
+
+Call `before-delegate` with a stable delegation ID, role, bounded description,
+acceptance conditions, source references and allowed write paths. Forward the
+returned `hook.contract` to the native worker together with actual request/source
+context. It contains the frozen skill text, output owner, parent task, authority
+scope, actual artifact and check evidence. Active worker write scopes must not
+overlap. Reviewers have no write paths and need current checks; the coordinator
+saves their returned evidence. Do not dispatch a second agent for an already
+running delegation just because the preparation was repeated.
+
+After the real result, call `after-delegate` with the actual agent ID, outcome
+`finished` or `blocked`, and saved evidence. The ledger rejects owners as delegates
+and authors as reviewers; a later worker registration invalidates that agent's
+review. A blocked result can be recovered with a real finished result. Finished
+receipts are immutable. All registered delegations are required; leave optional
+follow-ups outside this run. These ID checks do not authenticate native agents.
+
+### Before completion
+
+`complete` automatically checks every frozen requirement and registered write or
+delegation. For an `evidence` requirement, call `requirement` with a current file
+and an actual independent verifier ID after review. Evidence binds the reviewed
+artifact and declared source hashes, so repair requires renewed verification.
+A target is a human-readable condition, not an automatic installer or file check.
+The verifier must inspect that condition and put its result in the evidence.
+
+A `child` requirement names a task in this project's ledger. Completion checks
+its live effective state, not merely a supplied Done label; missing, blocked,
+paused or stale children prevent Done. Cycles fail closed. Dependency inspection
+is bounded to 16 levels; split deeper workflows rather than assuming success.
+Missing runtime evidence is reported as a blocker and can be restored/resolved.
+Historical completed runs are not re-opened by the global Stop reminder.
+
+Focused regression command from the repository root:
+`python3 -B -m unittest discover -s harness -p 'test_runtime_hooks.py'`.

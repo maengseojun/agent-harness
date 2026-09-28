@@ -1,5 +1,38 @@
 # Automatic personal and Endix entry
 
+## Task records: current policy (2026-09-28)
+
+The additional work-records UserPromptSubmit handler delivers the Linear
+brain/memo/draft and personal Notion library policy even for ordinary answers
+that do not enter the local-tool gate. Its PreToolUse handler admits only an
+exact prepared Notion record write with a presented draft and recorded explicit
+user decision; PostToolUse leaves delivery uncertain until separate readback.
+Stop inspects session-bound current artifact/check/review/source evidence and
+requests one assessment for a verified result, even without a registered draft.
+It requests one presentation for unpresented candidates, then stays quiet.
+Assessments link a candidate or defer with a reason. Repeating the same result
+does not repeat the reminder. Explicit absence readback and a fresh user approval
+allow one new same-content save attempt; unknown or saved outcomes remain blocked.
+The host judges completion from evidence; the hook does not read or classify
+conversation transcripts, contact services, or grant team write authority.
+
+New harness runs use `library` closeout and may finish before optional Notion
+approval. The managed Notion/GitHub completion contract below applies to frozen
+historical or explicitly managed tasks. Old standing Notion permission is
+superseded by draft approval. Endix Notion needs separate concrete permission.
+The work-records hook uses private local hashes, references and decision metadata;
+it stores no prompt, document body or credentials. Approval/readback references
+are agent attestations, not authenticated proof. Named direct Notion MCP calls
+are covered; browser, shell, wrapper and cloud routes are not a universal sandbox.
+
+Install the reviewed package with `python3 -B harness/install.py`, then register
+the frozen tool and record handlers together with `python3 -B harness/install_tool_hooks.py --release
+/ABSOLUTE/RELEASE/harness-run --module all`. Other entry and Stop handlers and
+plugin handlers are preserved. Codex trust review and a fresh real request are
+separate activation checks. Never modify trust metadata to bypass approval.
+
+## Existing ownership entry and historical managed closeout
+
 The user-level Codex hooks select an entry before local tool work. The host model
 uses the current request and settled conversation context to choose `personal`,
 `endix`, or `mixed`. There is no keyword classifier or second model call.
@@ -129,3 +162,24 @@ They are not a task queue. Retention is manual; removing old receipts does not
 delete task artifacts, and active-turn receipts must be preserved.
 
 Primary platform reference: [Codex hooks](https://learn.chatgpt.com/docs/hooks).
+
+## Runtime gates after entry
+
+The selected personal entry leads to the installed harness-run skill. New tracked
+runs configure four cooperative runner gates: `before-write`, `after-write`,
+`before-delegate`, and the automatic `complete` gate. See **Four runtime hooks**
+in `README.md`. The host calls the first three at the real service/delegation
+boundaries, forwards contracts and supplies actual fetched evidence. They are
+not additional global Codex handlers; local entry selection alone does not prove
+these gates ran. Existing global hook registration and trust remain unchanged.
+
+### Four automatic lifecycle gates
+
+The optional `install_tool_hooks.py` installer adds a frozen release handler for
+PreToolUse, PostToolUse, SubagentStop and Stop, preserving the entry and closeout
+handlers above. The four behaviors are write preparation, actual write readback,
+delegation contracts and completion requirements. The session index follows CLI
+start/resume into managed worktrees. Prepared tool input hashes bind events to
+real task ownership; remote fetches and final native wait results provide evidence.
+Registration needs a separate Codex trust review. See Four runtime hooks in
+README.md for coverage, JSON plans, failure behavior and installation boundaries.

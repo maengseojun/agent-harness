@@ -61,7 +61,9 @@ class LedgerTests(unittest.TestCase):
     def start(self, required=True):
         self.create(required)
         self.call("claim")
-        return self.call("route", skills=[self.pin])
+        routed = self.call("route", skills=[self.pin])
+        self.call("configure-hooks", output_owner="personal", destinations=[], write_paths=[], requirements=[])
+        return routed
 
     def record(self):
         return self.call("artifact", path=str(self.artifact), worker_id="worker")["artifact"]["sha256"]
@@ -499,6 +501,7 @@ class LedgerTests(unittest.TestCase):
         self.assertFalse((self.root / "pwned").exists())
         self.call("claim")
         self.call("route", skills=[self.pin])
+        self.call("configure-hooks", output_owner="personal", destinations=[], write_paths=[], requirements=[])
         digest = self.record()
         with self.assertRaises(LedgerError):
             self.check(digest, exit_code=True)
