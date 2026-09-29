@@ -124,10 +124,9 @@ Record each saved revision's review with `reviewed`, a verdict (`approved` or
 `needs-revision`) and its actual evidence reference. A later rewrite starts as
 `saved-draft` again. Work completion in the harness does not mean the Notion
 record is reviewed or final.
-After approval, update the canonical page and read it back. Index updates must
-also be included in concrete approved proposals. Link related proposal IDs so
-one task can have an outcome record, index update and later rewrite without
-losing history. Linear tracks any remaining review action, while verified work
+After approval, update the canonical page and read it back. Link related
+proposal IDs so one task can have an outcome record, index update and later
+rewrite without losing history. Linear tracks any remaining review action, while verified work
 can finish even if its optional Notion record awaits approval.
 
 For every outcome record, maintain both reverse links after the saved page is
@@ -140,10 +139,16 @@ record `linked` with those readbacks; a write response or a link in the draft
 does not suffice. The saved record remains `pending` until both reverse links
 are verified. The Stop reminder surfaces this once. The `finalized` transition
 requires verified links, an approved review of the current saved revision and
-the user's final approval reference. Propose the index write separately and
-obtain approval for its exact change; an earlier record-save approval does not
-cover it. Maintained policy pages use `record_kind:"policy"` and do not require
-outcome backlinks.
+the user's final approval reference. For personal outcomes, the user's
+2026-09-29 standing authorization covers adding the canonical result URL to the
+original personal Linear issue and its personal Notion project index without
+another decision. Prepare the exact index link proposal, use that standing
+authorization as its `user_decision_ref`, perform each write once, and read both
+destinations back before marking `linked`. This authorization covers only these
+two reciprocal links after the outcome record is saved and verified. It does
+not cover Endix destinations, other content edits, an uncertain retry, a final
+rewrite, or finalization. Maintained policy pages use `record_kind:"policy"`
+and do not require outcome backlinks.
 
 For another chat continuing the same task, find its candidate with `status` and
 the stable `task_id`, then explicitly `resume` with the prior session identity

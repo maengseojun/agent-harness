@@ -55,7 +55,9 @@ POLICY = ('Linear is always brain/memo/draft; personal Notion is the completed-r
           'library. For substantive work consult {skill}. Judge completion from actual '
           'results; propose and present the draft before requesting a user decision. '
           'After an approved write, read back the saved record separately, then request '
-          'review and concrete permission for a final rewrite or extra index write. '
+          'review and concrete permission for a final rewrite. Personal outcome '
+          'backlinks have standing authorization after verified save; fetch both '
+          'destinations before marking linked. '
           'Endix Notion needs separate explicit authorization. User references are '
           'cooperative attestations, not authentication. Never infer completion from Stop.')
 
@@ -548,7 +550,8 @@ def hook(state, event):
             return {}
         if unlinked and not pending:
             return {'decision': 'block', 'reason': 'Saved work record still needs verified Linear output and '
-                    'personal Notion project-index backlinks. Propose any Notion index write for separate approval; '
+                    'personal Notion project-index backlinks. Use the personal backlink standing authorization '
+                    'for an exact index link proposal; '
                     'then fetch both destinations and record linked. Candidates: ' +
                     ', '.join(c['candidate_id'] for c in unlinked)}
         return {'decision': 'block', 'reason': 'Present prepared work-record draft(s) once and ask '
