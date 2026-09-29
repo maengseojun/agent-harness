@@ -146,12 +146,14 @@ See [workspace destinations and capture contract](NOTION-WORKSPACE.md).
 New personal runs use library closeout: verified work can finish while its
 Notion draft awaits approval. The work-records skill proposes a record, saves
 only after concrete user approval, reads it back, then reviews and refines it.
-The record then needs separately read and verified backlinks from the original
+Evidence-backed Outcome and stale-sentence corrections on that saved personal
+outcome use the narrow standing maintenance grant and fresh readback; the user
+alone confirms `Completed`. The record then needs separately read and verified backlinks from the original
 personal Linear issue and the personal Notion project index. A saved draft is
 not a reviewed or final record; finalization requires approved review and both
 backlinks. The user's standing permission covers these two personal outcome
 links after a verified save; prepare the exact index change and read both
-destinations back. It does not cover Endix or other content edits. In a native Codex
+destinations back. It does not cover Endix or unrelated content edits. In a native Codex
 session use `CODEX_THREAD_ID` for the owner and record session ID, never the
 entry receipt token.
 Endix workspace Notion requires separate explicit approval. GitHub is not a

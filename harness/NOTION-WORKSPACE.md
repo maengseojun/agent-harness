@@ -9,13 +9,17 @@ full work maps, ideas, dependencies, working drafts, decisions and progress.
 Personal Notion is a library of concluded outcomes. Propose a concrete draft
 from Linear history, the conversation and actual result evidence; obtain user
 approval before saving, fetch the result, then review and refine the writing.
+On that same saved personal outcome, evidence-backed Outcome and stale-sentence
+corrections can be made under the 2026-09-29 standing maintenance grant and must
+be read back. Only the user confirms `Completed`; `Proposed` or `In progress`
+means final acceptance remains open.
 After saving, fetch both the original personal Linear issue and the project
 index to confirm they link back to the canonical record. The record's saved
 draft, reviewed and final states are distinct from harness work completion;
 finalization requires approved review of the current saved revision and both
 backlinks. The user's 2026-09-29 standing permission covers these two personal
 outcome links after a verified save: prepare the exact index change, write once,
-and read both destinations back. It does not cover Endix, other content edits,
+and read both destinations back. Neither grant covers Endix or unrelated edits,
 uncertain retries or finalization. Use the actual
 `CODEX_THREAD_ID` for local record actions, never the entry receipt token.
 Failed/abandoned experiments with useful conclusions can qualify. Use project
@@ -146,8 +150,9 @@ retrieval automatically. Current scopes and write permissions still apply.
 ## Delivery verification
 
 Use `In progress` during delivery and `Blocked` for a required inaccessible
-destination. Only promote a result to `Completed` after local verification,
-independent review and required delivery/readback checks. Read back that final
+destination. Promote a personal outcome record to `Completed` only after local
+verification, independent review, required delivery/readback checks and the
+user's explicit completion decision. Read back that final
 status too. A run status is a historical outcome, not a duplicate live Linear
 queue. At a decision milestone, update the existing Knowledge page immediately;
 the final Run links the accepted decisions and recovery context.
