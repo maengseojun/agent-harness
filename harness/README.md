@@ -614,8 +614,9 @@ was not verified; no team automation, schedule, merge or deployment is enabled.
 The existing four lifecycle gates now have an optional native event bridge:
 `PreToolUse` runs write/delegation checks, `PostToolUse` records write responses,
 actual fetch readback and final native agent results, and `Stop` checks completion.
-`SubagentStop` requests final confirmation because another hook may continue the
-agent; it does not alone certify termination. No phase classifier or new model
+`SubagentStop` records its observation on the planned delegation and requests
+final confirmation because another hook may continue the agent; it does not
+alone certify termination. No phase classifier or new model
 call is needed. Existing entry and managed closeout handlers are preserved.
 
 Install the reviewed package, then explicitly register its frozen handler:

@@ -592,6 +592,15 @@ def event(store, d):
     e = d['event']
     ledger.require(e.get('session_id') == store.task['owner'], 'hook session does not own task')
     name = e.get('hook_event_name')
+    if name == 'SubagentStop':
+        agent_id = e.get('agent_id')
+        if not isinstance(agent_id, str) or not agent_id:
+            return {}
+        for call in store.hooks().get('tool_calls', {}).values():
+            if call['kind'] == 'delegate' and call.get('agent_id') == agent_id:
+                call.setdefault('subagent_stop', {'agent_id': agent_id, 'observed_at': ledger.now()})
+                return output(name, 'Subagent returned. Use wait_agent to confirm the final result before recording completion; this lifecycle event may still be continued.')
+        return {}
     connector = linear_connector(e.get('tool_name', ''))
     if name == 'PostToolUse' and connector:
         endpoint = provider(e['tool_name'])
@@ -792,8 +801,12 @@ def handle(e):
         return {}
     if name in ('Stop', 'SubagentStop'):
         if name == 'SubagentStop':
-            if any(c.get('agent_id') == e.get('agent_id') for t in tasks for c in t.get('runtime_hooks', {}).get('tool_calls', {}).values()):
-                return output(name, 'Subagent returned. Use wait_agent to confirm the final result before recording completion; this lifecycle event may still be continued.')
+            agent_id = e.get('agent_id')
+            if not isinstance(agent_id, str) or not agent_id:
+                return {}
+            for task in tasks:
+                if any(c['kind'] == 'delegate' and c.get('agent_id') == agent_id for c in task.get('runtime_hooks', {}).get('tool_calls', {}).values()):
+                    return ledger.Ledger(task['_database']).dispatch('tool-event', {'task_id': task['task_id'], 'owner': task['owner'], 'event': e})['hook']
             return {}
         pending = []
         for t in tasks:
