@@ -829,7 +829,8 @@ def handle(e):
     if not selected:
         if name == 'PostToolUse' and linear_connector(e.get('tool_name', '')):
             for t in tasks:
-                ledger.Ledger(t['_database']).dispatch('tool-event', {'task_id': t['task_id'], 'owner': t['owner'], 'event': e})
+                if not t.get('blocker'):
+                    ledger.Ledger(t['_database']).dispatch('tool-event', {'task_id': t['task_id'], 'owner': t['owner'], 'event': e})
             return {}
         if name == 'PreToolUse' and protected(e.get('tool_name', ''), args):
             return output(name, 'Tracked Harness action has no prepared call. Freeze its exact input and gate with prepare-tool first.', deny=True)

@@ -465,6 +465,18 @@ class ToolHookTests(unittest.TestCase):
         self.assertEqual(recorded, self.call('status')['runtime_hooks']['delegations']['reviewer'])
         self.assertEqual('blocked', execute(self.project, 'status', {'task_id': sibling['task_id']})['stage'])
 
+    def test_blocked_sibling_does_not_break_linear_identity_read_for_active_task(self):
+        self.config('linear')
+        sibling = {'task_id': 'blocked-sibling', 'owner': 'fixture-coordinator'}
+        execute(self.project, 'start', {**self.request, **sibling})
+        execute(self.project, 'configure-hooks', {**sibling, 'output_owner': 'personal',
+                'destinations': [], 'write_paths': [], 'requirements': []})
+        execute(self.project, 'block', {**sibling, 'kind': 'requirements', 'reason_ref': 'actual blocker'})
+        self.event('PostToolUse', 'mcp__linear__get_workspace', {},
+                   {'structuredContent': {'id': self.dest['workspace']}}, event_id='active-workspace')
+        self.assertEqual(self.dest['workspace'], self.call('status')['runtime_hooks']['connections']['mcp__linear__']['workspace'])
+        self.assertEqual('blocked', execute(self.project, 'status', {'task_id': sibling['task_id']})['stage'])
+
     def test_malformed_wire_input_fails_closed(self):
         for raw in ('{', 'x' * (2 * 1024 * 1024 + 1)):
             with self.subTest(raw_size=len(raw)), patch('sys.stdin', io.StringIO(raw)), patch('sys.stderr', io.StringIO()):
