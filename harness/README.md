@@ -149,7 +149,9 @@ only after concrete user approval, reads it back, then reviews and refines it.
 The record then needs separately read and verified backlinks from the original
 personal Linear issue and the personal Notion project index. A saved draft is
 not a reviewed or final record; finalization requires approved review and both
-backlinks. Index writes need their own concrete approval. In a native Codex
+backlinks. The user's standing permission covers these two personal outcome
+links after a verified save; prepare the exact index change and read both
+destinations back. It does not cover Endix or other content edits. In a native Codex
 session use `CODEX_THREAD_ID` for the owner and record session ID, never the
 entry receipt token.
 Endix workspace Notion requires separate explicit approval. GitHub is not a
