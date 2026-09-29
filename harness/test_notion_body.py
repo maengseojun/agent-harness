@@ -12,6 +12,15 @@ class NotionBodyTests(unittest.TestCase):
         self.assertFalse(ledger.notion_body_matches(expected, actual.replace(page, 'b' * 32)))
         self.assertFalse(ledger.notion_body_matches(f'`{expected}`', f'`{actual}`'))
 
+    def test_approved_notion_link_rendered_as_page_mention(self):
+        page = 'a' * 32
+        expected = f'[Index](https://app.notion.com/p/{page})'
+        actual = f'<mention-page url="https://app.notion.com/p/{page}">Harness</mention-page>'
+        self.assertTrue(ledger.notion_body_matches(expected, actual))
+        self.assertFalse(ledger.notion_body_matches(expected, actual.replace(page, 'b' * 32)))
+        self.assertFalse(ledger.notion_body_matches(expected, actual + '\nExtra'))
+        self.assertFalse(ledger.notion_body_matches(f'`{expected}`', f'`{actual}`'))
+
     def test_added_links_preserve_body_and_existing_links(self):
         source = 'harness/tool_hook.py\nhttps://example.com/result\n[Source](https://example.com/source)\n'
         saved = 'harness/tool_[hook.py](http://hook.py)\n\n[https://example.com/result](https://example.com/result)\n[Source](https://example.com/source)'

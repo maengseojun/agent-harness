@@ -198,7 +198,8 @@ def notion_body_matches(expected, actual):
         r'(?m:^[ ]{0,3}(?P<fence>`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^[ ]{0,3}(?P=fence)(?![`~])[ \t]*(?:\n|$)|\Z))'
         r'|(?m:^(?: {4}| {0,3}\t)[^\n]*(?:\n|$))'
         r'|(?<!`)(?P<ticks>`+)(?!`)[\s\S]*?(?<!`)(?P=ticks)(?!`)'
-        r'|(?<![!\\])\[(?P<label>[^\[\]\n]+)\]\((?P<destination>[^()\s]+)\)')
+        r'|(?<![!\\])\[(?P<label>[^\[\]\n]+)\]\((?P<destination>[^()\s]+)\)'
+        r'|<mention-page url="(?P<mention>https://app\.notion\.com/p/[0-9a-f]{32})">[^<\n]*</mention-page>')
     # Canonicalize only parsed links, preserving URLs inside code.
     page_link = re.compile(r'https://(?:www\.notion\.so/|app\.notion\.com/p/)([0-9a-f]{32})')
     def canonical_links(body):
@@ -207,6 +208,10 @@ def notion_body_matches(expected, actual):
             if match.group('label') and page_link.fullmatch(match.group('destination'))
             else match.group(0), body)
     expected, actual = canonical_links(expected), canonical_links(actual)
+    approved_pages = {match.group('destination'): match.group(0) for match in token.finditer(expected)
+                      if match.group('label') and page_link.fullmatch(match.group('destination'))}
+    actual = token.sub(lambda match: approved_pages.get(match.group('mention'), match.group(0))
+                       if match.group('mention') else match.group(0), actual)
     links = {match.group(0) for match in token.finditer(expected) if match.group('label') is not None}
     urls = [(match.start(), match.group(0).rstrip('.,;:!?'))
             for match in re.finditer(r'https?://[^\s<>\[\]()]+', expected, re.IGNORECASE)]
