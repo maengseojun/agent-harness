@@ -1,5 +1,6 @@
 """Isolated CLI/ledger regression tests, not claims of live agent execution."""
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -14,6 +15,23 @@ from install import FILES, install
 
 
 class ProjectRunnerTests(unittest.TestCase):
+    def test_library_work_finishes_without_notion_or_github_publication(self):
+        self.request.pop("closeout")
+        self.request["kind"] = "code"
+        state = self.ready()
+        self.assertEqual("done", state["stage"])
+        self.assertEqual({"mode": "library", "source_paths": []}, state["request"]["closeout"])
+        self.assertEqual({}, state["closeouts"])
+
+    def test_library_declared_source_change_requires_new_verification(self):
+        source = self.project / 'source.py'
+        source.write_text('checked source\n')
+        self.request['kind'] = 'code'
+        self.request['closeout'] = {'mode': 'library', 'source_paths': ['source.py']}
+        self.assertEqual('done', self.ready()['stage'])
+        source.write_text('unreviewed change\n')
+        self.assertEqual('repair-required', self.call('status')['stage'])
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -121,13 +139,31 @@ class ProjectRunnerTests(unittest.TestCase):
         self.call("closeout", **{**fields, "commit": "b" * 40})
         self.assertEqual("done", self.call("complete")["stage"])
 
+    def test_github_delivery_is_separate_from_local_work_and_notion(self):
+        self.request["kind"] = "code"
+        self.request["closeout"] = {"mode": "github", "github_paths": ["source.py"]}
+        source = self.project / "source.py"
+        source.write_text("reviewed code\n")
+        state = self.ready(complete=False, artifact="report.md")
+        self.assertEqual("awaiting-closeout", state["stage"])
+        with self.assertRaisesRegex(LedgerError, "closeout evidence"):
+            self.call("complete")
+        (self.project / "remote.py").write_bytes(source.read_bytes())
+        self.call("closeout", service="github", repository="example/private", commit="a" * 40,
+                  files=[{"path": "source.py", "readback_path": "remote.py"}],
+                  receipt_ref="host:immutable-commit-readback")
+        self.assertEqual("done", self.call("complete")["stage"])
+        with self.assertRaisesRegex(LedgerError, "does not require a Notion"):
+            self.call("closeout", service="notion", target="https://app.notion.com/p/12345678901234567890123456789012",
+                      summary_path="report.md", readback_path="remote.py", receipt_ref="unrelated")
+
     def test_managed_code_requires_paths_or_explicit_exception(self):
         self.request["kind"] = "code"
-        for policy in (None, {"mode": "managed", "github_paths": []}):
+        for policy in ({"mode": "managed", "github_paths": []},):
             request = {k: v for k, v in self.request.items() if k != "closeout"}
             if policy is not None:
                 request["closeout"] = policy
-            with self.subTest(policy=policy), self.assertRaisesRegex(LedgerError, "managed code requires"):
+            with self.subTest(policy=policy), self.assertRaisesRegex(LedgerError, "requires github_paths"):
                 execute(self.project, "start", request)
         self.assertEqual("done", self.ready()["stage"])
 
@@ -167,7 +203,7 @@ class ProjectRunnerTests(unittest.TestCase):
     def test_runner_default_and_legacy_ledger_policy(self):
         request = {key: value for key, value in self.request.items() if key != "closeout"}
         state = execute(self.project, "start", request)
-        self.assertEqual({"mode": "managed", "github_paths": []}, state["request"]["closeout"])
+        self.assertEqual({"mode": "library", "source_paths": []}, state["request"]["closeout"])
         with self.assertRaisesRegex(LedgerError, "different request"):
             execute(self.project, "start", {**request,
                     "closeout": {"mode": "managed", "github_paths": ["managed/SKILL.md"]}})
@@ -264,10 +300,28 @@ class ProjectRunnerTests(unittest.TestCase):
         self.assertFalse(json.loads(doctor.stdout)["ledger_exists"])
         self.assertFalse((self.project / ".harness").exists())
         started = subprocess.run([*cmd, "start"], input=json.dumps(self.request), cwd=self.root,
-                                 capture_output=True, text=True, check=True)
+                                 capture_output=True, text=True, check=True,
+                                 env={k: v for k, v in os.environ.items() if k not in ('CODEX_THREAD_ID', 'CODEX_SESSION_ID')})
         self.assertEqual("configuring", json.loads(started.stdout)["stage"])
         listing = subprocess.run([*cmd, "list"], cwd=self.root, capture_output=True, text=True, check=True)
         self.assertEqual("same-id", json.loads(listing.stdout)["tasks"][0]["task_id"])
+
+    def test_native_cli_rejects_entry_receipt_as_owner(self):
+        cli = str(Path(__file__).with_name("run.py"))
+        cmd = [sys.executable, "-B", cli, "--project", str(self.project), "start"]
+        native = {**os.environ, 'CODEX_SESSION_ID': 'real-thread', 'CODEX_THREAD_ID': 'real-thread'}
+        wrong = subprocess.run(cmd, input=json.dumps(self.request), env=native,
+                               capture_output=True, text=True)
+        self.assertEqual(2, wrong.returncode)
+        self.assertIn('entry receipt is not an owner', wrong.stderr)
+        missing = dict(native); missing.pop('CODEX_THREAD_ID')
+        denied = subprocess.run(cmd, input=json.dumps(self.request), env=missing,
+                                capture_output=True, text=True)
+        self.assertEqual(2, denied.returncode)
+        correct = dict(self.request, owner='real-thread')
+        started = subprocess.run(cmd, input=json.dumps(correct), env=native,
+                                 capture_output=True, text=True)
+        self.assertEqual(0, started.returncode, started.stderr)
 
     def test_internal_artifact_and_evidence_aliases_are_rejected(self):
         ready = self.ready()
@@ -314,7 +368,8 @@ class ProjectRunnerTests(unittest.TestCase):
         cmd = [sys.executable, "-B", str(home / ".agents/skills/harness-run/scripts/run.py"),
                "--project", str(self.project)]
         result = subprocess.run([*cmd, "start"], input=json.dumps(self.request), cwd=self.root,
-                                capture_output=True, text=True, check=True)
+                                capture_output=True, text=True, check=True,
+                                env={k: v for k, v in os.environ.items() if k not in ('CODEX_THREAD_ID', 'CODEX_SESSION_ID')})
         self.assertEqual("user", json.loads(result.stdout)["installation"])
         self.assertEqual("configuring", json.loads(result.stdout)["stage"])
         manifest = release / "manifest.json"

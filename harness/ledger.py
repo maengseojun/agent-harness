@@ -4,7 +4,8 @@ CLI: python3 harness/ledger.py --db /absolute/state.sqlite COMMAND < request.jso
 Every request has task_id; mutations also have owner (except create). Commands:
   create: kind(doc|code), description, acceptance[str], authorization_scope[str],
           publication_required(bool), refs[str] (optional), closeout (optional)
-          closeout={mode:managed,github_paths:[repo-relative paths]} or
+          closeout={mode:library,source_paths:[repo-relative paths]} or
+          {mode:github|managed,github_paths:[repo-relative paths]} or
           {mode:local-only|read-only,reason:text}; omitted keeps legacy behavior
   prepare-tool: call_id, kind(write|delegate|readback), tool_name, input_path, gate
   tool-event: event (native hook wire object; caller attestations remain cooperative)
@@ -179,12 +180,54 @@ def plain_summary(data):
         body = data.decode("utf-8").replace("\r\n", "\n")
     except UnicodeDecodeError:
         raise LedgerError("summary must be UTF-8") from None
-    if re.search(r"(?m)^\s*(?:```|~~~|\$\$|\\\[|\\\])", body):
+    if re.search(r"(?m)^\s*(?:```|~~~|\$\$|\\\[|\\\])|^(?: {4}| {0,3}\t)", body):
         return body.rstrip("\n")
     return "\n".join(line for line in body.splitlines() if line.strip())
 
 
 # Required fields beyond task_id/owner; strict schemas keep accidental payloads out.
+def notion_body_matches(expected, actual):
+    """Ignore added Markdown links, preserving approved links and code verbatim."""
+    expected = plain_summary(expected.encode())
+    actual = plain_summary(actual.encode())
+    # ponytail: simple inline links only; unsupported Markdown fails closed.
+    if (re.search(r'(?m)^ {0,3}\[[^\]\n]+\]:|\]\s*\[|!\[', expected)
+            or re.search(r'\[[^\]\n]*\[', actual)):
+        return expected == actual
+    token = re.compile(
+        r'(?m:^[ ]{0,3}(?P<fence>`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^[ ]{0,3}(?P=fence)(?![`~])[ \t]*(?:\n|$)|\Z))'
+        r'|(?m:^(?: {4}| {0,3}\t)[^\n]*(?:\n|$))'
+        r'|(?<!`)(?P<ticks>`+)(?!`)[\s\S]*?(?<!`)(?P=ticks)(?!`)'
+        r'|(?<![!\\])\[(?P<label>[^\[\]\n]+)\]\((?P<destination>[^()\s]+)\)')
+    # Canonicalize only parsed links, preserving URLs inside code.
+    page_link = re.compile(r'https://(?:www\.notion\.so/|app\.notion\.com/p/)([0-9a-f]{32})')
+    def canonical_links(body):
+        return token.sub(
+            lambda match: f'[{match.group("label")}](https://app.notion.com/p/{page_link.fullmatch(match.group("destination"))[1]})'
+            if match.group('label') and page_link.fullmatch(match.group('destination'))
+            else match.group(0), body)
+    expected, actual = canonical_links(expected), canonical_links(actual)
+    links = {match.group(0) for match in token.finditer(expected) if match.group('label') is not None}
+    urls = [(match.start(), match.group(0).rstrip('.,;:!?'))
+            for match in re.finditer(r'https?://[^\s<>\[\]()]+', expected, re.IGNORECASE)]
+    removed = 0
+    def unwrap(match):
+        nonlocal removed
+        label, destination = match.group('label'), match.group('destination')
+        if label is None or match.group(0) in links:
+            return match.group(0)
+        start = match.start() - removed
+        for url_start, url in urls:
+            if start < url_start + len(url) and start + len(label) > url_start:
+                if label != url or destination != url:
+                    return match.group(0)
+        if label.lower().startswith(('https://', 'http://')) and label != destination:
+            return match.group(0)
+        removed += len(match.group(0)) - len(label)
+        return label
+    return expected == token.sub(unwrap, actual)
+
+
 FIELDS = {
     "create": ("kind description acceptance authorization_scope publication_required", "refs closeout"),
     "status": ("", ""), "claim": ("", ""), "context": ("", ""),
@@ -202,9 +245,9 @@ FIELDS = {
     "receipt": ("publication_id target artifact_sha256 readback_path receipt_ref", ""),
     "closeout": ("service receipt_ref", "target summary_path readback_path repository commit files"),
     "configure-hooks": ("output_owner destinations write_paths requirements", ""),
-    "prepare-tool": ("call_id kind tool_name input_path gate", ""),
+    "prepare-tool": ("call_id kind tool_name input_path gate", "expected_head_sha"),
     "tool-event": ("event", ""),
-    "before-write": ("operation_id destination_id workspace target operation payload_path payload_sha256 authorization_ref", ""),
+    "before-write": ("operation_id destination_id workspace target operation payload_path payload_sha256 authorization_ref", "purpose"),
     "after-write": ("operation_id attempt workspace target outcome evidence_path", "readback_path"),
     "before-delegate": ("delegation_id role description acceptance write_paths refs", ""),
     "after-delegate": ("delegation_id agent_id outcome evidence_path", ""),
@@ -307,16 +350,18 @@ class Ledger:
 
     def closeout_missing(self):
         policy = self.task["request"].get("closeout")
-        if not policy or policy["mode"] != "managed":
+        if not policy or policy["mode"] not in {"managed", "github"}:
             return False
         recorded = self.task.get("closeouts", {})
-        return ("notion" not in recorded
+        return ((policy["mode"] == "managed" and "notion" not in recorded)
                 or (self.task["request"]["kind"] == "code" and not policy["github_paths"])
                 or bool(policy["github_paths"] and "github" not in recorded))
 
     def source_paths(self):
         policy = self.task["request"].get("closeout", {})
-        return policy.get("github_paths", []) if policy.get("mode") == "managed" else []
+        if policy.get("mode") == "library":
+            return policy["source_paths"]
+        return policy.get("github_paths", []) if policy.get("mode") in {"managed", "github"} else []
 
     def sources_current(self, record):
         sources = record.get("sources", {})
@@ -438,18 +483,19 @@ class Ledger:
         if "closeout" in d:
             policy = d["closeout"]
             require(isinstance(policy, dict) and "mode" in policy, "invalid closeout policy")
-            mode = choice(policy["mode"], {"managed", "local-only", "read-only"})
-            if mode == "managed":
-                require(set(policy) == {"mode", "github_paths"}, "invalid managed closeout policy")
-                paths = strings(policy["github_paths"], "github_paths", empty=True)
-                require(d["kind"] != "code" or paths,
-                        "managed code requires github_paths or an explicit local-only/read-only exception")
+            mode = choice(policy["mode"], {"managed", "github", "library", "local-only", "read-only"})
+            if mode in {"managed", "github", "library"}:
+                path_field = "source_paths" if mode == "library" else "github_paths"
+                require(set(policy) == {"mode", path_field}, "invalid closeout policy")
+                paths = strings(policy[path_field], path_field, empty=True)
+                require(mode == "library" or (mode == "managed" and d["kind"] != "code") or paths,
+                        "managed code or GitHub delivery requires github_paths")
                 for value in paths:
                     path = PurePosixPath(value)
                     require(not path.is_absolute() and ".." not in path.parts and str(path) == value
                             and value != ".", "invalid github path")
                 require(len(set(paths)) == len(paths), "duplicate github paths")
-                request["closeout"] = {"mode": mode, "github_paths": paths}
+                request["closeout"] = {"mode": mode, path_field: paths}
             else:
                 require(set(policy) == {"mode", "reason"}, "invalid closeout exception")
                 request["closeout"] = {"mode": mode, "reason": text(policy["reason"], "reason")}
@@ -548,12 +594,13 @@ class Ledger:
         self.task["artifact"] = artifact
         self.task["artifact_history"].append({**artifact, "at": now(), "run_id": self.task["run_id"]})
         for record in self.task.get("runtime_hooks", {}).get("writes", {}).values():
-            if record["outcome"] in {"verified", "absent"} and record["binding"]["artifact_sha256"] != artifact["sha256"]:
+            if (record["binding"].get("purpose") != "working-context"
+                    and record["outcome"] in {"verified", "absent"} and record["binding"]["artifact_sha256"] != artifact["sha256"]):
                 record["resolution_outcome"] = record["outcome"]
                 record["outcome"] = "superseded"
         hooks = self.task.get("runtime_hooks", {})
         for call in hooks.get("tool_calls", {}).values():
-            if (call["kind"] == "write" and (
+            if (call["kind"] == "write" and call["gate"].get("purpose") != "working-context" and (
                     call["phase"] == "prepared" and call["artifact_sha256"] != artifact["sha256"]
                     or call["phase"] == "observed" and hooks["writes"].get(call["gate"]["operation_id"], {}).get("outcome") == "superseded")):
                 call["phase"] = "superseded"
@@ -687,8 +734,11 @@ class Ledger:
     def closeout(self, d):
         self.verified_work()
         policy = self.task["request"].get("closeout")
-        require(policy and policy["mode"] == "managed", "managed closeout was not declared")
+        require(policy and policy["mode"] in {"managed", "github", "library"},
+                "managed, github or library closeout was not declared")
         service = choice(d["service"], {"notion", "github"})
+        require(policy["mode"] != "github" or service == "github",
+                "GitHub delivery does not require a Notion closeout")
         reference = text(d["receipt_ref"], "receipt_ref")
         artifact_sha256 = self.task["artifact"]["sha256"]
         if service == "notion":
@@ -705,7 +755,7 @@ class Ledger:
             require(d["summary_path"] != d["readback_path"], "Notion readback must be separate")
             summary, readback = snapshot(d["summary_path"]), snapshot(d["readback_path"])
             body = plain_summary(read_file(summary["path"]))
-            require(body and body == plain_summary(read_file(readback["path"])),
+            require(body and notion_body_matches(body, read_file(readback["path"]).decode('utf-8')),
                     "Notion summary body readback mismatch")
             record = {"artifact_sha256": artifact_sha256, "target": target,
                       "summary": summary, "readback": readback,
@@ -713,7 +763,7 @@ class Ledger:
         else:
             require(set(d) == {"task_id", "owner", "service", "repository", "commit",
                                "files", "receipt_ref"}, "invalid GitHub closeout fields")
-            require(policy["github_paths"], "GitHub closeout paths were not declared")
+            require(self.source_paths(), "GitHub closeout paths were not declared")
             repository = text(d["repository"], "repository", 256)
             require(re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository),
                     "invalid GitHub repository")
@@ -721,10 +771,10 @@ class Ledger:
             require(isinstance(commit, str) and re.fullmatch(r"[a-f0-9]{40}", commit),
                     "immutable 40-digit Git commit required")
             files = d["files"]
-            require(isinstance(files, list) and len(files) == len(policy["github_paths"])
+            require(isinstance(files, list) and len(files) == len(self.source_paths())
                     and all(isinstance(item, dict) and set(item) == {"path", "local_path", "readback_path"}
                             for item in files)
-                    and sorted(item["path"] for item in files) == sorted(policy["github_paths"]),
+                    and sorted(item["path"] for item in files) == sorted(self.source_paths()),
                     "GitHub files must match declared paths")
             bound = []
             for item in files:
@@ -792,17 +842,26 @@ class Ledger:
         self.hook_result = event(self, d)
 
     def before_write(self, d):
-        self.verified_work()
         hooks = self.hooks()
         identifier(d["operation_id"])
         dest = next((x for x in hooks["policy"]["destinations"] if x["id"] == d["destination_id"]), None)
         require(dest is not None, "destination is not authorized by the frozen policy")
         require(all(d[k] == dest[k] for k in ("workspace", "target", "authorization_ref"))
                 and d["operation"] in dest["operations"], "write destination, operation or authorization mismatch")
+        purpose = choice(d.get("purpose", "delivery"), {"delivery", "working-context"})
+        if purpose == "working-context":
+            require(dest["service"] == "linear" and dest["output_owner"] == "personal"
+                    and d["operation"] in {"create", "update"},
+                    "working context is limited to authorized personal Linear issues")
+            require(self.task["skills"] and not self.task["paused"], "working context needs an active routed task")
+        else:
+            self.verified_work()
         payload = snapshot(d["payload_path"])
         require(payload["sha256"] == digest(d["payload_sha256"]), "write payload changed")
         binding = {k: d[k] for k in ("destination_id", "workspace", "target", "operation", "authorization_ref")}
-        binding.update(payload=payload, artifact_sha256=self.task["artifact"]["sha256"])
+        binding.update(payload=payload, artifact_sha256=None if purpose == "working-context" else self.task["artifact"]["sha256"])
+        if purpose == "working-context":
+            binding["purpose"] = purpose
         existing = hooks["writes"].get(d["operation_id"])
         # A second ID must not silently duplicate an existing logical write.
         require(not any(key != d["operation_id"]
@@ -844,7 +903,8 @@ class Ledger:
         require(record["outcome"] not in {"verified", "superseded"} or
                 (outcome == "verified" and record["readback"] == readback and record["evidence"] == evidence),
                 "verified write receipt cannot be replaced")
-        stored_outcome = ("superseded" if outcome in {"verified", "absent"} and self.task["artifact"]
+        stored_outcome = ("superseded" if record["binding"].get("purpose") != "working-context"
+                          and outcome in {"verified", "absent"} and self.task["artifact"]
                           and record["binding"]["artifact_sha256"] != self.task["artifact"]["sha256"] else outcome)
         record.update(outcome=stored_outcome, resolution_outcome=outcome,
                       evidence=evidence, readback=readback, at=now())
@@ -930,8 +990,8 @@ class Ledger:
                 continue
             if (record["outcome"] != "verified" or not self.work_current(record["evidence"])
                     or not self.work_current(record["readback"]) or not self.work_current(record["binding"]["payload"])
-                    or not self.task["artifact"]
-                    or record["binding"]["artifact_sha256"] != self.task["artifact"]["sha256"]):
+                    or (record["binding"].get("purpose") != "working-context" and
+                        (not self.task["artifact"] or record["binding"]["artifact_sha256"] != self.task["artifact"]["sha256"]))):
                 return True
         if any(r["outcome"] != "finished" or not self.work_current(r["evidence"])
                for r in hooks["delegations"].values()):

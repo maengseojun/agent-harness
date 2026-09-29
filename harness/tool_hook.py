@@ -56,7 +56,10 @@ def tool_name(name):
     for service in ('notion', 'linear', 'github'):
         prefix = 'mcp__codex_apps__' + service + '__'
         if name.startswith(prefix):
-            return 'mcp__codex_apps__' + service + '_' + name[len(prefix):]
+            endpoint = name[len(prefix):]
+            if service == 'notion' and endpoint in ('create_pages', 'update_page'):
+                endpoint = 'notion_' + endpoint
+            return 'mcp__codex_apps__' + service + '_' + endpoint
     if name in ('Bash', 'exec_command') or name.endswith('__exec_command'):
         return 'Bash'
     if name in ('Agent', 'spawn_agent') or name.endswith('__spawn_agent'):
@@ -105,8 +108,11 @@ def protected(name, args):
         return None
     if name.startswith('mcp__') and re.search(r'(?:^|_)(linear|github|notion)(?:_|$)', name):
         suffix = name.split('__')[-1]
-        if (re.search(r'(?:^|_)(create|update|delete|append|add|edit|remove|archive|write|save|publish|merge|close|reopen)(?:_|$)', suffix)
-                or re.search(r'\bmutation\b', ledger.canonical(args))):
+        # Generic query/GraphQL operations can mutate. Only typed read APIs pass;
+        # search text and SQL in query_data_sources never decide permission.
+        typed_query = suffix.endswith(('query_data_sources', 'query_multiple_data_sources'))
+        if (re.search(r'(?:^|_)(create|update|delete|append|add|edit|remove|archive|write|save|publish|merge|close|reopen|move|duplicate|restore)(?:_|$)', suffix)
+                or (not typed_query and re.search(r'(?:^|_)(query|graphql)(?:_|$)', suffix))):
             return 'write'
         if re.search(r'(?:^|_)(get|read|fetch|search|list|query|retrieve|find)(?:_|$)', suffix):
             return None
@@ -117,8 +123,57 @@ def protected(name, args):
 # Supported provider operations are deliberately typed. Unknown writes are denied.
 def provider(name):
     name = tool_name(name)
+    for prefix in ('mcp__linear__', 'mcp__linear_endix__'):
+        if name.startswith(prefix):
+            return 'linear_' + name[len(prefix):]
     ledger.require(name.startswith('mcp__codex_apps__'), 'unsupported provider namespace')
     return name.removeprefix('mcp__codex_apps__')
+
+
+def linear_connector(name):
+    return next((prefix for prefix in ('mcp__linear__', 'mcp__linear_endix__')
+                 if name.startswith(prefix)), None)
+
+
+def linear_connection(store, name, gate):
+    prefix = linear_connector(name)
+    observed = store.hooks().get('connections', {}).get(prefix)
+    ledger.require(observed and observed['workspace'] == gate['workspace']
+                   and store.work_current(observed['evidence']),
+                   'fetch the actual Linear workspace through this connector before preparing a write')
+    destination = next(d for d in store.hooks()['policy']['destinations'] if d['id'] == gate['destination_id'])
+    ledger.require(destination['output_owner'] == ('personal' if prefix == 'mcp__linear__' else 'endix'),
+                   'Linear connector ownership differs from authorized destination')
+    return observed
+
+
+def linear_description_matches(expected, actual, aliases, workspace_url=None):
+    """Compare Linear's issue autolinks while keeping their resource identity exact."""
+    if not isinstance(expected, str) or not isinstance(actual, str):
+        return False
+    from urllib.parse import urlsplit
+    known = {identifier: uuid for uuid, identifier in aliases.items()}
+    workspace = urlsplit(workspace_url).path.strip('/') if workspace_url else None
+    tag = re.compile(r'<issue id="([a-f0-9-]+)" href="(https://linear\.app/[^\"]+)">([A-Z]+-\d+)</issue>')
+
+    def normalize(body):
+        def replace(match):
+            uuid, url, identifier = match.groups()
+            path = urlsplit(url).path.split('/')
+            if (len(path) < 4 or not path[1] or path[2:4] != ['issue', identifier]
+                    or (uuid in aliases and aliases[uuid] != identifier)
+                    or (identifier in known and known[identifier] != uuid)):
+                return match.group(0)
+            return '\x1f' + uuid + ':' + identifier.encode().hex() + ':' + path[1].encode().hex() + '\x1e'
+
+        body = tag.sub(replace, body)
+        if workspace:
+            for identifier, uuid in known.items():
+                body = re.sub(r'(?<![A-Za-z0-9-])' + re.escape(identifier) + r'(?![A-Za-z0-9-])',
+                              '\x1f' + uuid + ':' + identifier.encode().hex() + ':' + workspace.encode().hex() + '\x1e', body)
+        return body
+
+    return normalize(expected) == normalize(actual)
 
 
 def notion_identity(value):
@@ -128,7 +183,9 @@ def notion_identity(value):
     token = text.removeprefix('collection://') if kind == 'collection' else text
     if '://' in token:
         token = urlsplit(token).path.rstrip('/').split('/')[-1]
-    return kind, token.replace('-', '').lower()
+    token = token.replace('-', '').lower()
+    match = re.search(r'([a-f0-9]{32})$', token)
+    return kind, match[1] if match else token
 
 
 def shell_tokens(args):
@@ -188,12 +245,22 @@ def request_payload(name, args, project):
         page = args['pages'][0]
         ledger.require(set(page) <= {'properties', 'content'}, 'unsupported Notion page fields')
         parent = args['parent']
-        ledger.require(set(parent) <= {'data_source_id', 'type'} and parent.get('data_source_id'), 'explicit Notion parent required')
+        ledger.require(isinstance(parent, dict) and set(parent) <= {'data_source_id', 'page_id', 'type'}
+                       and bool(parent.get('data_source_id')) != bool(parent.get('page_id')), 'explicit Notion parent required')
+        ledger.require(not parent.get('type') or parent['type'] == ('data_source_id' if parent.get('data_source_id') else 'page_id'), 'Notion parent type mismatch')
         target = 'collection://' + parent['data_source_id'] if 'data_source_id' in parent else parent['page_id']
         return 'notion', 'create', target, {'body': ledger.plain_summary(page.get('content', '').encode()), **page['properties']}
     if endpoint == 'linear_save_issue':
-        allowed = {'id', 'link_id', 'team', 'title', 'description', 'state', 'priority', 'dueDate'}
+        allowed = {'id', 'link_id', 'team', 'title', 'description', 'state', 'priority', 'dueDate',
+                   'project', 'parentId', 'blockedBy', 'blocks', 'relatedTo', 'links', 'labels'}
         ledger.require(set(args) <= allowed, 'unsupported Linear mutation fields; use complete supported values')
+        for key in ('blockedBy', 'blocks', 'relatedTo', 'labels'):
+            if key in args:
+                ledger.strings(args[key], key, empty=True)
+        if 'links' in args:
+            ledger.require(isinstance(args['links'], list) and all(isinstance(link, dict)
+                           and set(link) == {'title', 'url'} and all(isinstance(v, str) and v for v in link.values())
+                           for link in args['links']), 'Linear links require title and URL')
         ledger.require(not (args.get('id') and 'team' in args), 'Linear update cannot change an unreviewed team')
         target = args.get('id', args.get('team'))
         ledger.require(target, 'Linear issue ID or team required')
@@ -209,6 +276,13 @@ def request_payload(name, args, project):
         if update:
             target += '/issues/' + str(args['issue_number'])
         return 'github', 'update' if update else 'create', target, {k: v for k, v in args.items() if k not in {'repository_full_name', 'issue_number'}}
+    if endpoint == 'github_create_pull_request':
+        required = {'repository_full_name', 'base', 'head', 'title', 'body', 'draft'}
+        ledger.require(set(args) == required and all(isinstance(args[k], str) and args[k]
+                       for k in ('base', 'head', 'title')) and isinstance(args['body'], str)
+                       and type(args['draft']) is bool, 'explicit PR branch, title, body and draft state required')
+        return ('github', 'create', 'https://github.com/' + repo + '/pulls',
+                {k: args[k] for k in ('base', 'head', 'title', 'body', 'draft')})
     if endpoint in ('github_create_file', 'github_update_file'):
         ledger.require(set(args) <= {'repository_full_name', 'branch', 'path', 'content', 'message', 'sha'} and args.get('branch'), 'explicit file branch and supported fields required')
         target = 'https://github.com/' + repo + '/blob/' + args['branch'] + '/' + args['path']
@@ -222,7 +296,11 @@ def validate_request(store, name, args, gate):
     ledger.require(destination and destination['service'] == service and operation == gate['operation'], 'actual service or operation mismatch')
     ledger.require((notion_identity(target) == notion_identity(gate['target']) if service == 'notion' else target == gate['target']), 'actual write resource mismatch')
     if service == 'linear':
-        ledger.require(args['link_id'] == gate['workspace'], 'actual Linear account mismatch')
+        if linear_connector(name):
+            ledger.require('link_id' not in args, 'native Linear does not accept link_id')
+            linear_connection(store, name, gate)
+        else:
+            ledger.require(args.get('link_id') == gate['workspace'], 'actual Linear account mismatch')
     ledger.require(ledger.sha(ledger.canonical(payload).encode()) == gate['payload_sha256'], 'actual write content differs from planned payload')
     return service, payload
 
@@ -236,6 +314,8 @@ def read_request(write, write_args, name, args):
             ledger.require(notion_identity(args.get('id')) == notion_identity(created), 'fetch the actual created page')
         elif service == 'linear':
             ledger.require(args.get('id') == created, 'fetch the actual created issue')
+        elif tool_name(write['tool_name']) == 'mcp__codex_apps__github_create_pull_request':
+            ledger.require(args.get('pr_number') == created, 'fetch the actual created PR')
         elif 'content' not in write_args:
             ledger.require(args.get('issue_number') == created, 'fetch the actual created issue')
     if tool_name(name) == 'Bash':
@@ -254,12 +334,18 @@ def read_request(write, write_args, name, args):
         if write['gate']['operation'] == 'update':
             ledger.require(notion_identity(args['id']) == notion_identity(write['gate']['target']), 'readback resource differs from actual write')
     elif service == 'linear':
-        ledger.require(endpoint == 'linear_get_issue' and args.get('link_id') == write_args['link_id'], 'authoritative Linear account fetch required')
+        connector = linear_connector(write['tool_name'])
+        ledger.require(endpoint == 'linear_get_issue' and (linear_connector(name) == connector
+                       if connector else args.get('link_id') == write_args['link_id']), 'authoritative Linear account fetch required')
+        if any(key in write_args for key in ('blockedBy', 'blocks', 'relatedTo')):
+            ledger.require(args.get('includeRelations') is True, 'fetch actual Linear relations for relation writes')
         if write['gate']['operation'] == 'update':
             ledger.require(args['id'] == write_args['id'], 'readback issue differs from actual write')
     else:
-        expected = 'github_fetch_file' if 'content' in write_args else 'github_fetch_issue'
-        ledger.require(endpoint == expected and args.get('repository_full_name') == write_args['repository_full_name'], 'authoritative GitHub repository fetch required')
+        expected = ('github_fetch_pr' if tool_name(write['tool_name']) == 'mcp__codex_apps__github_create_pull_request'
+                    else 'github_fetch_file' if 'content' in write_args else 'github_fetch_issue')
+        repository = args.get('repo_full_name') if expected == 'github_fetch_pr' else args.get('repository_full_name')
+        ledger.require(endpoint == expected and repository == write_args['repository_full_name'], 'authoritative GitHub repository fetch required')
         if expected == 'github_fetch_file':
             ledger.require(args.get('path') == write_args['path'] and args.get('ref') == write_args['branch'] and not args.get('start_line') and not args.get('end_line') and args.get('encoding', 'utf-8') == 'utf-8', 'read complete file from the actual write branch')
         elif write['gate']['operation'] == 'update':
@@ -267,7 +353,7 @@ def read_request(write, write_args, name, args):
     return service
 
 
-def actual_payload(write, write_args, read_name, read_args, raw):
+def actual_payload(write, write_args, read_name, read_args, raw, linear_aliases=None, linear_workspace_url=None):
     raw = wire_value(raw)
     ledger.require(not isinstance(raw, dict) or (not raw.get('isError') and raw.get('exit_code', 0) == 0), 'readback tool failed')
     value = response_value(raw)
@@ -280,18 +366,68 @@ def actual_payload(write, write_args, read_name, read_args, raw):
         actual_target = value['notion_parent'] if write['gate']['operation'] == 'create' else value['notion_target']
         ledger.require(notion_identity(actual_target) == notion_identity(write['gate']['target']), 'readback resource identity mismatch')
         result = {key: value['notion_body'] if key == 'body' else value['notion_properties'][key] for key in expected}
+        if 'body' in expected:
+            approved_body = (write_args['pages'][0].get('content', '') if write['gate']['operation'] == 'create'
+                             else write_args.get('new_str', expected['body']))
+            ledger.require(ledger.notion_body_matches(approved_body, result['body']), 'write readback mismatch')
+            result['body'] = expected['body']
     elif service == 'linear':
         if write['gate']['operation'] == 'update':
-            ledger.require(read_args['id'] in (value.get('id'), value.get('identifier')), 'readback issue identity mismatch')
+            ledger.require(read_args['id'] in (value.get('id'), value.get('uuid'), value.get('identifier')), 'readback issue identity mismatch')
         else:
             team = value.get('team')
-            ledger.require((team.get('id') if isinstance(team, dict) else team) == write['gate']['target'], 'created issue team mismatch')
-        result = {key: value.get('status', value.get('state')) if key == 'state' else value[key] for key in expected}
-        if isinstance(result.get('state'), dict):
-            result['state'] = result['state']['name']
+            ledger.require(write['gate']['target'] in (value.get('teamId'), team.get('id') if isinstance(team, dict) else team), 'created issue team mismatch')
+        aliases = {**write.get('linear_aliases', {}), **(linear_aliases or {})}
+        identity = lambda item: aliases.get(str(item), str(item))
+        result = {}
+        for key, wanted in expected.items():
+            actual = value.get('status', value.get('state')) if key == 'state' else value.get(key)
+            if key in ('state', 'priority') and isinstance(actual, dict):
+                actual = actual['name' if key == 'state' else 'value']
+            if key == 'parentId':
+                ledger.require(identity(actual) == identity(wanted), 'Linear parent differs from planned parent')
+                actual = wanted
+            elif key == 'project':
+                choices = (value.get('projectId'), actual.get('id') if isinstance(actual, dict) else actual,
+                           actual.get('name') if isinstance(actual, dict) else None)
+                ledger.require(wanted in choices, 'Linear project differs from planned project')
+                actual = wanted
+            elif key in ('blockedBy', 'blocks', 'relatedTo'):
+                actual = value.get('relations', {}).get(key)
+                ledger.require(isinstance(actual, list) and all(identity(item) in
+                    {identity(rel.get('id')) for rel in actual} for item in wanted), 'Linear relation is missing')
+                actual = wanted
+            elif key == 'links':
+                actual = value.get('attachments', value.get('links', []))
+                ledger.require(isinstance(actual, list) and all(any(
+                    link.get('title') == item.get('title') and link.get('url') == item.get('url')
+                    for link in actual) for item in wanted), 'Linear source link is missing')
+                actual = wanted
+            elif key == 'labels':
+                actual = [item.get('name') if isinstance(item, dict) else item for item in actual or []]
+                ledger.require(set(actual) == set(wanted), 'Linear labels differ from planned labels')
+                actual = wanted
+            elif key == 'description':
+                ledger.require(linear_description_matches(wanted, actual, aliases, linear_workspace_url),
+                               'Linear description differs from planned content')
+                actual = wanted
+            result[key] = actual
     elif tool_name(write['tool_name']) == 'Bash':
         ledger.require(value.get('url') == write['gate']['target'], 'remote GitHub ref identity mismatch')
         result = {'commit': value['object']['sha'], 'ref': value['ref']}
+    elif tool_name(write['tool_name']) == 'mcp__codex_apps__github_create_pull_request':
+        number = read_args['pr_number']
+        pr = value.get('pull_request', value)
+        ledger.require(isinstance(pr, dict) and pr.get('number') == number and
+                       pr.get('html_url', pr.get('url')) ==
+                       'https://github.com/' + write_args['repository_full_name'] + '/pull/' + str(number),
+                       'remote PR identity mismatch')
+        ledger.require(pr.get('head_sha') == write['expected_head_sha'], 'remote PR head commit differs from reviewed delivery')
+        head = pr.get('head')
+        base = pr.get('base')
+        result = {'head': head.get('ref') if isinstance(head, dict) else head or pr.get('headRefName'),
+                  'base': base.get('ref') if isinstance(base, dict) else base or pr.get('baseRefName'),
+                  'title': pr.get('title'), 'body': pr.get('body'), 'draft': pr.get('draft')}
     elif 'content' in expected:
         ledger.require(value.get('path') == write_args['path'], 'remote file path mismatch')
         result = {'content': value['content']}
@@ -339,10 +475,15 @@ def response_value(raw):
         props = re.search(r'<properties>\n(.*?)\n</properties>', header, re.S)
         ledger.require(separator and closing and props, 'Notion page envelope missing')
         parent = re.search(r'<parent-data-source url="([^"]+)"', header)
+        if not parent:
+            ancestors = re.findall(r'<parent-page url="([^"]+)"', header)
+            parent_url = ancestors[-1] if ancestors else None
+        else:
+            parent_url = parent[1]
         value = {**value, 'notion_body': ledger.plain_summary(body.encode()),
                  'notion_properties': json.loads(props[1]),
                  'notion_target': value['url'].split('?')[0],
-                 'notion_parent': parent[1] if parent else None}
+                 'notion_parent': parent_url}
     return value
 
 
@@ -355,6 +496,11 @@ def prepare(store, d):
     args = arguments(name, json.loads(ledger.read_file(d['input_path'])))
     gate = d['gate']
     ledger.require(isinstance(gate, dict), 'invalid tool gate')
+    pr_write = kind == 'write' and tool_name(name) == 'mcp__codex_apps__github_create_pull_request'
+    ledger.require(('expected_head_sha' in d) == pr_write, 'PR write requires its reviewed head commit')
+    if pr_write:
+        ledger.require(isinstance(d['expected_head_sha'], str) and re.fullmatch(r'[a-f0-9]{40}', d['expected_head_sha']),
+                       'invalid reviewed PR head commit')
     if kind in ('write', 'delegate'):
         action = 'before-write' if kind == 'write' else 'before-delegate'
         ledger.validate(action, {'task_id': store.task['task_id'], 'owner': store.task['owner'], **gate})
@@ -372,7 +518,6 @@ def prepare(store, d):
                        'reuse the existing planned operation or delegation')
         if kind == 'write':
             validate_request(store, name, args, gate)
-            store.verified_work()
             ledger.require(ledger.snapshot(gate['payload_path'])['sha256'] == gate['payload_sha256'], 'write payload changed')
         else:
             ledger.require(isinstance(args.get('message'), str) or isinstance(args.get('items'), list), 'delegation needs a prompt')
@@ -382,12 +527,19 @@ def prepare(store, d):
         ledger.require(write and write['kind'] == 'write', 'readback needs a planned write')
         ledger.require(protected(name, args) is None, 'readback must be a read operation')
         write_args = arguments(write['tool_name'], json.loads(ledger.read_file(write['input']['path'])))
+        if linear_connector(write['tool_name']):
+            linear_connection(store, write['tool_name'], write['gate'])
         read_request(write, write_args, name, args)
     record = {'kind': kind, 'tool_name': tool_name(name), 'input': source,
               'input_sha256': ledger.sha(ledger.canonical(args).encode()), 'gate': gate, 'phase': 'prepared',
-              'artifact_sha256': store.task['artifact']['sha256'] if kind == 'write' else None}
+              'artifact_sha256': (store.task['artifact']['sha256'] if kind == 'write'
+                                  and gate.get('purpose') != 'working-context' else None)}
+    if pr_write:
+        record['expected_head_sha'] = d['expected_head_sha']
     if kind == 'write':
         record['service'] = validate_request(store, name, args, gate)[0]
+        if linear_connector(name):
+            record['linear_aliases'] = dict(linear_connection(store, name, gate).get('issues', {}))
     calls = hooks.setdefault('tool_calls', {})
     old = calls.get(call_id)
     if old:
@@ -440,6 +592,36 @@ def event(store, d):
     e = d['event']
     ledger.require(e.get('session_id') == store.task['owner'], 'hook session does not own task')
     name = e.get('hook_event_name')
+    connector = linear_connector(e.get('tool_name', ''))
+    if name == 'PostToolUse' and connector:
+        endpoint = provider(e['tool_name'])
+        if endpoint == 'linear_get_workspace':
+            connections = store.hooks().setdefault('connections', {})
+            connections.pop(connector, None)
+            raw = wire_value(e.get('tool_response'))
+            value = response_value(raw)
+            ledger.require(isinstance(value, dict) and not value.get('error')
+                           and not value.get('isError') and not (isinstance(raw, dict) and raw.get('isError')),
+                           'Linear workspace observation failed; prior connection invalidated')
+            workspace = ledger.text(value.get('id'), 'actual Linear workspace')
+            path = evidence(store, 'connection', e['tool_use_id'], connector, ledger.canonical(raw).encode())
+            observed = {'workspace': workspace, 'evidence': ledger.snapshot(path), 'issues': {}}
+            url = value.get('url')
+            if url is not None:
+                from urllib.parse import urlsplit
+                parsed = urlsplit(url)
+                ledger.require(parsed.scheme == 'https' and parsed.netloc == 'linear.app'
+                               and len(parsed.path.strip('/').split('/')) == 1 and parsed.path.strip('/')
+                               and not parsed.query and not parsed.fragment,
+                               'invalid Linear workspace URL')
+                observed['url'] = url
+            connections[connector] = observed
+            return output(name, 'Actual Linear connection recorded; exact authorized destination checks still apply.')
+        if endpoint == 'linear_get_issue':
+            observed = store.hooks().get('connections', {}).get(connector)
+            value = response_value(e.get('tool_response'))
+            if observed and isinstance(value, dict) and value.get('uuid') and value.get('id') and not value.get('isError'):
+                observed['issues'][value['uuid']] = value['id']
     calls = store.task.get('runtime_hooks', {}).get('tool_calls', {})
     if name == 'PostToolUse' and tool_name(e.get('tool_name', '')) == 'wait_agent':
         response = response_value(e.get('tool_response'))
@@ -481,7 +663,8 @@ def event(store, d):
         ledger.require(item['phase'] == 'prepared' or item['kind'] == 'readback' or retryable, 'Call already dispatched; reconcile before retrying')
         updated = None
         if item['kind'] == 'write':
-            ledger.require(store.task['artifact'] and item['artifact_sha256'] == store.task['artifact']['sha256'], 'planned write version changed; prepare a new call')
+            ledger.require(item['gate'].get('purpose') == 'working-context' or
+                           (store.task['artifact'] and item['artifact_sha256'] == store.task['artifact']['sha256']), 'planned write version changed; prepare a new call')
             validate_request(store, item['tool_name'], args, item['gate'])
             store.before_write(item['gate'])
             ledger.require(store.hook_result['should_write'], 'Write already verified; skip duplicate')
@@ -492,6 +675,8 @@ def event(store, d):
             item['effective_input_sha256'] = ledger.sha(ledger.canonical(updated).encode())
         else:
             write = calls[item['gate']['write_call_id']]
+            if linear_connector(write['tool_name']):
+                linear_connection(store, write['tool_name'], write['gate'])
             ledger.require(write.get('attempt'), 'Write has not passed its pre-tool gate')
         item.update(phase='admitted', event_id=event_id)
         store.task['completion_requested'] = False
@@ -518,7 +703,8 @@ def event(store, d):
                 elif item['service'] == 'linear':
                     item['created_resource'] = value.get('id')
                 else:
-                    item['created_resource'] = value.get('number')
+                    resource = value.get('pull_request', value.get('issue', value))
+                    item['created_resource'] = resource.get('number', resource.get('issue_number')) if isinstance(resource, dict) else None
         store.after_write({'operation_id': gate['operation_id'], 'attempt': item['attempt'],
                            'workspace': gate['workspace'], 'target': gate['target'],
                            'outcome': 'uncertain', 'evidence_path': path})
@@ -535,7 +721,11 @@ def event(store, d):
         existing_write = store.hooks()['writes'][gate['operation_id']]
         try:
             write_args = arguments(write['tool_name'], json.loads(ledger.read_file(write['input']['path'])))
-            content = actual_payload(write, write_args, item['tool_name'], args, raw)
+            connection = (linear_connection(store, write['tool_name'], gate)
+                          if linear_connector(write['tool_name']) else None)
+            content = actual_payload(write, write_args, item['tool_name'], args, raw,
+                                     connection.get('issues', {}) if connection else None,
+                                     connection.get('url') if connection else None)
             ledger.require(ledger.sha(content) == gate['payload_sha256'], 'write readback mismatch')
         except (ledger.LedgerError, KeyError, TypeError, ValueError) as exc:
             if existing_write['outcome'] == 'verified':
@@ -564,12 +754,8 @@ def project_for(e):
     return next((p for p in (directory, *directory.parents) if (p / '.harness/tasks.sqlite').is_file()), None)
 
 
-def handle(e):
-    import run
-    run.verify_install()
-    name = e.get('hook_event_name')
-    if name not in ('PreToolUse', 'PostToolUse', 'SubagentStop', 'Stop'):
-        return {}
+def session_tasks(e, include_completed=False):
+    """Read current bound task snapshots for both runtime and record reminders."""
     local = project_for(e)
     session = e.get('session_id')
     ledger.require(isinstance(session, str), 'hook session missing')
@@ -590,7 +776,18 @@ def handle(e):
             candidates = [json.loads(row[0]) for row in connection.execute('SELECT state FROM tasks')]
         tasks.extend({**t, '_database': str(db)} for t in candidates
                      if t.get('owner') == session and t.get('runtime_hooks_required')
-                     and not t.get('paused') and not (t.get('completion_requested') and t.get('stage') == 'done'))
+                     and not t.get('paused') and (include_completed or not
+                         (t.get('completion_requested') and t.get('stage') == 'done')))
+    return tasks
+
+
+def handle(e):
+    import run
+    run.verify_install()
+    name = e.get('hook_event_name')
+    if name not in ('PreToolUse', 'PostToolUse', 'SubagentStop', 'Stop'):
+        return {}
+    tasks = session_tasks(e)
     if not tasks:
         return {}
     if name in ('Stop', 'SubagentStop'):
@@ -617,6 +814,10 @@ def handle(e):
                 ledger.Ledger(t['_database']).dispatch('tool-event', {'task_id': t['task_id'], 'owner': t['owner'], 'event': e})
         return {}
     if not selected:
+        if name == 'PostToolUse' and linear_connector(e.get('tool_name', '')):
+            for t in tasks:
+                ledger.Ledger(t['_database']).dispatch('tool-event', {'task_id': t['task_id'], 'owner': t['owner'], 'event': e})
+            return {}
         if name == 'PreToolUse' and protected(e.get('tool_name', ''), args):
             return output(name, 'Tracked Harness action has no prepared call. Freeze its exact input and gate with prepare-tool first.', deny=True)
         return {}

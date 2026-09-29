@@ -12,6 +12,149 @@ from run import execute
 
 
 class ToolHookTests(unittest.TestCase):
+    def native_working_plan(self):
+        self.config('linear')
+        tool = 'mcp__linear__save_issue'
+        args = {'id': self.dest['target'], 'description': 'working draft', 'parentId': 'parent-uuid',
+                'project': 'project-id', 'blockedBy': ['FIX-2'], 'relatedTo': ['FIX-3'],
+                'links': [{'title': 'Source', 'url': 'https://example.com/source'}], 'priority': 2}
+        (self.project / 'payload.json').write_text(canonical({k: v for k, v in args.items() if k != 'id'}))
+        gate = {'operation_id': 'working', 'destination_id': 'saved', 'workspace': self.dest['workspace'],
+                'target': self.dest['target'], 'operation': 'update', 'payload_path': 'payload.json',
+                'payload_sha256': sha((self.project / 'payload.json').read_bytes()),
+                'authorization_ref': self.dest['authorization_ref'], 'purpose': 'working-context'}
+        with self.assertRaisesRegex(LedgerError, 'actual Linear workspace'):
+            self.prepare('working', 'write', tool, args, gate)
+        self.event('PostToolUse', 'mcp__linear__get_workspace', {},
+                   {'content': [{'type': 'text', 'text': canonical({'id': self.dest['workspace']})}]}, event_id='workspace')
+        self.event('PostToolUse', 'mcp__linear__get_issue', {'id': 'FIX-2'},
+                   {'structuredContent': {'id': 'FIX-2', 'uuid': 'parent-uuid'}}, event_id='parent')
+        self.prepare('working', 'write', tool, args, gate)
+        return tool, args, gate
+
+    def test_native_linear_context_before_artifact_and_relations_readback(self):
+        tool, args, gate = self.native_working_plan()
+        read_tool, read_args = 'mcp__linear__get_issue', {'id': args['id'], 'includeRelations': True}
+        with self.assertRaisesRegex(LedgerError, 'actual Linear relations'):
+            self.prepare('bad-fetch', 'readback', read_tool, {'id': args['id']}, {'write_call_id': 'working'})
+        with self.assertRaisesRegex(LedgerError, 'account fetch'):
+            self.prepare('bad-connector', 'readback', 'mcp__linear_endix__get_issue', read_args, {'write_call_id': 'working'})
+        self.prepare('working-fetch', 'readback', read_tool, read_args, {'write_call_id': 'working'})
+        self.assertIsNone(self.call('status')['artifact'])
+        self.assertEqual('allow', self.event('PreToolUse', tool, args)['hookSpecificOutput']['permissionDecision'])
+        self.event('PostToolUse', tool, args, {'structuredContent': {'id': args['id']}})
+        observed = {'id': args['id'], 'description': 'working draft', 'parentId': 'FIX-2',
+                    'projectId': 'project-id', 'project': 'Project', 'priority': {'value': 2, 'name': 'High'},
+                    'relations': {'blockedBy': [{'id': 'FIX-2'}], 'relatedTo': [{'id': 'FIX-3'}, {'id': 'OLD'}]},
+                    'attachments': args['links']}
+        bad = {**observed, 'relations': {'blockedBy': [], 'relatedTo': [{'id': 'FIX-3'}]}}
+        self.event('PreToolUse', read_tool, read_args, event_id='wrong-relations')
+        failed = self.event('PostToolUse', read_tool, read_args, {'structuredContent': bad}, event_id='wrong-relations')
+        self.assertIn('relation is missing', failed['reason'])
+        self.event('PreToolUse', read_tool, read_args, event_id='real-relations')
+        self.event('PostToolUse', read_tool, read_args, {'structuredContent': observed}, event_id='real-relations')
+        self.assertEqual('verified', self.call('status')['runtime_hooks']['writes']['working']['outcome'])
+        # Later artifact verification must not discard already saved progress.
+        state = self.ready(complete=False)
+        self.assertEqual('verified', state['runtime_hooks']['writes']['working']['outcome'])
+        self.assertEqual('done', self.call('complete')['stage'])
+
+    def test_native_linear_wrong_workspace_and_owner_cannot_write(self):
+        tool, args, gate = self.native_working_plan()
+        self.event('PostToolUse', 'mcp__linear_endix__get_workspace', {},
+                   {'structuredContent': {'id': self.dest['workspace']}}, event_id='team-workspace')
+        with self.assertRaisesRegex(LedgerError, 'ownership'):
+            self.prepare('wrong-owner', 'write', 'mcp__linear_endix__save_issue', args,
+                         {**gate, 'operation_id': 'wrong-owner'})
+        self.event('PostToolUse', 'mcp__linear__get_workspace', {},
+                   {'structuredContent': {'id': 'different-account'}}, event_id='switched')
+        with self.assertRaisesRegex(LedgerError, 'actual Linear workspace'):
+            self.event('PreToolUse', tool, args)
+        # A failed connection observation must revoke a previously usable binding.
+        with self.assertRaisesRegex(LedgerError, 'prior connection invalidated'):
+            self.event('PostToolUse', 'mcp__linear__get_workspace', {}, {'isError': True}, event_id='failed-identity')
+        self.assertNotIn('mcp__linear__', self.call('status')['runtime_hooks'].get('connections', {}))
+
+    def test_linear_description_accepts_verified_issue_autolinks_only(self):
+        aliases = {'4f6c608e-2e52-4e76-b968-15bc9987f5de': 'MAE-10',
+                   'cb5a5e0b-ccfc-4ec2-b547-ebf208f484a9': 'MAE-11'}
+        expected = ('<issue id="4f6c608e-2e52-4e76-b968-15bc9987f5de" '
+                    'href="https://linear.app/maeng/issue/MAE-10/한글">MAE-10</issue> and MAE-11')
+        actual = ('<issue id="4f6c608e-2e52-4e76-b968-15bc9987f5de" '
+                  'href="https://linear.app/maeng/issue/MAE-10/%ED%95%9C%EA%B8%80">MAE-10</issue> and '
+                  '<issue id="cb5a5e0b-ccfc-4ec2-b547-ebf208f484a9" '
+                  'href="https://linear.app/maeng/issue/MAE-11/new">MAE-11</issue>')
+        workspace = 'https://linear.app/maeng'
+        self.assertTrue(tool_hook.linear_description_matches(expected, actual, aliases, workspace))
+        self.assertFalse(tool_hook.linear_description_matches(expected, actual, aliases))
+        self.assertFalse(tool_hook.linear_description_matches(expected, actual + ' changed', aliases, workspace))
+        self.assertFalse(tool_hook.linear_description_matches(expected,
+                         actual.replace('cb5a5e0b-ccfc-4ec2-b547-ebf208f484a9',
+                                        '4f6c608e-2e52-4e76-b968-15bc9987f5de'), aliases, workspace))
+        self.assertFalse(tool_hook.linear_description_matches(expected,
+                         actual.replace('/issue/MAE-11/', '/issue/MAE-12/'), aliases, workspace))
+        self.assertFalse(tool_hook.linear_description_matches(expected,
+                         actual.replace('/maeng/', '/endix/', 1), aliases, workspace))
+
+    def test_native_readback_rechecks_workspace_before_and_after_dispatch(self):
+        tool, args, gate = self.native_working_plan()
+        read_tool, read_args = 'mcp__linear__get_issue', {'id': args['id'], 'includeRelations': True}
+        self.prepare('working-fetch', 'readback', read_tool, read_args, {'write_call_id': 'working'})
+        self.event('PreToolUse', tool, args)
+        self.event('PostToolUse', tool, args, {'structuredContent': {'id': args['id']}})
+        self.event('PostToolUse', 'mcp__linear__get_workspace', {},
+                   {'structuredContent': {'id': 'different-account'}}, event_id='switched-before')
+        with self.assertRaisesRegex(LedgerError, 'actual Linear workspace'):
+            self.event('PreToolUse', read_tool, read_args, event_id='fetch')
+        with self.assertRaisesRegex(LedgerError, 'actual Linear workspace'):
+            self.prepare('new-fetch', 'readback', read_tool, read_args, {'write_call_id': 'working'})
+        self.event('PostToolUse', 'mcp__linear__get_workspace', {},
+                   {'structuredContent': {'id': self.dest['workspace']}}, event_id='restored')
+        self.event('PreToolUse', read_tool, read_args, event_id='fetch')
+        self.event('PostToolUse', 'mcp__linear__get_workspace', {},
+                   {'structuredContent': {'id': 'different-account'}}, event_id='switched-after')
+        result = self.event('PostToolUse', read_tool, read_args,
+                            {'structuredContent': {'id': args['id']}}, event_id='fetch')
+        self.assertIn('actual Linear workspace', result['reason'])
+        self.assertEqual('conflict', self.call('status')['runtime_hooks']['writes']['working']['outcome'])
+
+    def test_working_purpose_cannot_bypass_notion_verification(self):
+        self.config()
+        (self.project / 'payload.json').write_text(canonical({'body': 'draft'}))
+        gate = {'operation_id': 'save', 'destination_id': 'saved', 'workspace': self.dest['workspace'],
+                'target': self.dest['target'], 'operation': 'update', 'payload_path': 'payload.json',
+                'payload_sha256': sha((self.project / 'payload.json').read_bytes()),
+                'authorization_ref': self.dest['authorization_ref'], 'purpose': 'working-context'}
+        with self.assertRaisesRegex(LedgerError, 'authorized personal Linear'):
+            self.prepare('notion-working', 'write', 'mcp__codex_apps__notion_notion_update_page',
+                         {'page_id': self.dest['target'], 'command': 'replace_content', 'new_str': 'draft'}, gate)
+
+    def test_read_search_words_and_real_generic_mutations(self):
+        for name in ('mcp__codex_apps__notion__search', 'mcp__codex_apps__notion_query_data_sources', 'mcp__linear__list_issues'):
+            self.assertIsNone(tool_hook.protected(name, {'query': 'mutation'}))
+        for name in ('mcp__notion__query', 'mcp__codex_apps__notion__query'):
+            for query in ('mutation { deletePage }', '# comment\nmutation { deletePage }', '\ufeffmutation { deletePage }', 'query { pages }'):
+                self.assertEqual('write', tool_hook.protected(name, {'query': query}))
+        self.assertEqual('write', tool_hook.protected('mcp__notion__delete_page', {'id': 'page'}))
+
+    def test_notion_page_parent_readback_uses_actual_nearest_parent(self):
+        tool = 'mcp__codex_apps__notion__create_pages'
+        args = {'parent': {'page_id': 'parent-id'}, 'pages': [{'properties': {'title': 'Result'}, 'content': 'Result'}]}
+        self.assertEqual(('notion', 'create', 'parent-id', {'body': 'Result', 'title': 'Result'}),
+                         tool_hook.request_payload(tool, args, self.project))
+        value = {'metadata': {'type': 'page'}, 'url': 'https://www.notion.so/created',
+                 'text': '<page>\n<ancestor-path>\n<parent-page url="https://www.notion.so/root"/>\n'
+                         '<parent-page url="https://www.notion.so/parent-id"/>\n</ancestor-path>\n'
+                         '<properties>\n{"title":"Result"}\n</properties>\n<content>\nResult\n</content>\n</page>'}
+        parsed = tool_hook.response_value({'structuredContent': value})
+        self.assertEqual('https://www.notion.so/parent-id', parsed['notion_parent'])
+        write = {'service': 'notion', 'tool_name': tool, 'created_resource': 'created',
+                 'gate': {'operation': 'create', 'target': 'parent-id', 'payload_path': str(self.project / 'expected.json')}}
+        (self.project / 'expected.json').write_text(canonical({'body': 'Result', 'title': 'Result'}))
+        tool_hook.actual_payload(write, args, 'mcp__codex_apps__notion_fetch', {'id': 'created'}, {'structuredContent': value})
+        with self.assertRaisesRegex(LedgerError, 'identity mismatch'):
+            tool_hook.actual_payload(write, args, 'mcp__codex_apps__notion_fetch', {'id': 'created'},
+                                     {'structuredContent': {**value, 'text': value['text'].replace('/parent-id', '/wrong')}})
     def setUp(self):
         test_run.ProjectRunnerTests.setUp(self)
         patcher = patch.object(tool_hook, "SESSIONS", self.root / "sessions")
@@ -34,22 +177,22 @@ class ToolHookTests(unittest.TestCase):
         self.call('configure-hooks', output_owner='personal', destinations=[self.dest],
                   write_paths=['output'], requirements=[])
 
-    def prepare(self, call_id, kind, tool, args, gate):
+    def prepare(self, call_id, kind, tool, args, gate, **extra):
         path = call_id + '.json'
         (self.project / path).write_text(canonical(args))
         return self.call('prepare-tool', call_id=call_id, kind=kind, tool_name=tool,
-                         input_path=path, gate=gate)
+                         input_path=path, gate=gate, **extra)
 
-    def write_plan(self, service='notion', tool=None, args=None):
+    def write_plan(self, service='notion', tool=None, args=None, body='reviewed content'):
         self.config(service); self.ready(complete=False)
-        payload = {'description' if service == 'linear' else 'body': 'reviewed content'}
+        payload = {'description' if service == 'linear' else 'body': body}
         (self.project / 'payload.json').write_text(canonical(payload))
         names = {'notion': ('notion_notion_update_page', 'notion_fetch'),
                  'linear': ('linear_save_issue', 'linear_get_issue'),
                  'github': ('github_update_issue', 'github_fetch_issue')}
         write_args = {
             'notion': {'page_id': self.dest['target'], 'command': 'replace_content',
-                       'new_str': 'reviewed content'},
+                       'new_str': body},
             'linear': {'id': self.dest['target'], 'link_id': self.dest['workspace'], **payload},
             'github': {'repository_full_name': 'example/private', 'issue_number': 7, **payload},
         }
@@ -122,6 +265,35 @@ class ToolHookTests(unittest.TestCase):
                 self.fetch(self.read_response())
                 self.assertEqual('verified', self.call('status')['runtime_hooks']['writes']['save']['outcome'])
                 self.assertEqual('done', self.call('complete')['stage'])
+
+    def test_added_notion_links_verify_without_hiding_text_drift(self):
+        self.write_plan(); self.do_write()
+        response = self.read_response(body='[reviewed](https://example.com) content')
+        self.fetch(response)
+        self.assertEqual('verified', self.call('status')['runtime_hooks']['writes']['save']['outcome'])
+        self.assertEqual('block', self.fetch(self.read_response(body='[changed](https://example.com) content'),
+                                           'changed-read')['decision'])
+
+    def test_legacy_normalized_payload_cannot_override_raw_approved_body(self):
+        self.write_plan(body='    a\n\n    b'); self.do_write()
+        write = self.call('status')['runtime_hooks']['tool_calls']['save-call']
+        legacy = self.project / 'legacy-payload.json'
+        legacy.write_text(canonical({'body': '    a\n    b'}))
+        write['gate']['payload_path'] = str(legacy)
+        with self.assertRaisesRegex(LedgerError, 'write readback mismatch'):
+            tool_hook.actual_payload(write, self.write_args, self.read_tool, self.read_args,
+                                     self.read_response(body='    a\n    b'))
+        content = tool_hook.actual_payload(write, self.write_args, self.read_tool, self.read_args,
+                                           self.read_response(body='    a\n\n    b'))
+        self.assertEqual(canonical({'body': '    a\n    b'}).encode(), content)
+
+    def test_notion_code_blanks_survive_request_and_readback_normalization(self):
+        self.write_plan(body='    a\n\n    b'); self.do_write()
+        result = self.fetch(self.read_response(body='    a\n    b'))
+        self.assertEqual('block', result['decision'])
+        self.assertEqual('conflict', self.call('status')['runtime_hooks']['writes']['save']['outcome'])
+        self.fetch(self.read_response(body='    a\n\n    b'), 'correct-code')
+        self.assertEqual('verified', self.call('status')['runtime_hooks']['writes']['save']['outcome'])
 
     def test_mismatched_readback_blocks_then_real_reconciliation_succeeds(self):
         self.write_plan(); self.do_write()
@@ -377,6 +549,38 @@ class ToolHookTests(unittest.TestCase):
                                  ['hookSpecificOutput']['permissionDecision'])
         self.assertIsNone(tool_hook.protected('Bash',
                           {'command': 'gh api repos/example/private/issues/7'}))
+
+    def test_pr_creation_uses_actual_pr_readback(self):
+        execute(self.project, 'start', self.request)
+        dest = {'id': 'pr', 'service': 'github', 'workspace': 'example/private',
+                'target': 'https://github.com/example/private/pulls', 'output_owner': 'personal',
+                'operations': ['create'], 'authorization_ref': 'fixture:approved-pr'}
+        self.call('configure-hooks', output_owner='personal', destinations=[dest],
+                  write_paths=['output'], requirements=[])
+        self.ready(complete=False)
+        args = {'repository_full_name': 'example/private', 'base': 'feat/harness-v1',
+                'head': 'feat/harness-github-flow', 'title': 'Fix GitHub delivery',
+                'body': 'Linked to personal Linear work.', 'draft': True}
+        payload = {k: args[k] for k in ('base', 'head', 'title', 'body', 'draft')}
+        (self.project / 'pr-payload.json').write_text(canonical(payload))
+        gate = {'operation_id': 'pr-create', 'destination_id': 'pr', 'workspace': dest['workspace'],
+                'target': dest['target'], 'operation': 'create', 'payload_path': 'pr-payload.json',
+                'payload_sha256': sha(canonical(payload).encode()),
+                'authorization_ref': dest['authorization_ref']}
+        tool = 'mcp__codex_apps__github_create_pull_request'
+        read_tool = 'mcp__codex_apps__github_fetch_pr'
+        read_args = {'repo_full_name': 'example/private', 'pr_number': 9}
+        self.prepare('create-pr', 'write', tool, args, gate, expected_head_sha='a' * 40)
+        self.event('PreToolUse', tool, args)
+        self.event('PostToolUse', tool, args, {'structuredContent': {'pull_request': {'number': 9}}})
+        self.prepare('fetch-pr', 'readback', read_tool, read_args, {'write_call_id': 'create-pr'})
+        self.event('PreToolUse', read_tool, read_args, event_id='pr-read')
+        observed = {'pull_request': {'number': 9, 'url': 'https://github.com/example/private/pull/9',
+                    'head': args['head'], 'head_sha': 'a' * 40, 'base': args['base'],
+                    'title': args['title'], 'body': args['body'], 'draft': True}}
+        self.event('PostToolUse', read_tool, read_args,
+                   {'structuredContent': observed}, event_id='pr-read')
+        self.assertEqual('verified', self.call('status')['runtime_hooks']['writes']['pr-create']['outcome'])
 
     def test_concurrent_readback_admission_is_denied(self):
         self.write_plan(); self.do_write()

@@ -18,6 +18,8 @@ FIXTURE = {
     'scripts/ledger.py': ('harness/ledger.py', b'def message(): return "snapshot v1"\n'),
     'scripts/run.py': ('harness/run.py', b'from ledger import message\nprint(message())\n'),
     'scripts/tool_hook.py': ('harness/tool_hook.py', b'from ledger import message\nimport run\ndef main(): print(message())\n'),
+    'scripts/work_records.py': ('harness/work_records.py', b'def main(): print("records")\n'),
+    'references/work-records/SKILL.md': ('skills/work-records/SKILL.md', b'---\nname: work-records\ndescription: Work records\n---\n'),
     'references/README.md': ('harness/README.md', b'Local harness reference.\n'),
     'references/NOTION-WORKSPACE.md': ('harness/NOTION-WORKSPACE.md', b'Canonical personal locators.\n'),
 }
@@ -85,7 +87,7 @@ class InstallTests(unittest.TestCase):
         for count in (5, 6):
             with self.subTest(count=count):
                 home = self.root / f'previous-{count}'
-                omitted = ['scripts/tool_hook.py']
+                omitted = ['scripts/tool_hook.py', 'scripts/work_records.py', 'references/work-records/SKILL.md']
                 if count == 5:
                     omitted.append('references/NOTION-WORKSPACE.md')
                 removed = {name: FILES.pop(name) for name in omitted}

@@ -1,7 +1,8 @@
 """Project-independent entry point for the local harness (Python stdlib only).
 
 Use --project explicitly in agent calls. start accepts a create request plus owner
-and optional skill_paths; new starts default to managed Notion closeout. File paths
+and optional skill_paths; new starts default to library closeout with separate
+Notion draft approval. File paths
 are relative to the project; skill paths may be outside it. closeout resolves
 GitHub files[].path against the project and expects separate readback files.
 doctor and list take no stdin. --help includes the underlying command contract.
@@ -37,7 +38,9 @@ def verify_install():
     expected_files = {"SKILL.md", "agents/openai.yaml", "scripts/ledger.py",
                       "scripts/run.py", "references/README.md"}
     allowed_files = (expected_files, expected_files | {"references/NOTION-WORKSPACE.md"},
-                     expected_files | {"references/NOTION-WORKSPACE.md", "scripts/tool_hook.py"})
+                     expected_files | {"references/NOTION-WORKSPACE.md", "scripts/tool_hook.py"},
+                     expected_files | {"references/NOTION-WORKSPACE.md", "scripts/tool_hook.py",
+                                       "scripts/work_records.py", "references/work-records/SKILL.md"})
     ledger.require(isinstance(data, dict) and set(data) == {"files", "release_id"}
                    and isinstance(data["files"], dict) and set(data["files"]) in allowed_files,
                    "invalid install manifest")
@@ -94,7 +97,7 @@ def execute(project, action, data):
         ledger.require(isinstance(data, dict), "expected a JSON object")
         request = dict(data)
         owner = ledger.identifier(request.pop("owner", None))
-        request.setdefault("closeout", {"mode": "managed", "github_paths": []})
+        request.setdefault("closeout", {"mode": "library", "source_paths": []})
         paths = request.pop("skill_paths", [])
         ledger.require(isinstance(paths, list) and len(paths) <= 15, "invalid skill_paths")
         pins = [local_pin(str(skill_root() / "SKILL.md"))]
@@ -143,8 +146,9 @@ def execute(project, action, data):
         ledger.require("source_paths" not in data, "runner resolves source_paths from the frozen policy")
         status = store.dispatch("status", {"task_id": data["task_id"]})
         policy = status["request"].get("closeout", {})
-        if policy.get("mode") == "managed":
-            data["source_paths"] = {path: project_path(project, path) for path in policy["github_paths"]}
+        if policy.get("mode") in {"managed", "github", "library"}:
+            field = "source_paths" if policy["mode"] == "library" else "github_paths"
+            data["source_paths"] = {path: project_path(project, path) for path in policy[field]}
     if action == "closeout":
         if "summary_path" in data:
             data["summary_path"] = project_path(project, data["summary_path"])
@@ -181,8 +185,11 @@ def main():
             raw = sys.stdin.read(128 * 1024 + 1)
             ledger.require(len(raw) <= 128 * 1024, "request too large")
             data = json.loads(raw, object_pairs_hook=ledger.unique_object)
-        result = execute(args.project, args.command, data)
         session = os.environ.get("CODEX_THREAD_ID")
+        if args.command in {"start", "resume"} and os.environ.get("CODEX_SESSION_ID"):
+            ledger.require(session and isinstance(data, dict) and data.get("owner") == session,
+                           "owner must equal CODEX_THREAD_ID; the entry receipt is not an owner")
+        result = execute(args.project, args.command, data)
         if args.command in {"start", "resume"} and session and result.get("owner") == session:
             from tool_hook import bind_session
             bind_session(result["project"], result["task_id"], session)

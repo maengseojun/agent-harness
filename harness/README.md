@@ -108,6 +108,7 @@ will load a guide. Check routing and actual benefit on representative real tasks
 
 ## Ownership and destination checks
 
+
 Resolve the owner from the requested output, explicit target, issue and live
 project entry. A folder name or Endix mention does not decide ownership. Personal
 work uses the personal workflow; actual Endix work follows the current project
@@ -139,12 +140,21 @@ its limits.
 ## Notion workspace
 
 Use the standalone [Harness hub](https://www.notion.so/3e3e203190cd8143bdf5df0b46c1cb57)
-as the durable source of truth for personal managed work. Linear holds the
-short-term queue; Notion preserves decisions, results and recovery context.
+as the personal library of concluded work. Linear is the brain/memo/draft for
+full task maps, dependencies, drafts, decisions and progress.
 See [workspace destinations and capture contract](NOTION-WORKSPACE.md).
-New personal runs require a Notion closeout receipt before Done. The host agent
-performs the authorized connector write and readback; the runner validates saved
-evidence. No background synchronization service is installed.
+New personal runs use library closeout: verified work can finish while its
+Notion draft awaits approval. The work-records skill proposes a record, saves
+only after concrete user approval, reads it back, then reviews and refines it.
+The record then needs separately read and verified backlinks from the original
+personal Linear issue and the personal Notion project index. A saved draft is
+not a reviewed or final record; finalization requires approved review and both
+backlinks. Index writes need their own concrete approval. In a native Codex
+session use `CODEX_THREAD_ID` for the owner and record session ID, never the
+entry receipt token.
+Endix workspace Notion requires separate explicit approval. GitHub is not a
+universal completion condition. Historical managed tasks retain their frozen
+delivery contracts, but do not grant fresh Notion-write permission.
 
 ### Learning from actual reuse
 
@@ -501,8 +511,23 @@ or transition. Only a current `stage: done` proves recorded completion.
 
 ## Publication and permissions
 
-New runner tasks default to `closeout: {"mode":"managed","github_paths":[]}`.
-Notion is required for this personal managed mode. Declare every intended changed
+New runner tasks default to `closeout: {"mode":"library","source_paths":[]}`.
+Declare changed code, skill and hook paths in `source_paths`; checks and review
+bind these bytes without requiring remote publication. A source change requires
+repair and renewed verification. Work completion and Notion record approval are
+separate. Use the work-records skill and its approval hook for that record.
+While a tracked task remains active in the same session, its tool gate also
+requires a prepared exact Notion call. Both admissions are required; neither
+approval bypasses the other. After task completion, the record gate remains.
+When GitHub delivery is requested, use a separate `github` task with
+`github_paths` for the exact reviewed files. Its closeout requires an immutable
+remote commit and byte-matched file readbacks, without requiring a Notion write.
+Keep the personal Linear issue as the work map; add a cross-linked GitHub issue
+only for a distinct actionable repository problem. Link the resulting commit
+and PR after separate remote fetches. PR merge remains a separate decision.
+
+Explicit `managed` delivery is retained for historical or separately requested
+contracts. Notion is required in that mode. Declare every intended changed
 skill, hook and harness file in `github_paths` when GitHub delivery is required.
 Managed code tasks must declare a nonempty file list or use an applicable
 reasoned scope exception. The declaration is frozen; the reviewer compares it
@@ -514,11 +539,11 @@ Use `{"mode":"local-only","reason":"..."}` or
 `{"mode":"read-only","reason":"..."}` only for an explicit request with that
 scope. An outage is not an exemption. Existing older tasks retain their original
 policy. `publication_required` still controls the primary-artifact outbox below;
-false does not waive the managed closeout requirement. Existing user authorization
-for the personal hub and reviewed personal repository changes is sufficient.
-Do not ask for the same permission twice or extend it to unrelated destinations.
+false does not waive an explicit managed closeout requirement. The 2026-09-28
+draft-first policy supersedes older standing personal Notion-write permission.
+Reviewed personal repository synchronization retains its existing scope.
 
-After review and the real Notion write/fetch, keep a simple intended summary and
+For an approved record, after review and the real Notion write/fetch, keep a simple intended summary and
 the independently fetched body as separate files. For example:
 
 ```json
@@ -594,7 +619,9 @@ agent; it does not alone certify termination. No phase classifier or new model
 call is needed. Existing entry and managed closeout handlers are preserved.
 
 Install the reviewed package, then explicitly register its frozen handler:
-`python3 -B harness/install_tool_hooks.py --release <absolute-installed-release>`.
+`python3 -B harness/install_tool_hooks.py --release <absolute-installed-release> --module all`.
+This switches the tool and work-record launchers to the same frozen release in
+one configuration update; compare both registered paths before claiming sync.
 The installer preserves unrelated config and old releases and backs up hooks.json.
 New definitions still require Codex's hook trust review; registration and synthetic
 wire tests do not prove desktop dispatch. Never manufacture trusted_hash entries.
@@ -614,7 +641,12 @@ planned file must still match. Do not manually run before/after gates for a call
 already managed by the bridge. Existing direct runner gates remain available
 for hosts without native event support.
 
-- Write `gate`: existing `before-write` fields, including reviewed payload/hash.
+- Write `gate`: existing `before-write` fields, including exact payload/hash.
+  For PR creation, also supply `expected_head_sha` at the top level from the
+  reviewed remote delivery commit; readback must confirm that exact PR head.
+  Add `purpose: "working-context"` only for authorized personal Linear issue
+  drafts and progress. This checks destination, input and actual readback before
+  a final artifact exists. Delivery writes retain the check/review prerequisite.
   The bridge records any write response as uncertain, never as proof of storage.
 - Delegate `gate`: existing `before-delegate` fields. The pre-hook injects the
   returned frozen contract into `message` or text `items` with `updatedInput`.
@@ -630,9 +662,24 @@ for hosts without native event support.
 
 Supported writes use the exact `mcp__codex_apps__` provider names: Notion single
 page creation, full content replacement and property updates; Linear issue
-creation/update; GitHub issue creation/update and file creation/update. Unsupported
-fields or operations are denied. Linear `link_id` must equal the authorized
-workspace/account. Notion content uses the existing plain-summary normalization;
+creation/update; GitHub issue creation/update, file creation/update and PR creation.
+PR creation uses explicit base/head branches, title, body and draft state; fetch
+the actual created PR number to verify the branch and content. `gh pr create`
+remains unsupported for tracked runs; use the typed GitHub connector. Unsupported
+fields or operations are denied. Native `mcp__linear__save_issue/get_issue` and
+`mcp__linear_endix__save_issue/get_issue` are also supported. Before native writes,
+fetch `get_workspace` through the same connector: its actual PostToolUse result
+binds the workspace to the frozen destination. Wrong workspace/connector owner
+or failed identity reads deny writes. Native tools do not take `link_id`; legacy
+Codex Apps Linear still requires it to equal the authorized workspace/account.
+Fetch referenced issues first when using UUIDs so returned identifier aliases
+can be compared. Personal working-context permission never grants Endix writes.
+Issue project/parent/blockedBy/blocks/relatedTo/links/labels are supported;
+fetch with `includeRelations:true` for relation writes. Additive relations/links
+must contain every requested item; existing unrelated items are preserved.
+Use complete supported values rather than an unverified description patch.
+Notion creation supports exactly one explicit page or data-source parent; actual
+fetch ancestry is checked against that parent. Notion content uses the existing plain-summary normalization;
 other requested fields use canonical JSON. Full native Notion fetch envelopes
 supply body/properties and parent identity; truncated/unknown-block results fail.
 Each create should include a stable task marker. Plan its fetch after the write
@@ -679,7 +726,7 @@ runs where destinations or outputs change independently.
 
 ### Before external writes
 
-After current checks and independent review, prepare a payload file representing
+For deliveries, after current checks and independent review, prepare a payload file representing
 all intended content and properties. For GitHub, use a canonical manifest of the
 exact revision/files and their hashes. Call `before-write` with a stable
 `operation_id`, destination ID, observed workspace and target, operation, payload
@@ -688,6 +735,12 @@ returned attempt number before calling the connector. Its `hook.should_write`
 is false for an already verified operation: skip the write. Pending, uncertain
 or conflicting attempts deny another write. A second ID cannot bypass an
 identical binding. Destination comparison is exact, not URL-prefix guessing.
+
+Personal Linear working context uses the same exact-input, authorized-destination
+and readback path, with `purpose:"working-context"`. It needs no final artifact or
+review and its verified receipts remain valid when a later artifact is recorded.
+Pending/uncertain progress writes still require reconciliation before completion.
+Notion, GitHub and team deliveries cannot use this purpose to bypass review.
 
 This hook binds a reviewed work version and durable intent before the side effect.
 It checks coordinator-supplied destination facts; it cannot validate an account

@@ -1,8 +1,43 @@
 # Harness Notion workspace
 
-Updated: 2026-09-25 (Asia/Seoul).
+Updated: 2026-09-28 (Asia/Seoul).
 
-The user selected this standalone private Harness page as the durable source of truth for personal managed work. Store requirements, decisions and their reasons, maintained knowledge, accepted results, evidence links and recovery context here. Personal Linear is the short-term queue, not a substitute for these records. GitHub holds executable sources and their exact versions. This standing scope authorizes relevant personal Harness records and reviewed personal harness synchronization, not unrelated external actions.
+## Current task-record policy
+
+Linear is the brain/memo/draft for personal work and private Endix development:
+full work maps, ideas, dependencies, working drafts, decisions and progress.
+Personal Notion is a library of concluded outcomes. Propose a concrete draft
+from Linear history, the conversation and actual result evidence; obtain user
+approval before saving, fetch the result, then review and refine the writing.
+After saving, fetch both the original personal Linear issue and the project
+index to confirm they link back to the canonical record. The record's saved
+draft, reviewed and final states are distinct from harness work completion;
+finalization requires approved review of the current saved revision and both
+backlinks. The index edit needs its own approved proposal. Use the actual
+`CODEX_THREAD_ID` for local record actions, never the entry receipt token.
+Failed/abandoned experiments with useful conclusions can qualify. Use project
+overview indexes and linked outcome pages. GitHub is an example, not a required
+completion platform. Endix workspace Notion requires separate explicit consent.
+Autonomous saving stays a future TODO until criteria receive user approval.
+
+This policy supersedes the older standing Notion-write permission and mandatory
+new-task Notion closeout described in historical procedures below. New library
+tasks can finish while a record awaits approval. Historical managed ledgers keep
+their frozen contract, but fresh writes still need concrete draft permission.
+Use the installed work-records skill and hook. Existing schemas and page IDs
+below are locators to verify, not permission to write or proof of current content.
+Skill-storage policy remains separate. Repository synchronization keeps its
+existing scope; it does not confer Notion-writing authority.
+
+Personal Linear working context can be written before final artifact review,
+using the observed native workspace and exact prepared input/readback. At a
+verified result, record the work-records assessment with a candidate or a reason
+to defer; Stop reminds once if that step was omitted. Notion page and collection
+parents are both supported. An uncertain save must be reconciled; confirmed
+absence plus new explicit approval can retry the same exact draft, retaining
+attempt history. Plain search keywords never constitute mutation permission.
+
+## Existing workspace locators and historical procedures
 
 - Hub: https://www.notion.so/3e3e203190cd8143bdf5df0b46c1cb57
 - Knowledge & Skills database: `e1e730a4-4301-4b53-8eb6-1f0fabc43840`

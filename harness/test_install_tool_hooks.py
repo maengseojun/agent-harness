@@ -12,6 +12,39 @@ import test_install
 
 
 class ToolHookInstallTests(unittest.TestCase):
+    def test_record_hooks_preserve_tool_and_entry_handlers(self):
+        tools = install(self.release, self.home)
+        records = install(self.release, self.home, 'work_records')
+        first = self.config.read_bytes()
+        self.assertEqual(records, install(self.release, self.home, 'work_records'))
+        self.assertEqual(first, self.config.read_bytes())
+        config = json.loads(first)
+        for event in ('PreToolUse', 'PostToolUse', 'Stop'):
+            commands = [h['command'] for e in config['hooks'][event] for h in e['hooks']]
+            self.assertEqual(2, len(commands))
+            self.assertTrue(any(str(tools) in c for c in commands))
+            self.assertTrue(any(str(records) in c for c in commands))
+        self.assertIn('UserPromptSubmit', config['hooks'])
+        result = subprocess.run([sys.executable, '-B', str(records)], capture_output=True,
+                                text=True, check=True, cwd=self.root)
+        self.assertEqual('records\n', result.stdout)
+
+    def test_all_replaces_both_managed_launchers_with_one_release(self):
+        old = install(self.release, self.home, 'all')
+        (self.source / 'harness/ledger.py').write_text('def message(): return "v2"\n')
+        upgraded = package(self.source, self.home)
+        current = install(upgraded, self.home, 'all')
+        self.assertEqual(current, install(upgraded, self.home, 'all'))
+        self.assertNotEqual(old, current)
+        config = json.loads(self.config.read_text())['hooks']
+        for module, events in (('tool_hook', EVENTS), ('work_records',
+                                ('UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Stop'))):
+            for event in events:
+                commands = [handler['command'] for entry in config[event]
+                            for handler in entry['hooks']]
+                self.assertEqual(1, sum(str(current[module]) in command for command in commands))
+                self.assertFalse(any(str(old[module]) in command for command in commands))
+
     def setUp(self):
         test_install.InstallTests.setUp(self)
         (self.source / 'harness/run.py').write_text('VALUE = "frozen"\n')
@@ -113,7 +146,8 @@ class ToolHookInstallTests(unittest.TestCase):
         config = json.loads(self.config.read_text())
         self.assertTrue(all(len(config['hooks'][event]) == 1 for event in EVENTS))
         result = subprocess.run([sys.executable, '-B', str(Path(__file__).with_name(
-            'install_tool_hooks.py')), '--release', str(self.release), '--home', str(self.home)],
+            'install_tool_hooks.py')), '--release', str(self.release), '--home', str(self.home),
+                                 '--module', 'tool_hook'],
             capture_output=True, text=True, check=True)
         self.assertEqual(json.loads(result.stdout)['launcher'], str(results[0]))
 

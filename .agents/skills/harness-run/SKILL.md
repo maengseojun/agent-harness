@@ -9,6 +9,22 @@ Use this workflow in the user's selected workspace, including a folder without
 Git. The host agent performs the work; the bundled Python ledger saves evidence.
 This is not a scheduler, sandbox, or replacement for specialist skills.
 
+## Work management and record library
+
+For substantive personal work, read the installed `work-records` skill. Linear
+is the brain/memo/draft for goals, dependencies, decisions, working drafts and
+progress, including private Endix development. Personal Notion is the library
+of finished outcomes: propose a draft, obtain user approval, save and fetch it,
+then review and rewrite. Endix workspace Notion needs separate explicit approval.
+Outcome records also need verified reverse links in personal Linear and the
+Notion project index before record finalization; saved drafts and reviewed
+writing have distinct states. Use `CODEX_THREAD_ID`, not the entry receipt, as
+the record session and harness owner.
+This 2026-09-28 policy supersedes older standing Notion-write authorization.
+Task completion and optional record approval are separate; GitHub is an example,
+not a universal finish condition. Hooks deliver this policy and enforce prepared
+Notion approvals; the host assesses completion from actual task evidence.
+
 ## Resolve the owning workflow
 
 Decide ownership from the requested output, explicit target and current source;
@@ -149,6 +165,14 @@ projects to that session. Freeze each planned write, delegate and actual readbac
 using `prepare-tool` with its exact JSON tool input and gate metadata. The actual
 native event automatically calls the existing gate; do not call before/after gates
 again for that operation. Omitting a protected call's plan denies execution.
+For personal Linear goals, drafts and progress, use a write gate with
+`purpose:"working-context"`. It keeps exact input, authorized destination and
+actual readback checks but does not wait for final artifact verification. Fetch
+`get_workspace` through the native connector first so the hook observes the
+actual workspace; fetch referenced issues to resolve UUIDs when needed. Include
+`includeRelations:true` on relation readback. Unsupported fields remain denied.
+Notion/GitHub/team delivery writes retain the ordinary verification gate.
+
 The bridge injects delegation contracts, records real responses and final native
 `wait_agent` results, and checks completion at Stop. A write response alone stays
 uncertain: fetch actual saved content/properties, using the supported provider adapter and prepared readback
@@ -186,10 +210,12 @@ The completion gate runs automatically and includes prepared required actions.
    condition in the brief; distinguish optional follow-ups.
    The harness skill is included automatically. Read the returned context.
    Immutable GitHub pins remain available through the lower-level `route` command.
-   New personal runs default to managed closeout: a verified Notion record is
-   required. Declare all intended changed skill, hook and harness source paths in
-   `closeout.github_paths`; their exact remote bytes must be verified too. Managed
-   code tasks need a nonempty list. A source change after checks/review
+   New personal runs default to `library` closeout, with `source_paths` listing
+   changed source files whose check/review hashes must stay current. Notion record
+   approval does not block verified work completion. Use a separate `github`
+   delivery task with `github_paths` when reviewed source must be posted and read
+   back from an immutable remote commit. Historical `managed` tasks retain their
+   frozen Notion and GitHub contract. A source change after checks/review
    requires repair and renewed verification, even if the primary report is unchanged.
    Use a `local-only` or `read-only` exception with a concrete user-scope reason only
    when that is the actual request. Service failure is a blocker, not an exception.
@@ -208,12 +234,12 @@ The completion gate runs automatically and includes prepared required actions.
    access, conflicting requirements or genuinely missing authorization; continue
    independent permitted work. Do not mark blocked work complete.
 6. After checks and review, record the required `closeout` receipts, then call
-   `complete`. `publication_required` controls the older primary-artifact outbox;
-   setting it to false does not waive managed Notion/GitHub closeout. The user's
-   standing request authorizes scoped durable records in the personal Harness hub
-   and synchronization of reviewed personal harness changes to its existing
-   private repository. Do not repeatedly request that same permission. Other
-   destinations and unrelated content retain their own authorization boundaries.
+   `complete`. For library tasks, optional Notion recording stays a separate
+   draft approval workflow. `publication_required` controls the older primary
+   artifact outbox; false does not waive an explicitly managed delivery contract.
+   The older standing personal Notion grant is superseded: obtain concrete draft
+   and destination consent. Reviewed personal repository synchronization retains
+   its existing scope and does not grant permission for Notion writes.
 7. Bind any publication approval to the exact target and current artifact hash.
    Re-read immediately before writing. On timeout, reconcile the saved marker or
    target instead of creating a duplicate. Read back saved content/status before
@@ -245,40 +271,46 @@ available; keep its source in its own folder and verify installation separately.
 
 ## Record outcomes and close the loop
 
-For personal managed work, Notion holds durable decisions, results and recovery
-context; Linear holds actionable progress; GitHub holds executable sources and
-immutable revisions. Keep skill and harness source documentation in English. Read
-**Publication and permissions** in `references/README.md` and
-`references/NOTION-WORKSPACE.md` (source: `../../../harness/README.md` and
-`../../../harness/NOTION-WORKSPACE.md`) when preparing the relevant closeout.
-Do not turn an ordinary answer or explicit read-only/local-only task into an
-external write. Reuse canonical page/issue identities and verify the destination
-before authorized writes. Use the specialist Notion capture skill when the
-managed result is saved there.
+Linear owns the working context: project goals, child tasks, dependencies,
+related work, decisions, drafts, progress, blockers and result links. Search and
+reuse the canonical issue/project, verify the personal connection, and read back
+actual changes. Private Endix development can use personal Linear; a team write
+still needs that team's current entry and permission. Small ordinary answers
+need no new issue. Notion access failure does not stop unrelated finished work.
 
-A managed Run records the request, decisions, output, checks, independent review,
-limits and next action. Fetch the saved Notion body and properties separately
-from the draft; keep its stable Task ID and Knowledge relation. A completed Run
-does not imply user acceptance of a maintained claim. When knowledge is reused,
-record what question it answered, which source/version was checked, what actually
-changed, and whether it was applied, revised, unhelpful or blocked. Update the
-same Knowledge record only for a material reusable change. A one-off correction
-stays in the task. Use the separate `skill-feedback` skill for a reusable skill
-revision; installation and a later real-use result are separate checks.
-Do not mark a related Linear task Done before the durable result is verified.
+At a completed result or a concluded failed/abandoned experiment, use
+`work-records` to assemble a draft from the Linear history, current conversation,
+actual contribution, artifacts, checks and limitations. Propose it to the user;
+record presented/rejected/deferred decisions so unchanged candidates stay quiet.
+Do not save until the exact draft and destination are approved. Preserve one
+canonical result record and link it to a project index and the Linear issue.
+After actual body/properties/link readback, review the record and prepare a final
+rewrite. A draft-save approval does not imply review acceptance or team consent.
 
-For skill, hook and harness source changes, compare the declared managed file list
-with the actual diff, run relevant checks, commit only reviewed files in the
-authorized personal repository, and fetch every declared file from the exact
-remote commit. Reinstall and compare source/install hashes before claiming local
-availability. Preserve old releases and unrelated changes; do not force-push.
-Before Done, inspect direct dependents and record actual Notion/GitHub readback
-receipts. The reviewer checks the full required-item list: a required child,
-unresolved owner gate or failed required write prevents overall Done. Record a
-requirements or access blocker, then report the local result separately from
-pending delivery. Only optional work can remain as a bounded follow-up. The
-ledger attests only supplied evidence; it does not inspect child tasks or
-authenticate agents or services.
+After a verified outcome, record `work-records` assessment with its current
+task-result hash and evidence reference, linking a proposal or stating why no
+record is proposed. Stop can remind once when this assessment is missing even
+without a registered draft; it never treats the end of a turn as completion.
+Read-only search terms do not require write approval. If an attempted Notion
+save is reliably absent, a new explicit approval permits a tracked retry of the
+same content; uncertain or already saved results still forbid duplication.
+
+For source changes, compare the actual changed paths with declared library
+`source_paths`, run relevant checks, and obtain independent review. Code, skills
+and hooks stay in executable source files. Commit/push only reviewed files when
+that delivery is requested or already authorized, and preserve unrelated changes.
+For coding work, keep personal Linear as the working map. Create a GitHub issue
+only for an actionable repository problem not already tracked there; cross-link
+it with the Linear issue. For authorized delivery, stage only reviewed paths,
+commit on a feature branch, push, create a PR against the verified default
+branch, and fetch the PR and each declared file at the immutable remote commit.
+Record issue, commit and PR links in Linear. An approved personal Notion result
+may cite them after separate readback and approval. Merge requires a separate
+decision; delivery does not retroactively change local work completion.
+The verified implementation may finish while Notion approval remains pending;
+report those states separately. Reinstall and compare source/install hashes
+before claiming local availability. Installation alone does not prove fresh
+Codex hook trust or successful service execution.
 
 ## Use a cloud collector when available
 
