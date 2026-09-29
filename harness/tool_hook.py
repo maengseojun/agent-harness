@@ -189,6 +189,7 @@ def notion_identity(value):
 
 
 def shell_tokens(args):
+    ledger.require(not re.search(r'[$`\r\n]', args['command']), 'shell expansion unsupported for provider command')
     tokens = shlex.split(args['command'])
     ledger.require(tokens and not any(token in (';', '&&', '||', '|', '>', '<') for token in tokens), 'compound provider command unsupported')
     return tokens
@@ -219,13 +220,34 @@ def git_push(args, project):
     branch = branch.removeprefix('refs/heads/')
     ledger.require(re.fullmatch(r'[A-Za-z0-9_./-]+', branch), 'unsupported push branch')
     sha = local('rev-parse', '--verify', source + '^{commit}')
+    checkout = str(Path(local('rev-parse', '--show-toplevel')).resolve(strict=True))
     target = 'https://api.github.com/repos/' + match[1] + '/git/refs/heads/' + branch
-    return target, {'commit': sha, 'ref': 'refs/heads/' + branch}
+    return target, {'commit': sha, 'ref': 'refs/heads/' + branch}, checkout
+
+
+def matches_call(task, call, name, args, fingerprint):
+    import subprocess
+    if call['phase'] == 'superseded' or call['tool_name'] != tool_name(name):
+        return False
+    if fingerprint in (call['input_sha256'], call.get('effective_input_sha256')):
+        return True
+    if tool_name(name) != 'Bash':
+        return False
+    try:
+        planned = arguments(call['tool_name'], json.loads(ledger.read_file(call['input']['path'])))
+        if call['kind'] == 'readback':
+            return protected(name, args) is None and shell_tokens(args) == shell_tokens(planned)
+        if call['kind'] == 'write':
+            project = Path(task['_database']).parent.parent
+            return git_push(args, project) == git_push(planned, project)
+        return False
+    except (ledger.LedgerError, OSError, ValueError, KeyError, subprocess.SubprocessError):
+        return False
 
 
 def request_payload(name, args, project):
     if tool_name(name) == 'Bash':
-        target, payload = git_push(args, project)
+        target, payload, _ = git_push(args, project)
         return 'github', 'push', target, payload
     endpoint = provider(name)
     if endpoint == 'notion_notion_update_page':
@@ -653,8 +675,19 @@ def event(store, d):
         return {}
     args = arguments(e.get('tool_name', ''), e.get('tool_input') or {})
     digest = ledger.sha(ledger.canonical(args).encode())
-    matching = [(key, item) for key, item in calls.items() if item['phase'] != 'superseded' and item['tool_name'] == tool_name(e.get('tool_name', ''))
-                and digest in (item['input_sha256'], item.get('effective_input_sha256'))]
+    matching = [(key, item) for key, item in calls.items()
+                if matches_call({**store.task, '_database': str(store.path)}, item, e.get('tool_name', ''), args, digest)]
+    if len(matching) > 1:
+        exact = [(key, item) for key, item in matching if digest in
+                 (item['input_sha256'], item.get('effective_input_sha256'))]
+        if exact:
+            matching = exact
+        else:
+            bindings = [{k: v for k, v in item['gate'].items() if k != 'operation_id'}
+                        for _, item in matching]
+            ledger.require(all(binding == bindings[0] for binding in bindings),
+                           'ambiguous planned tool call')
+            matching = matching[:1]
     ledger.require(len(matching) <= 1, 'ambiguous planned tool call')
     if not matching:
         ledger.require(name != 'PreToolUse' or protected(e.get('tool_name', ''), args) is None,
@@ -678,6 +711,8 @@ def event(store, d):
             store.before_write(item['gate'])
             ledger.require(store.hook_result['should_write'], 'Write already verified; skip duplicate')
             item['attempt'] = store.hook_result['attempt']
+            if tool_name(item['tool_name']) == 'Bash':
+                item['effective_input_sha256'] = digest
         elif item['kind'] == 'delegate':
             store.before_delegate(item['gate'])
             updated = delegated_input(args, store.hook_result['contract'])
@@ -819,8 +854,8 @@ def handle(e):
         return {'systemMessage': reason} if e.get('stop_hook_active') else {'decision': 'block', 'reason': reason}
     args = arguments(e.get('tool_name', ''), e.get('tool_input') or {})
     fingerprint = ledger.sha(ledger.canonical(args).encode())
-    selected = [t for t in tasks if any(c['phase'] != 'superseded' and c['tool_name'] == tool_name(e.get('tool_name', '')) and fingerprint in
-                (c['input_sha256'], c.get('effective_input_sha256')) for c in t.get('runtime_hooks', {}).get('tool_calls', {}).values())]
+    selected = [t for t in tasks if any(matches_call(t, c, e.get('tool_name', ''), args, fingerprint)
+                for c in t.get('runtime_hooks', {}).get('tool_calls', {}).values())]
     if name == 'PostToolUse' and tool_name(e.get('tool_name', '')) == 'wait_agent':
         for t in tasks:
             if not t.get('blocker'):

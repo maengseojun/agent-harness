@@ -554,6 +554,107 @@ class ToolHookTests(unittest.TestCase):
         self.assertNotEqual(sha(canonical(normalized).encode()), sha(canonical(elsewhere).encode()))
         self.assertEqual(tool_hook.arguments('Bash', normalized), normalized)
 
+    def test_push_matches_destination_and_commit_despite_output_options(self):
+        planned = {'cmd': 'git push origin HEAD:feat/fix', 'workdir': str(self.project)}
+        path = self.project / 'push.json'
+        path.write_text(canonical(planned))
+        call = {'phase': 'prepared', 'kind': 'write', 'tool_name': 'Bash',
+                'input': {'path': str(path)}, 'input_sha256': sha(canonical(tool_hook.arguments('Bash', planned)).encode())}
+        task = {'_database': str(self.project / '.harness' / 'tasks.sqlite')}
+        def git_output(command, **_):
+            if 'get-url' in command:
+                return 'https://github.com/example/private.git\n'
+            if '--show-toplevel' in command:
+                return str(command[2]) + '\n'
+            return 'a' * 40 + '\n'
+        with patch('subprocess.check_output', side_effect=git_output):
+            actual = {**planned, 'max_output_tokens': 1000, 'yield_time_ms': 10000}
+            args = tool_hook.arguments('exec_command', actual)
+            self.assertTrue(tool_hook.matches_call(task, call, 'exec_command', args, sha(canonical(args).encode())))
+            elsewhere = {**args, 'workdir': str(self.root)}
+            self.assertFalse(tool_hook.matches_call(task, call, 'exec_command', elsewhere,
+                             sha(canonical(elsewhere).encode())))
+            for command in ('git push origin HEAD:feat/other', 'git push --force origin HEAD:feat/fix',
+                            'git push origin HEAD:feat/fix; touch bad', 'git push origin HEAD:feat/$(whoami)'):
+                with self.subTest(command=command):
+                    changed = {**args, 'command': command}
+                    self.assertFalse(tool_hook.matches_call(task, call, 'exec_command', changed,
+                                     sha(canonical(changed).encode())))
+
+    def test_git_ref_readback_ignores_output_options_only(self):
+        planned = {'cmd': 'gh api repos/example/private/git/ref/heads/feat/fix'}
+        path = self.project / 'readback.json'
+        path.write_text(canonical(planned))
+        call = {'phase': 'prepared', 'kind': 'readback', 'tool_name': 'Bash',
+                'input': {'path': str(path)}, 'input_sha256': sha(canonical(tool_hook.arguments('Bash', planned)).encode())}
+        task = {'_database': str(self.project / '.harness' / 'tasks.sqlite')}
+        actual = tool_hook.arguments('exec_command', {**planned, 'max_output_tokens': 1000})
+        self.assertTrue(tool_hook.matches_call(task, call, 'exec_command', actual, sha(canonical(actual).encode())))
+        changed = {**actual, 'command': 'gh api repos/example/private/git/ref/heads/feat/other'}
+        self.assertFalse(tool_hook.matches_call(task, call, 'exec_command', changed, sha(canonical(changed).encode())))
+
+    def push_lifecycle(self, duplicate):
+        execute(self.project, 'start', self.request)
+        target = 'https://api.github.com/repos/example/private/git/refs/heads/feat/fix'
+        self.call('configure-hooks', output_owner='personal', destinations=[{
+            'id': 'branch', 'service': 'github', 'workspace': 'example/private',
+            'target': target, 'output_owner': 'personal', 'operations': ['push'],
+            'authorization_ref': 'fixture:authorized'}], write_paths=[], requirements=[])
+        (self.project / 'summary.md').write_text('Reviewed push\n')
+        (self.project / 'check.txt').write_text('Passed\n')
+        (self.project / 'review.txt').write_text('Approved\n')
+        artifact = self.call('artifact', path='summary.md', worker_id='fixture-worker')['artifact']['sha256']
+        self.call('check', artifact_sha256=artifact, evidence_path='check.txt', check_id='fixture',
+                  agent_id='fixture-worker', exit_code=0)
+        self.call('review', artifact_sha256=artifact, evidence_path='review.txt',
+                  agent_id='fixture-reviewer', verdict='approved', covered_conditions=[0])
+        payload = {'commit': 'a' * 40, 'ref': 'refs/heads/feat/fix'}
+        (self.project / 'payload.json').write_text(canonical(payload))
+        base = {'cmd': 'git push origin HEAD:feat/fix', 'workdir': str(self.project)}
+        def git_output(command, **_):
+            if 'get-url' in command:
+                return 'https://github.com/example/private.git\n'
+            if '--show-toplevel' in command:
+                return str(self.project) + '\n'
+            return 'a' * 40 + '\n'
+        actual = {**base, 'max_output_tokens': 1000, 'yield_time_ms': 10000}
+        with patch('subprocess.check_output', side_effect=git_output):
+            planned_calls = (base, {**base, 'max_output_tokens': 400}) if duplicate else (base,)
+            for number, args in enumerate(planned_calls, 1):
+                gate = {'operation_id': 'push-' + str(number), 'destination_id': 'branch',
+                        'workspace': 'example/private', 'target': target, 'operation': 'push',
+                        'payload_path': 'payload.json', 'payload_sha256': sha(canonical(payload).encode()),
+                        'authorization_ref': 'fixture:authorized'}
+                self.prepare('push-' + str(number), 'write', 'functions__exec_command', args, gate)
+            admitted = self.event('PreToolUse', 'functions__exec_command', actual, event_id='push-native')
+            self.assertEqual('allow', admitted['hookSpecificOutput']['permissionDecision'])
+            self.event('PostToolUse', 'functions__exec_command', actual,
+                       {'exit_code': 0, 'output': 'pushed'}, event_id='push-native')
+            read = {'cmd': 'gh api repos/example/private/git/ref/heads/feat/fix'}
+            self.prepare('fetch-push', 'readback', 'functions__exec_command', read,
+                         {'write_call_id': 'push-1'})
+            actual_read = {**read, 'max_output_tokens': 1000}
+            self.event('PreToolUse', 'functions__exec_command', actual_read, event_id='fetch-native')
+            self.event('PostToolUse', 'functions__exec_command', actual_read,
+                       {'exit_code': 0, 'output': canonical({'url': target, 'object': {'sha': 'a' * 40},
+                                                            'ref': 'refs/heads/feat/fix'})}, event_id='fetch-native')
+        calls = self.call('status')['runtime_hooks']
+        self.assertEqual('observed', calls['tool_calls']['push-1']['phase'])
+        self.assertEqual('observed', calls['tool_calls']['fetch-push']['phase'])
+        self.assertEqual('verified', calls['writes']['push-1']['outcome'])
+        if duplicate:
+            self.assertEqual('prepared', calls['tool_calls']['push-2']['phase'])
+            with self.assertRaisesRegex(LedgerError, 'incomplete'):
+                self.call('complete')
+        else:
+            self.assertEqual('done', self.call('complete')['stage'])
+
+    def test_semantic_push_full_native_lifecycle(self):
+        self.push_lifecycle(False)
+
+    def test_duplicate_semantic_push_plans_admit_once(self):
+        self.push_lifecycle(True)
+
     def test_attached_gh_api_mutator_flags_are_protected(self):
         self.config()
         for flag in ('-fbody=changed', '-Fbody=@payload.json', '--field=body=changed',
