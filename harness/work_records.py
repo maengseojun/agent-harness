@@ -21,8 +21,10 @@ uncertain dispatch state and revokes any unused approval. status with task_id ca
 find the stable candidate across sessions; this local store is not a session ACL.
 Reconciliation of absence uses saved with outcome=absent, target, evidence_ref
 and readback_path containing {absent:true,target,evidence_ref}. This never renews
-permission: a new explicit approval reference permits one new attempt after absence. Additional index writes or
-final rewrites need their own presented, concretely approved proposal. New draft
+permission: a new explicit approval reference permits one new attempt after absence. New records,
+Completed decisions and substantive rewrites need concrete approval; factual
+maintenance on an already saved personal outcome uses the narrow standing grant.
+New draft
 revisions preserve the canonical saved page and old decisions/history.
 
 References and readback provenance are caller attestations, not authenticated
@@ -36,6 +38,7 @@ Stop requests one assessment per task result; it never concludes tasks itself.
 This file supplies handlers; it does not register hooks or install a skill.
 """
 import fcntl
+from difflib import SequenceMatcher
 import json
 import os
 from pathlib import Path
@@ -51,11 +54,13 @@ from tool_hook import tool_name, notion_identity
 BASE = Path.home() / '.local/share/agent-harness/work-records'
 SKILL = Path.home() / '.codex/skills/work-records/SKILL.md'
 LIMIT = 2 * 1024 * 1024
+STANDING_MAINTENANCE_REF = 'user:2026-09-29:personal-factual-refresh'
 POLICY = ('Linear is always brain/memo/draft; personal Notion is the completed-record '
           'library. For substantive work consult {skill}. Judge completion from actual '
           'results; propose and present the draft before requesting a user decision. '
-          'After an approved write, read back the saved record separately, then request '
-          'review and concrete permission for a final rewrite. Personal outcome '
+          'After an approved first save, read back the record separately. Evidence-based '
+          'factual refreshes of that personal page may use the standing maintenance grant; '
+          'only the user may confirm Completed. Personal outcome '
           'backlinks have standing authorization after verified save; fetch both '
           'destinations before marking linked. '
           'Endix Notion needs separate explicit authorization. User references are '
@@ -94,6 +99,10 @@ def draft(path):
 def current(revision):
     ledger.require(draft(revision['draft_path']) == revision['draft_sha256'],
                    'draft changed; propose and present a new revision')
+    if revision.get('maintenance'):
+        ledger.require(draft(revision['maintenance_current_readback_path']) ==
+                       revision['maintenance_current_readback_sha256'],
+                       'maintenance source readback changed')
 
 
 def reference(data, key):
@@ -181,6 +190,14 @@ def proposal(data):
                    'outcome record needs an original Linear output issue')
     ledger.require(type(data.get('endix')) is bool, 'explicit endix flag required')
     result['endix'] = data['endix']
+    ledger.require(type(data.get('maintenance', False)) is bool, 'maintenance must be a boolean')
+    result['maintenance'] = data.get('maintenance', False)
+    result['maintenance_evidence_ref'] = (reference(data, 'maintenance_evidence_ref')
+                                          if result['maintenance'] else '')
+    result['maintenance_current_readback_path'] = (ledger.path_name(data['maintenance_current_readback_path'])
+                                                    if result['maintenance'] else '')
+    result['maintenance_current_readback_sha256'] = (draft(result['maintenance_current_readback_path'])
+                                                      if result['maintenance'] else '')
     result['tool_name'] = record_tool(result['tool_name'])
     args = data.get('tool_input')
     ledger.require(isinstance(args, dict) and notion_write(result['tool_name'], args),
@@ -201,8 +218,77 @@ def proposal(data):
     result['input_sha256'] = fingerprint(args)
     result['revision_id'] = fingerprint({key: result[key] for key in
         ('draft_sha256', 'notion_target', 'endix', 'record_kind', 'tool_name', 'input_sha256',
-         'linear_refs', 'output_issue_ref', 'project_index_target', 'completion_basis', 'related_candidates')})
+         'linear_refs', 'output_issue_ref', 'project_index_target', 'completion_basis',
+         'related_candidates', 'maintenance', 'maintenance_evidence_ref',
+         'maintenance_current_readback_sha256')})
     return result
+
+
+def validate_maintenance(candidate, previous, revision, args):
+    """Admit only a factual refresh of an already saved personal outcome page."""
+    ledger.require(candidate and candidate.get('canonical_page') and previous['write_state'] == 'saved'
+                   and previous['record_kind'] == revision['record_kind'] == 'outcome'
+                   and not revision['endix'] and not previous['endix']
+                   and page_identity(revision['notion_target']) == page_identity(candidate['canonical_page']['page_url'])
+                   and revision['tool_name'].endswith('update_page'),
+                   'standing maintenance needs an existing saved personal outcome page')
+    prior = json.loads(ledger.read_file(previous['receipt']['readback_path'], LIMIT),
+                       object_pairs_hook=ledger.unique_object)
+    ledger.require(draft(previous['receipt']['readback_path']) == previous['receipt']['readback_sha256'],
+                   'previous readback changed')
+    ledger.require(revision['maintenance_current_readback_path'] != previous['receipt']['readback_path'],
+                   'maintenance needs a fresh separate page readback')
+    fresh = json.loads(ledger.read_file(revision['maintenance_current_readback_path'], LIMIT),
+                       object_pairs_hook=ledger.unique_object)
+    ledger.require(fresh.get('evidence_ref') == revision['maintenance_evidence_ref']
+                   and page_identity(fresh.get('page_url')) == page_identity(candidate['canonical_page']['page_url'])
+                   and isinstance(fresh.get('content'), str) and isinstance(fresh.get('properties'), dict)
+                   and ledger.notion_body_matches(prior['content'], fresh['content']),
+                   'maintenance needs a current matching page readback')
+    old_body = fresh['content']
+    body = ledger.read_file(revision['draft_path'], LIMIT).decode('utf-8')
+    # ponytail: lexical bounds limit edit size; the host still checks factual truth.
+    if args.get('command') == 'update_content':
+        updated = old_body
+        ledger.require(len(args['content_updates']) <= 3, 'maintenance allows at most three sentence edits')
+        for item in args['content_updates']:
+            old, new = item['old_str'], item['new_str']
+            ledger.require(updated.count(old) == 1 and not item.get('replace_all_matches')
+                           and '\n' not in old + new and 12 <= len(old) <= 500
+                           and len(old) < len(old_body) / 2 and len(new) <= 700
+                           and SequenceMatcher(None, old, new).ratio() >= 0.5,
+                           'maintenance needs a bounded sentence correction')
+            updated = updated.replace(item['old_str'], item['new_str'])
+        ledger.require(ledger.plain_summary(updated.encode()) == ledger.plain_summary(body.encode()),
+                       'maintenance draft changes more than the prepared passages')
+    else:
+        ledger.require(args.get('command') == 'update_properties'
+                       and set(args['properties']) <= {'Outcome', 'Status'},
+                       'standing maintenance may change only Outcome or a nonfinal Status')
+        status = args['properties'].get('Status')
+        ledger.require(status is None or (status in {'Proposed', 'In progress', 'Blocked'}
+                       and fresh['properties'].get('Status') != 'Completed'),
+                       'Completed and reopening require the user decision')
+        if 'Outcome' in args['properties']:
+            old, new = fresh['properties'].get('Outcome'), args['properties']['Outcome']
+            ledger.require(isinstance(old, str) and isinstance(new, str) and old
+                           and len(new) <= 300 and SequenceMatcher(None, old, new).ratio() >= 0.6,
+                           'standing Outcome edit must be a bounded factual correction')
+        ledger.require(ledger.plain_summary(old_body.encode()) == ledger.plain_summary(body.encode()),
+                       'property maintenance must preserve the current body')
+    if previous.get('editorial_state') == 'final' and fresh['properties'].get('Status') == 'Completed':
+        revision['inherited_final_approval_ref'] = previous['final_approval_ref']
+
+
+def preserve_completed(revision):
+    if (not revision.get('inherited_final_approval_ref') or revision.get('editorial_state') != 'approved'
+            or revision.get('link_state') != 'verified'):
+        return
+    readback = json.loads(ledger.read_file(revision['receipt']['readback_path'], LIMIT),
+                          object_pairs_hook=ledger.unique_object)
+    if readback.get('properties', {}).get('Status') == 'Completed':
+        revision['editorial_state'] = 'final'
+        revision['final_approval_ref'] = revision['inherited_final_approval_ref']
 
 
 def selected(state, data):
@@ -341,7 +427,10 @@ def action(state, data):
                            'reconcile uncertain write before any new revision')
             ledger.require(not any(r['revision_id'] == revision['revision_id'] for r in candidate['revisions']),
                            'historical revision cannot renew write permission')
-        else:
+        if revision['maintenance']:
+            validate_maintenance(candidate, candidate['revisions'][-1] if candidate else None,
+                                 revision, data['tool_input'])
+        if not candidate:
             candidate = {'candidate_id': key, 'session_id': session, 'task_id': task,
                          'result_key': data['result_key'], 'canonical_page': None, 'revisions': []}
             state[key] = candidate
@@ -362,10 +451,18 @@ def action(state, data):
         revision['presentation_ref'] = reference(data, 'presentation_ref')
     elif operation == 'decide':
         current(revision)
-        ledger.require(revision['presented'], 'present draft before a decision')
+        standing = data.get('authorization_mode') == 'standing-maintenance'
+        ledger.require(revision['presented'] or standing, 'present draft before a decision')
         ledger.require(data.get('draft_sha256') == revision['draft_sha256'], 'decision draft hash mismatch')
         decision = ledger.choice(data.get('decision'), {'approved', 'rejected', 'deferred'})
+        if standing:
+            ledger.require(revision.get('maintenance') and not revision['endix'] and decision == 'approved'
+                           and data.get('user_decision_ref') == STANDING_MAINTENANCE_REF
+                           and revision['write_state'] == 'unwritten' and not revision['attempts'],
+                           'standing decision is only for approved personal maintenance')
         ref = reference(data, 'user_decision_ref')
+        ledger.require(ref != STANDING_MAINTENANCE_REF or standing,
+                       'standing maintenance reference needs its guarded authorization mode')
         item = {'decision': decision, 'user_decision_ref': ref}
         if decision == 'approved' and revision['endix']:
             item['endix_authorization_ref'] = reference(data, 'endix_authorization_ref')
@@ -475,6 +572,7 @@ def action(state, data):
         revision['editorial_state'] = ledger.choice(data.get('verdict', 'needs-revision'),
                                                    {'approved', 'needs-revision'})
         revision['history'].append({'record_review_ref': ref})
+        preserve_completed(revision)
     elif operation == 'linked':
         ledger.require(revision['record_kind'] == 'outcome' and revision['write_state'] == 'saved'
                        and candidate.get('canonical_page'),
@@ -497,11 +595,18 @@ def action(state, data):
         revision['link_evidence_ref'] = reference(data, 'evidence_ref')
         revision['link_readbacks'] = {'linear': ledger.sha(ledger.read_file(linear_path, LIMIT)),
                                       'index': ledger.sha(ledger.read_file(index_path, LIMIT))}
+        preserve_completed(revision)
     elif operation == 'finalized':
         ledger.require(revision['write_state'] == 'saved'
                        and revision.get('link_state') == ('not-required' if revision['record_kind'] == 'policy' else 'verified')
                        and revision.get('editorial_state') == 'approved',
                        'final record needs verified Linear/Notion links and approved review')
+        if revision['record_kind'] == 'outcome':
+            readback = json.loads(ledger.read_file(revision['receipt']['readback_path'], LIMIT),
+                                  object_pairs_hook=ledger.unique_object)
+            status = readback.get('properties', {}).get('Status')
+            ledger.require(status is None or status == 'Completed',
+                           'only a user-confirmed Completed outcome may be final')
         revision['editorial_state'] = 'final'
         revision['final_approval_ref'] = reference(data, 'user_decision_ref')
     else:
@@ -578,7 +683,11 @@ def hook(state, event):
                            and revision['write_state'] == 'dispatched', 'old admission cannot renew an attempt')
             return context(name, 'Same work-record admission already recorded; readback remains required.')
         validate_write(revision, args, candidate['canonical_page'])
-        ledger.require(revision['disposition'] == 'approved' and revision['presented'], 'Notion draft is not approved')
+        standing = (revision.get('maintenance') and any(
+            h.get('decision') == 'approved' and h.get('user_decision_ref') == STANDING_MAINTENANCE_REF
+            for h in revision['history']))
+        ledger.require(revision['disposition'] == 'approved' and (revision['presented'] or standing),
+                       'Notion draft is not approved')
         ledger.require(not revision['endix'] or next((h.get('endix_authorization_ref') for h in reversed(revision['history']) if h.get('decision') == 'approved'), None),
                        'Endix Notion requires separate explicit authorization')
         ledger.require(revision['write_state'] == 'unwritten', 'write already dispatched; reconcile, never automatically retry')

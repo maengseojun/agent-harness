@@ -15,7 +15,9 @@ For substantive personal work, read the installed `work-records` skill. Linear
 is the brain/memo/draft for goals, dependencies, decisions, working drafts and
 progress, including private Endix development. Personal Notion is the library
 of finished outcomes: propose a draft, obtain user approval, save and fetch it,
-then review and rewrite. Endix workspace Notion needs separate explicit approval.
+then review and refine it. Evidence-backed factual updates to an already saved
+personal outcome may use the work-records standing maintenance grant; only the
+user confirms `Completed`. Endix workspace Notion needs separate explicit approval.
 Outcome records also need verified reverse links in personal Linear and the
 Notion project index before record finalization; saved drafts and reviewed
 writing have distinct states. Use `CODEX_THREAD_ID`, not the entry receipt, as
@@ -284,8 +286,9 @@ actual contribution, artifacts, checks and limitations. Propose it to the user;
 record presented/rejected/deferred decisions so unchanged candidates stay quiet.
 Do not save until the exact draft and destination are approved. Preserve one
 canonical result record and link it to a project index and the Linear issue.
-After actual body/properties/link readback, review the record and prepare a final
-rewrite. A draft-save approval does not imply review acceptance or team consent.
+After actual body/properties/link readback, review the record and correct stale
+facts on the same personal page under the narrow work-records maintenance grant.
+A draft-save approval does not imply `Completed` acceptance or team consent.
 
 After a verified outcome, record `work-records` assessment with its current
 task-result hash and evidence reference, linking a proposal or stating why no

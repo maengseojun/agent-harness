@@ -667,6 +667,180 @@ class WorkRecordsTests(unittest.TestCase):
         self.assertEqual('final', replay['revisions'][-1]['editorial_state'])
         self.assertEqual('verified', replay['revisions'][-1]['link_state'])
 
+    def test_standing_maintenance_updates_outcome_but_cannot_confirm_completed(self):
+        page = 'https://app.notion.com/p/' + 'a' * 32
+        self.approve(); self.call(self.event())
+        self.act('saved', **self.readback(page_url=page,
+                 properties={'title': 'Result', 'Status': 'In progress', 'Outcome': 'Verification pending'}))
+        current = self.root / 'current.json'
+        current.write_text(json.dumps({'content': self.draft.read_text(), 'page_url': page,
+            'evidence_ref': 'fetch:current-outcome',
+            'properties': {'Status': 'In progress', 'Outcome': 'Verification pending'}}))
+        proposal = dict(self.proposal, maintenance=True,
+                        maintenance_evidence_ref='fetch:current-outcome',
+                        maintenance_current_readback_path=str(current), notion_target=page,
+                        tool_name='mcp__codex_apps__notion_notion_update_page',
+                        tool_input={'page_id': page, 'command': 'update_properties',
+                                    'properties': {'Outcome': 'Verification completed'}})
+        for properties in ({'Status': 'Completed'}, {'Name': 'Other'}):
+            with self.assertRaises(ledger.LedgerError):
+                self.call(dict(proposal, tool_input={**proposal['tool_input'], 'properties': properties}))
+        with self.assertRaisesRegex(ledger.LedgerError, 'bounded factual correction'):
+            self.call(dict(proposal, tool_input={**proposal['tool_input'],
+                      'properties': {'Outcome': 'Completely unrelated release shipped'}}))
+        with self.assertRaises(ledger.LedgerError):
+            self.call(dict(proposal, endix=True))
+        candidate = self.call(proposal)
+        self.ids['revision_id'] = candidate['revisions'][-1]['revision_id']
+        revision = candidate['revisions'][-1]
+        with self.assertRaisesRegex(ledger.LedgerError, 'present draft'):
+            self.act('decide', decision='approved', user_decision_ref=records.STANDING_MAINTENANCE_REF,
+                     draft_sha256=revision['draft_sha256'])
+        self.act('decide', decision='approved', authorization_mode='standing-maintenance',
+                 user_decision_ref=records.STANDING_MAINTENANCE_REF,
+                 draft_sha256=revision['draft_sha256'])
+        event = self.event(); event.update(tool_use_id='call-2', tool_name=proposal['tool_name'],
+                                           tool_input=proposal['tool_input'])
+        self.assertEqual('allow', self.call(event)['hookSpecificOutput']['permissionDecision'])
+        readback = self.root / 'maintained.json'
+        readback.write_text(json.dumps({'content': self.draft.read_text(), 'target': page,
+            'page_url': page, 'evidence_ref': 'fetch:maintained', 'parent_target': 'collection://records',
+            'properties': {'title': 'Result', 'Status': 'In progress', 'Outcome': 'Verification completed'}}))
+        saved = self.act('saved', readback_path=str(readback), page_url=page, target=page,
+                         evidence_ref='fetch:maintained')
+        self.assertEqual('saved', saved['revisions'][-1]['write_state'])
+        corrected = self.root / 'corrected.md'
+        corrected.write_text('Verified outcome\n')
+        current_sentence = self.root / 'current-sentence.json'
+        current_sentence.write_text(json.dumps({'content': self.draft.read_text(), 'page_url': page,
+            'evidence_ref': 'fetch:stale-sentence',
+            'properties': {'Status': 'In progress', 'Outcome': 'Verification completed'}}))
+        sentence = dict(proposal, draft_path=str(corrected),
+                        maintenance_evidence_ref='fetch:stale-sentence',
+                        maintenance_current_readback_path=str(current_sentence),
+                        tool_input={'page_id': page, 'command': 'update_content',
+                                    'content_updates': [{'old_str': 'Verified result',
+                                                         'new_str': 'Verified outcome'}]})
+        with self.assertRaisesRegex(ledger.LedgerError, 'bounded sentence correction'):
+            self.call(sentence)
+
+    def test_maintenance_keeps_prior_user_completed_decision_after_review_and_links(self):
+        page = 'https://app.notion.com/p/' + 'a' * 32
+        index = 'https://app.notion.com/p/' + 'b' * 32
+        issue = 'https://linear.app/maeng/issue/MAE-20'
+        self.draft.write_text(f'Verified result\n{issue}\n{index}\n')
+        initial = copy.deepcopy(self.proposal)
+        initial.update(linear_refs=[issue], output_issue_ref=issue, project_index_target=index)
+        initial['tool_input']['pages'][0]['content'] = self.draft.read_text()
+        candidate = self.call(initial)
+        self.ids['revision_id'] = candidate['revisions'][-1]['revision_id']
+        self.revision = candidate['revisions'][-1]
+        self.approve()
+        first = self.event(); first['tool_input'] = initial['tool_input']
+        self.call(first)
+        self.act('saved', **self.readback(page_url=page,
+                 properties={'title': 'Result', 'Status': 'Completed', 'Outcome': 'verified'}))
+        linear = self.root / 'linear.json'; index_path = self.root / 'index.json'
+        linear.write_text(json.dumps({'issue_url': issue, 'description': f'[result]({page})'}))
+        index_path.write_text(json.dumps({'index_url': index, 'content': f'[result]({page})'}))
+        links = dict(linear_readback_path=str(linear), index_readback_path=str(index_path),
+                     evidence_ref='fetch:links')
+        self.act('linked', **links)
+        self.act('reviewed', review_ref='review:initial', verdict='approved')
+        self.act('finalized', user_decision_ref='user:completed')
+        next_draft = self.root / 'maintained-draft.md'
+        next_draft.write_text(self.draft.read_text())
+        current = self.root / 'completed-current.json'
+        current.write_text(json.dumps({'content': self.draft.read_text(), 'page_url': page,
+            'evidence_ref': 'fetch:new-fact',
+            'properties': {'Status': 'Completed', 'Outcome': 'verified'}}))
+        maintenance = dict(initial, draft_path=str(next_draft), notion_target=page,
+                           maintenance=True, maintenance_evidence_ref='fetch:new-fact',
+                           maintenance_current_readback_path=str(current),
+                           tool_name='mcp__codex_apps__notion_notion_update_page',
+                           tool_input={'page_id': page, 'command': 'update_properties',
+                                       'properties': {'Outcome': 'verified later'}})
+        candidate = self.call(maintenance)
+        self.ids['revision_id'] = candidate['revisions'][-1]['revision_id']
+        revision = candidate['revisions'][-1]
+        self.act('decide', decision='approved', authorization_mode='standing-maintenance',
+                 user_decision_ref=records.STANDING_MAINTENANCE_REF,
+                 draft_sha256=revision['draft_sha256'])
+        event = self.event(); event.update(tool_use_id='call-2', tool_name=maintenance['tool_name'],
+                                           tool_input=maintenance['tool_input'])
+        self.call(event)
+        later = self.root / 'later.json'
+        later.write_text(json.dumps({'content': next_draft.read_text(), 'target': page,
+            'page_url': page, 'evidence_ref': 'fetch:later', 'parent_target': 'collection://records',
+            'properties': {'title': 'Result', 'Status': 'Completed', 'Outcome': 'verified later'}}))
+        self.act('saved', readback_path=str(later), page_url=page, target=page,
+                 evidence_ref='fetch:later')
+        self.act('linked', **links)
+        reviewed = self.act('reviewed', review_ref='review:later', verdict='approved')
+        self.assertEqual('final', reviewed['revisions'][-1]['editorial_state'])
+        self.assertEqual('user:completed', reviewed['revisions'][-1]['final_approval_ref'])
+
+    def test_standing_sentence_correction_is_bounded(self):
+        page = 'https://app.notion.com/p/' + 'a' * 32
+        self.draft.write_text('Verified result\nEvidence and limits remain documented in this record.\n')
+        initial = copy.deepcopy(self.proposal)
+        initial['tool_input']['pages'][0]['content'] = self.draft.read_text()
+        candidate = self.call(initial)
+        self.ids['revision_id'] = candidate['revisions'][-1]['revision_id']
+        self.revision = candidate['revisions'][-1]
+        self.approve()
+        event = self.event(); event['tool_input'] = initial['tool_input']
+        self.call(event)
+        self.act('saved', **self.readback(page_url=page, properties={'title': 'Result', 'Status': 'In progress'}))
+        current = self.root / 'fresh.json'
+        current.write_text(json.dumps({'content': self.draft.read_text(), 'page_url': page,
+                                        'evidence_ref': 'fetch:fresh', 'properties': {'Status': 'In progress'}}))
+        revised = self.root / 'revised.md'
+        revised.write_text(self.draft.read_text().replace('Verified result', 'Verified outcome'))
+        proposal = dict(initial, draft_path=str(revised), notion_target=page, maintenance=True,
+                        maintenance_evidence_ref='fetch:fresh', maintenance_current_readback_path=str(current),
+                        tool_name='mcp__codex_apps__notion_notion_update_page',
+                        tool_input={'page_id': page, 'command': 'update_content',
+                                    'content_updates': [{'old_str': 'Verified result',
+                                                         'new_str': 'Verified outcome'}]})
+        revised.write_text(revised.read_text() + 'Unapproved extra claim\n')
+        with self.assertRaisesRegex(ledger.LedgerError, 'more than the prepared passages'):
+            self.call(proposal)
+        revised.write_text(revised.read_text().replace('Unapproved extra claim\n', ''))
+        self.assertTrue(self.call(proposal)['revisions'][-1]['maintenance'])
+
+    def test_standing_maintenance_cannot_retry_after_absence(self):
+        page = 'https://app.notion.com/p/' + 'a' * 32
+        self.approve(); self.call(self.event())
+        self.act('saved', **self.readback(page_url=page,
+                 properties={'title': 'Result', 'Status': 'In progress', 'Outcome': 'Verification pending'}))
+        current = self.root / 'fresh.json'
+        current.write_text(json.dumps({'content': self.draft.read_text(), 'page_url': page,
+            'evidence_ref': 'fetch:fresh', 'properties': {'Status': 'In progress',
+                                                        'Outcome': 'Verification pending'}}))
+        proposal = dict(self.proposal, notion_target=page, maintenance=True,
+                        maintenance_evidence_ref='fetch:fresh', maintenance_current_readback_path=str(current),
+                        tool_name='mcp__codex_apps__notion_notion_update_page',
+                        tool_input={'page_id': page, 'command': 'update_properties',
+                                    'properties': {'Outcome': 'Verification completed'}})
+        candidate = self.call(proposal)
+        self.ids['revision_id'] = candidate['revisions'][-1]['revision_id']
+        revision = candidate['revisions'][-1]
+        decision = dict(decision='approved', authorization_mode='standing-maintenance',
+                        user_decision_ref=records.STANDING_MAINTENANCE_REF,
+                        draft_sha256=revision['draft_sha256'])
+        self.act('decide', **decision)
+        event = self.event(); event.update(tool_use_id='call-2', tool_name=proposal['tool_name'],
+                                           tool_input=proposal['tool_input'])
+        self.call(event)
+        absent = self.root / 'absent.json'
+        absent.write_text(json.dumps({'absent': True, 'target': page, 'evidence_ref': 'fetch:absent'}))
+        self.act('saved', outcome='absent', readback_path=str(absent), target=page,
+                 evidence_ref='fetch:absent')
+        with self.assertRaisesRegex(ledger.LedgerError, 'standing decision'):
+            self.act('decide', **decision)
+        self.denied(event | {'tool_use_id': 'call-3'})
+
     def test_real_thread_id_rejects_entry_receipt(self):
         with patch.object(records, 'BASE', self.root / 'thread-bound'), patch.dict(os.environ, {'CODEX_THREAD_ID': 'real-thread'}):
             with self.assertRaisesRegex(ledger.LedgerError, 'entry receipt is not a session id'):

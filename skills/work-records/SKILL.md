@@ -83,7 +83,9 @@ is present.
 Present the draft or a clickable complete draft plus destination, completion
 basis and limits, and ask whether to record it. Mark it presented only after
 actually showing it. Rejected/deferred/presented unchanged candidates stay
-quiet; changed content or target requires a fresh proposal and approval.
+quiet; changed content or target requires a fresh proposal. An initial save,
+new target, substantive rewrite or `Completed` decision needs user approval;
+the narrow personal maintenance exception below does not.
 Do not infer approval from silence, completion, a standing preference, or an
 agent review. Attach the actual user's decision reference when approving.
 
@@ -118,13 +120,33 @@ approval path; do not treat either gate's denial as approval from the other.
 
 Saved draft, reviewed record and final writing are distinct states. Inspect the
 saved record against evidence and incorporate user feedback before rewriting it.
-Prepare the rewrite with its review evidence and show the changed content; the
-first draft's save approval does not silently authorize a different payload.
+For an already saved personal outcome on its canonical page, factual Outcome
+updates and exact replacements of stale time/status sentences may use the user's
+2026-09-29 standing maintenance authorization. Fetch the current page, prepare a
+complete new draft and exact `update_content` or `update_properties` input, save
+that fresh page fetch separately as `maintenance_current_readback_path`, bind its
+`evidence_ref` as `maintenance_evidence_ref`, and use `maintenance:true` plus
+`authorization_mode:"standing-maintenance"` in `decide` with
+`user_decision_ref:"user:2026-09-29:personal-factual-refresh"`. This admits only
+one write; fetch body and properties again. Keep the original response and any
+transparent Notion-link normalization. Review the new revision against the
+evidence and recheck both backlinks. The exception covers `Outcome` and exact
+content replacements; nonfinal `Status` values may track remaining work.
+The gate limits the edit to short, structurally bounded replacements or a similar
+existing Outcome; it cannot judge whether a claim is true. Use source evidence
+and human judgment for that. Larger or materially different claims need an
+explicit proposal. It does not create a page, change its target or other
+properties, retry an uncertain/absent write, or write to Endix. Ask before those
+actions. Only the user may approve `Status: Completed` or reopen a
+Completed record. A previously user-completed record keeps that decision after
+an evidence-checked maintenance revision and renewed link verification.
+The first draft's save approval does not authorize a different substantive payload.
 Record each saved revision's review with `reviewed`, a verdict (`approved` or
 `needs-revision`) and its actual evidence reference. A later rewrite starts as
 `saved-draft` again. Work completion in the harness does not mean the Notion
 record is reviewed or final.
-After approval, update the canonical page and read it back. Link related
+After approval or standing maintenance admission, update the canonical page and
+read it back. Link related
 proposal IDs so one task can have an outcome record, index update and later
 rewrite without losing history. Linear tracks any remaining review action, while verified work
 can finish even if its optional Notion record awaits approval.
@@ -146,8 +168,9 @@ another decision. Prepare the exact index link proposal, use that standing
 authorization as its `user_decision_ref`, perform each write once, and read both
 destinations back before marking `linked`. This authorization covers only these
 two reciprocal links after the outcome record is saved and verified. It does
-not cover Endix destinations, other content edits, an uncertain retry, a final
-rewrite, or finalization. Maintained policy pages use `record_kind:"policy"`
+not cover Endix destinations, unrelated content edits, an uncertain retry, or
+finalization. The separate factual-maintenance grant above covers only the
+already saved personal outcome page. Maintained policy pages use `record_kind:"policy"`
 and do not require outcome backlinks.
 
 For another chat continuing the same task, find its candidate with `status` and
