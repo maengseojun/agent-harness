@@ -336,9 +336,14 @@ class ToolHookTests(unittest.TestCase):
         updated = pre['hookSpecificOutput']['updatedInput']
         self.assertIn('HARNESS_CONTRACT', updated['message'])
         self.assertIn('authorization_scope', updated['message'])
+        self.assertEqual({}, self.event('SubagentStop', ''))
         self.event('PostToolUse', 'spawn_agent', updated, {'agent_id': 'actual-reviewer'})
         # SubagentStop may still be continued by another hook, so it is not final proof.
         self.event('SubagentStop', '', agent_id='actual-reviewer', last_assistant_message='draft')
+        receipt = self.call('status')['runtime_hooks']['tool_calls']['review-call']['subagent_stop']
+        self.assertEqual('actual-reviewer', receipt['agent_id'])
+        self.event('SubagentStop', '', agent_id='actual-reviewer', last_assistant_message='draft')
+        self.assertEqual(receipt, self.call('status')['runtime_hooks']['tool_calls']['review-call']['subagent_stop'])
         with self.assertRaisesRegex(LedgerError, 'incomplete'):
             self.call('complete')
         self.event('PostToolUse', 'multi_agent_v1__wait_agent', response={'status': {'actual-reviewer': {'completed': 'Independent result'}}}, event_id='wait-1')
