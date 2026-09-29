@@ -1,6 +1,6 @@
 # Harness Notion workspace
 
-Updated: 2026-09-28 (Asia/Seoul).
+Updated: 2026-09-29 (Asia/Seoul).
 
 ## Current task-record policy
 
@@ -13,7 +13,10 @@ After saving, fetch both the original personal Linear issue and the project
 index to confirm they link back to the canonical record. The record's saved
 draft, reviewed and final states are distinct from harness work completion;
 finalization requires approved review of the current saved revision and both
-backlinks. The index edit needs its own approved proposal. Use the actual
+backlinks. The user's 2026-09-29 standing permission covers these two personal
+outcome links after a verified save: prepare the exact index change, write once,
+and read both destinations back. It does not cover Endix, other content edits,
+uncertain retries or finalization. Use the actual
 `CODEX_THREAD_ID` for local record actions, never the entry receipt token.
 Failed/abandoned experiments with useful conclusions can qualify. Use project
 overview indexes and linked outcome pages. GitHub is an example, not a required
