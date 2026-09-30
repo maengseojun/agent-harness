@@ -101,6 +101,15 @@ def install(release, home, module='tool_hook'):
         _plain(config_path)
         old = config_path.read_bytes() if config_path.exists() else None
         config = _config(old) if old is not None else {}
+        if module != 'all':
+            sibling = 'tool_hook' if module == 'work_records' else 'work_records'
+            for entries in config.get('hooks', {}).values():
+                for entry in entries:
+                    for handler in entry['hooks']:
+                        if _owned(handler, hooks_dir, sibling):
+                            path = Path(shlex.split(handler['command'])[2])
+                            if path.read_bytes() != _launcher(release, sibling):
+                                raise ValueError('Incompatible partial hook upgrade; use --module all')
         launchers = {}
         hooks = config.setdefault('hooks', {})
         for selected in modules:
@@ -124,6 +133,16 @@ def install(release, home, module='tool_hook'):
                     remaining = [item for item in entry['hooks'] if not _owned(item, hooks_dir, selected)]
                     if remaining or not entry['hooks']:
                         retained.append({**entry, 'hooks': remaining})
+                if event == 'PreToolUse':
+                    if selected == 'work_records':
+                        retained = [{**entry, 'hooks': [h for h in entry['hooks']
+                                    if not _owned(h, hooks_dir, 'tool_hook')]}
+                                    for entry in retained]
+                        retained = [entry for entry in retained if entry['hooks']]
+                    elif any(_owned(h, hooks_dir, 'work_records')
+                             for entry in retained for h in entry['hooks']):
+                        hooks[event] = retained
+                        continue
                 retained.append({'hooks': [handler.copy()]})
                 hooks[event] = retained
         updated = (json.dumps(config, indent=2) + '\n').encode()

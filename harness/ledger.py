@@ -252,6 +252,7 @@ FIELDS = {
     "configure-hooks": ("output_owner destinations write_paths requirements", ""),
     "prepare-tool": ("call_id kind tool_name input_path gate", "expected_head_sha"),
     "tool-event": ("event", ""),
+    "cancel-tool": ("call_id event_id reason_ref", ""),
     "before-write": ("operation_id destination_id workspace target operation payload_path payload_sha256 authorization_ref", "purpose"),
     "after-write": ("operation_id attempt workspace target outcome evidence_path", "readback_path"),
     "before-delegate": ("delegation_id role description acceptance write_paths refs", ""),
@@ -880,7 +881,8 @@ class Ledger:
                 require(self.work_current(existing["readback"]) and self.work_current(existing["evidence"]), "verified readback is stale")
                 self.hook_result = {"should_write": False, "reason": "already verified"}
                 return
-            require(existing["outcome"] == "absent" and self.work_current(existing["evidence"]),
+            require(existing["outcome"] == "absent" and (existing.get("cancellation_ref")
+                    or self.work_current(existing["evidence"])),
                     "reconcile the previous attempt before retrying")
         attempt = existing["attempt"] + 1 if existing else 1
         hooks["writes"][d["operation_id"]] = {"binding": binding, "attempt": attempt,
@@ -913,8 +915,31 @@ class Ledger:
                           and record["binding"]["artifact_sha256"] != self.task["artifact"]["sha256"] else outcome)
         record.update(outcome=stored_outcome, resolution_outcome=outcome,
                       evidence=evidence, readback=readback, at=now())
+        if outcome == "absent":
+            # Explicit absence reconciliation also terminates a pre-only admission.
+            for call in self.hooks().get("tool_calls", {}).values():
+                if (call["kind"] == "write" and call["gate"]["operation_id"] == d["operation_id"]
+                        and call.get("attempt") == d["attempt"] and call["phase"] == "admitted"):
+                    call["phase"] = "observed"
         self.task["completion_requested"] = False
         self.hook_result = {"verified": outcome == "verified", "retry_allowed": outcome == "absent"}
+
+    def cancel_tool(self, d):
+        """Coordinator cancellation before returning a denied native pre-hook."""
+        call = self.hooks().get("tool_calls", {}).get(identifier(d["call_id"]))
+        require(call and call["phase"] == "admitted" and call.get("event_id") == d["event_id"],
+                "cancellation needs this exact unobserved admission")
+        text(d["reason_ref"], "reason_ref")
+        if call["kind"] == "write":
+            record = self.hooks()["writes"][call["gate"]["operation_id"]]
+            require(record["outcome"] == "pending" and record["attempt"] == call["attempt"],
+                    "observed or reconciled write cannot be cancelled")
+            record.update(outcome="absent", cancellation_ref=d["reason_ref"])
+        call.setdefault("cancellations", []).append({"event_id": d["event_id"],
+                                                       "reason_ref": d["reason_ref"]})
+        call["phase"] = "prepared"
+        call.pop("event_id", None)
+        self.task["completion_requested"] = False
 
     def before_delegate(self, d):
         hooks = self.hooks()
