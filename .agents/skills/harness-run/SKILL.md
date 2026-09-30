@@ -167,6 +167,8 @@ projects to that session. Freeze each planned write, delegate and actual readbac
 using `prepare-tool` with its exact JSON tool input and gate metadata. The actual
 native event automatically calls the existing gate; do not call before/after gates
 again for that operation. Omitting a protected call's plan denies execution.
+Direct GitHub pushes may vary harmless execution options only when the validated
+checkout, repository, branch and commit still match the frozen write gate.
 For personal Linear goals, drafts and progress, use a write gate with
 `purpose:"working-context"`. It keeps exact input, authorized destination and
 actual readback checks but does not wait for final artifact verification. Fetch

@@ -189,6 +189,7 @@ def notion_identity(value):
 
 
 def shell_tokens(args):
+    ledger.require(not re.search(r'[$`\r\n]', args['command']), 'shell expansion unsupported for provider command')
     tokens = shlex.split(args['command'])
     ledger.require(tokens and not any(token in (';', '&&', '||', '|', '>', '<') for token in tokens), 'compound provider command unsupported')
     return tokens
@@ -219,13 +220,41 @@ def git_push(args, project):
     branch = branch.removeprefix('refs/heads/')
     ledger.require(re.fullmatch(r'[A-Za-z0-9_./-]+', branch), 'unsupported push branch')
     sha = local('rev-parse', '--verify', source + '^{commit}')
+    checkout = str(Path(local('rev-parse', '--show-toplevel')).resolve(strict=True))
     target = 'https://api.github.com/repos/' + match[1] + '/git/refs/heads/' + branch
-    return target, {'commit': sha, 'ref': 'refs/heads/' + branch}
+    return target, {'commit': sha, 'ref': 'refs/heads/' + branch}, checkout
+
+
+def matches_call(task, call, name, args, fingerprint):
+    import subprocess
+    if call['phase'] == 'superseded' or call['tool_name'] != tool_name(name):
+        return False
+    if tool_name(name) == 'Bash' and call['kind'] == 'write':
+        try:
+            planned = arguments(call['tool_name'], json.loads(ledger.read_file(call['input']['path'])))
+            project = Path(task['_database']).parent.parent
+            target, payload, checkout = git_push(args, project)
+            _, _, planned_checkout = git_push(planned, project)
+            frozen = json.loads(ledger.read_file(call['gate']['payload_path']))
+            return target == call['gate']['target'] and payload == frozen and checkout == planned_checkout
+        except (ledger.LedgerError, OSError, ValueError, KeyError, subprocess.SubprocessError):
+            return False
+    if fingerprint in (call['input_sha256'], call.get('effective_input_sha256')):
+        return True
+    if tool_name(name) != 'Bash':
+        return False
+    try:
+        planned = arguments(call['tool_name'], json.loads(ledger.read_file(call['input']['path'])))
+        if call['kind'] == 'readback':
+            return protected(name, args) is None and shell_tokens(args) == shell_tokens(planned)
+        return False
+    except (ledger.LedgerError, OSError, ValueError, KeyError, subprocess.SubprocessError):
+        return False
 
 
 def request_payload(name, args, project):
     if tool_name(name) == 'Bash':
-        target, payload = git_push(args, project)
+        target, payload, _ = git_push(args, project)
         return 'github', 'push', target, payload
     endpoint = provider(name)
     if endpoint == 'notion_notion_update_page':
@@ -283,6 +312,15 @@ def request_payload(name, args, project):
                        and type(args['draft']) is bool, 'explicit PR branch, title, body and draft state required')
         return ('github', 'create', 'https://github.com/' + repo + '/pulls',
                 {k: args[k] for k in ('base', 'head', 'title', 'body', 'draft')})
+    if endpoint == 'github_merge_pull_request':
+        required = {'repository_full_name', 'pr_number', 'expected_head_sha', 'merge_method'}
+        ledger.require(set(args) == required and type(args['pr_number']) is int and args['pr_number'] > 0
+                       and isinstance(args['expected_head_sha'], str)
+                       and re.fullmatch(r'[a-f0-9]{40}', args['expected_head_sha'])
+                       and args['merge_method'] in ('merge', 'squash', 'rebase'),
+                       'explicit PR, reviewed head and merge method required')
+        return ('github', 'update', 'https://github.com/' + repo + '/pull/' + str(args['pr_number']),
+                {'merged': True, 'head_sha': args['expected_head_sha'], 'merge_method': args['merge_method']})
     if endpoint in ('github_create_file', 'github_update_file'):
         ledger.require(set(args) <= {'repository_full_name', 'branch', 'path', 'content', 'message', 'sha'} and args.get('branch'), 'explicit file branch and supported fields required')
         target = 'https://github.com/' + repo + '/blob/' + args['branch'] + '/' + args['path']
@@ -342,14 +380,17 @@ def read_request(write, write_args, name, args):
         if write['gate']['operation'] == 'update':
             ledger.require(args['id'] == write_args['id'], 'readback issue differs from actual write')
     else:
-        expected = ('github_fetch_pr' if tool_name(write['tool_name']) == 'mcp__codex_apps__github_create_pull_request'
+        expected = ('github_fetch_pr' if tool_name(write['tool_name']) in ('mcp__codex_apps__github_create_pull_request', 'mcp__codex_apps__github_merge_pull_request')
                     else 'github_fetch_file' if 'content' in write_args else 'github_fetch_issue')
         repository = args.get('repo_full_name') if expected == 'github_fetch_pr' else args.get('repository_full_name')
         ledger.require(endpoint == expected and repository == write_args['repository_full_name'], 'authoritative GitHub repository fetch required')
         if expected == 'github_fetch_file':
             ledger.require(args.get('path') == write_args['path'] and args.get('ref') == write_args['branch'] and not args.get('start_line') and not args.get('end_line') and args.get('encoding', 'utf-8') == 'utf-8', 'read complete file from the actual write branch')
         elif write['gate']['operation'] == 'update':
-            ledger.require(args.get('issue_number') == write_args['issue_number'], 'readback issue differs from actual write')
+            if expected == 'github_fetch_pr':
+                ledger.require(args.get('pr_number') == write_args['pr_number'], 'readback PR differs from actual merge')
+            else:
+                ledger.require(args.get('issue_number') == write_args['issue_number'], 'readback issue differs from actual write')
     return service
 
 
@@ -415,6 +456,16 @@ def actual_payload(write, write_args, read_name, read_args, raw, linear_aliases=
     elif tool_name(write['tool_name']) == 'Bash':
         ledger.require(value.get('url') == write['gate']['target'], 'remote GitHub ref identity mismatch')
         result = {'commit': value['object']['sha'], 'ref': value['ref']}
+    elif tool_name(write['tool_name']) == 'mcp__codex_apps__github_merge_pull_request':
+        pr = value.get('pull_request', value)
+        merge_sha = write.get('merge_sha')
+        ledger.require(isinstance(merge_sha, str) and re.fullmatch(r'[a-f0-9]{40}', merge_sha)
+                       and isinstance(pr, dict) and pr.get('number') == write_args['pr_number']
+                       and pr.get('url') == write['gate']['target']
+                       and pr.get('merged') is True and pr.get('merge_commit_sha') == merge_sha
+                       and pr.get('head_sha') == write_args['expected_head_sha'],
+                       'remote PR merge or reviewed head mismatch')
+        result = {'merged': True, 'head_sha': pr['head_sha'], 'merge_method': write_args['merge_method']}
     elif tool_name(write['tool_name']) == 'mcp__codex_apps__github_create_pull_request':
         number = read_args['pr_number']
         pr = value.get('pull_request', value)
@@ -653,8 +704,19 @@ def event(store, d):
         return {}
     args = arguments(e.get('tool_name', ''), e.get('tool_input') or {})
     digest = ledger.sha(ledger.canonical(args).encode())
-    matching = [(key, item) for key, item in calls.items() if item['phase'] != 'superseded' and item['tool_name'] == tool_name(e.get('tool_name', ''))
-                and digest in (item['input_sha256'], item.get('effective_input_sha256'))]
+    matching = [(key, item) for key, item in calls.items()
+                if matches_call({**store.task, '_database': str(store.path)}, item, e.get('tool_name', ''), args, digest)]
+    if len(matching) > 1:
+        exact = [(key, item) for key, item in matching if digest in
+                 (item['input_sha256'], item.get('effective_input_sha256'))]
+        if exact:
+            matching = exact
+        else:
+            bindings = [{k: v for k, v in item['gate'].items() if k != 'operation_id'}
+                        for _, item in matching]
+            ledger.require(all(binding == bindings[0] for binding in bindings),
+                           'ambiguous planned tool call')
+            matching = matching[:1]
     ledger.require(len(matching) <= 1, 'ambiguous planned tool call')
     if not matching:
         ledger.require(name != 'PreToolUse' or protected(e.get('tool_name', ''), args) is None,
@@ -678,6 +740,8 @@ def event(store, d):
             store.before_write(item['gate'])
             ledger.require(store.hook_result['should_write'], 'Write already verified; skip duplicate')
             item['attempt'] = store.hook_result['attempt']
+            if tool_name(item['tool_name']) == 'Bash':
+                item['effective_input_sha256'] = digest
         elif item['kind'] == 'delegate':
             store.before_delegate(item['gate'])
             updated = delegated_input(args, store.hook_result['contract'])
@@ -701,6 +765,10 @@ def event(store, d):
     path = evidence(store, call_id, event_id, 'response', raw_bytes)
     if item['kind'] == 'write':
         gate = item['gate']
+        if tool_name(item['tool_name']) == 'mcp__codex_apps__github_merge_pull_request':
+            value = response_value(raw)
+            if isinstance(value, dict) and value.get('merged') is True and isinstance(value.get('sha'), str) and re.fullmatch(r'[a-f0-9]{40}', value['sha']):
+                item['merge_sha'] = value['sha']
         if gate['operation'] == 'create' and isinstance(wire_value(raw), dict) and not wire_value(raw).get('isError'):
             value = response_value(raw)
             if isinstance(value, dict):
@@ -819,8 +887,8 @@ def handle(e):
         return {'systemMessage': reason} if e.get('stop_hook_active') else {'decision': 'block', 'reason': reason}
     args = arguments(e.get('tool_name', ''), e.get('tool_input') or {})
     fingerprint = ledger.sha(ledger.canonical(args).encode())
-    selected = [t for t in tasks if any(c['phase'] != 'superseded' and c['tool_name'] == tool_name(e.get('tool_name', '')) and fingerprint in
-                (c['input_sha256'], c.get('effective_input_sha256')) for c in t.get('runtime_hooks', {}).get('tool_calls', {}).values())]
+    selected = [t for t in tasks if any(matches_call(t, c, e.get('tool_name', ''), args, fingerprint)
+                for c in t.get('runtime_hooks', {}).get('tool_calls', {}).values())]
     if name == 'PostToolUse' and tool_name(e.get('tool_name', '')) == 'wait_agent':
         for t in tasks:
             if not t.get('blocker'):
@@ -829,7 +897,8 @@ def handle(e):
     if not selected:
         if name == 'PostToolUse' and linear_connector(e.get('tool_name', '')):
             for t in tasks:
-                ledger.Ledger(t['_database']).dispatch('tool-event', {'task_id': t['task_id'], 'owner': t['owner'], 'event': e})
+                if not t.get('blocker'):
+                    ledger.Ledger(t['_database']).dispatch('tool-event', {'task_id': t['task_id'], 'owner': t['owner'], 'event': e})
             return {}
         if name == 'PreToolUse' and protected(e.get('tool_name', ''), args):
             return output(name, 'Tracked Harness action has no prepared call. Freeze its exact input and gate with prepare-tool first.', deny=True)
