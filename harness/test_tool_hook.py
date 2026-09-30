@@ -15,6 +15,47 @@ from run import execute
 
 
 class ToolHookTests(unittest.TestCase):
+    def test_exact_notion_sentence_update_and_actual_readback(self):
+        target = 'https://app.notion.com/p/' + 'a' * 32
+        tool = 'mcp__codex_apps__notion_notion_update_page'
+        updates = [{'old_str': 'The record is awaiting save.', 'new_str': 'The record is saved and linked.'}]
+        args = {'page_id': target, 'command': 'update_content', 'content_updates': updates}
+        payload = {'content_updates': updates}
+        self.assertEqual(('notion', 'update', target, payload), tool_hook.request_payload(tool, args, self.project))
+        path = self.project / 'sentence-payload.json'
+        path.write_text(canonical(payload))
+        write = {'service': 'notion', 'tool_name': tool,
+                 'gate': {'payload_path': str(path), 'target': target, 'operation': 'update'}}
+        def read(body, url=target):
+            value = {'metadata': {'type': 'page'}, 'url': url,
+                     'text': '<page>\n<properties>\n{"title":"Record"}\n</properties>\n<content>\n' + body + '\n</content>\n</page>'}
+            return tool_hook.actual_payload(write, args, 'mcp__codex_apps__notion_fetch', {'id': target}, value)
+        self.assertEqual(canonical(payload).encode(), read(updates[0]['new_str']))
+        for body in (updates[0]['old_str'], updates[0]['old_str'] + '\n' + updates[0]['new_str'], 'Missing'):
+            with self.assertRaises(LedgerError):
+                read(body)
+        with self.assertRaises(LedgerError):
+            read(updates[0]['new_str'], target.replace('a' * 32, 'b' * 32))
+        with self.assertRaises(LedgerError):
+            tool_hook.request_payload(tool, {**args, 'properties': {'title': 'Other'}}, self.project)
+        self.config(); self.ready(complete=False)
+        args['page_id'] = self.dest['target']
+        gate = {'operation_id': 'sentence-write', 'destination_id': self.dest['id'],
+                'workspace': self.dest['workspace'], 'target': self.dest['target'], 'operation': 'update',
+                'payload_path': str(path), 'payload_sha256': sha(path.read_bytes()),
+                'authorization_ref': self.dest['authorization_ref']}
+        self.prepare('sentence-write', 'write', tool, args, gate)
+        self.event('PreToolUse', tool, args)
+        self.event('PostToolUse', tool, args, {'page_id': args['page_id']})
+        read_tool, read_args = 'mcp__codex_apps__notion_fetch', {'id': args['page_id']}
+        self.prepare('sentence-read', 'readback', read_tool, read_args, {'write_call_id': 'sentence-write'})
+        self.event('PreToolUse', read_tool, read_args, event_id='sentence-read')
+        value = {'metadata': {'type': 'page'}, 'url': args['page_id'],
+                 'text': '<page>\n<properties>\n{"title":"Record"}\n</properties>\n<content>\n'
+                         + updates[0]['new_str'] + '\n</content>\n</page>'}
+        self.event('PostToolUse', read_tool, read_args, value, event_id='sentence-read')
+        self.assertEqual('verified', self.call('status')['runtime_hooks']['writes']['sentence-write']['outcome'])
+
     def native_working_plan(self):
         self.config('linear')
         tool = 'mcp__linear__save_issue'

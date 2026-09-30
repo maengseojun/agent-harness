@@ -327,6 +327,14 @@ def request_payload(name, args, project):
         elif command == 'update_properties':
             ledger.require(set(args) <= base | {'properties'}, 'unsupported Notion mutation fields')
             payload = dict(args['properties'])
+        elif command == 'update_content':
+            updates = args.get('content_updates')
+            ledger.require(set(args) <= base | {'content_updates'} and isinstance(updates, list) and updates
+                           and all(isinstance(item, dict) and set(item) == {'old_str', 'new_str'}
+                                   and isinstance(item['old_str'], str) and item['old_str']
+                                   and isinstance(item['new_str'], str) and item['new_str'] for item in updates),
+                           'exact nonempty Notion sentence replacements required')
+            payload = {'content_updates': updates}
         else:
             raise ledger.LedgerError('use full Notion content or property replacement for automatic verification')
         return 'notion', 'update', args['page_id'], payload
@@ -467,6 +475,11 @@ def actual_payload(write, write_args, read_name, read_args, raw, linear_aliases=
         ledger.require('notion_body' in value, 'authoritative Notion page envelope required')
         actual_target = value['notion_parent'] if write['gate']['operation'] == 'create' else value['notion_target']
         ledger.require(notion_identity(actual_target) == notion_identity(write['gate']['target']), 'readback resource identity mismatch')
+        if 'content_updates' in expected:
+            ledger.require(all(item['new_str'] in value['notion_body']
+                               and (item['old_str'] in item['new_str'] or item['old_str'] not in value['notion_body'])
+                               for item in expected['content_updates']), 'Notion sentence readback mismatch')
+            return ledger.canonical(expected).encode()
         result = {key: value['notion_body'] if key == 'body' else value['notion_properties'][key] for key in expected}
         if 'body' in expected:
             approved_body = (write_args['pages'][0].get('content', '') if write['gate']['operation'] == 'create'
