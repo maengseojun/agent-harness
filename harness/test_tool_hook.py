@@ -558,19 +558,27 @@ class ToolHookTests(unittest.TestCase):
         planned = {'cmd': 'git push origin HEAD:feat/fix', 'workdir': str(self.project)}
         path = self.project / 'push.json'
         path.write_text(canonical(planned))
+        frozen = {'commit': 'a' * 40, 'ref': 'refs/heads/feat/fix'}
+        (self.project / 'frozen-push.json').write_text(canonical(frozen))
         call = {'phase': 'prepared', 'kind': 'write', 'tool_name': 'Bash',
-                'input': {'path': str(path)}, 'input_sha256': sha(canonical(tool_hook.arguments('Bash', planned)).encode())}
+                'input': {'path': str(path)}, 'input_sha256': sha(canonical(tool_hook.arguments('Bash', planned)).encode()),
+                'gate': {'target': 'https://api.github.com/repos/example/private/git/refs/heads/feat/fix',
+                         'payload_path': str(self.project / 'frozen-push.json')}}
         task = {'_database': str(self.project / '.harness' / 'tasks.sqlite')}
+        current_sha = ['a' * 40]
         def git_output(command, **_):
             if 'get-url' in command:
                 return 'https://github.com/example/private.git\n'
             if '--show-toplevel' in command:
                 return str(command[2]) + '\n'
-            return 'a' * 40 + '\n'
+            return current_sha[0] + '\n'
         with patch('subprocess.check_output', side_effect=git_output):
             actual = {**planned, 'max_output_tokens': 1000, 'yield_time_ms': 10000}
             args = tool_hook.arguments('exec_command', actual)
             self.assertTrue(tool_hook.matches_call(task, call, 'exec_command', args, sha(canonical(args).encode())))
+            current_sha[0] = 'b' * 40
+            self.assertFalse(tool_hook.matches_call(task, call, 'exec_command', args, sha(canonical(args).encode())))
+            current_sha[0] = 'a' * 40
             elsewhere = {**args, 'workdir': str(self.root)}
             self.assertFalse(tool_hook.matches_call(task, call, 'exec_command', elsewhere,
                              sha(canonical(elsewhere).encode())))

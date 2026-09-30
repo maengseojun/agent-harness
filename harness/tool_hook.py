@@ -229,6 +229,16 @@ def matches_call(task, call, name, args, fingerprint):
     import subprocess
     if call['phase'] == 'superseded' or call['tool_name'] != tool_name(name):
         return False
+    if tool_name(name) == 'Bash' and call['kind'] == 'write':
+        try:
+            planned = arguments(call['tool_name'], json.loads(ledger.read_file(call['input']['path'])))
+            project = Path(task['_database']).parent.parent
+            target, payload, checkout = git_push(args, project)
+            _, _, planned_checkout = git_push(planned, project)
+            frozen = json.loads(ledger.read_file(call['gate']['payload_path']))
+            return target == call['gate']['target'] and payload == frozen and checkout == planned_checkout
+        except (ledger.LedgerError, OSError, ValueError, KeyError, subprocess.SubprocessError):
+            return False
     if fingerprint in (call['input_sha256'], call.get('effective_input_sha256')):
         return True
     if tool_name(name) != 'Bash':
@@ -237,9 +247,6 @@ def matches_call(task, call, name, args, fingerprint):
         planned = arguments(call['tool_name'], json.loads(ledger.read_file(call['input']['path'])))
         if call['kind'] == 'readback':
             return protected(name, args) is None and shell_tokens(args) == shell_tokens(planned)
-        if call['kind'] == 'write':
-            project = Path(task['_database']).parent.parent
-            return git_push(args, project) == git_push(planned, project)
         return False
     except (ledger.LedgerError, OSError, ValueError, KeyError, subprocess.SubprocessError):
         return False
