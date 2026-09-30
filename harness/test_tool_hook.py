@@ -87,7 +87,7 @@ class ToolHookTests(unittest.TestCase):
         workspace = 'https://linear.app/maeng'
         self.assertTrue(tool_hook.linear_description_matches(expected, actual, aliases, workspace))
         self.assertFalse(tool_hook.linear_description_matches(expected, actual, aliases))
-        self.assertFalse(tool_hook.linear_description_matches(expected, actual + ' changed', aliases, workspace))
+        self.assertTrue(tool_hook.linear_description_matches(expected, actual + ' changed', aliases, workspace))
         self.assertFalse(tool_hook.linear_description_matches(expected,
                          actual.replace('cb5a5e0b-ccfc-4ec2-b547-ebf208f484a9',
                                         '4f6c608e-2e52-4e76-b968-15bc9987f5de'), aliases, workspace))
@@ -106,8 +106,20 @@ class ToolHookTests(unittest.TestCase):
         links = [{'title': 'PR #9', 'url': 'https://github.com/maengseojun/agent-harness/pull/9'}]
         self.assertTrue(tool_hook.linear_description_matches(expected, actual, {}, workspace, links))
         self.assertTrue(tool_hook.linear_description_matches(expected, expected.replace('#9', mention), {}, workspace, links))
-        self.assertFalse(tool_hook.linear_description_matches(expected, actual + ' 추가', {}, workspace, links))
+        self.assertTrue(tool_hook.linear_description_matches(expected, actual + ' 추가', {}, workspace, links))
+        self.assertTrue(tool_hook.linear_description_matches(expected,
+                        '머리말\n기존  내용.\n' + mention + '가 병합됐고 본문을 확인했다.\n덧붙인 메모',
+                        {}, workspace, links))
+        self.assertFalse(tool_hook.linear_description_matches(expected,
+                         actual.replace('본문을 확인했다.', '본문을 아직 확인하지 못했다.'), {}, workspace, links))
         self.assertFalse(tool_hook.linear_description_matches(expected, actual.replace('#9', '#10'), {}, workspace, links))
+        self.assertFalse(tool_hook.linear_description_matches(expected, actual + '\n실제 연결 PR #10.', {}, workspace, links))
+        self.assertFalse(tool_hook.linear_description_matches(expected, actual + '\nother/repo#9', {}, workspace, links))
+        self.assertFalse(tool_hook.linear_description_matches(expected,
+                         actual + '\n[다른 PR](https://github.com/other/repo/pull/10)', {}, workspace, links))
+        self.assertFalse(tool_hook.linear_description_matches(expected,
+                         actual + '\n' + mention.replace('#9', '#10').replace('7c9a406c', '8c9a406c'),
+                         {}, workspace, links))
         self.assertFalse(tool_hook.linear_description_matches(expected, actual.replace('/maeng/', '/endix/'), {}, workspace, links))
         self.assertFalse(tool_hook.linear_description_matches(expected,
                          actual.replace('maengseojun/agent-harness#9', 'other-owner/other-repo#9'), {}, workspace, links))
@@ -122,6 +134,8 @@ class ToolHookTests(unittest.TestCase):
         self.assertFalse(tool_hook.linear_description_matches(prior,
                          rendered.replace('b495e17d-ddc8-48ef-89cc-824f2d18fb85',
                                           '7c9a406c-0723-4f7d-92cd-bb6ea49c77d0'), {}, workspace, links))
+        self.assertFalse(tool_hook.linear_description_matches(prior,
+                         rendered.replace('/review/mae-21-old', '/review/other-pr'), {}, workspace, links))
 
     def test_native_readback_rechecks_workspace_before_and_after_dispatch(self):
         tool, args, gate = self.native_working_plan()
