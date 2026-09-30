@@ -4,6 +4,16 @@ import ledger
 
 
 class NotionBodyTests(unittest.TestCase):
+    def test_duplicate_heading_elision_requires_actual_matching_page_title(self):
+        expected = '# Approved title\n## Result\nVerified body'
+        actual = '## Result\nVerified body'
+        self.assertTrue(ledger.notion_body_matches(expected, actual, 'Approved title'))
+        self.assertTrue(ledger.notion_body_matches(expected, expected, 'Approved title'))
+        self.assertFalse(ledger.notion_body_matches(expected, actual))
+        self.assertFalse(ledger.notion_body_matches(expected, actual, 'Wrong title'))
+        self.assertFalse(ledger.notion_body_matches(expected, '## Result', 'Approved title'))
+        self.assertFalse(ledger.notion_body_matches(expected, '# Wrong title\n' + actual, 'Approved title'))
+
     def test_same_notion_page_link_host_is_equivalent(self):
         page = 'a' * 32
         expected = f'[Index](https://www.notion.so/{page})'
