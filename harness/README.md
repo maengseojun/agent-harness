@@ -627,6 +627,20 @@ Install the reviewed package, then explicitly register its frozen handler:
 `python3 -B harness/install_tool_hooks.py --release <absolute-installed-release> --module all`.
 This switches the tool and work-record launchers to the same frozen release in
 one configuration update; compare both registered paths before claiming sync.
+For PreToolUse, the records launcher coordinates both gates under the record-state
+lock. Record approval is checked first in memory; the task gate must also allow
+before the record admission is persisted. Other tool calls still pass through the
+task gate. PostToolUse and lifecycle hooks retain their separate handlers.
+Mixed-release partial hook upgrades are rejected; use `--module all`. If the
+coordinator cannot persist records state, it durably cancels only that exact
+unobserved admission before returning denial. An already observed response cannot
+be cancelled; if cancellation itself fails, actual absence reconciliation is needed.
+For a historical pre-only admission denied by another hook, first query the actual
+destination and preserve authoritative absence evidence. An explicit `after-write`
+with `outcome:absent` and the original attempt terminates that admission; uncertain
+or timed-out reads do not. This is reconciliation of an interrupted admission,
+not a fabricated native response. The record gate still requires its fresh explicit
+retry decision; both gates and actual readback apply to the new attempt.
 The installer preserves unrelated config and old releases and backs up hooks.json.
 New definitions still require Codex's hook trust review; registration and synthetic
 wire tests do not prove desktop dispatch. Never manufacture trusted_hash entries.

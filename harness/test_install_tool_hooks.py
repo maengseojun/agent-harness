@@ -21,8 +21,8 @@ class ToolHookInstallTests(unittest.TestCase):
         config = json.loads(first)
         for event in ('PreToolUse', 'PostToolUse', 'Stop'):
             commands = [h['command'] for e in config['hooks'][event] for h in e['hooks']]
-            self.assertEqual(2, len(commands))
-            self.assertTrue(any(str(tools) in c for c in commands))
+            self.assertEqual(1 if event == "PreToolUse" else 2, len(commands))
+            self.assertEqual(event != "PreToolUse", any(str(tools) in c for c in commands))
             self.assertTrue(any(str(records) in c for c in commands))
         self.assertIn('UserPromptSubmit', config['hooks'])
         result = subprocess.run([sys.executable, '-B', str(records)], capture_output=True,
@@ -42,8 +42,19 @@ class ToolHookInstallTests(unittest.TestCase):
             for event in events:
                 commands = [handler['command'] for entry in config[event]
                             for handler in entry['hooks']]
-                self.assertEqual(1, sum(str(current[module]) in command for command in commands))
+                self.assertEqual(0 if module == 'tool_hook' and event == 'PreToolUse' else 1,
+                                 sum(str(current[module]) in command for command in commands))
                 self.assertFalse(any(str(old[module]) in command for command in commands))
+
+    def test_partial_upgrade_rejects_mixed_release_without_changing_config(self):
+        install(self.release, self.home, 'all')
+        before = self.config.read_bytes()
+        (self.source / 'harness/ledger.py').write_text('def message(): return "new"\n')
+        upgraded = package(self.source, self.home)
+        for module in ('tool_hook', 'work_records'):
+            with self.assertRaisesRegex(ValueError, 'partial hook upgrade'):
+                install(upgraded, self.home, module)
+            self.assertEqual(before, self.config.read_bytes())
 
     def setUp(self):
         test_install.InstallTests.setUp(self)

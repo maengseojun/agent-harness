@@ -22,6 +22,9 @@ class WorkRecordsTests(unittest.TestCase):
         self.task_mock = patch.object(records.tool_hook, 'session_tasks',
                                       side_effect=lambda *args, **kwargs: self.tasks, create=True)
         self.task_mock.start()
+        self.pre_gate = patch.object(records.tool_hook, "handle", return_value={})
+        self.pre_gate.start()
+        self.addCleanup(self.pre_gate.stop)
         self.addCleanup(self.task_mock.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -69,6 +72,30 @@ class WorkRecordsTests(unittest.TestCase):
         body.update(values)
         path.write_text(json.dumps(body))
         return dict(readback_path=str(path), page_url=body['page_url'], target=body['target'], evidence_ref=body['evidence_ref'])
+
+    def test_task_denial_does_not_consume_record_approval(self):
+        self.approve()
+        before = (self.base / 'state.json').read_bytes()
+        denied = records.context('PreToolUse', 'No prepared call', deny=True)
+        with patch.object(records.tool_hook, 'handle', return_value=denied):
+            self.assertEqual(denied, records.handle(self.event(), self.base))
+        self.assertEqual(before, (self.base / 'state.json').read_bytes())
+        with patch.object(records.tool_hook, 'handle', return_value={}):
+            self.assertEqual('allow', records.handle(self.event(), self.base)
+                             ['hookSpecificOutput']['permissionDecision'])
+        self.assertEqual('dispatched', self.act('status')['revisions'][-1]['write_state'])
+
+    def test_record_denial_never_admits_task_and_other_tools_still_check(self):
+        with patch.object(records.tool_hook, 'handle') as task_gate:
+            self.denied(self.event())
+            task_gate.assert_not_called()
+        event = self.event()
+        event['tool_input'] = {}
+        event['tool_name'] = 'mcp__linear__save_issue'
+        denied = records.context('PreToolUse', 'No prepared call', deny=True)
+        with patch.object(records.tool_hook, 'handle', return_value=denied) as task_gate:
+            self.assertEqual(denied, records.handle(event, self.base))
+            task_gate.assert_called_once_with(event)
 
     def test_approval_hash_and_exact_tool_input_session(self):
         self.denied(self.event())

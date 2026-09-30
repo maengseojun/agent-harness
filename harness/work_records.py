@@ -709,7 +709,7 @@ def hook(state, event):
     return context(name, 'Write observed as uncertain, not saved. Reconcile actual page/body with a separate readback file.')
 
 
-def dispatch(data, base=None):
+def dispatch(data, base=None, *, coordinate=False):
     """Serialize all local transitions; tests pass a private temporary directory."""
     if base is None and isinstance(data, dict) and data.get('action') not in ('status', None):
         active = os.environ.get('CODEX_THREAD_ID')
@@ -727,21 +727,61 @@ def dispatch(data, base=None):
         state = json.loads(ledger.read_file(str(path)), object_pairs_hook=ledger.unique_object) if path.exists() else {}
         ledger.require(isinstance(state, dict), 'invalid work-record state')
         migrate(state)
+        original = path.read_bytes() if path.exists() else None
+        owned = []
         result = hook(state, data) if 'hook_event_name' in data else action(state, data)
-        fd, temporary = tempfile.mkstemp(dir=base, prefix='.records-')
+        if coordinate and data.get('hook_event_name') == 'PreToolUse':
+            # Keep the record admission private until the task gate also allows it.
+            args = tool_hook.arguments(data.get('tool_name', ''), data.get('tool_input') or {})
+            digest = ledger.sha(ledger.canonical(args).encode())
+            # Identify only fresh matching calls before any task admission; no fallible reread after it.
+            owned = [(t['_database'], t['task_id'], t['owner'], k)
+                     for t in tool_hook.session_tasks(data)
+                     for k, c in t.get('runtime_hooks', {}).get('tool_calls', {}).items()
+                     if c['phase'] != 'admitted'
+                     and tool_hook.matches_call(t, c, data.get('tool_name', ''), args, digest)]
+            task_result = tool_hook.handle(data)
+            if task_result.get('hookSpecificOutput', {}).get('permissionDecision') == 'deny':
+                return task_result
+            result = task_result or result
+        temporary = None
+        replaced = False
         try:
+            fd, temporary = tempfile.mkstemp(dir=base, prefix='.records-')
             with os.fdopen(fd, 'w') as stream:
                 stream.write(ledger.canonical(state))
                 stream.flush()
                 os.fsync(stream.fileno())
             os.replace(temporary, path)
+            replaced = True
             directory = os.open(base, os.O_RDONLY)
             try:
                 os.fsync(directory)
             finally:
                 os.close(directory)
+        except OSError:
+            # Only this invocation's new admission may be cancelled before denial.
+            for database, task_id, owner, call_id in owned:
+                ledger.Ledger(database).dispatch('cancel-tool', {
+                    'task_id': task_id, 'owner': owner, 'call_id': call_id,
+                    'event_id': data['tool_use_id'], 'reason_ref': 'coordinator-persistence-failed'})
+            if replaced:
+                if original is None:
+                    path.unlink()
+                else:
+                    fd, restore = tempfile.mkstemp(dir=base, prefix='.restore-')
+                    try:
+                        with os.fdopen(fd, 'wb') as stream:
+                            stream.write(original)
+                            stream.flush()
+                            os.fsync(stream.fileno())
+                        os.replace(restore, path)
+                    finally:
+                        if os.path.exists(restore):
+                            os.unlink(restore)
+            raise
         finally:
-            if os.path.exists(temporary):
+            if temporary is not None and os.path.exists(temporary):
                 os.unlink(temporary)
         return result
 
@@ -749,11 +789,11 @@ def dispatch(data, base=None):
 def handle(event, base=None):
     try:
         ledger.require(isinstance(event, dict), 'JSON object required')
-        return dispatch(event, base)
+        return dispatch(event, base, coordinate=True)
     except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
         message = 'Work-record gate unavailable or request invalid; no completion is verified. Inspect local state and reconcile writes.'
         name = event.get('hook_event_name') if isinstance(event, dict) else None
-        if name == 'PreToolUse' and notion_write(event.get('tool_name'), event.get('tool_input')):
+        if name == 'PreToolUse':
             if isinstance(exc, ledger.LedgerError):
                 message = f'Work-record write rejected: {exc}'
             return context(name, message, deny=True)

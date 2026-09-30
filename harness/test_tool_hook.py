@@ -1,12 +1,15 @@
 """Synthetic hook wire fixtures; no live services, agents, or user settings."""
 import json
 import io
+import os
+import stat
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from unittest.mock import patch
 import test_run
 import tool_hook
+import work_records
 from ledger import LedgerError, canonical, sha
 from run import execute
 
@@ -421,6 +424,78 @@ class ToolHookTests(unittest.TestCase):
         self.assertEqual('blocked', self.call('status')['stage'])
         with self.assertRaisesRegex(LedgerError, 'blocked'):
             self.call('complete')
+
+    def test_coordinator_persistence_failure_cancels_exact_unexecuted_admission(self):
+        self.write_plan()
+        base = self.root / 'records'
+        draft = self.project / 'record-draft.md'
+        draft.write_text(self.write_args['new_str'])
+        c = work_records.dispatch({'action': 'propose', 'session_id': 'fixture-coordinator',
+            'task_id': 'same-id', 'result_key': 'fixture', 'draft_path': str(draft),
+            'linear_refs': ['linear:fixture'], 'output_issue_ref': 'linear:fixture', 'completion_basis': 'fixture',
+            'project_index_target': 'index', 'notion_target': 'fixture-resource', 'endix': False,
+            'tool_name': self.write_tool, 'tool_input': self.write_args}, base)
+        ids = {'session_id': 'fixture-coordinator', 'candidate_id': c['candidate_id'],
+               'revision_id': c['revisions'][-1]['revision_id']}
+        work_records.dispatch({**ids, 'action': 'presented', 'presentation_ref': 'fixture'}, base)
+        work_records.dispatch({**ids, 'action': 'decide', 'draft_sha256': c['revisions'][-1]['draft_sha256'],
+            'decision': 'approved', 'user_decision_ref': 'fixture-user'}, base)
+        before = (base / 'state.json').read_bytes()
+        event = {'hook_event_name': 'PreToolUse', 'cwd': str(self.project),
+                 'session_id': 'fixture-coordinator', 'tool_use_id': 'unexecuted',
+                 'tool_name': self.write_tool, 'tool_input': self.write_args}
+        real_fsync = os.fsync
+        def fail_directory_sync(fd):
+            if stat.S_ISDIR(os.fstat(fd).st_mode):
+                raise OSError('fixture directory sync failure')
+            return real_fsync(fd)
+        failures = [patch.object(work_records.tempfile, 'mkstemp',
+                                 side_effect=OSError('fixture disk failure')),
+                    patch.object(work_records.os, 'fsync', side_effect=fail_directory_sync)]
+        real_tasks = tool_hook.session_tasks
+        def deny_post_admission_reread(event, *args, **kwargs):
+            if self.call('status')['runtime_hooks']['tool_calls']['save-call']['phase'] == 'admitted':
+                raise OSError('fixture post-admission read failure')
+            return real_tasks(event, *args, **kwargs)
+        for failure in failures:
+            with failure, patch.object(tool_hook, 'session_tasks', side_effect=deny_post_admission_reread):
+                self.assertEqual('deny', work_records.handle(event, base)
+                                 ['hookSpecificOutput']['permissionDecision'])
+            self.assertEqual(before, (base / 'state.json').read_bytes())
+            state = self.call('status')['runtime_hooks']
+            self.assertEqual('prepared', state['tool_calls']['save-call']['phase'])
+            self.assertEqual('absent', state['writes']['save']['outcome'])
+        self.assertEqual('allow', work_records.handle({**event, 'tool_use_id': 'retry'}, base)
+                         ['hookSpecificOutput']['permissionDecision'])
+        self.assertEqual(3, self.call('status')['runtime_hooks']['writes']['save']['attempt'])
+        recorded = (base / 'state.json').read_bytes()
+        (base / 'state.json').write_text('{unreadable')
+        self.assertEqual('deny', work_records.handle({**event, 'tool_use_id': 'retry'}, base)
+                         ['hookSpecificOutput']['permissionDecision'])
+        self.assertEqual('admitted', self.call('status')['runtime_hooks']['tool_calls']['save-call']['phase'])
+        self.assertEqual('pending', self.call('status')['runtime_hooks']['writes']['save']['outcome'])
+        (base / 'state.json').write_bytes(recorded)
+        with self.assertRaisesRegex(LedgerError, 'exact unobserved'):
+
+            self.call('cancel-tool', call_id='save-call', event_id='unexecuted', reason_ref='stale')
+        self.event('PostToolUse', self.write_tool, self.write_args, {'ok': True}, event_id='retry')
+        with self.assertRaisesRegex(LedgerError, 'exact unobserved'):
+            self.call('cancel-tool', call_id='save-call', event_id='retry', reason_ref='too late')
+
+    def test_pre_only_admission_requires_explicit_absence_before_retry(self):
+        self.write_plan()
+        self.event('PreToolUse', self.write_tool, self.write_args, event_id='denied-by-sibling')
+        with self.assertRaisesRegex(LedgerError, 'concurrent'):
+            self.event('PreToolUse', self.write_tool, self.write_args, event_id='too-early')
+        (self.project / 'absence.txt').write_text('synthetic independent absence fixture')
+        self.call('after-write', operation_id='save', attempt=1, workspace='fixture-space',
+                  target='fixture-resource', outcome='uncertain', evidence_path='absence.txt')
+        with self.assertRaisesRegex(LedgerError, 'concurrent'):
+            self.event('PreToolUse', self.write_tool, self.write_args, event_id='still-uncertain')
+        self.call('after-write', operation_id='save', attempt=1, workspace='fixture-space',
+                  target='fixture-resource', outcome='absent', evidence_path='absence.txt')
+        self.event('PreToolUse', self.write_tool, self.write_args, event_id='approved-retry')
+        self.assertEqual(2, self.call('status')['runtime_hooks']['writes']['save']['attempt'])
 
     def test_positive_absence_allows_retry_but_timeout_does_not(self):
         self.write_plan(); self.do_write()
