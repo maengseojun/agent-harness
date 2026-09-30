@@ -96,6 +96,33 @@ class ToolHookTests(unittest.TestCase):
         self.assertFalse(tool_hook.linear_description_matches(expected,
                          actual.replace('/maeng/', '/endix/', 1), aliases, workspace))
 
+    def test_linear_description_accepts_pr_mention_when_content_matches(self):
+        expected = '기존 내용. PR #9가 병합됐고 본문을 확인했다.'
+        mention = ('<pull-request id="7c9a406c-0723-4f7d-92cd-bb6ea49c77d0" '
+                   'href="https://linear.app/maeng/review/fix-native-git-push-matching">'
+                   'maengseojun/agent-harness#9</pull-request>')
+        actual = expected.replace('PR #9', mention)
+        workspace = 'https://linear.app/maeng'
+        links = [{'title': 'PR #9', 'url': 'https://github.com/maengseojun/agent-harness/pull/9'}]
+        self.assertTrue(tool_hook.linear_description_matches(expected, actual, {}, workspace, links))
+        self.assertTrue(tool_hook.linear_description_matches(expected, expected.replace('#9', mention), {}, workspace, links))
+        self.assertFalse(tool_hook.linear_description_matches(expected, actual + ' 추가', {}, workspace, links))
+        self.assertFalse(tool_hook.linear_description_matches(expected, actual.replace('#9', '#10'), {}, workspace, links))
+        self.assertFalse(tool_hook.linear_description_matches(expected, actual.replace('/maeng/', '/endix/'), {}, workspace, links))
+        self.assertFalse(tool_hook.linear_description_matches(expected,
+                         actual.replace('maengseojun/agent-harness#9', 'other-owner/other-repo#9'), {}, workspace, links))
+        self.assertFalse(tool_hook.linear_description_matches(expected, actual, {}, workspace))
+        self.assertFalse(tool_hook.linear_description_matches(expected, actual, {}, None))
+        old = ('<pull-request id="b495e17d-ddc8-48ef-89cc-824f2d18fb85" '
+               'href="https://linear.app/maeng/review/mae-21-old">'
+               'maengseojun/agent-harness#8</pull-request>')
+        prior = '이전 ' + old + ' 기록. ' + expected
+        rendered = '이전 ' + old.replace('maengseojun/agent-harness#8', 'MAE-21: old title') + ' 기록. ' + actual
+        self.assertTrue(tool_hook.linear_description_matches(prior, rendered, {}, workspace, links))
+        self.assertFalse(tool_hook.linear_description_matches(prior,
+                         rendered.replace('b495e17d-ddc8-48ef-89cc-824f2d18fb85',
+                                          '7c9a406c-0723-4f7d-92cd-bb6ea49c77d0'), {}, workspace, links))
+
     def test_native_readback_rechecks_workspace_before_and_after_dispatch(self):
         tool, args, gate = self.native_working_plan()
         read_tool, read_args = 'mcp__linear__get_issue', {'id': args['id'], 'includeRelations': True}
