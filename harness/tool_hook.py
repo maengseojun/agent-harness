@@ -184,6 +184,7 @@ def linear_description_matches(expected, actual, aliases, workspace_url=None, ex
         return '\x1d' + uuid + ':' + workspace + '\x1c'
 
     def normalize(body):
+        body = re.sub(r'(\[[^\[\]\n]+\]\()<(https?://[^<>\s]+)>\)', r'\1\2)', body)
         def pr_link(match):
             number, owner, repo, target = match.groups()
             return ('PR #' + number if number == target
@@ -470,7 +471,9 @@ def actual_payload(write, write_args, read_name, read_args, raw, linear_aliases=
         if 'body' in expected:
             approved_body = (write_args['pages'][0].get('content', '') if write['gate']['operation'] == 'create'
                              else write_args.get('new_str', expected['body']))
-            ledger.require(ledger.notion_body_matches(approved_body, result['body']), 'write readback mismatch')
+            properties = value['notion_properties']
+            ledger.require(ledger.notion_body_matches(approved_body, result['body'],
+                           properties.get('Name', properties.get('title'))), 'write readback mismatch')
             result['body'] = expected['body']
     elif service == 'linear':
         if write['gate']['operation'] == 'update':

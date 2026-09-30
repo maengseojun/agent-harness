@@ -186,10 +186,14 @@ def plain_summary(data):
 
 
 # Required fields beyond task_id/owner; strict schemas keep accidental payloads out.
-def notion_body_matches(expected, actual):
+def notion_body_matches(expected, actual, page_title=None):
     """Ignore added Markdown links, preserving approved links and code verbatim."""
     expected = plain_summary(expected.encode())
     actual = plain_summary(actual.encode())
+    heading, separator, rest = expected.partition('\n')
+    if (separator and isinstance(page_title, str) and heading == '# ' + page_title
+            and not actual.startswith(heading + '\n')):
+        expected = rest
     # ponytail: simple inline links only; unsupported Markdown fails closed.
     if (re.search(r'(?m)^ {0,3}\[[^\]\n]+\]:|\]\s*\[|!\[', expected)
             or re.search(r'\[[^\]\n]*\[', actual)):

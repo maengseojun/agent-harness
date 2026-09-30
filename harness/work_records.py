@@ -515,7 +515,8 @@ def action(state, data):
             current(revision)
             url = page_url(data.get('page_url'))
             ledger.require(readback['page_url'] == url and isinstance(readback['content'], str)
-                           and ledger.notion_body_matches(ledger.read_file(revision['draft_path'], LIMIT).decode('utf-8'), readback['content']),
+                           and ledger.notion_body_matches(ledger.read_file(revision['draft_path'], LIMIT).decode('utf-8'), readback['content'],
+                               readback.get('properties', {}).get('Name', readback.get('properties', {}).get('title'))),
                            'separate saved body does not match draft/page')
             properties = readback.get('properties')
             property_hashes = revision.get('property_hashes')

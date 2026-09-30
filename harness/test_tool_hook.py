@@ -140,6 +140,15 @@ class ToolHookTests(unittest.TestCase):
         self.assertFalse(tool_hook.linear_description_matches(prior,
                          rendered.replace('/review/mae-21-old', '/review/other-pr'), {}, workspace, links))
 
+    def test_linear_markdown_url_angle_delimiters_preserve_destination(self):
+        url = 'https://app.notion.com/p/' + 'a' * 32
+        expected = 'Result: [Record](' + url + '). Pending review.'
+        actual = expected.replace('(' + url + ')', '(<' + url + '>)')
+        matches = lambda text: tool_hook.linear_description_matches(expected, text, {}, 'https://linear.app/maeng')
+        self.assertTrue(matches(actual))
+        self.assertFalse(matches(actual.replace('a' * 32, 'b' * 32)))
+        self.assertFalse(matches(actual.replace(' Pending review.', '')))
+
     def test_linear_markdown_pr_link_accepts_matching_native_mention(self):
         url = 'https://github.com/maengseojun/agent-harness/pull/12'
         expected = 'PR 결과: [PR #12](' + url + ') 병합 확인.'
