@@ -147,14 +147,33 @@ def linear_connection(store, name, gate):
     return observed
 
 
-def linear_description_matches(expected, actual, aliases, workspace_url=None):
-    """Compare Linear's issue autolinks while keeping their resource identity exact."""
+def linear_description_matches(expected, actual, aliases, workspace_url=None, expected_links=None):
+    """Compare content after Linear renders issue and PR mentions."""
     if not isinstance(expected, str) or not isinstance(actual, str):
         return False
     from urllib.parse import urlsplit
     known = {identifier: uuid for uuid, identifier in aliases.items()}
     workspace = urlsplit(workspace_url).path.strip('/') if workspace_url else None
     tag = re.compile(r'<issue id="([a-f0-9-]+)" href="(https://linear\.app/[^\"]+)">([A-Z]+-\d+)</issue>')
+    pr_tag = re.compile(r'<pull-request id="([a-f0-9-]+)" href="(https://linear\.app/[^\"]+)">([^<]*)</pull-request>')
+    existing_prs = {match[1] for match in pr_tag.finditer(expected)}
+    github_prs = set()
+    for link in expected_links or []:
+        parsed = urlsplit(link.get('url', ''))
+        parts = parsed.path.strip('/').split('/')
+        if parsed.scheme == 'https' and parsed.netloc == 'github.com' and len(parts) == 4 and parts[2] == 'pull':
+            github_prs.add((parts[0].lower(), parts[1].lower(), parts[3]))
+
+    def render_pr(match):
+        uuid, url, label = match.groups()
+        path = urlsplit(url).path.split('/')
+        if not (workspace and len(path) >= 4 and path[1:3] == [workspace, 'review'] and path[3]):
+            return match.group(0)
+        pr = re.fullmatch(r'([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)#(\d+)', label)
+        if (uuid not in existing_prs and pr and (pr[1].lower(), pr[2].lower(), pr[3]) in github_prs
+                and re.search(r'(?<![A-Za-z0-9])PR #' + pr[3] + r'(?!\d)', expected)):
+            return ('#' if match.string[max(0, match.start() - 3):match.start()] == 'PR ' else 'PR #') + pr[3]
+        return '\x1d' + uuid + ':' + workspace + '\x1c'
 
     def normalize(body):
         def replace(match):
@@ -166,7 +185,7 @@ def linear_description_matches(expected, actual, aliases, workspace_url=None):
                 return match.group(0)
             return '\x1f' + uuid + ':' + identifier.encode().hex() + ':' + path[1].encode().hex() + '\x1e'
 
-        body = tag.sub(replace, body)
+        body = pr_tag.sub(render_pr, tag.sub(replace, body))
         if workspace:
             for identifier, uuid in known.items():
                 body = re.sub(r'(?<![A-Za-z0-9-])' + re.escape(identifier) + r'(?![A-Za-z0-9-])',
@@ -449,7 +468,7 @@ def actual_payload(write, write_args, read_name, read_args, raw, linear_aliases=
                 ledger.require(set(actual) == set(wanted), 'Linear labels differ from planned labels')
                 actual = wanted
             elif key == 'description':
-                ledger.require(linear_description_matches(wanted, actual, aliases, linear_workspace_url),
+                ledger.require(linear_description_matches(wanted, actual, aliases, linear_workspace_url, expected.get('links')),
                                'Linear description differs from planned content')
                 actual = wanted
             result[key] = actual
