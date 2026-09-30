@@ -156,7 +156,8 @@ def linear_description_matches(expected, actual, aliases, workspace_url=None, ex
     workspace = urlsplit(workspace_url).path.strip('/') if workspace_url else None
     tag = re.compile(r'<issue id="([a-f0-9-]+)" href="(https://linear\.app/[^\"]+)">([A-Z]+-\d+)</issue>')
     pr_tag = re.compile(r'<pull-request id="([a-f0-9-]+)" href="(https://linear\.app/[^\"]+)">([^<]*)</pull-request>')
-    existing_prs = {match[1] for match in pr_tag.finditer(expected)}
+    existing_prs = {match[1]: match[2] for match in pr_tag.finditer(expected)}
+    unexpected_prs = set()
     github_prs = set()
     for link in expected_links or []:
         parsed = urlsplit(link.get('url', ''))
@@ -167,12 +168,19 @@ def linear_description_matches(expected, actual, aliases, workspace_url=None, ex
     def render_pr(match):
         uuid, url, label = match.groups()
         path = urlsplit(url).path.split('/')
+        if uuid in existing_prs and url != existing_prs[uuid]:
+            unexpected_prs.add(uuid)
+            return match.group(0)
         if not (workspace and len(path) >= 4 and path[1:3] == [workspace, 'review'] and path[3]):
+            if uuid not in existing_prs:
+                unexpected_prs.add(uuid)
             return match.group(0)
         pr = re.fullmatch(r'([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)#(\d+)', label)
         if (uuid not in existing_prs and pr and (pr[1].lower(), pr[2].lower(), pr[3]) in github_prs
                 and re.search(r'(?<![A-Za-z0-9])PR #' + pr[3] + r'(?!\d)', expected)):
             return ('#' if match.string[max(0, match.start() - 3):match.start()] == 'PR ' else 'PR #') + pr[3]
+        if uuid not in existing_prs:
+            unexpected_prs.add(uuid)
         return '\x1d' + uuid + ':' + workspace + '\x1c'
 
     def normalize(body):
@@ -192,7 +200,32 @@ def linear_description_matches(expected, actual, aliases, workspace_url=None, ex
                               '\x1f' + uuid + ':' + identifier.encode().hex() + ':' + workspace.encode().hex() + '\x1e', body)
         return body
 
-    return normalize(expected) == normalize(actual)
+    expected_lines = [re.sub(r'\s+', ' ', line).strip() for line in normalize(expected).split('\n') if line.strip()]
+    actual_text = re.sub(r'\s+', ' ', normalize(actual)).strip()
+    repo_pr = r'(?<![\w./])([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)#(\d+)\b'
+    github_url_pr = r'https://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)/pull/(\d+)(?!\d)'
+    allowed_repo_prs = github_prs | {(owner.lower(), repo.lower(), number)
+                                    for owner, repo, number in re.findall(repo_pr, expected)}
+    allowed_repo_prs.update((owner.lower(), repo.lower(), number)
+                            for owner, repo, number in re.findall(github_url_pr, expected, re.I))
+    actual_repo_prs = {(owner.lower(), repo.lower(), number)
+                       for owner, repo, number in re.findall(repo_pr, actual_text)}
+    actual_repo_prs.update((owner.lower(), repo.lower(), number)
+                           for owner, repo, number in re.findall(github_url_pr, actual_text, re.I))
+    allowed_prs = {number for _, _, number in allowed_repo_prs}
+    allowed_prs.update(re.findall(r'(?<!\w)PR\s*#(\d+)\b', expected))
+    actual_prs = set(re.findall(r'(?<!\w)PR\s*#(\d+)\b', actual_text))
+    if unexpected_prs or not actual_prs <= allowed_prs or not actual_repo_prs <= allowed_repo_prs:
+        return False
+    if not expected_lines:
+        return not actual_text
+    position = 0
+    for line in expected_lines:
+        match = re.search(r'(?<!\w)' + re.escape(line) + r'(?!\w)', actual_text[position:])
+        if not match:
+            return False
+        position += match.end()
+    return True
 
 
 def notion_identity(value):
