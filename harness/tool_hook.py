@@ -184,6 +184,14 @@ def linear_description_matches(expected, actual, aliases, workspace_url=None, ex
         return '\x1d' + uuid + ':' + workspace + '\x1c'
 
     def normalize(body):
+        def pr_link(match):
+            number, owner, repo, target = match.groups()
+            return ('PR #' + number if number == target
+                    and (owner.lower(), repo.lower(), target) in github_prs
+                    else match.group(0))
+
+        body = re.sub(r'\[PR #(\d+)\]\(https://github\.com/'
+                      r'([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)/pull/(\d+)\)', pr_link, body)
         def replace(match):
             uuid, url, identifier = match.groups()
             path = urlsplit(url).path.split('/')

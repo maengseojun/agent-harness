@@ -140,6 +140,24 @@ class ToolHookTests(unittest.TestCase):
         self.assertFalse(tool_hook.linear_description_matches(prior,
                          rendered.replace('/review/mae-21-old', '/review/other-pr'), {}, workspace, links))
 
+    def test_linear_markdown_pr_link_accepts_matching_native_mention(self):
+        url = 'https://github.com/maengseojun/agent-harness/pull/12'
+        expected = 'PR 결과: [PR #12](' + url + ') 병합 확인.'
+        mention = ('<pull-request id="3502fd5b-0347-4dec-860b-ff285cd4edfd" '
+                   'href="https://linear.app/maeng/review/fix-admission">'
+                   'maengseojun/agent-harness#12</pull-request>')
+        actual = 'PR 결과: ' + mention + ' 병합 확인.'
+        links = [{'title': 'PR #12', 'url': url}]
+        matches = lambda text: tool_hook.linear_description_matches(
+            expected, text, {}, 'https://linear.app/maeng', links)
+        self.assertTrue(matches(actual))
+        self.assertFalse(matches(actual.replace('#12', '#13')))
+        self.assertFalse(matches(actual.replace('maengseojun/agent-harness', 'other/repo')))
+        self.assertFalse(matches(actual.replace('/maeng/', '/endix/')))
+        self.assertFalse(matches(actual.replace(' 병합 확인.', '')))
+        self.assertFalse(tool_hook.linear_description_matches(
+            expected, actual, {}, 'https://linear.app/maeng', []))
+
     def test_native_readback_rechecks_workspace_before_and_after_dispatch(self):
         tool, args, gate = self.native_working_plan()
         read_tool, read_args = 'mcp__linear__get_issue', {'id': args['id'], 'includeRelations': True}
