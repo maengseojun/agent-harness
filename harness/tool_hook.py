@@ -305,6 +305,15 @@ def request_payload(name, args, project):
                        and type(args['draft']) is bool, 'explicit PR branch, title, body and draft state required')
         return ('github', 'create', 'https://github.com/' + repo + '/pulls',
                 {k: args[k] for k in ('base', 'head', 'title', 'body', 'draft')})
+    if endpoint == 'github_merge_pull_request':
+        required = {'repository_full_name', 'pr_number', 'expected_head_sha', 'merge_method'}
+        ledger.require(set(args) == required and type(args['pr_number']) is int and args['pr_number'] > 0
+                       and isinstance(args['expected_head_sha'], str)
+                       and re.fullmatch(r'[a-f0-9]{40}', args['expected_head_sha'])
+                       and args['merge_method'] in ('merge', 'squash', 'rebase'),
+                       'explicit PR, reviewed head and merge method required')
+        return ('github', 'update', 'https://github.com/' + repo + '/pull/' + str(args['pr_number']),
+                {'merged': True, 'head_sha': args['expected_head_sha'], 'merge_method': args['merge_method']})
     if endpoint in ('github_create_file', 'github_update_file'):
         ledger.require(set(args) <= {'repository_full_name', 'branch', 'path', 'content', 'message', 'sha'} and args.get('branch'), 'explicit file branch and supported fields required')
         target = 'https://github.com/' + repo + '/blob/' + args['branch'] + '/' + args['path']
@@ -364,14 +373,17 @@ def read_request(write, write_args, name, args):
         if write['gate']['operation'] == 'update':
             ledger.require(args['id'] == write_args['id'], 'readback issue differs from actual write')
     else:
-        expected = ('github_fetch_pr' if tool_name(write['tool_name']) == 'mcp__codex_apps__github_create_pull_request'
+        expected = ('github_fetch_pr' if tool_name(write['tool_name']) in ('mcp__codex_apps__github_create_pull_request', 'mcp__codex_apps__github_merge_pull_request')
                     else 'github_fetch_file' if 'content' in write_args else 'github_fetch_issue')
         repository = args.get('repo_full_name') if expected == 'github_fetch_pr' else args.get('repository_full_name')
         ledger.require(endpoint == expected and repository == write_args['repository_full_name'], 'authoritative GitHub repository fetch required')
         if expected == 'github_fetch_file':
             ledger.require(args.get('path') == write_args['path'] and args.get('ref') == write_args['branch'] and not args.get('start_line') and not args.get('end_line') and args.get('encoding', 'utf-8') == 'utf-8', 'read complete file from the actual write branch')
         elif write['gate']['operation'] == 'update':
-            ledger.require(args.get('issue_number') == write_args['issue_number'], 'readback issue differs from actual write')
+            if expected == 'github_fetch_pr':
+                ledger.require(args.get('pr_number') == write_args['pr_number'], 'readback PR differs from actual merge')
+            else:
+                ledger.require(args.get('issue_number') == write_args['issue_number'], 'readback issue differs from actual write')
     return service
 
 
@@ -437,6 +449,16 @@ def actual_payload(write, write_args, read_name, read_args, raw, linear_aliases=
     elif tool_name(write['tool_name']) == 'Bash':
         ledger.require(value.get('url') == write['gate']['target'], 'remote GitHub ref identity mismatch')
         result = {'commit': value['object']['sha'], 'ref': value['ref']}
+    elif tool_name(write['tool_name']) == 'mcp__codex_apps__github_merge_pull_request':
+        pr = value.get('pull_request', value)
+        merge_sha = write.get('merge_sha')
+        ledger.require(isinstance(merge_sha, str) and re.fullmatch(r'[a-f0-9]{40}', merge_sha)
+                       and isinstance(pr, dict) and pr.get('number') == write_args['pr_number']
+                       and pr.get('url') == write['gate']['target']
+                       and pr.get('merged') is True and pr.get('merge_commit_sha') == merge_sha
+                       and pr.get('head_sha') == write_args['expected_head_sha'],
+                       'remote PR merge or reviewed head mismatch')
+        result = {'merged': True, 'head_sha': pr['head_sha'], 'merge_method': write_args['merge_method']}
     elif tool_name(write['tool_name']) == 'mcp__codex_apps__github_create_pull_request':
         number = read_args['pr_number']
         pr = value.get('pull_request', value)
@@ -736,6 +758,10 @@ def event(store, d):
     path = evidence(store, call_id, event_id, 'response', raw_bytes)
     if item['kind'] == 'write':
         gate = item['gate']
+        if tool_name(item['tool_name']) == 'mcp__codex_apps__github_merge_pull_request':
+            value = response_value(raw)
+            if isinstance(value, dict) and value.get('merged') is True and isinstance(value.get('sha'), str) and re.fullmatch(r'[a-f0-9]{40}', value['sha']):
+                item['merge_sha'] = value['sha']
         if gate['operation'] == 'create' and isinstance(wire_value(raw), dict) and not wire_value(raw).get('isError'):
             value = response_value(raw)
             if isinstance(value, dict):

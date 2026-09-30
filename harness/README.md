@@ -669,9 +669,11 @@ for hosts without native event support.
 
 Supported writes use the exact `mcp__codex_apps__` provider names: Notion single
 page creation, full content replacement and property updates; Linear issue
-creation/update; GitHub issue creation/update, file creation/update and PR creation.
-PR creation uses explicit base/head branches, title, body and draft state; fetch
-the actual created PR number to verify the branch and content. `gh pr create`
+creation/update; GitHub issue creation/update, file creation/update, PR creation
+and PR merge. PR creation uses explicit base/head branches, title, body and draft
+state; fetch the actual created PR number to verify the branch and content. PR
+merge requires the exact PR number, reviewed head SHA and merge method; fetch
+that PR again to confirm its merged state, head and merge commit. `gh pr create`
 remains unsupported for tracked runs; use the typed GitHub connector. Unsupported
 fields or operations are denied. Native `mcp__linear__save_issue/get_issue` and
 `mcp__linear_endix__save_issue/get_issue` are also supported. Before native writes,

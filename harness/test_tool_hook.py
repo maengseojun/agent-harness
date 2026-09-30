@@ -700,6 +700,61 @@ class ToolHookTests(unittest.TestCase):
                    {'structuredContent': observed}, event_id='pr-read')
         self.assertEqual('verified', self.call('status')['runtime_hooks']['writes']['pr-create']['outcome'])
 
+    def test_pr_merge_requires_reviewed_head_and_merged_readback(self):
+        execute(self.project, 'start', self.request)
+        dest = {'id': 'pr-merge', 'service': 'github', 'workspace': 'example/private',
+                'target': 'https://github.com/example/private/pull/9', 'output_owner': 'personal',
+                'operations': ['update'], 'authorization_ref': 'fixture:approved-merge'}
+        self.call('configure-hooks', output_owner='personal', destinations=[dest],
+                  write_paths=['output'], requirements=[])
+        self.ready(complete=False)
+        args = {'repository_full_name': 'example/private', 'pr_number': 9,
+                'expected_head_sha': 'a' * 40, 'merge_method': 'merge'}
+        payload = {'merged': True, 'head_sha': 'a' * 40, 'merge_method': 'merge'}
+        (self.project / 'pr-merge-payload.json').write_text(canonical(payload))
+        gate = {'operation_id': 'merge-pr', 'destination_id': dest['id'],
+                'workspace': dest['workspace'], 'target': dest['target'], 'operation': 'update',
+                'payload_path': 'pr-merge-payload.json', 'payload_sha256': sha(canonical(payload).encode()),
+                'authorization_ref': dest['authorization_ref']}
+        tool = 'mcp__codex_apps__github_merge_pull_request'
+        read_tool = 'mcp__codex_apps__github_fetch_pr'
+        read_args = {'repo_full_name': 'example/private', 'pr_number': 9}
+        self.prepare('merge-pr', 'write', tool, args, gate)
+        self.event('PreToolUse', tool, args)
+        self.event('PostToolUse', tool, args, {'structuredContent': {'merged': True, 'sha': 'b' * 40}})
+        self.prepare('fetch-merge', 'readback', read_tool, read_args, {'write_call_id': 'merge-pr'})
+        self.event('PreToolUse', read_tool, read_args, event_id='pr-merge-read')
+        base = {'number': 9, 'url': dest['target'], 'head_sha': 'a' * 40,
+                'merged': False, 'merge_commit_sha': 'b' * 40}
+        denied = self.event('PostToolUse', read_tool, read_args,
+                            {'structuredContent': {'pull_request': base}}, event_id='pr-merge-read')
+        self.assertIn('merge or reviewed head mismatch', denied['reason'])
+        self.event('PreToolUse', read_tool, read_args, event_id='pr-merge-retry')
+        denied = self.event('PostToolUse', read_tool, read_args,
+                            {'structuredContent': {'pull_request': {**base, 'merged': True,
+                                                                    'merge_commit_sha': 'c' * 40}}}, event_id='pr-merge-retry')
+        self.assertIn('merge or reviewed head mismatch', denied['reason'])
+        self.event('PreToolUse', read_tool, read_args, event_id='pr-merge-confirm')
+        self.event('PostToolUse', read_tool, read_args,
+                   {'structuredContent': {'pull_request': {**base, 'merged': True}}}, event_id='pr-merge-confirm')
+        self.assertEqual('verified', self.call('status')['runtime_hooks']['writes']['merge-pr']['outcome'])
+
+    def test_pr_merge_without_response_commit_cannot_verify(self):
+        args = {'repository_full_name': 'example/private', 'pr_number': 9,
+                'expected_head_sha': 'a' * 40, 'merge_method': 'merge'}
+        payload = {'merged': True, 'head_sha': 'a' * 40, 'merge_method': 'merge'}
+        path = self.project / 'missing-merge-sha.json'
+        path.write_text(canonical(payload))
+        write = {'service': 'github', 'tool_name': 'mcp__codex_apps__github_merge_pull_request',
+                 'gate': {'operation': 'update', 'target': 'https://github.com/example/private/pull/9',
+                          'payload_path': str(path)}}
+        observed = {'pull_request': {'number': 9, 'url': write['gate']['target'],
+                    'head_sha': 'a' * 40, 'merged': True, 'merge_commit_sha': None}}
+        with self.assertRaisesRegex(LedgerError, 'merge or reviewed head mismatch'):
+            tool_hook.actual_payload(write, args, 'mcp__codex_apps__github_fetch_pr',
+                                     {'repo_full_name': 'example/private', 'pr_number': 9},
+                                     {'structuredContent': observed})
+
     def test_concurrent_readback_admission_is_denied(self):
         self.write_plan(); self.do_write()
         barrier = Barrier(2)
