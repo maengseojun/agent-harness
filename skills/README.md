@@ -10,6 +10,7 @@ observed correction is reusable in that skill's context.
 | --- | --- |
 | [blockchain-upstream-review](blockchain-upstream-review/SKILL.md) | Map upstream blockchain changes to a project's actual pins and call sites. |
 | [execute-code-brief](execute-code-brief/SKILL.md) | Implement an agreed coding brief. |
+| [error-fix-manual-1](error-fix-manual-1/SKILL.md) | 오류 수정 매뉴얼 1: trace persistent save/readback verification failures through original responses, the shared comparator and actual runtime activation. |
 | [dither-motion-landing](dither-motion-landing/SKILL.md) | Build landing pages with original dithered imagery and purposeful motion. |
 | [frontend-guidance](frontend-guidance/SKILL.md) | Optional guidance for general website and app UI design; preserves requested aesthetics and links selected Impeccable references. |
 | [prepare-work-deliverable](prepare-work-deliverable/SKILL.md) | Produce a substantial report, pitch or presentation from an agreed brief. |

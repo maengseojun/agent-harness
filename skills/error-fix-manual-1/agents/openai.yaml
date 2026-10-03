@@ -1,0 +1,4 @@
+interface:
+  display_name: "오류 수정 매뉴얼 1"
+  short_description: "오래 남은 저장·재조회 오류를 증거부터 추적하고 실제 적용까지 검증"
+  default_prompt: "$error-fix-manual-1을 사용해 반복되는 저장·검증 오류의 실제 실패 지점을 찾고 수정과 적용을 확인해 줘."
