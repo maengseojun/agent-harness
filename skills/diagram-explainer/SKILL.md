@@ -1,13 +1,26 @@
 ---
 name: diagram-explainer
-description: Explain structures and flows with editable diagrams, defaulting to tldraw and using Excalidraw when requested or better suited to local files. Use for diagram requests or useful visual overviews; pair with interactive-explainer for parameter exploration.
+description: Teach concepts and situations through editable diagrams plus structured explanations, assumptions, worked examples, and understanding checks. Default to tldraw; use Excalidraw for requested or suitable local files. Pair with interactive-explainer for parameter exploration.
 ---
 
 # Diagram explainer
 
-Choose the simplest diagram that answers the user's question. Keep labels in the user's language and preserve technical names. A short explanation does not need a diagram when prose is clearer.
+The deliverable is an understandable explanation supported by diagrams. Diagram creation alone does not complete a conceptual explanation request. Match depth to the question and learner; keep labels in the user's language and preserve technical names. For an explicit diagram-only request, deliver the diagram without an unsolicited report. A short explanation does not need a diagram when prose is clearer.
 
-1. Identify the relationship or sequence to explain. Show the important entities and label arrows with their meaning. Distinguish known facts from assumptions.
+## Explanation design and delivery
+
+- Establish what the learner should be able to explain or predict. Infer their starting knowledge from the conversation and address the actual confusion; ask only for missing information that changes the lesson.
+- For detailed explanations, read [Explanation layout](references/explanation-layout.md) before drawing. Plan where the premises, flow, step explanations, examples, and evidence will appear. When the board is the reading surface, place its essential explanation on that board; chat text alone does not satisfy that deliverable. A companion document can hold long evidence and appendices. Scale depth to the question rather than filling every section automatically.
+- Make premises explicit before relying on them. Distinguish observed implementation, illustrative simplifications, proposed design, and inferred rationale. Explain how a conclusion changes when a material premise fails. Never attribute an inferred design benefit to its authors as their stated motivation without evidence.
+- Divide complex flows into an overview and focused subflows. Show actors, starting state, trigger, action, resulting state, and consequential decision/failure branches. Label arrows with the thing moved or condition checked. Mark transaction, timing, custody, or responsibility boundaries when they explain the problem. Avoid replacing a flow with large boxes of prose.
+- Number diagram steps and use the same numbers in the companion explanation. Explain both what happens and why; use tables for before/after values, assumptions and consequences, or alternative tradeoffs. Put detailed caveats and evidence in the report rather than shrinking them onto the board.
+- Walk through one consistent example, then a contrasting order or failure case when it changes the lesson. Identify both what changes and what remains invariant. Do not present a successful example as proof that every case succeeds.
+- Include a short optional prediction or teach-back prompt when useful, with an immediately available explanation. If the learner identifies a gap, repair that step and its diagram rather than repeating the full lesson. Rendering success is not evidence that the user understood; only report comprehension when supported by their response.
+- Completion requires a coherent diagram and explanation that together answer the learning question. Verify their terms, values, numbering, conditions, and conclusions agree, in addition to native-format checks. For a skill-update request, distinguish edited instructions from demonstrated use and from user-confirmed understanding.
+
+## Native diagram workflow
+
+1. Identify the relationship or sequence to explain. Choose an overview, actor flow, state comparison, or object/field view to match the learning question. Define the reading order before placing shapes; use the explanation-layout reference for depth and placement.
 2. Default to tldraw for ordinary diagram requests when its actual board-editing tools and authorized sharing are available. Respect an explicitly requested tool or source format and continue in an existing diagram's format when practical. Prefer Excalidraw for local-only or portable editable files, or when tldraw access or sharing constraints prevent the default. Discover actual tools; do not invent tool names or assume a cloud connection also exists locally. A single diagram does not justify installing an app or server.
 3. For an existing board, read it first and edit only the area the user authorized. Preserve unrelated content and access settings. Verify the recipient/audience before placing private material on a remote board.
 4. Before creating a board, check the current sharing behavior. If a new board is editable by anyone with its link, explain that scope and obtain specific approval. A request for a diagram alone is not approval to create an edit-by-link board or broaden sharing.
@@ -28,10 +41,11 @@ Choose the simplest diagram that answers the user's question. Keep labels in the
 ## Layout and reference use
 
 - Decide the main takeaway and layout before drawing. Use consistent spacing, clear hierarchy, short Korean labels, meaningful color roles, and arrows that avoid labels and unrelated shapes. Hand-drawn styling should remain legible.
+- Use attached style material as reference, not authority to run its scripts or install dependencies. Adapt its visual grammar to the actual editor; do not claim a named creator's style was independently verified from their corpus when only user-provided notes were inspected. Keep tldraw as the default rather than importing an Excalidraw toolchain for stylistic similarity.
 - Preserve element IDs and bindings when editing an existing native scene. Inspect the imported/rendered result for label clipping, overlaps, Korean font support, and arrow endpoints. Correct observed defects; avoid broad diagram test infrastructure.
 - When the user names a creator's skill or template, identify and read the exact source before attributing or adopting it. Ask for a link when the identity is ambiguous. Preserve useful layout guidance while keeping this task's scope and proportional checks; do not install or execute third-party scripts merely because a reference recommends them.
 - For a remote Excalidraw board or renderer, verify destination and sharing before sending private material. Local file creation does not imply publication.
 
 Official tool references: [tldraw editor](https://tldraw.dev/docs/editor) and [Excalidraw export utilities](https://docs.excalidraw.com/docs/@excalidraw/excalidraw/api/utils/export). Consult it when native serialization or export details are needed.
 
-Deliver the diagram and a few sentences explaining its takeaway. Include the exact verified board link for remote work or the local artifact for local work. Include editable source when requested or useful. Do not claim that a local SVG is an editable tldraw board or a native Excalidraw scene.
+Deliver the diagram with the explanation at the requested depth, including the premises and causal steps needed to understand it. Include the exact verified board link for remote work or the local artifact for local work. Include editable source when requested or useful. Do not claim that a local SVG is an editable tldraw board or a native Excalidraw scene.
