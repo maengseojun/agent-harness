@@ -9,6 +9,9 @@ observed correction is reusable in that skill's context.
 | Skill | Use |
 | --- | --- |
 | [blockchain-upstream-review](blockchain-upstream-review/SKILL.md) | Map upstream blockchain changes to a project's actual pins and call sites. |
+| [diagram-explainer](diagram-explainer/SKILL.md) | Explain structures and flows with tldraw by default, or Excalidraw for local editable files and explicit requests. |
+| [interactive-explainer](interactive-explainer/SKILL.md) | Teach a relationship through a small guided simulation and free exploration. |
+| [tutorial-video](tutorial-video/SKILL.md) | Produce requested tutorial scripts or videos with visual tutoring and authorized ElevenLabs narration. |
 | [execute-code-brief](execute-code-brief/SKILL.md) | Implement an agreed coding brief. |
 | [dither-motion-landing](dither-motion-landing/SKILL.md) | Build landing pages with original dithered imagery and purposeful motion. |
 | [frontend-guidance](frontend-guidance/SKILL.md) | Optional guidance for general website and app UI design; preserves requested aesthetics and links selected Impeccable references. |

@@ -1,0 +1,37 @@
+---
+name: diagram-explainer
+description: Explain structures and flows with editable diagrams, defaulting to tldraw and using Excalidraw when requested or better suited to local files. Use for diagram requests or useful visual overviews; pair with interactive-explainer for parameter exploration.
+---
+
+# Diagram explainer
+
+Choose the simplest diagram that answers the user's question. Keep labels in the user's language and preserve technical names. A short explanation does not need a diagram when prose is clearer.
+
+1. Identify the relationship or sequence to explain. Show the important entities and label arrows with their meaning. Distinguish known facts from assumptions.
+2. Default to tldraw for ordinary diagram requests when its actual board-editing tools and authorized sharing are available. Respect an explicitly requested tool or source format and continue in an existing diagram's format when practical. Prefer Excalidraw for local-only or portable editable files, or when tldraw access or sharing constraints prevent the default. Discover actual tools; do not invent tool names or assume a cloud connection also exists locally. A single diagram does not justify installing an app or server.
+3. For an existing board, read it first and edit only the area the user authorized. Preserve unrelated content and access settings. Verify the recipient/audience before placing private material on a remote board.
+4. Before creating a board, check the current sharing behavior. If a new board is editable by anyone with its link, explain that scope and obtain specific approval. A request for a diagram alone is not approval to create an edit-by-link board or broaden sharing.
+5. If the default tldraw path is unavailable, fails, or would require unapproved sharing, state the reason and use a local Excalidraw file when that meets the request. Do not repeatedly retry or create a public board to bypass a blocker. If the user explicitly requires tldraw or a particular board, keep that deliverable pending and obtain agreement before substituting another format. For Excalidraw, prefer an editable `.excalidraw` file plus SVG or PNG preview. Use an available Excalidraw exporter or renderer and its current file format. If no renderer is available, validate the file structure and disclose that importing/rendering is unverified; an independently drawn SVG is not proof that the native file renders. Do not upload material to a third-party renderer merely to draw one diagram. Use SVG alone only when requested or when native editability is unnecessary; identify the delivered format clearly.
+6. Verify the output in its actual format. For tldraw, draw native editable shapes with the real board-editing tool, then separately read back the shapes and inspect a screenshot when available. Return the exact board URL from the tool; discovery alone is not board creation. For a local Excalidraw file, inspect its imported/rendered preview when a renderer is available. Check readable Korean labels, arrow directions, clipping, and agreement with the explanation. Correct observed defects only, and disclose any unverified rendering. These are proportional completion checks, not automatic tool dispatch.
+
+## Teaching defaults
+
+- For this user's explanations, lead with the core intuition and add only the background needed to understand it. Infer prior knowledge from the conversation; ask only when an unknown would change the explanation materially.
+- Use a 3Blue1Brown-inspired teaching sequence: concrete question or small example → visible relationship → general rule or formula when useful → return to the question. This describes teaching structure, not branding or a required visual style.
+- Plan the learning question, likely misconception, and what the reader should be able to explain afterward before drawing. Use numbered stages or adjacent before/after views in the selected native diagram format. Keep the same entities, terms, and color roles across stages; reveal one main idea per stage.
+- Apply clarity principles inspired by ASD-STE100, not formal compliance: natural Korean for Korean requests, one main idea per sentence, concrete subjects and verbs, consistent terms, and a brief definition of unfamiliar terms. Preserve technical meaning, uncertainty, identifiers, and quotations.
+- A short prediction question is optional. Put its answer within immediate reach; never require a reply or correct answer to continue. Do not add quizzes where a direct explanation is clearer.
+- When paired with interactive-explainer, use the board for relationships and the companion for changing states. Share the same example, labels, assumptions, and units. Let the companion start with brief guidance and then offer free exploration. A board's pan/zoom alone is not a causal simulation.
+- Example: show 10 objects owned jointly through 100 shares, then change the objects while keeping the shares fixed. Explain what changes and what stays invariant before introducing the proportional ownership formula. Label synthetic numbers and avoid treating this teaching example as a product guarantee.
+- Check whether the stages answer the learning question and expose the likely misconception, in addition to the rendering and readback checks above.
+
+## Layout and reference use
+
+- Decide the main takeaway and layout before drawing. Use consistent spacing, clear hierarchy, short Korean labels, meaningful color roles, and arrows that avoid labels and unrelated shapes. Hand-drawn styling should remain legible.
+- Preserve element IDs and bindings when editing an existing native scene. Inspect the imported/rendered result for label clipping, overlaps, Korean font support, and arrow endpoints. Correct observed defects; avoid broad diagram test infrastructure.
+- When the user names a creator's skill or template, identify and read the exact source before attributing or adopting it. Ask for a link when the identity is ambiguous. Preserve useful layout guidance while keeping this task's scope and proportional checks; do not install or execute third-party scripts merely because a reference recommends them.
+- For a remote Excalidraw board or renderer, verify destination and sharing before sending private material. Local file creation does not imply publication.
+
+Official tool references: [tldraw editor](https://tldraw.dev/docs/editor) and [Excalidraw export utilities](https://docs.excalidraw.com/docs/@excalidraw/excalidraw/api/utils/export). Consult it when native serialization or export details are needed.
+
+Deliver the diagram and a few sentences explaining its takeaway. Include the exact verified board link for remote work or the local artifact for local work. Include editable source when requested or useful. Do not claim that a local SVG is an editable tldraw board or a native Excalidraw scene.
