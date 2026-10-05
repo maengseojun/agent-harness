@@ -54,17 +54,57 @@ Prefer natural Korean and retain exact English identifiers where needed. Introdu
 - Bind arrow endpoints and labels to native shapes where supported. Make labels move with their arrows. Leave enough line length on both sides of a label; lengthen or reroute the connector instead of letting text swallow it.
 - Align row/column centers so intended straight arrows remain straight. Route from shape sides, avoid corners and unrelated boxes, and separate opposite-direction transfers into parallel paths. A return arrow must show its destination and trigger.
 
-## Patterns adapted from the supplied style notes
+## Visual grammar: tables, boundaries, categories, and connectors
+
+Choose the visual form from the question. Use the smallest combination that exposes the relationship; a rich diagram does not require every pattern below.
 
 | Learning question | Useful pattern |
 |---|---|
-| Who acts on whom, in what order? | Actors plus numbered action arrows |
+| Who does what at each step? | Step × actor responsibility table; use actor lanes with arrows when handoffs are the main question |
+| Who acts on whom, in what order? | Actors plus numbered action arrows; separate the main path from condition-labeled branches |
+| Where does responsibility, permission, or storage change? | Labeled outer boundaries with contained actors/objects and explicit crossing arrows |
 | What is stored and what changes? | Object card with field rows and matching step markers |
 | How do alternatives or before/after states differ? | Matching zones with identical inner layout; highlight only meaningful differences |
 | Which operation affects which object? | Operation × object matrix, paired with a flow if order matters |
 | Where does an amount go? | Labeled amount split with units and conservation check |
 
-Keep role colors consistent across panels; use text labels as well as color. Use restrained strokes and no decorative icons, shadows, or emoji by default. Reserve emphasis for the active flow or important difference. If dashed lines mean optional/conditional behavior, state that meaning and use it consistently. Hachure and special fonts are optional renderer-specific styling, not requirements to install software or emulate unavailable features.
+### Tables and explanation placement
+
+- Give a responsibility table numbered step rows and stable actor columns. Color headers and relevant cells by actor; use a neutral outline for inactive cells. Define empty cells as “no action in this step” only when verified. Write “미확인” for unknown participation and “해당 없음” when inapplicable; do not equate an empty cell with missing evidence.
+- Put a short action and meaningful result in each active cell. Keep detailed reasons beside the table or in a step/reason column. Use a separate aligned comparison for definitions, permissions, or alternate paths rather than mixing them into execution rows.
+- Pair a table with a focused flow only if the table hides a consequential handoff or branch. Reuse step IDs and actor colors. Place a one-sentence takeaway above, the relevant explanation beside/below its step, and qualifications below the panel. Avoid arrows through every cell or paragraphs in every node.
+
+### Boundaries and categories
+
+- Label each boundary with what it means: actor responsibility, system location, custody, permission, transaction scope, or simply a reading section. Use a quiet outer container and more prominent inner entities. Nest containers only when the nesting represents actual containment; visual grouping does not prove a security or atomicity guarantee.
+- Show a meaningful boundary crossing at the edge with a labeled arrow: who requests, what moves, which check applies, or which state changes. Keep request authority, signing, and asset movement distinct when relevant; do not invent those semantics from the reference images.
+- Assign colors to the few categories the reader must track, not a new color to every step. Reuse them across header, outline, short category label, and related paths. Use neutral text/containers for context and text labels for category identity. If two categories are visually too similar, choose more distinguishable supported colors.
+- Keep category identity separate from status: an actor's color must not change to mean failure. Mark failure, uncertainty, or the active step with explicit text and an additional outline/marker. Put a compact color/line legend near the first panel that uses it; repeat it only where a panel must stand alone.
+- Pattern/hatch fills can reinforce a category as in the supplied images, but keep them subtle and inspect text contrast. Use supported native fills; do not hand-build hundreds of diagonal lines. A neutral or unfilled container can distinguish context without adding another category.
+
+### Lines and arrows
+
+Use a small declared connector vocabulary, adapted to the subject. These are useful starting choices, not universal meanings:
+
+| Expression | Suggested meaning and required label |
+|---|---|
+| Solid directional arrow | Main action or transfer; name the action/object |
+| Dashed directional arrow | Conditional/exception path; state the condition and destination |
+| Dotted leader without arrowhead | Explanatory annotation, not an executable step |
+| Return/loop arrow | Retry, feedback, or re-entry; name the trigger and return step |
+| Thin neutral enclosure/divider | Grouping or boundary; name its scope |
+
+Use an arrow's color for its declared category or path; keep cross-category handoffs neutral when no owner is clear. Do not assign two meanings to the same style within one explanation. Dashed does not automatically mean asynchronous or uncertain: label waiting, acknowledgement, and evidence status explicitly. Show distinct request and response arrows when that distinction matters; a double-headed arrow can hide their order.
+
+Prefer straight connectors for aligned short paths, elbow routes around obstacles, and curves for returns or competing paths when clearer. Bind endpoints to the intended shapes when supported. Keep branches outside the main reading lane and labels away from crossings; use visible step references instead of a long connector spanning unrelated panels. Use consistent stroke weight, reserving emphasis for an important path/difference. Hand-drawn lines must still make endpoints and arrowheads unambiguous.
+
+### Native tldraw implementation
+
+Use editable geo/text shapes for table cells and object rows; align repeated widths and row heights and group a table for movement. Use named frames for navigable panels where appropriate, or a background geo shape for a semantic enclosure. Frames may clip child shapes, so inspect crossing arrows and labels rather than assuming a frame behaves like an unbounded background.
+
+Check the live tool's shape/style schema and binding helpers when needed. Set intended category colors, fills, dash styles, and label styles explicitly so remembered editor styles do not leak into new categories. Use supported arrow routing and native labels. Do not assume SDK features are exposed by every connector or add a custom shape package for a table. See official [styles](https://tldraw.dev/sdk-features/styles), [bindings](https://tldraw.dev/sdk-features/bindings), and [shapes](https://tldraw.dev/docs/shapes) documentation for implementation details.
+
+These patterns are adapted from the user's supplied workflow, responsibility-table, and key/permission-map images. They are visual references, not verified product documentation or a fixed palette. Retain useful hierarchy and category consistency; do not reproduce tiny text or a sprawling board just to match the reference. No decorative icons, shadows, or emoji are needed by default.
 
 ## Final check
 
@@ -72,6 +112,7 @@ Keep role colors consistent across panels; use text labels as well as color. Use
 - Are premises visible before use, and does the diagram distinguish execution, waiting, success, and failure correctly?
 - Do board text, companion report, quantities, identifiers, and sources agree? Does a comparison preserve the same layout?
 - Inspect native rendering at readable panel zoom, not only a fit-all screenshot. Check arrow labels, clipping, overlaps, Korean text, and the diagram-to-explanation distance. Read back the actual shapes after editing.
+- Can the reader distinguish actor/category, boundary scope, main path, conditional path, and annotation from the visible labels and legend? Do tables distinguish no action from unknown evidence, and do connector endpoints remain attached to the intended entities?
 - An optional prediction question should have an immediately available answer. User understanding remains unverified until their response provides evidence.
 
 Provenance: adapted from the user-provided `message.txt` describing an Excalidraw style attributed to Henry. Its claimed 40-file survey was not independently verified. The attachment describes but does not include the complete `exkit.py`, `render.mjs`, or `svg2png.py` sources. No installation commands or personal filesystem paths from it are required by this reference.

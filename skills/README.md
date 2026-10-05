@@ -9,7 +9,7 @@ observed correction is reusable in that skill's context.
 | Skill | Use |
 | --- | --- |
 | [blockchain-upstream-review](blockchain-upstream-review/SKILL.md) | Map upstream blockchain changes to a project's actual pins and call sites. |
-| [diagram-explainer](diagram-explainer/SKILL.md) | Explain structures and flows with tldraw by default, or Excalidraw for local editable files and explicit requests. |
+| [diagram-explainer](diagram-explainer/SKILL.md) | Explain structures and flows through role tables, boundaries, category colors and labeled connectors in tldraw, or Excalidraw for local editable files and explicit requests. |
 | [interactive-explainer](interactive-explainer/SKILL.md) | Teach a relationship through a small guided simulation and free exploration. |
 | [tutorial-video](tutorial-video/SKILL.md) | Produce requested tutorial scripts or videos with visual tutoring and authorized ElevenLabs narration. |
 | [execute-code-brief](execute-code-brief/SKILL.md) | Implement an agreed coding brief. |
@@ -29,6 +29,20 @@ Verify the installed files against the exact reviewed commit before claiming the
 version is active. The installer refuses to overwrite an existing skill; inspect
 local changes and preserve the old copy before any update. New tasks may need to
 start before their skill catalog sees a newly installed skill.
+
+## Share the explanation skills
+
+This repository stays private. Invited collaborators can use the source paths
+`skills/diagram-explainer`, `skills/interactive-explainer`, and
+`skills/tutorial-video`. For file-based sharing, use the reviewed
+`explanation-skills.zip` asset on an [explanation-skills release](https://github.com/maengseojun/agent-harness/releases).
+The archive contains only these three skills, their references, and a short
+installation guide; it does not include the harness, task records, or settings.
+Keep each complete skill folder together, including `references/` when present.
+
+After changing an explanation skill, publish its reviewed source here and refresh
+the sharing archive. Update and read back its local and ChatGPT Cloud copies
+separately; publishing GitHub source does not synchronize either installation.
 
 The harness coordinator is a separate packaged skill sourced from
 [`../.agents/skills/harness-run/SKILL.md`](../.agents/skills/harness-run/SKILL.md).
