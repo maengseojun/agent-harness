@@ -43,6 +43,8 @@ Review the draft for unsupported leaps, missing mechanisms, repetition, abrupt t
 
 ## Production and verification
 
+When the requested destination is Notion, read [notion-authoring](../notion-authoring/SKILL.md) before drafting or saving, even if the user did not name the skill. Apply its hub/detail structure, long-page navigation and native-block readback checks. Use work-records for destination authorization; formatting guidance does not authorize publication.
+
 For design-sensitive slides or documents, inspect any supplied reference and
 extract its reusable visual rules before authoring. When the direction remains
 unclear, show a few representative layouts with real content and choose a
