@@ -63,13 +63,21 @@ def roots(home):
 
 def snapshot(home):
     result = {}
-    for root in roots(home):
+    personal_roots = roots(home)
+    releases = [home / '.local/share/agent-harness/releases',
+                home / '.local/share/personal-skills/releases']
+    for root in personal_roots:
         if not root.is_dir():
             continue
         for folder in sorted(root.iterdir()):
             if folder.name.startswith('.'):
                 continue
             if folder.is_symlink():
+                target = folder.resolve()
+                # Aliases of a scanned root and immutable installed releases are not authored copies.
+                if (target.parent in [r.resolve() for r in personal_roots]
+                        or any(target.is_relative_to(r.resolve()) for r in releases)):
+                    continue
                 result[str(folder)] = 'unverified: symlinked skill folder'
             elif folder.is_dir() and (folder / 'SKILL.md').is_file():
                 try:

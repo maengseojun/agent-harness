@@ -81,6 +81,16 @@ class PublicationTest(unittest.TestCase):
             self.assertEqual(len(json.loads(config.read_text())['hooks']['Stop']), 2)
             with self.assertRaises(ValueError):
                 hook.verify(home / 'outside/demo', home)
+            plain = home / '.codex/skills/example'
+            plain.mkdir(parents=True); (plain / 'SKILL.md').write_text('source')
+            alias = home / '.agents/skills/example'; alias.parent.mkdir(parents=True)
+            alias.symlink_to(plain, target_is_directory=True)
+            self.assertIn(str(plain), hook.snapshot(home))
+            self.assertNotIn(str(alias), hook.snapshot(home))
+            release = home / '.local/share/personal-skills/releases/hash/managed'
+            release.mkdir(parents=True); (release / 'SKILL.md').write_text('installed')
+            managed = alias.parent / 'managed'; managed.symlink_to(release, target_is_directory=True)
+            self.assertNotIn(str(managed), hook.snapshot(home))
 
 
 if __name__ == '__main__':

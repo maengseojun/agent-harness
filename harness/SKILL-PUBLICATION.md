@@ -3,7 +3,9 @@
 The UserPromptSubmit hook establishes a per-session baseline of personal skill
 folders. Stop detects new/changed SKILL.md, references, scripts, metadata and
 authored assets (excluding .git, .harness, __pycache__ and .DS_Store), including the personal agent-harness repository's worktrees. Installed
-plugin caches and `.system` folders are outside scope. Pre-existing differences
+plugin caches and `.system` folders are outside scope. Aliases into another
+scanned root and immutable agent-harness/personal-skills release installations
+are excluded; their authored source roots remain tracked. Pre-existing differences
 are not automatically treated as user-authorized updates. Local skill removal
 is reported, not propagated as a remote deletion.
 
@@ -47,3 +49,12 @@ temporary home and mocked provider reads; test results are distinct from native
 hook dispatch. For a harmless live probe, establish a baseline, create a temporary
 personal skill folder, observe Stop, and remove the probe to restore the baseline.
 Do not publish the probe or alter trust approvals to force the test to succeed.
+
+## Observed local dispatch
+
+The native Stop event emitted a skill-publication prompt in the installation
+conversation (2026-10-06). It exposed existing installation aliases as false
+positives. The alias/release exclusion was repaired, its regression checks
+passed, and a current-state recheck returned no pending publication. This proves
+native dispatch of the first installed version, not a full new-skill publication
+cycle or a fresh-session dispatch of every later hash-named version.
