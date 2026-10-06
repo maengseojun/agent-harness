@@ -5,7 +5,7 @@ description: Design, create and verify Notion libraries, documents, illustrated 
 
 # Notion authoring
 
-Apply this skill whenever creating, reorganizing or publishing a Notion deliverable,
+Apply this skill whenever designing, creating, reorganizing or publishing a Notion deliverable,
 including requests phrased only as “save to Notion.” The user need not name it.
 This is agent-side guidance, not a background Notion automation: it does not
 retroactively update pages or run when someone edits Notion outside this agent.
@@ -16,6 +16,10 @@ Keep progress/tasks in Linear when that is the user's working system. A Notion
 review sample is a saved draft, not an adopted specification or Completed record.
 
 ## Discover and design
+
+For a structure-only proposal, use supplied material and clearly label unverified
+destination/schema/capability assumptions. Missing setup need not block a useful
+proposal. Before actual authoring, perform the live checks below.
 
 1. Verify the actual parent, workspace ownership and existing record. Fetch before
    editing. Search by stable task identity; reuse the canonical page.
@@ -28,7 +32,8 @@ review sample is a saved draft, not an adopted specification or Completed record
    Inspect supplied references and research only the cases/capabilities that affect
    this choice. Propose one structure with its reasons and verification path;
    resolve routine details yourself. Reuse an accepted design for routine additions.
-   Keep the main conclusion visible. Put supporting options/evidence in toggles;
+   Keep the main conclusion and essential sources/limits visible. Put secondary
+   options/evidence in toggles; honor requested visible Sources sections;
    move an independently useful domain to a linked child page. Link existing
    common foundations instead of copying them.
 4. For images/diagrams, include a descriptive caption and the nearby explanation
@@ -53,8 +58,9 @@ specific decisions, put navigation near the top, after a short purpose/status:
   within the page, using the current enhanced-Markdown specification. Keep it
   outside toggles and before the detailed body; it complements the reader index.
 - Use a consistent heading hierarchy: major topics, then their explanations or
-  diagrams. Keep the conclusion and decision summary visible; put alternatives
-  and evidence inside toggles. Do not expect plain toggle titles to enter a TOC.
+  diagrams. Keep the conclusion, decision summary and essential sources/limits
+  visible; put alternatives and secondary evidence inside toggles. Do not expect
+  plain toggle titles to enter a TOC.
 - Domain child pages link back to their parent and have their own TOC when long.
   A short note needs neither an empty TOC nor a redundant navigation section.
 

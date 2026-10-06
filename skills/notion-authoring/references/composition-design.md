@@ -10,6 +10,9 @@ Inspect the actual material, supplied reference pages and existing destination.
 Identify what the reader must find, understand, compare or reuse, the audience,
 scope, freshness and whether the material is a draft or an adopted result. Read
 referenced attachments when they support a claim; record any coverage gap.
+If a source/link is missing, preserve the provided draft and mark the gap instead
+of inventing one. Obtain it before treating dependent claims as verified; ask
+only when the missing source prevents the requested result, not a useful proposal.
 
 When Linear is the working system, retain tasks, execution criteria and evolving
 drafts there. Notion can hold the adopted knowledge and concluded results as the
@@ -84,6 +87,8 @@ header separately; disclose any unsupported layout operation.
 Use native text/headings as the readable backbone. Use a native TOC to navigate
 sections of a long page; a reader index links separate destinations. Put the main
 answer and decision visible, and secondary evidence or alternatives in toggles.
+Keep essential sources, scope and limits visible, including any requested Sources
+section. A toggle is not a reason to hide what readers need to judge a conclusion.
 Use static tables for a fixed comparison and databases for records that keep
 changing or need queries. Code blocks preserve exact runnable examples; callouts
 should highlight an actual caveat or decision, not decorate every paragraph.
