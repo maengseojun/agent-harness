@@ -58,3 +58,11 @@ positives. The alias/release exclusion was repaired, its regression checks
 passed, and a current-state recheck returned no pending publication. This proves
 native dispatch of the first installed version, not a full new-skill publication
 cycle or a fresh-session dispatch of every later hash-named version.
+
+## Installed aliases
+
+`verify --skill` accepts a direct personal skill alias whose resolved folder has
+the same name and belongs to a scanned personal source root or an installed
+agent-harness/personal-skills release tree. The receipt records the resolved
+source. Broken links, outside targets, resource symlinks and target changes
+during remote readback are rejected. Release files are never modified by verification.

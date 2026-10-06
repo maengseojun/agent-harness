@@ -146,6 +146,21 @@ def gh(endpoint):
     return json.loads(result.stdout)
 
 
+def source_folder(folder, home):
+    """Resolve installed aliases without accepting arbitrary linked directories."""
+    if not folder.is_symlink():
+        return folder
+    target = folder.resolve(strict=True)
+    personal_roots = [root.resolve() for root in roots(home)]
+    releases = [home / '.local/share/agent-harness/releases',
+                home / '.local/share/personal-skills/releases']
+    if target.name != folder.name or not (
+            target.parent in personal_roots
+            or any(target.is_relative_to(root.resolve()) for root in releases)):
+        raise ValueError('Skill alias must resolve to a matching personal source or installed release')
+    return target
+
+
 def verify(folder, home=Path.home()):
     session = os.environ.get('CODEX_THREAD_ID')
     if not isinstance(session, str) or not re.fullmatch(r'[A-Za-z0-9_-]+', session):
@@ -153,7 +168,8 @@ def verify(folder, home=Path.home()):
     folder = Path(os.path.abspath(folder))
     if folder.parent not in roots(home) or not re.fullmatch(r'[a-z0-9][a-z0-9-]*', folder.name):
         raise ValueError('Only a direct personal skill folder is supported')
-    local = files(folder)
+    source = source_folder(folder, home)
+    local = files(source)
     if 'SKILL.md' not in local:
         raise ValueError('Missing SKILL.md')
     branch = gh(f'repos/{REPOSITORY}')['default_branch']
@@ -182,7 +198,7 @@ def verify(folder, home=Path.home()):
     # Bind the receipt to the bytes inspected, not a second read after the network calls.
     values = {name: hashlib.sha256(data).hexdigest() for name, data in local.items()}
     inspected = hashlib.sha256(json.dumps(values, sort_keys=True).encode()).hexdigest()
-    if digest(folder) != inspected:
+    if source_folder(folder, home) != source or digest(source) != inspected:
         raise ValueError('Skill changed during verification; no receipt saved')
     directory = state_dir(home)
     directory.mkdir(parents=True, exist_ok=True)
@@ -190,7 +206,7 @@ def verify(folder, home=Path.home()):
         fcntl.flock(lock, fcntl.LOCK_EX)
         path = directory / 'verified.json'
         receipt = {'digest': inspected, 'repository': REPOSITORY, 'branch': branch, 'commit': sha,
-                   'session': session}
+                   'session': session, 'source': str(source)}
         if receipt['session']:
             session_path = directory / (hashlib.sha256(receipt['session'].encode()).hexdigest() + '.json')
             if session_path.exists():
