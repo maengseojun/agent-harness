@@ -14,6 +14,19 @@ current and leave Linear Done for user confirmation. Scale standalone tasks down
 
 Select additional skills only for a concrete need. Prefer available repository tools, APIs, and connectors for structured work; use computer interaction when the UI itself matters or other interfaces do not cover the task. Do not install tools, introduce orchestration, or delegate simply because they are available.
 
+For web UI creation or refinement requiring design judgment, consider the available
+`frontend-guidance` advisory skill. A requested dithered motion style belongs to
+`dither-motion-landing`; an HTML deck belongs to `frontend-slides`. The user's
+design requirements outrank optional aesthetic advice. Skip guidance already
+covered by the brief or existing implementation.
+
+When existing guidance lacks a capability needed for the task, inspect relevant
+GitHub skills/files. Either apply useful reading directly or acquire a reviewed
+skill folder for reuse when the user has authorized acquisition. Check
+overlap, pin the source commit, preserve existing skills and verify installation;
+use skill-installer when available. Announce acquisition, and distinguish it from
+permission to run bundled scripts, install runtimes or change hooks.
+
 Implement the smallest sufficient change. For lengthy work, keep a compact project-local progress record with decisions, verification, and the next action; use an existing record if available. This is task state, not a request to update personal memories.
 
 Run the narrowest project-defined checks that cover the change. Inspect the actual result and report what was verified and what remains unverified. Avoid repeated checks after success unless a new change or unresolved concern warrants them.
