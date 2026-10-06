@@ -55,6 +55,27 @@ readback, verify the TOC block, heading order, index destinations, preserved chi
 pages and captions. Do not claim click behavior or rendered layout without a
 browser check.
 
+## Compose for two reading depths
+
+Start substantive review documents with the question they answer, their scope,
+source/parent links and approval status. Give a short answer-first summary before
+navigation or detail. State the review completion criterion when useful; do not
+turn a draft into an approved design merely because its open questions are closed.
+
+Choose the page role before arranging blocks:
+- **Hub:** summarize the domain, then an ordered index of linked documents with
+  the question each answers. Use an existing database view when appropriate;
+  otherwise a small linked table is sufficient. Do not reproduce every child.
+- **Detail:** explain what it is, why it matters, how it works and a concrete
+  example where useful. Use tables for real comparisons and specify the source,
+  payer or authority when those distinctions matter. Link adjacent topics at the
+  point of use instead of re-explaining them.
+
+End with explicit open decisions (or a verified statement that none remain),
+not vague TODOs. For review packages, keep the current preference visible and
+alternatives/evidence expandable. Do not force every paragraph into identical
+labels or add navigation properties/databases to a short standalone note.
+
 ## Author and deliver
 
 Use `work-records` for personal record approval and the exact-call helper contract.
