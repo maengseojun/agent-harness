@@ -15,6 +15,134 @@ from run import execute
 
 
 class ToolHookTests(unittest.TestCase):
+    def test_convert_page_to_skill_is_protected_under_both_notion_names(self):
+        for name in ('mcp__codex_apps__notion_notion_convert_page_to_skill',
+                     'mcp__notion__convert_page_to_skill'):
+            with self.subTest(name=name):
+                args = {'page_url': 'https://app.notion.com/p/' + 'a' * 32}
+                self.assertEqual('write', tool_hook.protected(name, args))
+                self.assertTrue(work_records.notion_write(name, args))
+                self.assertEqual('deny', work_records.handle({
+                    'hook_event_name': 'PreToolUse', 'session_id': 'fixture-coordinator',
+                    'tool_use_id': 'unapproved', 'tool_name': name, 'tool_input': args},
+                    self.root / 'unapproved-records')['hookSpecificOutput']['permissionDecision'])
+
+    def test_unsupported_notion_operations_never_become_task_obligations(self):
+        self.config(); self.ready(complete=False)
+        cases = [
+            ('create_file_upload', {'filename': 'diagram.png'}),
+            ('create_attachment', {'filename': 'diagram.svg', 'content': '<svg/>'}),
+            ('create_database', {'parent': {'page_id': self.dest['target']}, 'schema': 'CREATE TABLE ("Name" TITLE)'}),
+            ('create_folder', {'parent': {'page_id': self.dest['target']}, 'title': 'Files'}),
+            ('update_data_source', {'data_source_id': self.dest['target']}),
+            ('update_folder', {'folder_id': self.dest['target']}),
+            ('create_view', {'database_id': self.dest['target'], 'data_source_id': 'source', 'name': 'All', 'type': 'table'}),
+            ('update_view', {'view_id': 'different-target', 'name': 'All'}),
+            ('move_pages', {'new_parent': {'page_id': self.dest['target']}, 'page_or_database_ids': ['page']}),
+            ('duplicate_page', {'page_id': self.dest['target']}),
+            ('create_comment', {'page_id': self.dest['target'], 'markdown': 'Comment'}),
+            ('convert_page_to_skill', {'page_url': self.dest['target']}),
+            ('update_page', {'page_id': self.dest['target'], 'command': 'update_properties', 'icon': '⭐'}),
+            ('update_page', {'page_id': self.dest['target'], 'command': 'replace_content', 'new_str': 'Body', 'cover': 'https://example.com/image.png'}),
+            ('update_page', {'page_id': self.dest['target'], 'command': 'insert_content', 'content': 'Body', 'position': {'type': 'end'}}),
+            ('update_page', {'page_id': self.dest['target'], 'command': 'apply_template', 'template_id': 'template'}),
+            ('update_page', {'page_id': self.dest['target'], 'command': 'update_verification', 'verification_status': 'verified'}),
+        ]
+        for endpoint, args in cases:
+            with self.subTest(endpoint=endpoint, args=args):
+                tool = 'mcp__codex_apps__notion_notion_' + endpoint
+                path = self.project / 'unsupported-payload.json'
+                path.write_text(canonical(args))
+                gate = {'operation_id': 'unsupported', 'destination_id': self.dest['id'],
+                        'workspace': self.dest['workspace'], 'target': self.dest['target'],
+                        'operation': 'update', 'payload_path': str(path),
+                        'payload_sha256': sha(path.read_bytes()), 'authorization_ref': self.dest['authorization_ref']}
+                with self.assertRaisesRegex(LedgerError, 'no native provider readback adapter; write blocked'):
+                    self.prepare('unsupported', 'write', tool, args, gate)
+                self.assertEqual('deny', self.event('PreToolUse', tool, args)
+                                 ['hookSpecificOutput']['permissionDecision'])
+                hooks = self.call('status')['runtime_hooks']
+                self.assertNotIn('unsupported', hooks.get('tool_calls', {}))
+                self.assertEqual({}, hooks['writes'])
+
+    def test_notion_task_target_is_derived_from_actual_input(self):
+        self.config(); self.ready(complete=False)
+        path = self.project / 'target-payload.json'
+        path.write_text(canonical({'title': 'Approved title'}))
+        gate = {'operation_id': 'target', 'destination_id': self.dest['id'],
+                'workspace': self.dest['workspace'], 'target': self.dest['target'],
+                'operation': 'update', 'payload_path': str(path),
+                'payload_sha256': sha(path.read_bytes()), 'authorization_ref': self.dest['authorization_ref']}
+        with self.assertRaisesRegex(LedgerError, 'actual write resource mismatch'):
+            self.prepare('wrong-target', 'write', 'mcp__codex_apps__notion_notion_update_page',
+                         {'page_id': 'different-target', 'command': 'update_properties',
+                          'properties': {'title': 'Approved title'}}, gate)
+        self.assertEqual({}, self.call('status')['runtime_hooks']['writes'])
+
+    def test_unsupported_task_write_does_not_consume_record_approval(self):
+        self.config(); self.ready(complete=False)
+        base = self.root / 'blocked-records'
+        draft = self.project / 'view-draft.md'
+        draft.write_text('Rename the approved view to All.')
+        tool = 'mcp__codex_apps__notion_notion_update_view'
+        args = {'view_id': self.dest['target'], 'name': 'All'}
+        candidate = work_records.dispatch({
+            'action': 'propose', 'session_id': 'fixture-coordinator', 'task_id': 'same-id',
+            'result_key': 'view', 'record_kind': 'operation', 'draft_path': str(draft),
+            'linear_refs': [], 'completion_basis': 'fixture', 'notion_target': self.dest['target'],
+            'endix': False, 'tool_name': tool, 'tool_input': args,
+            'expected_state': {'name': 'All'}}, base)
+        revision = candidate['revisions'][-1]
+        ids = {'session_id': 'fixture-coordinator', 'candidate_id': candidate['candidate_id'],
+               'revision_id': revision['revision_id']}
+        work_records.dispatch({**ids, 'action': 'presented', 'presentation_ref': 'fixture'}, base)
+        work_records.dispatch({**ids, 'action': 'decide', 'draft_sha256': revision['draft_sha256'],
+                               'decision': 'approved', 'user_decision_ref': 'fixture-user'}, base)
+        before = (base / 'state.json').read_bytes()
+        result = work_records.handle({'hook_event_name': 'PreToolUse', 'cwd': str(self.project),
+            'session_id': 'fixture-coordinator', 'tool_use_id': 'blocked-view',
+            'tool_name': tool, 'tool_input': args}, base)
+        self.assertEqual('deny', result['hookSpecificOutput']['permissionDecision'])
+        self.assertEqual(before, (base / 'state.json').read_bytes())
+        self.assertEqual({}, self.call('status')['runtime_hooks']['writes'])
+
+    def test_operation_record_and_task_gates_require_provider_page_readback(self):
+        self.write_plan()
+        base = self.root / 'operation-records'
+        draft = self.project / 'operation-draft.md'
+        draft.write_text(self.write_args['new_str'])
+        candidate = work_records.dispatch({
+            'action': 'propose', 'session_id': 'fixture-coordinator', 'task_id': 'same-id',
+            'result_key': 'operation', 'record_kind': 'operation', 'draft_path': str(draft),
+            'linear_refs': [], 'completion_basis': 'fixture', 'notion_target': self.dest['target'],
+            'endix': False, 'tool_name': self.write_tool, 'tool_input': self.write_args,
+            'expected_state': {'content': draft.read_text()}}, base)
+        revision = candidate['revisions'][-1]
+        ids = {'session_id': 'fixture-coordinator', 'candidate_id': candidate['candidate_id'],
+               'revision_id': revision['revision_id']}
+        work_records.dispatch({**ids, 'action': 'presented', 'presentation_ref': 'fixture'}, base)
+        work_records.dispatch({**ids, 'action': 'decide', 'draft_sha256': revision['draft_sha256'],
+                               'decision': 'approved', 'user_decision_ref': 'fixture-user'}, base)
+        event = {'hook_event_name': 'PreToolUse', 'cwd': str(self.project),
+                 'session_id': 'fixture-coordinator', 'tool_use_id': 'operation-write',
+                 'tool_name': self.write_tool, 'tool_input': self.write_args}
+        self.assertEqual('allow', work_records.handle(event, base)['hookSpecificOutput']['permissionDecision'])
+        self.event('PostToolUse', self.write_tool, self.write_args, {'ok': True}, event_id='operation-write')
+        self.assertEqual('deny', work_records.handle({**event, 'tool_use_id': 'retry'}, base)
+                         ['hookSpecificOutput']['permissionDecision'])
+        self.assertEqual('uncertain', self.call('status')['runtime_hooks']['writes']['save']['outcome'])
+        with self.assertRaises(LedgerError):
+            self.call('complete')
+        write = self.call('status')['runtime_hooks']['tool_calls']['save-call']
+        for response in ({'ok': True}, {'observed_state': {'content': draft.read_text()}},
+                         self.read_response(target='wrong-page'), self.read_response(body='Different body')):
+            with self.subTest(response=response), self.assertRaises(LedgerError):
+                tool_hook.actual_payload(write, self.write_args, self.read_tool, self.read_args, response)
+        # Exercise the provider's native wire response, not an observed_state attestation.
+        self.fetch(self.read_response())
+        self.assertEqual('verified', self.call('status')['runtime_hooks']['writes']['save']['outcome'])
+        self.assertEqual('done', self.call('complete')['stage'])
+
     def test_exact_notion_sentence_update_and_actual_readback(self):
         target = 'https://app.notion.com/p/' + 'a' * 32
         tool = 'mcp__codex_apps__notion_notion_update_page'
