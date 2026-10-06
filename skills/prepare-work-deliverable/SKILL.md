@@ -29,6 +29,8 @@ Review the draft for unsupported leaps, missing mechanisms, repetition, abrupt t
 
 ## Production and verification
 
+When the requested destination is Notion, read [notion-authoring](../notion-authoring/SKILL.md) before drafting or saving, even if the user did not name the skill. Apply its hub/detail structure, long-page navigation and native-block readback checks. Use work-records for destination authorization; formatting guidance does not authorize publication.
+
 Use the available document, presentation, spreadsheet, or PDF skill when producing those formats; follow its actual artifact and rendering requirements. Inspect the rendered output when layout matters. Verify material figures and citations against the source record. Distinguish file existence, layout verification, and substantive verification.
 
 Deliver the artifact with a concise account of verification and material limitations. Stop when the brief is satisfied. Do not impose multiple rewrite rounds unless a concrete defect remains.

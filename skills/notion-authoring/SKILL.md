@@ -5,6 +5,11 @@ description: Design, create and verify Notion documents, illustrated reports, li
 
 # Notion authoring
 
+Apply this skill whenever creating, reorganizing or publishing a Notion deliverable,
+including requests phrased only as “save to Notion.” The user need not name it.
+This is agent-side guidance, not a background Notion automation: it does not
+retroactively update pages or run when someone edits Notion outside this agent.
+
 Choose a structure for the reader's job. Use the connected capabilities when they
 help; do not promise every Notion UI feature or add a database just to showcase it.
 Keep progress/tasks in Linear when that is the user's working system. A Notion
