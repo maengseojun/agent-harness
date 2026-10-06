@@ -7,6 +7,12 @@ description: Turn an agreed brief into a substantial research report, business d
 
 Use the supplied brief and accepted decisions. If absent, infer a compact working brief and clarify only consequential gaps. Match the requested language and adapt prose to the deliverable. Work is the user's default destination for these tasks; do not transfer the task automatically or refuse work in the current surface when the user chose it.
 
+Apply [work-records — Project/task workflow](../work-records/SKILL.md#projecttask-workflow)
+before execution/resumption: read task → Spec/Plan → Architecture/Rules → dependencies.
+Use its criteria, lead/handoff, change and offline rules for this deliverable;
+an inferred brief does not approve draft criteria. Keep evidence current, leave
+Linear Done for user confirmation and avoid Architecture overhead for standalone tasks.
+
 ## Evidence and context
 
 Select available source connectors and artifact skills relevant to this output. Read the actual primary material behind important claims. Use computer interaction when required by the source or visual task. Keep a compact source record for substantial research: claim, source location, relevant support, date when material, and uncertainty or conflicting evidence. Separate observations, estimates, and recommendations. Do not treat a search snippet as verified source content.

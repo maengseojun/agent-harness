@@ -11,6 +11,11 @@ Inspect relevant available material before asking questions. Resolve factual que
 
 Default routing: coding and technical verification to Codex; research, documents, spreadsheets, and pitch preparation to Work. Respect the user's chosen surface. Mixed tasks share one brief: verify product capabilities before using them as pitch claims. Never transfer or create a task without the user's request, or claim a handoff occurred merely because a brief exists.
 
+Use [work-records — Project/task workflow](../work-records/SKILL.md#projecttask-workflow)
+for project Architecture/Rules and separate task Spec/Plan, revision/approval
+references and requirement-to-task/Acceptance mapping. Interview only unresolved
+criteria; standalone short/mid tasks need no project Architecture overhead.
+
 Produce a concise brief covering only applicable items:
 
 - Goal, audience, and the decision or action the output should support.

@@ -20,6 +20,65 @@ before writes. Endix workspace Notion needs separate explicit approval for the
 exact content and destination, after official adoption or overall completion.
 Do not transfer unrelated confidential team material into a personal workspace.
 
+## Project/task workflow
+
+This is the canonical document contract for task-brief, execute-code-brief and
+prepare-work-deliverable. Reuse existing Linear documents, relations and working
+records; this contract does not introduce a database, bot, runtime or lock system,
+or prove that hooks enforce it.
+
+- For a project, interview and agree Architecture first, then Environment & Rules,
+  then Tasks and each task's Spec/Plan, before executing the requested task.
+  Architecture is the top entry: goal and success criteria, agreed structure and
+  diagram with textual responsibilities and decision reasons, open questions,
+  Rules and Tasks links. Each task links back to the relevant Architecture section.
+  Navigation is not a claim that a document is a native issue parent.
+- Each task links separate Spec and Plan documents. Keep Spec focused on goal,
+  source criteria, Owns/change boundaries, numbered requirements, Acceptance,
+  exclusions and unresolved inputs. Plan covers readiness/dependencies, actual
+  environment, steps, checks, failure/change handling and review focus. Map every
+  requirement to its responsible task and Acceptance check/evidence; missing
+  ownership or verification means not ready. Standalone short/mid tasks retain
+  their own Spec/Plan and acceptance without unnecessary Architecture or project
+  hierarchy. Scale detail to the task; trivial edits need no document scaffolding.
+- Distinguish document status `draft`, `current` and `superseded`. Record each
+  source's stable document ID/link, fetched `updatedAt` and user approval reference
+  in its header/index and the execution record. `current` identifies the agreed
+  applicable revision; a draft is not an execution criterion and a superseded
+  revision points to its replacement. Document agreement and execute authorization
+  are separate: record the user's requested task and permitted execution scope.
+  A title, date, approval for an older revision or task-list snippet is insufficient.
+- Before execution or resumption, read task current state → linked Spec/Plan →
+  relevant Architecture/Rules → dependency results. Check revision/approval,
+  readiness, actual inputs and Owns against the requested scope. Resolve conflicting
+  or stale criteria before affected work. Keep the task's current body useful:
+  goal, phase/progress, decision reason, blocker, next action, source links and
+  artifacts/check results. Reflect settled decisions in the canonical documents,
+  not only comments; preserve meaningful previous decisions and their references.
+- A slight Plan change, such as order or file selection within Owns, may proceed
+  when goal, architecture, scope, constraints and Acceptance remain unchanged.
+  Update the current Plan and log previous/new approach, reason, impact and decision
+  basis. Substantive changes to those criteria require re-interview and agreement
+  before affected execution; a Plan adjustment cannot widen an exclusive boundary.
+- One task has one active lead/chat. Handoff retains the same task ID and records
+  outgoing/incoming lead, applied source IDs/revisions/approvals, progress, artifacts,
+  checks, blockers and next action before the new lead continues. Different tasks
+  may run in parallel only after comparing Owns/dependencies; overlapping files or
+  documents require sequencing or explicit handoff. Do not assume a technical lock.
+- On connection failure, attempt safe read/reconnection first. Offline execution
+  may use only previously fetched, user-approved criteria and execution scope;
+  keep a local pending-sync record and disclose the gap. Do not start a new task
+  with unread criteria. Stop affected work if freshness or concurrent changes are
+  uncertain. After recovery, verify workspace/target, fetch current sources and
+  reconcile local changes and uncertain delivery before retrying or syncing;
+  separately read back authorized writes. Never retry an uncertain write blindly.
+- After Acceptance and required review, record evidence and limitations and leave
+  the task awaiting user confirmation. Only the user confirms Linear Done; tests,
+  Stop or a merged PR cannot decide it. Use a verified existing status, not an
+  invented workflow state. After conclusion, a Notion record is a separate concrete
+  draft/destination approval and readback under the policies below; task execution
+  or Done approval does not approve its first save or finalization.
+
 ## While working
 
 For substantive personal Work and Codex work on this computer, verify the

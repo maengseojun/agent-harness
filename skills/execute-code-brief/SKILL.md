@@ -7,6 +7,11 @@ description: Execute an agreed coding brief or specification in Codex, preservin
 
 Read the supplied brief and applicable repository guidance. Inspect the relevant code, working changes, and project-defined checks. Preserve accepted decisions; reopen planning only for a contradiction, inaccessible required input, or evidence invalidating the approach.
 
+Apply [work-records — Project/task workflow](../work-records/SKILL.md#projecttask-workflow)
+before execution/resumption: read task → Spec/Plan → Architecture/Rules → dependencies.
+Use its criteria, lead/handoff, change and offline rules; keep acceptance evidence
+current and leave Linear Done for user confirmation. Scale standalone tasks down.
+
 Select additional skills only for a concrete need. Prefer available repository tools, APIs, and connectors for structured work; use computer interaction when the UI itself matters or other interfaces do not cover the task. Do not install tools, introduce orchestration, or delegate simply because they are available.
 
 Implement the smallest sufficient change. For lengthy work, keep a compact project-local progress record with decisions, verification, and the next action; use an existing record if available. This is task state, not a request to update personal memories.
