@@ -61,6 +61,54 @@ class PublicationTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'file set'):
                     hook.verify(folder, home)
 
+    def test_alias_verification_and_rejection(self):
+        import base64
+        with patch.dict(hook.os.environ, {'CODEX_THREAD_ID': 'test'}), tempfile.TemporaryDirectory() as temp:
+            home = Path(temp)
+            alias = home / '.codex/skills/demo'
+            alias.parent.mkdir(parents=True)
+            source = home / '.local/share/personal-skills/releases/hash/demo'
+            source.mkdir(parents=True)
+            (source / 'SKILL.md').write_text('published')
+            alias.symlink_to(source, target_is_directory=True)
+            responses = [{'default_branch': 'main'}, {'sha': 'commit'}, {'tree': [
+                {'path': 'skills/demo/SKILL.md', 'sha': 'blob', 'mode': '100644', 'type': 'blob'}]},
+                {'encoding': 'base64', 'content': base64.b64encode(b'published').decode()},
+                {'default_branch': 'main'}, {'sha': 'commit'}]
+            with patch.object(hook, 'gh', side_effect=responses):
+                self.assertEqual(hook.verify(alias, home)['source'], str(source.resolve()))
+            (source / 'SKILL.md').write_text('modified')
+            with patch.object(hook, 'gh', side_effect=responses):
+                with self.assertRaisesRegex(ValueError, 'differs'):
+                    hook.verify(alias, home)
+            (source / 'SKILL.md').write_text('published')
+            replacement = home / '.local/share/personal-skills/releases/other/demo'
+            replacement.mkdir(parents=True)
+            (replacement / 'SKILL.md').write_text('published')
+            def read(endpoint):
+                value = responses.pop(0)
+                if not responses:
+                    alias.unlink(); alias.symlink_to(replacement, target_is_directory=True)
+                return value
+            with patch.object(hook, 'gh', side_effect=read):
+                with self.assertRaisesRegex(ValueError, 'changed during'):
+                    hook.verify(alias, home)
+            outside = home / 'outside/demo'
+            outside.mkdir(parents=True); (outside / 'SKILL.md').write_text('published')
+            alias.unlink(); alias.symlink_to(outside, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, 'matching personal'):
+                hook.verify(alias, home)
+            alias.unlink(); alias.symlink_to(home / 'missing', target_is_directory=True)
+            with self.assertRaises(FileNotFoundError):
+                hook.verify(alias, home)
+            plain = home / '.agents/skills/demo'
+            plain.mkdir(parents=True); (plain / 'SKILL.md').write_text('published')
+            alias.unlink(); alias.symlink_to(plain, target_is_directory=True)
+            self.assertEqual(hook.source_folder(alias, home), plain.resolve())
+            (plain / 'linked-resource').symlink_to(plain / 'SKILL.md')
+            with self.assertRaisesRegex(ValueError, 'resources'):
+                hook.verify(alias, home)
+
     def test_install_preserves_existing_and_is_idempotent(self):
         with patch.dict(hook.os.environ, {'CODEX_THREAD_ID': 'test'}), tempfile.TemporaryDirectory() as temp:
             home = Path(temp); config = home / '.codex/hooks.json'; config.parent.mkdir()
