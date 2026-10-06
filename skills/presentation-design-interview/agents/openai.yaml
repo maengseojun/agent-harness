@@ -1,0 +1,4 @@
+interface:
+  display_name: "Presentation Design Interview"
+  short_description: "Co-design slides through interviews, references, and typography"
+  default_prompt: "Use $presentation-design-interview to clarify my presentation and show visual directions before refining the selected layout."
