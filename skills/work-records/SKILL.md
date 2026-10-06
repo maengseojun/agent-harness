@@ -22,12 +22,18 @@ Do not transfer unrelated confidential team material into a personal workspace.
 
 ## While working
 
-For substantive work, search and reuse the existing personal project/issue.
+For substantive personal Work and Codex work on this computer, verify the
+personal connection and search/reuse or create the issue before substantial
+execution. This includes research, documents, specifications, coursework and
+coding, whether or not a Harness ledger is used. Personal working notes already
+have authorization; do not ask again just to update Linear.
 Keep its goal, completion criteria, child tasks, dependencies, related work,
 decisions and rationale, conversation/source links, artifacts and next action
 current. Use real relations when supported. Break down independently actionable
 work; do not create an issue per sentence or duplicate the conversation verbatim.
-Read back updates. Ordinary explanations and trivial edits need no new issue.
+Update at meaningful milestones and before the final response; read back updates
+and include the canonical issue link in the result. Ordinary explanations and
+trivial edits need no new issue. Do not mistake a local ledger for Linear sync.
 If access fails, preserve a local draft and report the missing sync.
 For coding work, personal Linear remains the working map. Open a GitHub issue
 only when the repository has a distinct actionable problem worth tracking there;
@@ -50,7 +56,16 @@ conversation, artifacts and checks. A completed independent milestone or a
 failed/abandoned experiment with a conclusion and learning can be recorded.
 An end-of-turn signal, PR status or generated draft alone is not evidence.
 
-At Stop, the local reminder inspects actual session-bound tasks, including
+At Stop, a bounded reminder also covers tool-using turns without a Harness task.
+It asks the host to assess actual personal work, reconcile the Linear update and
+readback, and decide whether a concluded result merits a Notion proposal. A
+document or specification can be a result without code, a PR or an independent
+Harness review. Do not create busywork for trivial turns or repeat a proposal
+already presented. The reminder does not write services or prove sync succeeded.
+It runs only on hosts delivering the registered hooks; installation alone does
+not prove Work/cloud coverage. State the actual unavailable surface when needed.
+
+The existing task-result reminder inspects actual session-bound tasks, including
 completed tasks, with current artifact, check and review evidence. It requests
 one assessment per distinct task result, even if no draft was registered; it
 never completes a task or authorizes publication. Use `action=assess` with
@@ -184,3 +199,38 @@ Record approval, rejection and correction references in the local workflow and
 Linear as useful evidence for future judgment criteria. Autonomous saving is a
 future TODO: propose criteria after enough real examples and obtain user approval
 before enabling it. Endix workspace consent remains separate.
+
+## Rich Notion authoring operations
+
+Use `notion-authoring` for page structure, native blocks, captions, databases and
+views. Approval governs the exact material and destination, not a ban on those
+features. Reuse the user's concrete save approval for the same approved content
+and assets after returned IDs/native-markup substitutions; do not ask again for
+transport details. A substantive addition or different destination still requires
+approval. Never upload via another route to bypass a gate denial.
+
+For file uploads, databases, views, folders and other supported authoring calls,
+`work_records.py propose` accepts `record_kind:"operation"`. Supply the existing
+fields, an explanatory `draft_path`, exact `tool_name`/`tool_input`, explicit
+`notion_target`, and nonempty `expected_state` for independent readback. Uploads
+also require `asset_paths:[absolute_path]`, binding the bytes and filename. The
+operation target for an upload is its intended destination page; registration
+is not permission to attach elsewhere. Repeat propose/presented/decide for each
+exact call, referencing the existing user approval within scope. Future or agent
+messaging tools are not admitted automatically.
+
+The normal one-attempt rule applies. An upload response/POST is not final page
+publication. `saved` operation evidence uses a separate readback file containing
+`target`, `evidence_ref`, `resource_url` (actual object/upload ID) and
+`observed_state`, which must match the proposed expected state. Keep the original
+response. For media, also verify the eventual page attachment/caption by fetch;
+for databases/views, verify actual schema/configuration/rows. These are cooperative
+coordinator attestations, not authenticated external-state proofs. Unknown or
+unreadable results remain uncertain, without a blind retry. Operations are not
+outcome records and do not trigger outcome backlink/finalization requirements.
+
+An active native Harness task also needs a supported provider readback adapter.
+Currently this covers basic page creation and content/property edits, not rich
+operations such as uploads, views or database schema changes. The task gate
+rejects unsupported calls before dispatch. Operation approval does not bypass
+it; do not change task status or reroute the write to evade that restriction.

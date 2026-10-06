@@ -1,0 +1,80 @@
+---
+name: notion-authoring
+description: Design, create and verify Notion documents, illustrated reports, linked subpages, databases and views using the connected tools. Use for a requested Notion deliverable or improving its organization and readability.
+---
+
+# Notion authoring
+
+Choose a structure for the reader's job. Use the connected capabilities when they
+help; do not promise every Notion UI feature or add a database just to showcase it.
+Keep progress/tasks in Linear when that is the user's working system. A Notion
+review sample is a saved draft, not an adopted specification or Completed record.
+
+## Discover and design
+
+1. Verify the actual parent, workspace ownership and existing record. Fetch before
+   editing. Search by stable task identity; reuse the canonical page.
+2. Discover current tool schemas and read `notion://docs/enhanced-markdown-spec`.
+   Read the relevant live view/schema documentation for database work. Tool
+   availability, plan limits and actual successful use are different facts.
+3. Pick the smallest useful structure using [capabilities](references/capabilities.md).
+   Keep the main conclusion visible. Put supporting options/evidence in toggles;
+   move an independently useful domain to a linked child page. Link existing
+   common foundations instead of copying them.
+4. For images/diagrams, include a descriptive caption and the nearby explanation
+   needed to interpret them. State assumptions and unresolved choices. Preserve
+   an editable source when requested; label independently drawn previews honestly.
+   Use the requested diagram skill for creation, not a placeholder pretending to
+   be a diagram. Use a preview or short interview only when a material audience,
+   purpose or structure choice is missing.
+
+Before writing, bound the deliverable: intended pages, records, diagrams and
+views. Do not expand that inventory without a concrete user need.
+
+## Author and deliver
+
+Use `work-records` for personal record approval and the exact-call helper contract.
+Present the complete content, assets and destination once. Existing approval
+covers the same material after mechanical transport substitutions (returned IDs,
+upload references and equivalent native markup); a changed claim, audience or
+scope needs a new decision. Never ask again solely because a parent returned an ID.
+Personal approval does not authorize team publication, comments to other people,
+sharing, agent messages, deletion or moving unrelated material.
+
+- Preserve native page/database children during updates. A `<page>` or `<database>`
+  tag can move content; use mentions for references. Prefer targeted edits.
+- Indent toggle children with tabs. Use native tables for static comparisons.
+  Keep file names in inline code to avoid accidental domain autolinks.
+- For local media, bind its actual path/hash to an approved upload operation;
+  call create_file_upload, then exactly one multipart POST as instructed by its
+  live schema. Keep returned upload headers/URLs out of logs and evidence.
+  Recheck the file hash before POST. Use returned suggested_markdown, never a
+  local file path or an invented public URL. Upload success is not attachment
+  success: attach it to the approved page and fetch the page separately.
+- Create a database only for repeated records that need properties, queries or
+  multiple views. Fetch its data-source ID before rows, relations or views.
+  Do not confuse a database block, data source and view ID. Define the smallest
+  schema; verify computed fields with sample data if requested. Schema drops,
+  moving content, public forms and access changes need explicit scope.
+- Use async status until success before dependent actions. On a timeout, reconcile
+  the actual object before retrying. Never generate duplicate pages or upload
+  attempts to hide an uncertain response.
+
+## Verify the saved result
+
+Fetch actual body, parent, properties and children; query DB rows and fetch view
+configuration when used. Verify toggle nesting, image/file references, captions,
+links and expected counts. Paginate queries until every intended record has been
+checked; one returned batch is not complete coverage. An acknowledgement is not readback. Keep original
+responses separate from normalized comparisons. Inspect the rendered page through
+an available authorized browser when layout matters; otherwise disclose that
+only structured content was checked. No browser or shell route may bypass a
+write denial. In an active native Harness task, automatic provider readback is
+currently limited to basic page writes. Rich operations may be supported by the
+personal record coordinator yet blocked by that task gate. Do not complete or
+unregister a task to evade this check; report the unsupported adapter and keep
+the draft. Report unsupported capabilities and partial delivery precisely.
+
+Update the canonical Linear issue with result links and gaps; read it back.
+Verify Notion index backlinks without duplicating a child link already present.
+Do not label a record Completed without the user's decision.
