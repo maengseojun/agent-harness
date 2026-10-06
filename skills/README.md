@@ -1,6 +1,10 @@
 # Personal skill library
 
-Each folder is one independently selectable skill. GitHub stores the reviewed
+Each folder is one independently selectable skill. Reviewed personal skill
+creations and updates must reach this repository's live main/default branch,
+not remain only on a feature branch. The user has authorized this skill-only
+publication loop; verify the remote files and local installation separately.
+Do not force-push or change repository settings to satisfy it. GitHub stores the reviewed
 source; the local Codex or Work host uses its installed copy. A GitHub change does
 not update an installed skill. Keep task outcomes and private examples in the
 task record, then use [skill-feedback](skill-feedback/SKILL.md) only when an
@@ -16,6 +20,7 @@ observed correction is reusable in that skill's context.
 | [dither-motion-landing](dither-motion-landing/SKILL.md) | Build landing pages with original dithered imagery and purposeful motion. |
 | [frontend-guidance](frontend-guidance/SKILL.md) | Optional guidance for general website and app UI design; preserves requested aesthetics and links selected Impeccable references. |
 | [prepare-work-deliverable](prepare-work-deliverable/SKILL.md) | Produce a substantial report, pitch or presentation from an agreed brief. |
+| [presentation-design-interview](presentation-design-interview/SKILL.md) | Co-design presentations through focused interviews, real visual references, layout previews and typography refinement. |
 | [skill-feedback](skill-feedback/SKILL.md) | Revise a skill after a reusable, observed gap. |
 | [task-brief](task-brief/SKILL.md) | Prepare a substantial task for execution. |
 | [work-records](work-records/SKILL.md) | Keep work maps and drafts in Linear; propose, save with approval, review and refine finished outcomes in personal Notion. Packaged with harness/install.py for its shared local approval helper. |
