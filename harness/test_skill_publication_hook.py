@@ -9,7 +9,7 @@ import skill_publication_hook as hook
 
 class PublicationTest(unittest.TestCase):
     def test_change_new_resource_receipt_and_repeated_stop(self):
-        with tempfile.TemporaryDirectory() as temp:
+        with patch.dict(hook.os.environ, {'CODEX_THREAD_ID': 'test'}), tempfile.TemporaryDirectory() as temp:
             home = Path(temp)
             folder = home / '.agents/skills/demo'
             folder.mkdir(parents=True)
@@ -47,6 +47,13 @@ class PublicationTest(unittest.TestCase):
                     hook.verify(folder, home)
             (folder / 'link').symlink_to(folder / 'SKILL.md')
             self.assertIn('unverified', hook.snapshot(home)[str(folder)])
+            hook.handle({'hook_event_name': 'UserPromptSubmit', 'session_id': 'other'}, home)
+            (folder / 'SKILL.md').write_text('changed behind link')
+            self.assertEqual(hook.handle({'hook_event_name': 'Stop', 'session_id': 'other'}, home)['decision'], 'block')
+            (folder / 'SKILL.md').write_text('revised')
+            with patch.dict(hook.os.environ, {}, clear=True):
+                with self.assertRaisesRegex(ValueError, 'session identity'):
+                    hook.verify(folder, home)
             (folder / 'link').unlink()
             (folder / 'reference.md').write_text('new resource')
             self.assertIn(str(folder), hook.handle(event, home)['reason'])
@@ -55,7 +62,7 @@ class PublicationTest(unittest.TestCase):
                     hook.verify(folder, home)
 
     def test_install_preserves_existing_and_is_idempotent(self):
-        with tempfile.TemporaryDirectory() as temp:
+        with patch.dict(hook.os.environ, {'CODEX_THREAD_ID': 'test'}), tempfile.TemporaryDirectory() as temp:
             home = Path(temp); config = home / '.codex/hooks.json'; config.parent.mkdir()
             old = {'hooks': {'Stop': [{'hooks': [{'type': 'command', 'command': 'existing'}]}]}}
             config.write_text(json.dumps(old))

@@ -106,7 +106,7 @@ def handle(event, home=Path.home()):
         state = load(state_path, {'baseline': current})
         receipts = load(directory / 'verified.json', {})
         pending = {path: value for path, value in current.items()
-                   if state['baseline'].get(path) != value
+                   if (state['baseline'].get(path) != value or value.startswith('unverified:'))
                    and not (receipts.get(path, {}).get('digest') == value
                             and receipts.get(path, {}).get('session') == session)}
         # Deletion never authorizes removing a skill from GitHub.
@@ -139,6 +139,9 @@ def gh(endpoint):
 
 
 def verify(folder, home=Path.home()):
+    session = os.environ.get('CODEX_THREAD_ID')
+    if not isinstance(session, str) or not re.fullmatch(r'[A-Za-z0-9_-]+', session):
+        raise ValueError('CODEX_THREAD_ID session identity is required for a publication receipt')
     folder = Path(os.path.abspath(folder))
     if folder.parent not in roots(home) or not re.fullmatch(r'[a-z0-9][a-z0-9-]*', folder.name):
         raise ValueError('Only a direct personal skill folder is supported')
@@ -179,7 +182,7 @@ def verify(folder, home=Path.home()):
         fcntl.flock(lock, fcntl.LOCK_EX)
         path = directory / 'verified.json'
         receipt = {'digest': inspected, 'repository': REPOSITORY, 'branch': branch, 'commit': sha,
-                   'session': os.environ.get('CODEX_THREAD_ID')}
+                   'session': session}
         if receipt['session']:
             session_path = directory / (hashlib.sha256(receipt['session'].encode()).hexdigest() + '.json')
             if session_path.exists():
