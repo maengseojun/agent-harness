@@ -67,9 +67,15 @@ def snapshot(home):
         if not root.is_dir():
             continue
         for folder in sorted(root.iterdir()):
-            if (not folder.name.startswith('.') and folder.is_dir()
-                    and not folder.is_symlink() and (folder / 'SKILL.md').is_file()):
-                result[str(folder)] = digest(folder)
+            if folder.name.startswith('.'):
+                continue
+            if folder.is_symlink():
+                result[str(folder)] = 'unverified: symlinked skill folder'
+            elif folder.is_dir() and (folder / 'SKILL.md').is_file():
+                try:
+                    result[str(folder)] = digest(folder)
+                except ValueError as error:
+                    result[str(folder)] = 'unverified: ' + str(error)
     return result
 
 
@@ -93,11 +99,16 @@ def handle(event, home=Path.home()):
     with (directory / 'lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         current = snapshot(home)
+        if not state_path.exists() and kind == 'Stop':
+            return {'systemMessage': 'Skill publication baseline is missing; change detection is '
+                    'unverified. Start a new turn to establish a baseline; inspect skills changed '
+                    'in this turn manually before claiming publication.'}
         state = load(state_path, {'baseline': current})
         receipts = load(directory / 'verified.json', {})
         pending = {path: value for path, value in current.items()
                    if state['baseline'].get(path) != value
-                   and receipts.get(path, {}).get('digest') != value}
+                   and not (receipts.get(path, {}).get('digest') == value
+                            and receipts.get(path, {}).get('session') == session)}
         # Deletion never authorizes removing a skill from GitHub.
         removed = sorted(set(state['baseline']) - set(current))
         atomic(state_path, json.dumps(state, sort_keys=True).encode())
@@ -141,6 +152,9 @@ def verify(folder, home=Path.home()):
     if tree.get('truncated'):
         raise ValueError('Remote tree is truncated; cannot verify complete skill')
     prefix = f'skills/{folder.name}/'
+    if any(entry['type'] not in {'blob', 'tree'} for entry in tree['tree']
+           if entry['path'].startswith(prefix)):
+        raise ValueError('Unsupported remote skill entry (for example a submodule)')
     remote = {entry['path'][len(prefix):]: entry for entry in tree['tree']
               if entry['path'].startswith(prefix) and entry['type'] == 'blob'}
     if set(remote) != set(local):
@@ -151,6 +165,9 @@ def verify(folder, home=Path.home()):
         blob = gh(f'repos/{REPOSITORY}/git/blobs/{entry["sha"]}')
         if blob.get('encoding') != 'base64' or base64.b64decode(blob['content']) != local[name]:
             raise ValueError(f'Remote file differs: {name}')
+    if (gh(f'repos/{REPOSITORY}')['default_branch'] != branch
+            or gh(f'repos/{REPOSITORY}/commits/{quote(branch, safe="")}')['sha'] != sha):
+        raise ValueError('Default branch changed during verification; repeat readback')
     # Bind the receipt to the bytes inspected, not a second read after the network calls.
     values = {name: hashlib.sha256(data).hexdigest() for name, data in local.items()}
     inspected = hashlib.sha256(json.dumps(values, sort_keys=True).encode()).hexdigest()
@@ -161,7 +178,14 @@ def verify(folder, home=Path.home()):
     with (directory / 'lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         path = directory / 'verified.json'
-        receipt = {'digest': inspected, 'repository': REPOSITORY, 'branch': branch, 'commit': sha}
+        receipt = {'digest': inspected, 'repository': REPOSITORY, 'branch': branch, 'commit': sha,
+                   'session': os.environ.get('CODEX_THREAD_ID')}
+        if receipt['session']:
+            session_path = directory / (hashlib.sha256(receipt['session'].encode()).hexdigest() + '.json')
+            if session_path.exists():
+                state = load(session_path, {})
+                state['baseline'][str(folder)] = inspected
+                atomic(session_path, json.dumps(state, sort_keys=True).encode())
         receipts = load(path, {})
         receipts[str(folder)] = receipt
         atomic(path, json.dumps(receipts, sort_keys=True).encode())
@@ -182,7 +206,7 @@ def owned(handler, home):
         return False
 
 
-def install(home=Path.home()):
+def _install(home):
     content = Path(__file__).read_bytes()
     target = home / '.codex/hooks' / ('skill-publication-' + hashlib.sha256(content).hexdigest() + '.py')
     config_path = home / '.codex/hooks.json'
@@ -201,10 +225,20 @@ def install(home=Path.home()):
         config['hooks'][event] = retained
     updated = (json.dumps(config, indent=2) + '\n').encode()
     atomic(target, content)
+    if (config_path.read_bytes() if config_path.exists() else b'{}') != old:
+        raise ValueError('Hook configuration changed during installation; retry from current state')
     if old != updated:
         atomic(config_path.with_name('hooks.json.backup-' + hashlib.sha256(old).hexdigest()), old)
         atomic(config_path, updated)
     return {'hook': str(target), 'events': ['UserPromptSubmit', 'Stop']}
+
+
+def install(home=Path.home()):
+    directory = home / '.codex/hooks'
+    directory.mkdir(parents=True, exist_ok=True)
+    with (directory / 'harness-tools.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        return _install(home)
 
 
 def main():

@@ -2,7 +2,7 @@
 
 The UserPromptSubmit hook establishes a per-session baseline of personal skill
 folders. Stop detects new/changed SKILL.md, references, scripts, metadata and
-assets, including the personal agent-harness repository's worktrees. Installed
+authored assets (excluding .git, .harness, __pycache__ and .DS_Store), including the personal agent-harness repository's worktrees. Installed
 plugin caches and `.system` folders are outside scope. Pre-existing differences
 are not automatically treated as user-authorized updates. Local skill removal
 is reported, not propagated as a remote deletion.
@@ -22,7 +22,8 @@ python3 -B harness/skill_publication_hook.py install
 ```
 
 The installer adds UserPromptSubmit and Stop handlers, preserves existing hooks,
-backs up hooks.json, and installs a hash-named script. It does not modify Codex
+backs up hooks.json, and installs a hash-named script. It shares the existing
+hook-installer lock and refuses an observed intervening configuration change. It does not modify Codex
 hook trust. A new conversation/review may be needed before native dispatch.
 
 After publishing and validating a skill, record authoritative readback:
@@ -33,7 +34,9 @@ python3 -B /absolute/path/to/skill-publication-HASH.py verify --skill /absolute/
 
 `verify` uses the authenticated gh CLI against maengseojun/agent-harness, discovers
 the live default branch, pins its commit, checks the complete file set and every
-file byte, then binds a receipt to the inspected local digest. A branch-only copy,
+file byte, rechecks the default branch and commit, then binds a receipt to the inspected
+local digest and current session. Publication receipts are point-in-time
+evidence, not continuous monitoring of later GitHub changes. A branch-only copy,
 missing/extra file or subsequent edit does not clear the reminder. Run it for
 both source and installed folders that changed. A receipt proves publication,
 not substantive review or automatic cloud installation. No network calls run in

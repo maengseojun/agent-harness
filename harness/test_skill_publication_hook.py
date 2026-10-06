@@ -27,15 +27,27 @@ class PublicationTest(unittest.TestCase):
             tree = {'tree': [{'path': 'skills/demo/SKILL.md', 'sha': 'blob', 'mode': '100644', 'type': 'blob'}]}
             import base64
             responses = [{'default_branch': 'different/default'}, {'sha': 'commit'}, tree,
-                         {'encoding': 'base64', 'content': base64.b64encode(b'revised').decode()}]
-            with patch.object(hook, 'gh', side_effect=responses):
+                         {'encoding': 'base64', 'content': base64.b64encode(b'revised').decode()},
+                         {'default_branch': 'different/default'}, {'sha': 'commit'}]
+            with patch.dict(hook.os.environ, {'CODEX_THREAD_ID': 'test'}), patch.object(hook, 'gh', side_effect=responses):
                 receipt = hook.verify(folder, home)
             self.assertEqual(receipt['branch'], 'different/default')
             self.assertNotIn(str(folder), hook.handle(event, home)['reason'])
-            bad = responses[:-1] + [{'encoding': 'base64', 'content': base64.b64encode(b'wrong').decode()}]
+            bad = responses[:3] + [{'encoding': 'base64', 'content': base64.b64encode(b'wrong').decode()}]
             with patch.object(hook, 'gh', side_effect=bad):
                 with self.assertRaisesRegex(ValueError, 'differs'):
                     hook.verify(folder, home)
+            submodule = {'tree': tree['tree'] + [{'path': 'skills/demo/extra', 'type': 'commit'}]}
+            with patch.object(hook, 'gh', side_effect=responses[:2] + [submodule]):
+                with self.assertRaisesRegex(ValueError, 'Unsupported'):
+                    hook.verify(folder, home)
+            changed_branch = responses[:-1] + [{'sha': 'changed'}]
+            with patch.object(hook, 'gh', side_effect=changed_branch):
+                with self.assertRaisesRegex(ValueError, 'changed during'):
+                    hook.verify(folder, home)
+            (folder / 'link').symlink_to(folder / 'SKILL.md')
+            self.assertIn('unverified', hook.snapshot(home)[str(folder)])
+            (folder / 'link').unlink()
             (folder / 'reference.md').write_text('new resource')
             self.assertIn(str(folder), hook.handle(event, home)['reason'])
             with patch.object(hook, 'gh', side_effect=responses):
