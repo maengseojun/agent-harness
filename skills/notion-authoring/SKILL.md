@@ -31,6 +31,30 @@ review sample is a saved draft, not an adopted specification or Completed record
 Before writing, bound the deliverable: intended pages, records, diagrams and
 views. Do not expand that inventory without a concrete user need.
 
+## Navigation before detail
+
+When a document spans several substantive sections or readers need to revisit
+specific decisions, put navigation near the top, after a short purpose/status:
+
+- **Reader index:** link each domain/child page and say what question it answers.
+  For a single page, use verified section links when available. Never invent
+  block anchors. A reading order without clickable destinations is not an index.
+- **Table of contents:** use Notion's native table-of-contents block for headings
+  within the page, using the current enhanced-Markdown specification. Keep it
+  outside toggles and before the detailed body; it complements the reader index.
+- Use a consistent heading hierarchy: major topics, then their explanations or
+  diagrams. Keep the conclusion and decision summary visible; put alternatives
+  and evidence inside toggles. Do not expect plain toggle titles to enter a TOC.
+- Domain child pages link back to their parent and have their own TOC when long.
+  A short note needs neither an empty TOC nor a redundant navigation section.
+
+When the user supplies reference pages, inspect their navigation and apply the
+relevant pattern without copying unrelated content. If inaccessible, distinguish
+the user's described preference from an observed reference layout. During
+readback, verify the TOC block, heading order, index destinations, preserved child
+pages and captions. Do not claim click behavior or rendered layout without a
+browser check.
+
 ## Author and deliver
 
 Use `work-records` for personal record approval and the exact-call helper contract.
