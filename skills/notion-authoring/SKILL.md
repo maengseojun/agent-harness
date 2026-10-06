@@ -1,6 +1,6 @@
 ---
 name: notion-authoring
-description: Design, create and verify Notion documents, illustrated reports, linked subpages, databases and views using the connected tools. Use for a requested Notion deliverable or improving its organization and readability.
+description: Design, create and verify Notion libraries, documents, illustrated reports, linked subpages, databases, views and attachments using connected tools. Use for a requested Notion deliverable, page/block structure proposal, or improving organization and readability.
 ---
 
 # Notion authoring
@@ -23,6 +23,11 @@ review sample is a saved draft, not an adopted specification or Completed record
    Read the relevant live view/schema documentation for database work. Tool
    availability, plan limits and actual successful use are different facts.
 3. Pick the smallest useful structure using [capabilities](references/capabilities.md).
+   For a library, mixed document types or a consequential unfamiliar layout, read
+   [composition design](references/composition-design.md) before choosing blocks.
+   Inspect supplied references and research only the cases/capabilities that affect
+   this choice. Propose one structure with its reasons and verification path;
+   resolve routine details yourself. Reuse an accepted design for routine additions.
    Keep the main conclusion visible. Put supporting options/evidence in toggles;
    move an independently useful domain to a linked child page. Link existing
    common foundations instead of copying them.
@@ -115,8 +120,14 @@ sharing, agent messages, deletion or moving unrelated material.
 Fetch actual body, parent, properties and children; query DB rows and fetch view
 configuration when used. Verify toggle nesting, image/file references, captions,
 links and expected counts. Paginate queries until every intended record has been
-checked; one returned batch is not complete coverage. An acknowledgement is not readback. Keep original
-responses separate from normalized comparisons. Inspect the rendered page through
+checked; one returned batch is not complete coverage. An acknowledgement is not
+readback. Keep original responses separate from normalized comparisons.
+
+For attachments used as evidence or the original record, check the actual file,
+version and ability to open/read it through the supported route. A filename,
+upload receipt or local path alone does not prove a usable attachment. Record
+unreadable or inaccessible items and their effect on the document's conclusions.
+Inspect the rendered page through
 an available authorized browser when layout matters; otherwise disclose that
 only structured content was checked. No browser or shell route may bypass a
 write denial. In an active native Harness task, automatic provider readback is
