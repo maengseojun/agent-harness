@@ -14,6 +14,7 @@ observed correction is reusable in that skill's context.
 | --- | --- |
 | [blockchain-upstream-review](blockchain-upstream-review/SKILL.md) | Map upstream blockchain changes to a project's actual pins and call sites. |
 | [diagram-explainer](diagram-explainer/SKILL.md) | Explain structures and flows through role tables, boundaries, category colors and labeled connectors in tldraw, or Excalidraw for local editable files and explicit requests. |
+| [html-prototype-interview](html-prototype-interview/SKILL.md) | Plan websites and apps through a working HTML prototype, screen-based interviews and iterative revisions. |
 | [interactive-explainer](interactive-explainer/SKILL.md) | Teach a relationship through a small guided simulation and free exploration. |
 | [tutorial-video](tutorial-video/SKILL.md) | Produce requested tutorial scripts or videos with visual tutoring and authorized ElevenLabs narration. |
 | [execute-code-brief](execute-code-brief/SKILL.md) | Implement an agreed coding brief. |
