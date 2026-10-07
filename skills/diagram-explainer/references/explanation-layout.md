@@ -4,7 +4,7 @@ Use this reference for multi-step teaching boards and detailed explanations. The
 
 ## Plan before drawing
 
-Write a short internal plan: reader's task, likely gap, source facts and unknowns, dominant relationship, selected view and reason, takeaway per panel, reading order, and intended reading surface. Choose the structure and draft it; use subsequent feedback to repair it. Do not ask the reader to make routine layout decisions.
+Write a short internal plan: reader's task, likely gap, source facts and unknowns, dominant relationship, selected view and reason, takeaway per panel, reading order, intended reading surface, and roles for shapes, fills, and typography. Choose the structure and draft it; use subsequent feedback to repair it. Do not ask the reader to make routine layout decisions.
 
 | Depth | Appropriate when | Deliver |
 |---|---|---|
@@ -28,6 +28,7 @@ Before arranging shapes, extract entities and their attributes; distinguish cont
 | What can happen in each state? | State-transition diagram; state × operation matrix for comparison | Transition condition versus permissions/results within a state |
 | How do A/B designs or before/after cases differ? | Aligned comparison table or matching small panels | Same criteria, scope, baseline, units, and abstraction level |
 | What are an object's relevant properties? | Field rows inside an object card or attribute table | Property names, values, and links to changing steps |
+| How is one object, record, or message internally organized? | Sectioned structure view with bands, dividers, and labeled brackets | Actual membership, repeated parts, and whether position/size encodes order or quantity |
 | How do measured category values or trends differ? | Bar chart for category magnitudes; line chart for change over time | Units, time basis, consistent scale, source, and uncertainty |
 | How are measured values distributed or related? | Histogram for distribution; scatter plot for paired values | Bin/axis meaning and sample basis; association is not causation |
 | How is a whole divided or an amount transferred? | Part-to-whole chart for measured shares; flow for destinations | Denominator/units and totals; do not imply proportional widths without data |
@@ -98,6 +99,40 @@ Choose the visual form from the question. Use the smallest combination that expo
 | Which operation affects which object? | Operation × object matrix, paired with a flow if order matters |
 | Where does an amount go? | Labeled amount split with units and conservation check |
 
+### Surfaces, shapes, and typography
+
+Treat the canvas as a quiet reading surface. Default a new explanation to a light neutral background with contrasting text; adapt an existing board's theme rather than changing its whole canvas. Set a canvas color only if the actual editor/tool supports it. Otherwise use a supported background shape for the authorized panel, behind its content and connectors. Preserve native editability and bindings.
+
+Text-bearing nodes, table cells, and explanation blocks should have a visible filled background by default: white/neutral or a restrained category tint adapted to the board theme, with padding around the text. Do not use transparent interiors that let connectors, neighboring content, or texture run through the words. An empty/inactive table cell can retain a neutral fill without implying activity. Titles and short external labels can sit directly on a clean canvas; arrow labels need a native label background or a clear backing when a line/texture would reduce legibility.
+
+Declare a small fill vocabulary by information type. The choices below are starting points, not mandatory notation or permission to invent a status:
+
+| Role | Starting treatment |
+|---|---|
+| Text-rich object, process, table cell | Solid light fill; category identity in a stable tint, outline, or header |
+| Repeated actor/category group | Same subtle native hatch/pattern if useful; keep the mapping stable and label the type |
+| Outer boundary or reading section | Quieter neutral fill/outline than its contained entities |
+| Supporting explanation | Neutral solid text area, adjacent to its referenced step |
+| Proposed/conditional item needing distinction | Explicit label plus a supported secondary outline/pattern; keep category identity separate |
+
+These light-fill presets apply to a new light canvas. On an existing dark canvas, choose foreground and fill together for readable contrast, preserving the theme and the same role distinctions.
+
+Use pattern sparsely: it supplements the type label and color, not the reading hierarchy. Keep long text and small cells on a plain fill; if a patterned entity needs detail rows, give those rows a solid background. If a supported pattern obscures Korean strokes or lacks contrast, use solid fill plus a labeled outline instead. A shape type does not require a unique pattern, and a pattern does not establish permission, completion, or uncertainty by itself.
+
+Choose geometry for logical role, preserving existing/domain notation. In an ordinary flow, a rectangle/rounded rectangle can represent an action or entity, a diamond a decision with labeled outgoing conditions, and an ellipse a start/end or actor when explicitly identified. Use a container for actual containment or a labeled reading group; use a storage shape only when storage is the intended meaning. Do not alternate shapes merely for variety. A title or padding should not be squeezed into a diamond; move long rationale beside it and keep the decision short.
+
+Within a panel, keep peers the same shape and comparable size, align a sequence along its primary direction, put branches beside their originating decision, and route returns outside the main lane. Arrange hierarchy by actual levels, alternatives in matching rows/columns, and actor lanes by responsibility. Arrows and condition labels express direction and order; the silhouette, left/right placement, or numbering alone must not imply a dependency or execution order.
+
+Use a small typography hierarchy: title > section heading > node/cell body > supporting note. Set a supported font family by role and keep it stable across panels; usually one readable family plus an optional identifier/code family is sufficient. Prefer a Korean-readable body font; a hand-drawn title is optional only if its Korean rendering stays clear. Use size, supported weight, and spacing for hierarchy before adding font families. If a style is unsupported, retain the hierarchy through supported sizes and layout rather than inventing a font or custom renderer. Supporting notes must remain readable, not merely smaller.
+
+Keep body text left-aligned for multi-line explanations and field rows; short node names or table headers may be centered. Reserve space for line wrapping and padding, and grow/split the node instead of shrinking the body to fit. Category-colored headings still need readable contrast against their fill. Inspect the actual Korean glyphs, hierarchy, and label backgrounds at the intended reading zoom and in the exported preview when one is delivered.
+
+### Sectioned object and record views
+
+For internal composition rather than execution, use one outer object silhouette with filled section bands, divider lines, and nested field/repeated-item blocks. Name each section through a heading band or an external bracket/brace spanning exactly that group. A bracket is a grouping annotation, not a directional arrow or a security boundary. Use quiet field fills and stronger section labels; no hatch is required when bands and labels already explain the types.
+
+Arrange parts in source-defined order when it matters; otherwise use a readable grouping and state that it is schematic. Keep repeated parts aligned, showing the first/last item with an ellipsis when the omission is clear. Do not imply byte offsets, field sizes, contiguous storage, hash input, or sequence from geometry without source support; label size/order as schematic when needed. A computed identifier can be shown beside/above the object without implying it is a stored field. Use the attachment's section bands, rounded field blocks, and external brackets as visual reference, not evidence for its blockchain claims.
+
 ### Tables and explanation placement
 
 - Give a responsibility table numbered step rows and stable actor columns. Color headers and relevant cells by actor; use a neutral outline for inactive cells. Define empty cells as “no action in this step” only when verified. Write “미확인” for unknown participation and “해당 없음” when inapplicable; do not equate an empty cell with missing evidence.
@@ -111,7 +146,7 @@ Choose the visual form from the question. Use the smallest combination that expo
 - Show a meaningful boundary crossing at the edge with a labeled arrow: who requests, what moves, which check applies, or which state changes. Keep request authority, signing, and asset movement distinct when relevant; do not invent those semantics from the reference images.
 - Assign colors to the few categories the reader must track, not a new color to every step. Reuse them across header, outline, short category label, and related paths. Use neutral text/containers for context and text labels for category identity. If two categories are visually too similar, choose more distinguishable supported colors.
 - Keep category identity separate from status: an actor's color must not change to mean failure. Mark failure, uncertainty, or the active step with explicit text and an additional outline/marker. Put a compact color/line legend near the first panel that uses it; repeat it only where a panel must stand alone.
-- Pattern/hatch fills can reinforce a category as in the supplied images, but keep them subtle and inspect text contrast. Use supported native fills; do not hand-build hundreds of diagonal lines. A neutral or unfilled container can distinguish context without adding another category.
+- Pattern/hatch fills can reinforce a category as in the supplied images; follow the surface rules above and inspect text contrast. Use supported native fills; do not hand-build hundreds of diagonal lines. An unfilled outer enclosure can distinguish scope when its text-bearing children have readable filled backgrounds.
 
 ### Lines and arrows
 
@@ -142,7 +177,7 @@ These patterns are adapted from the user's supplied workflow, responsibility-tab
 - Can a reader find the entry, follow the intended order, and locate the explanation for each step without chat history? Does the chosen form expose the requested relationship or comparison?
 - Are decision-changing conditions and alternative paths visible, including relevant thresholds? Are supporting notes close to their steps and essential premises visible before use? Does the diagram distinguish execution, waiting, success, and failure correctly?
 - Do board text, companion report, quantities, identifiers, and sources agree? Does a comparison use the same criteria/layout/scale and expose the meaningful differences? Does a reference view identify its scope and source/version?
-- Inspect native rendering at readable panel zoom, not only a fit-all screenshot. Check arrow labels, clipping, overlaps, Korean text, and the diagram-to-explanation distance. Read back the actual shapes after editing.
+- Inspect native rendering at readable panel zoom, not only a fit-all screenshot. Check filled text backgrounds, pattern contrast, role-consistent shapes, typography hierarchy, arrow labels, clipping, overlaps, Korean text, and the diagram-to-explanation distance. Read back the actual shapes after editing.
 - Can the reader distinguish actor/category, boundary scope, main path, conditional path, and annotation from the visible labels and legend? Do tables distinguish no action from unknown evidence, and do connector endpoints remain attached to the intended entities?
 - An optional prediction question should have an immediately available answer. User understanding remains unverified until their response provides evidence.
 
