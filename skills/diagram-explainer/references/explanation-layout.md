@@ -4,7 +4,7 @@ Use this reference for multi-step teaching boards and detailed explanations. The
 
 ## Plan before drawing
 
-Write a short internal plan: learning question, learner's likely gap, premises, one-sentence takeaway per panel, reading order, and intended reading surface. Choose depth from the question and prior feedback. Do not ask the learner to make routine layout decisions.
+Write a short internal plan: reader's task, likely gap, source facts and unknowns, dominant relationship, selected view and reason, takeaway per panel, reading order, and intended reading surface. Choose the structure and draft it; use subsequent feedback to repair it. Do not ask the reader to make routine layout decisions.
 
 | Depth | Appropriate when | Deliver |
 |---|---|---|
@@ -13,6 +13,36 @@ Write a short internal plan: learning question, learner's likely gap, premises, 
 | Detailed | The learner asks about implementation, assumptions, or tradeoffs | Walkthrough plus relevant state/field changes, failure path, premise consequences, and sourced rationale |
 
 For repeated confusion, expand the missing causal step rather than adding the same explanation again. Detailed does not mean displaying every implementation detail. Keep facts, example simplifications, proposals, and inferred rationale distinct.
+
+## Select the information structure
+
+Separate two uses. For first understanding, orient the reader with the core relationship, unpack the causal steps, and compare alternatives when needed. For a source-of-truth document, make each view understandable without chat history: scope, named entities, boundary/relationship meanings, conditions, and a traceable source/version. Mark proposed or unresolved content; a polished diagram is not evidence of adoption. Neither use requires every panel below.
+
+Before arranging shapes, extract entities and their attributes; distinguish containment, sequence, dependency, and transfer; identify the differences or decisions the reader needs to see. Separate measured values from illustrative ones. Then select the simplest view that exposes the dominant relationship:
+
+| Reader needs to understand | Starting representation | Preserve |
+|---|---|---|
+| What belongs to what, at which level? | Tree or nested groups | Actual parent/child relation; separate levels of detail |
+| What depends on or connects to what? | Relationship/dependency graph | Named relation and direction; a connection alone does not mean execution order |
+| How does work proceed across actors? | Flow or sequence/actor lanes | Trigger, handoff, conditional paths, resulting state |
+| What can happen in each state? | State-transition diagram; state × operation matrix for comparison | Transition condition versus permissions/results within a state |
+| How do A/B designs or before/after cases differ? | Aligned comparison table or matching small panels | Same criteria, scope, baseline, units, and abstraction level |
+| What are an object's relevant properties? | Field rows inside an object card or attribute table | Property names, values, and links to changing steps |
+| How do measured category values or trends differ? | Bar chart for category magnitudes; line chart for change over time | Units, time basis, consistent scale, source, and uncertainty |
+| How are measured values distributed or related? | Histogram for distribution; scatter plot for paired values | Bin/axis meaning and sample basis; association is not causation |
+| How is a whole divided or an amount transferred? | Part-to-whole chart for measured shares; flow for destinations | Denominator/units and totals; do not imply proportional widths without data |
+
+This is a selection aid, not a catalog to fill. If exact lookup matters, prefer a table; if numeric patterns matter, use a chart. Use a flow for order and a graph for structural connections. Qualitative scores must have a stated basis; do not invent precise values to make a chart. Combine views only when each answers a different question, sharing names and references. Explain the choice briefly when it helps the reader, without turning the internal plan into another deliverable.
+
+For A/B comparison, keep criteria in the same order and use matching layouts and scales. Show common parts neutrally and mark consequential differences; state the tradeoff and the condition under which each choice applies. Keep unknowns explicit rather than scoring them as poor. Before quantitative ranking, check comparable sample populations, measurement definitions, and coverage; incomplete measurements may support a qualified description without establishing a winner. Split overview and detail at a meaningful boundary, not an arbitrary number of shapes.
+
+## Decide what stays in the picture
+
+Use a consequence test: if hiding this detail would make the reader choose the wrong path, infer the wrong responsibility/permission, or expect a different result, show its short form at that step. A/B alternatives, retry/stop decisions, and outcome-changing exceptions stay visible. A branch may link to a detailed subflow, but its condition and destination remain in the overview.
+
+Put supporting premises, derivations, detailed limits, and evidence below the relevant panel or in linked text. Numbers are not automatically footnotes: a threshold that chooses a path belongs on its branch; units/ranges needed to interpret a chart belong with the chart. For example, a synthetic “amount < 10 → alternate route” flow keeps that test visible; why 10 was chosen and how it is calculated may be explained below. If a threshold or retry limit has ambiguous units or counting semantics, resolve them from the source or mark them unresolved at the branch; do not invent an exact test.
+
+Use the same step/cell IDs in notes and the diagram. A shared premise can sit below the panel with a clear scope label; a local caveat belongs beside/below its step. Put an essential premise before its first use if reading the flow without it would mislead. “Below” means within the relevant reading section, not several screens away. The picture should convey the structure; adjacent text should explain its mechanism, rationale, and qualifications.
 
 ## Board composition
 
@@ -72,6 +102,7 @@ Choose the visual form from the question. Use the smallest combination that expo
 
 - Give a responsibility table numbered step rows and stable actor columns. Color headers and relevant cells by actor; use a neutral outline for inactive cells. Define empty cells as “no action in this step” only when verified. Write “미확인” for unknown participation and “해당 없음” when inapplicable; do not equate an empty cell with missing evidence.
 - Put a short action and meaningful result in each active cell. Keep detailed reasons beside the table or in a step/reason column. Use a separate aligned comparison for definitions, permissions, or alternate paths rather than mixing them into execution rows.
+- For a state/alternative matrix, identify the baseline and emphasize cells whose behavior changes, the important restriction, or the requested decision. Use a short label plus outline/weight or a restrained highlight, separate from category colors. Add a nearby note explaining why the marked difference matters. Do not highlight every populated cell equally or rely only on header color.
 - Pair a table with a focused flow only if the table hides a consequential handoff or branch. Reuse step IDs and actor colors. Place a one-sentence takeaway above, the relevant explanation beside/below its step, and qualifications below the panel. Avoid arrows through every cell or paragraphs in every node.
 
 ### Boundaries and categories
@@ -108,11 +139,22 @@ These patterns are adapted from the user's supplied workflow, responsibility-tab
 
 ## Final check
 
-- Can a reader find the entry, follow the intended order, and locate the explanation for each step without chat history?
-- Are premises visible before use, and does the diagram distinguish execution, waiting, success, and failure correctly?
-- Do board text, companion report, quantities, identifiers, and sources agree? Does a comparison preserve the same layout?
+- Can a reader find the entry, follow the intended order, and locate the explanation for each step without chat history? Does the chosen form expose the requested relationship or comparison?
+- Are decision-changing conditions and alternative paths visible, including relevant thresholds? Are supporting notes close to their steps and essential premises visible before use? Does the diagram distinguish execution, waiting, success, and failure correctly?
+- Do board text, companion report, quantities, identifiers, and sources agree? Does a comparison use the same criteria/layout/scale and expose the meaningful differences? Does a reference view identify its scope and source/version?
 - Inspect native rendering at readable panel zoom, not only a fit-all screenshot. Check arrow labels, clipping, overlaps, Korean text, and the diagram-to-explanation distance. Read back the actual shapes after editing.
 - Can the reader distinguish actor/category, boundary scope, main path, conditional path, and annotation from the visible labels and legend? Do tables distinguish no action from unknown evidence, and do connector endpoints remain attached to the intended entities?
 - An optional prediction question should have an immediately available answer. User understanding remains unverified until their response provides evidence.
 
 Provenance: adapted from the user-provided `message.txt` describing an Excalidraw style attributed to Henry. Its claimed 40-file survey was not independently verified. The attachment describes but does not include the complete `exkit.py`, `render.mjs`, or `svg2png.py` sources. No installation commands or personal filesystem paths from it are required by this reference.
+
+## Grounds for these choices
+
+These are applied design recommendations, not a single universal standard. The representation mapping and consequence test above combine the user's agreed use cases with the following guidance; they do not claim that every source prescribes every rule.
+
+- [C4 notation](https://c4model.com/diagrams/notation): architecture views should explain their scope, entities, relationships, and notation, with consistent color roles. Apply that clarity without requiring the full C4 model for every subject.
+- [Government Analysis Function: Choosing visualisations](https://analysisfunction.civilservice.gov.uk/support/communicating-analysis/introduction-to-data-visualisation-e-learning/data-visualisation-e-learning-module-2-choosing-the-right-data-visualisation/): choose the message before the visual; tables support lookup/comparison, bars compare categories, and lines show changes over time.
+- [NN/g: Proximity](https://www.nngroup.com/articles/gestalt-proximity/): position related items together and separate unrelated groups. Applied here to step explanations and qualifications.
+- [NN/g: Visual design principles](https://www.nngroup.com/articles/principles-visual-design/): use hierarchy and contrast to guide attention; reduce decorative weight without making text unreadable.
+
+Consult a relevant primary guide for an unfamiliar chart, notation, or domain-specific convention. Do not browse for every routine shape, copy a fixed palette, or treat a visual reference as proof of source content.
