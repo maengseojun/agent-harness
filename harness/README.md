@@ -615,6 +615,16 @@ was not verified; no team automation, schedule, merge or deployment is enabled.
 
 ## Four runtime hooks
 
+Personal work records do not require a Harness task. The work-records prompt
+instructs local Work/Codex to find or create the canonical personal Linear issue
+before substantive work, update it at milestones and closeout, and fetch changes.
+After an observed tool-using turn, Stop requests one bounded assessment even if
+no task or Notion candidate exists: reconcile personal Linear and propose an
+exact Notion draft/destination only when the actual result merits preservation.
+The host decides substance and completion; the hook neither writes services nor
+certifies sync. No-tool turns stay silent and the current entry's Endix-only
+route is excluded. Missing hook delivery remains a host coverage limitation.
+
 The existing four lifecycle gates now have an optional native event bridge:
 `PreToolUse` runs write/delegation checks, `PostToolUse` records write responses,
 actual fetch readback and final native agent results, and `Stop` checks completion.

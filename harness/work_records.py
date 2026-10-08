@@ -35,6 +35,8 @@ assess requires session_id, cwd, task_id, result_sha256 (from the reminder),
 assessment_ref and exactly one of candidate_id or deferred_reason. It rechecks
 bound task artifact/check/review/source evidence and stores only evidence metadata.
 Stop requests one assessment per task result; it never concludes tasks itself.
+Tool-using turns also receive one personal-work sync assessment without a ledger.
+Only turn identity and reminder flags are retained; no prompts or tool bodies.
 This file supplies handlers; it does not register hooks or install a skill.
 """
 import fcntl
@@ -56,7 +58,14 @@ SKILL = Path.home() / '.codex/skills/work-records/SKILL.md'
 LIMIT = 2 * 1024 * 1024
 STANDING_MAINTENANCE_REF = 'user:2026-09-29:personal-factual-refresh'
 POLICY = ('Linear is always brain/memo/draft; personal Notion is the completed-record '
-          'library. For substantive work consult {skill}. Judge completion from actual '
+          'library. For substantive personal Work or Codex work, including research, '
+          'documents and specifications, consult {skill} and verify the personal Linear '
+          'workspace, search/reuse or create its issue BEFORE substantial execution. '
+          'Update decisions, progress, blockers and result links at meaningful milestones '
+          'and before the final response; fetch the issue after writes. This applies '
+          'without a Harness ledger and needs no repeated permission for personal '
+          'working notes. If sync fails, keep a local draft and report the gap. '
+          'Ordinary answers and trivial edits need no issue. Judge completion from actual '
           'results; propose and present the draft before requesting a user decision. '
           'After an approved first save, read back the record separately. Evidence-based '
           'factual refreshes of that personal page may use the standing maintenance grant; '
@@ -97,6 +106,9 @@ def draft(path):
 
 
 def current(revision):
+    for asset in revision.get('assets', []):
+        ledger.require(ledger.sha(ledger.read_file(asset['path'], 20 * 1024 * 1024)) == asset['sha256'],
+                       'approved upload file changed')
     ledger.require(draft(revision['draft_path']) == revision['draft_sha256'],
                    'draft changed; propose and present a new revision')
     if revision.get('maintenance'):
@@ -131,7 +143,46 @@ def links_to_page(body, page):
     return any(notion_page_url(url) and page_identity(url) == page_identity(page) for url in urls)
 
 
+# Exact-input operation approvals cover connected Notion authoring capabilities.
+# Agent sessions/messages and unknown future mutation tools deliberately stay denied.
+OPERATION_TARGETS = {
+    'create_file_upload': None, 'create_attachment': None,
+    'create_database': 'parent', 'create_folder': 'parent',
+    'update_data_source': 'data_source_id', 'update_folder': 'folder_id',
+    'create_view': ('database_id', 'parent_page_id'), 'update_view': 'view_id',
+    'move_pages': 'new_parent', 'duplicate_page': 'page_id',
+    'create_comment': 'page_id', 'convert_page_to_skill': 'page_url',
+    'update_page': 'page_id',
+}
+
+
+def validate_operation(revision, args):
+    endpoint = revision['tool_name'].split('notion_')[-1]
+    ledger.require(endpoint in OPERATION_TARGETS, 'unsupported Notion authoring operation')
+    field = OPERATION_TARGETS[endpoint]
+    if field:
+        values = [args.get(k) for k in field] if isinstance(field, tuple) else [args.get(field)]
+        values = [v for v in values if v is not None]
+        ledger.require(len(values) == 1, 'one explicit operation target required')
+        value = values[0]
+        if isinstance(value, dict):
+            ids = [value[k] for k in ('page_id', 'folder_id', 'database_id', 'data_source_id') if k in value]
+            ledger.require(len(ids) == 1, 'explicit parent ID required')
+            value = ids[0]
+        ledger.require(page_identity(value) == page_identity(revision['notion_target']),
+                       'operation target differs from approved destination')
+    else:
+        ledger.require(notion_page_url(revision['notion_target']), 'upload needs its intended destination page')
+    if endpoint == 'create_file_upload':
+        assets = revision.get('assets', [])
+        ledger.require(len(assets) == 1 and Path(assets[0]['path']).name == args.get('filename'),
+                       'file upload must bind one exact local file and filename')
+    ledger.require(not revision.get('maintenance'), 'operations require explicit approval')
+
+
 def validate_write(revision, args, canonical=None):
+    if revision.get('record_kind') == 'operation':
+        return validate_operation(revision, args)
     endpoint = revision['tool_name'].split('__')[-1]
     body = ledger.read_file(revision['draft_path'], LIMIT).decode('utf-8')
     if endpoint.endswith('create_pages'):
@@ -177,7 +228,7 @@ def validate_write(revision, args, canonical=None):
 def proposal(data):
     result = {key: reference(data, key) for key in (
         'completion_basis', 'notion_target', 'tool_name')}
-    result['record_kind'] = ledger.choice(data.get('record_kind', 'outcome'), {'outcome', 'policy'})
+    result['record_kind'] = ledger.choice(data.get('record_kind', 'outcome'), {'outcome', 'policy', 'operation'})
     result['project_index_target'] = (reference(data, 'project_index_target')
                                       if result['record_kind'] == 'outcome' else data.get('project_index_target', ''))
     ledger.require(isinstance(result['project_index_target'], str), 'invalid project index target')
@@ -186,7 +237,7 @@ def proposal(data):
     result['linear_refs'] = ledger.strings(data['linear_refs'], 'linear_refs', empty=True)
     result['output_issue_ref'] = (reference(data, 'output_issue_ref')
                                   if result['record_kind'] == 'outcome' else '')
-    ledger.require(result['record_kind'] == 'policy' or result['output_issue_ref'] in result['linear_refs'],
+    ledger.require(result['record_kind'] != 'outcome' or result['output_issue_ref'] in result['linear_refs'],
                    'outcome record needs an original Linear output issue')
     ledger.require(type(data.get('endix')) is bool, 'explicit endix flag required')
     result['endix'] = data['endix']
@@ -202,6 +253,14 @@ def proposal(data):
     args = data.get('tool_input')
     ledger.require(isinstance(args, dict) and notion_write(result['tool_name'], args),
                    'exact Notion mutation tool and input required')
+    if result['record_kind'] == 'operation':
+        expected = data.get('expected_state')
+        ledger.require(isinstance(expected, dict) and expected, 'operation needs expected readback state')
+        result['expected_state_sha256'] = fingerprint(expected)
+        result['assets'] = []
+        for path in data.get('asset_paths', []):
+            path = ledger.path_name(path)
+            result['assets'].append({'path': path, 'sha256': ledger.sha(ledger.read_file(path, 20 * 1024 * 1024))})
     # Only hashes are stored: neither the draft body nor tool input is retained.
     validate_write(result, args)
     body = ledger.read_file(result['draft_path'], LIMIT).decode('utf-8')
@@ -216,11 +275,14 @@ def proposal(data):
                        'include the intended index and Linear links in the draft')
     result['related_candidates'] = ledger.strings(data.get('related_candidates', []), 'related_candidates', empty=True)
     result['input_sha256'] = fingerprint(args)
-    result['revision_id'] = fingerprint({key: result[key] for key in
+    revision_fields = {key: result[key] for key in
         ('draft_sha256', 'notion_target', 'endix', 'record_kind', 'tool_name', 'input_sha256',
          'linear_refs', 'output_issue_ref', 'project_index_target', 'completion_basis',
          'related_candidates', 'maintenance', 'maintenance_evidence_ref',
-         'maintenance_current_readback_sha256')})
+         'maintenance_current_readback_sha256')}
+    if result['record_kind'] == 'operation':
+        revision_fields.update({key: result[key] for key in ('assets', 'expected_state_sha256')})
+    result['revision_id'] = fingerprint(revision_fields)
     return result
 
 
@@ -321,7 +383,7 @@ def migrate(state):
             revision.setdefault('output_issue_ref', revision.get('linear_refs', [''])[0]
                                 if revision.get('linear_refs') else '')
             revision.setdefault('editorial_state', 'saved-draft' if revision.get('write_state') == 'saved' else 'not-saved')
-            revision.setdefault('link_state', ('not-required' if revision['record_kind'] == 'policy' else 'pending')
+            revision.setdefault('link_state', ('not-required' if revision['record_kind'] != 'outcome' else 'pending')
                                 if revision.get('write_state') == 'saved' else 'not-saved')
             if 'attempts' not in revision:
                 revision['attempts'] = ([{'tool_use_id': revision['tool_use_id'],
@@ -332,6 +394,46 @@ def migrate(state):
 
 def candidates_in(state):
     return [value for key, value in state.items() if key != '_assessments']
+
+
+def work_turn(state, event):
+    """Bounded reminder for tool turns, including work never entered in a ledger."""
+    session, turn = event.get('session_id'), event.get('turn_id')
+    if not all(isinstance(value, str) and value for value in (session, turn)):
+        return ''
+    # Keep metadata under the existing reserved key so older launchers can read it.
+    turns = state['_assessments'].setdefault('_turns', {})
+    key = ledger.sha(json.dumps([session, turn]).encode())
+    name = event.get('hook_event_name')
+    if name == 'UserPromptSubmit':
+        turns.setdefault(key, {'tools_seen': False, 'reminded': False})
+    current_turn = turns.get(key)
+    if current_turn is None:
+        return ''
+    if name == 'PostToolUse':
+        if tool_name(event.get('tool_name', '')) not in (
+                'request_user_input', 'request_user_input_async', 'wait_agent'):
+            current_turn['tools_seen'] = True
+    if name != 'Stop' or not current_turn['tools_seen'] or current_turn['reminded']:
+        return ''
+    current_turn['reminded'] = True
+    # Match entry_hook.key_for; ownership comes from its decision, never cwd/text.
+    receipt = Path.home() / '.local/share/agent-harness/entry-state' / (key + '.json')
+    route = json.loads(ledger.read_file(str(receipt))) if receipt.exists() else {}
+    if route.get('route') == 'endix':
+        return ''
+    # ponytail: one cooperative assessment per tool turn; the host judges substance.
+    return ('Personal Work/Codex closeout check (no Harness registration required): '
+            'assess the actual work and ownership. For substantive personal work, '
+            'finish the canonical personal Linear issue update and separate readback '
+            'with decisions, result/artifact links, checks, blockers and next action. '
+            'If access failed, preserve a local draft and report unsynced work. '
+            'For a concluded result worth keeping, including a document or specification, '
+            'present the exact Notion draft and verified personal destination and ask '
+            'whether to save. Reuse unchanged presented/rejected/deferred candidates '
+            'without asking again. Ordinary answers, trivial edits or team-only work '
+            'need no personal issue or user question. Do not infer completion or Notion '
+            'approval from Stop. If already handled, do not duplicate writes or proposals.')
 
 
 def task_results(event):
@@ -510,6 +612,15 @@ def action(state, data):
             ledger.require(revision['write_state'] != 'saved' and readback.get('absent') is True,
                            'absence must be reconciled explicitly')
             receipt = {'outcome': 'absent', 'target': target, 'evidence_ref': evidence}
+        elif revision['record_kind'] == 'operation':
+            ledger.require(outcome == 'saved', 'operation receipt must be saved or absent')
+            current(revision)
+            ledger.require(fingerprint(readback.get('observed_state')) == revision['expected_state_sha256'],
+                           'actual operation state differs from expected readback')
+            ledger.require(isinstance(readback.get('resource_url'), str) and readback['resource_url'],
+                           'operation readback needs actual resource URL or upload ID')
+            receipt = {'outcome': outcome, 'target': target, 'evidence_ref': evidence,
+                       'resource_url': readback['resource_url']}
         else:
             ledger.require(outcome in ('saved', 'partial'), 'invalid reconciliation outcome')
             current(revision)
@@ -563,7 +674,7 @@ def action(state, data):
         revision['write_state'] = outcome
         if outcome == 'saved':
             revision['editorial_state'] = 'saved-draft'
-            revision['link_state'] = 'not-required' if revision['record_kind'] == 'policy' else 'pending'
+            revision['link_state'] = 'not-required' if revision['record_kind'] != 'outcome' else 'pending'
         if revision.get('attempts'):
             revision['attempts'][-1].update(write_state=outcome, receipt=receipt.copy())
     elif operation == 'reviewed':
@@ -599,7 +710,7 @@ def action(state, data):
         preserve_completed(revision)
     elif operation == 'finalized':
         ledger.require(revision['write_state'] == 'saved'
-                       and revision.get('link_state') == ('not-required' if revision['record_kind'] == 'policy' else 'verified')
+                       and revision.get('link_state') == ('not-required' if revision['record_kind'] != 'outcome' else 'verified')
                        and revision.get('editorial_state') == 'approved',
                        'final record needs verified Linear/Notion links and approved review')
         if revision['record_kind'] == 'outcome':
@@ -617,6 +728,7 @@ def action(state, data):
 
 def hook(state, event):
     name = event.get('hook_event_name')
+    turn_reminder = work_turn(state, event)
     if name == 'UserPromptSubmit':
         return context(name, POLICY.format(skill=SKILL) +
                        ('' if SKILL.is_file() else ' Work-records skill is not installed; do not claim otherwise.'))
@@ -645,24 +757,29 @@ def hook(state, event):
         for candidate in unlinked:
             candidate['revisions'][-1]['link_reminded'] = True
         if not pending and not missing and not unlinked:
+            if turn_reminder:
+                return ({'systemMessage': turn_reminder} if event.get('stop_hook_active')
+                        else {'decision': 'block', 'reason': turn_reminder})
             return {}
         if missing:
             reason = ('Assess actual verified/concluded task results for an optional '
                     'work record using action=assess with assessment_ref and candidate_id or deferred_reason. '
                     'This is not completion or publication permission. Results: ' + ledger.canonical(missing) +
                     (' Present prepared candidates once: ' + ', '.join(c['candidate_id'] for c in pending) if pending else ''))
+            if turn_reminder:
+                reason += ' ' + turn_reminder
             return {'systemMessage': reason} if event.get('stop_hook_active') else {'decision': 'block', 'reason': reason}
         if event.get('stop_hook_active'):
-            return {}
+            return {'systemMessage': turn_reminder} if turn_reminder else {}
         if unlinked and not pending:
             return {'decision': 'block', 'reason': 'Saved work record still needs verified Linear output and '
                     'personal Notion project-index backlinks. Use the personal backlink standing authorization '
                     'for an exact index link proposal; '
                     'then fetch both destinations and record linked. Candidates: ' +
-                    ', '.join(c['candidate_id'] for c in unlinked)}
+                    ', '.join(c['candidate_id'] for c in unlinked) + ' ' + turn_reminder}
         return {'decision': 'block', 'reason': 'Present prepared work-record draft(s) once and ask '
                 'for a user decision; then wait quietly. Candidates: ' +
-                ', '.join(c['candidate_id'] for c in pending)}
+                ', '.join(c['candidate_id'] for c in pending) + ' ' + turn_reminder}
     tool = event.get('tool_name')
     if not notion_write(tool, event.get('tool_input')):
         return {}

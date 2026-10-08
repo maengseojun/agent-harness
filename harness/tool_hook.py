@@ -111,7 +111,7 @@ def protected(name, args):
         # Generic query/GraphQL operations can mutate. Only typed read APIs pass;
         # search text and SQL in query_data_sources never decide permission.
         typed_query = suffix.endswith(('query_data_sources', 'query_multiple_data_sources'))
-        if (re.search(r'(?:^|_)(create|update|delete|append|add|edit|remove|archive|write|save|publish|merge|close|reopen|move|duplicate|restore)(?:_|$)', suffix)
+        if (re.search(r'(?:^|_)(create|update|delete|append|add|edit|remove|archive|write|save|publish|merge|close|reopen|move|duplicate|restore|convert)(?:_|$)', suffix)
                 or (not typed_query and re.search(r'(?:^|_)(query|graphql)(?:_|$)', suffix))):
             return 'write'
         if re.search(r'(?:^|_)(get|read|fetch|search|list|query|retrieve|find)(?:_|$)', suffix):
@@ -151,6 +151,16 @@ def linear_description_matches(expected, actual, aliases, workspace_url=None, ex
     """Compare content after Linear renders issue and PR mentions."""
     if not isinstance(expected, str) or not isinstance(actual, str):
         return False
+    # ponytail: list-contained fences stay literal; avoid a Markdown parser dependency.
+    nested_fence = r'(?m)^ {0,3}(?:[-+*]|\d+[.)])\s+(?:`{3,}|~{3,})'
+    if re.search(nested_fence, expected + '\n' + actual):
+        return expected == actual
+    code = re.compile(r'(?ms)^ {0,3}(?:(`{3,})|(~{3,}))[^\n]*\n.*?'
+                      r'(?:^ {0,3}(?:\1`*|\2~*)[ \t\r]*$|\Z)'
+                      r'|(?m:^ {0,3}>[^\n]*$)|(?m:^(?: {4}|\t)[^\n]*$)'
+                      r'|(?<!`)(`+)(?!`).*?(?<!`)\3(?!`)')
+    if [m[0] for m in code.finditer(expected)] != [m[0] for m in code.finditer(actual)]:
+        return False
     from urllib.parse import urlsplit
     known = {identifier: uuid for uuid, identifier in aliases.items()}
     workspace = urlsplit(workspace_url).path.strip('/') if workspace_url else None
@@ -158,6 +168,7 @@ def linear_description_matches(expected, actual, aliases, workspace_url=None, ex
     pr_tag = re.compile(r'<pull-request id="([a-f0-9-]+)" href="(https://linear\.app/[^\"]+)">([^<]*)</pull-request>')
     existing_prs = {match[1]: match[2] for match in pr_tag.finditer(expected)}
     unexpected_prs = set()
+    mismatched_url_labels = []
     github_prs = set()
     for link in expected_links or []:
         parsed = urlsplit(link.get('url', ''))
@@ -184,7 +195,20 @@ def linear_description_matches(expected, actual, aliases, workspace_url=None, ex
         return '\x1d' + uuid + ':' + workspace + '\x1c'
 
     def normalize(body):
+        body = code.sub(lambda match: '\x19' + match[0].encode().hex() + '\x18', body)
+        # ponytail: normalize simple list markers only; code/nested blocks fail closed.
+        if not re.search(r'(?m)^\s*(?:```|~~~)|^(?: {4}| {0,3}\t)', body):
+            body = re.sub(r'(?m)^[-+] (?=\S)(?![-+* \t]+\r?$)', '* ', body)
         body = re.sub(r'(\[[^\[\]\n]+\]\()<(https?://[^<>\s]+)>\)', r'\1\2)', body)
+        # Linear turns bare URLs into self-labelled links; code is protected above.
+        def self_link(match):
+            label, target = match.groups()
+            if label != target:
+                mismatched_url_labels.append(match.group(0))
+                return match.group(0)
+            return target
+        body = re.sub(r'\[(https?://[^\[\]\s]+)\]\((https?://[^()\s]+)\)', self_link, body)
+        body = re.sub(r'<(https?://[^<>\s]+)>', r'\1', body)
         def pr_link(match):
             number, owner, repo, target = match.groups()
             return ('PR #' + number if number == target
@@ -224,7 +248,7 @@ def linear_description_matches(expected, actual, aliases, workspace_url=None, ex
     allowed_prs = {number for _, _, number in allowed_repo_prs}
     allowed_prs.update(re.findall(r'(?<!\w)PR\s*#(\d+)\b', expected))
     actual_prs = set(re.findall(r'(?<!\w)PR\s*#(\d+)\b', actual_text))
-    if unexpected_prs or not actual_prs <= allowed_prs or not actual_repo_prs <= allowed_repo_prs:
+    if mismatched_url_labels or unexpected_prs or not actual_prs <= allowed_prs or not actual_repo_prs <= allowed_repo_prs:
         return False
     if not expected_lines:
         return not actual_text
@@ -318,9 +342,18 @@ def request_payload(name, args, project):
         target, payload, _ = git_push(args, project)
         return 'github', 'push', target, payload
     endpoint = provider(name)
+    # ponytail: native readback covers pages only; add provider-specific adapters
+    # before admitting other operations, never substitute the gate's own target.
+    if endpoint.startswith('notion_'):
+        ledger.require(endpoint in ('notion_notion_create_pages', 'notion_notion_update_page'),
+                       'unsupported Notion operation: no native provider readback adapter; write blocked')
     if endpoint == 'notion_notion_update_page':
         command = args.get('command')
         base = {'page_id', 'command', 'allow_async'}
+        ledger.require(command in ('replace_content', 'update_properties', 'update_content'),
+                       'unsupported Notion page command: no native provider readback adapter; write blocked')
+        ledger.require(set(args) <= base | {'new_str', 'properties', 'content_updates'},
+                       'unsupported Notion mutation fields: no native provider readback adapter; write blocked')
         if command == 'replace_content':
             ledger.require(set(args) <= base | {'new_str'}, 'unsupported Notion mutation fields')
             payload = {'body': ledger.plain_summary(args['new_str'].encode())}
@@ -335,8 +368,6 @@ def request_payload(name, args, project):
                                    and isinstance(item['new_str'], str) and item['new_str'] for item in updates),
                            'exact nonempty Notion sentence replacements required')
             payload = {'content_updates': updates}
-        else:
-            raise ledger.LedgerError('use full Notion content or property replacement for automatic verification')
         return 'notion', 'update', args['page_id'], payload
     if endpoint == 'notion_notion_create_pages':
         ledger.require(set(args) <= {'parent', 'pages', 'allow_async'} and len(args['pages']) == 1, 'prepare one explicit Notion page at a time')

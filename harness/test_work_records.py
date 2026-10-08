@@ -73,6 +73,23 @@ class WorkRecordsTests(unittest.TestCase):
         path.write_text(json.dumps(body))
         return dict(readback_path=str(path), page_url=body['page_url'], target=body['target'], evidence_ref=body['evidence_ref'])
 
+    def test_legacy_revision_identity_preserves_attempt_history(self):
+        keys = ('draft_sha256', 'notion_target', 'endix', 'record_kind',
+                'tool_name', 'input_sha256', 'linear_refs', 'output_issue_ref',
+                'project_index_target', 'completion_basis', 'related_candidates',
+                'maintenance', 'maintenance_evidence_ref',
+                'maintenance_current_readback_sha256')
+        legacy_id = records.fingerprint({key: self.revision[key] for key in keys})
+        self.assertEqual(legacy_id, self.revision['revision_id'])
+        self.approve()
+        records.handle(self.event(), self.base)
+        again = self.call(self.proposal)
+        self.assertEqual(1, len(again['revisions']))
+        self.assertEqual('dispatched', again['revisions'][-1]['write_state'])
+        event = self.event()
+        event['tool_use_id'] = 'new-attempt'
+        self.denied(event)
+
     def test_task_denial_does_not_consume_record_approval(self):
         self.approve()
         before = (self.base / 'state.json').read_bytes()
