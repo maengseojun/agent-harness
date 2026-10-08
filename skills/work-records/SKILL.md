@@ -33,25 +33,26 @@ or prove that hooks enforce it.
   is the top entry: goal and success criteria, structure and responsibilities,
   decision reasons, open questions, and Rules/Tasks links. Each task links to its
   relevant Architecture section; navigation is not a native issue-parent claim.
-- After assignment, the lead reads the task/Spec/Plan and relevant Architecture/Rules
-  and identifies concrete blockers: conditions preventing accurate execution,
-  such as missing required facts, domain knowledge, tacit conventions or inputs.
-  Record a blocker only when its impact on execution is concrete; not every open
-  research question is a blocker. Use one blocker identity for one underlying
-  condition, list every affected task, and define its resolution boundary, owner,
-  exit criteria and required evidence. Independent causes remain separate.
-  If resolution needs independent work, create a blocker-resolution task with its
-  own separate Spec/Plan, Owns, lead and permitted scope; link it as blocking all
-  affected tasks. Do not duplicate resolution work per consumer. Small reads stay
-  in the consuming Plan; ready tasks proceed without a blocker or extra task.
-  Read actual resolution evidence before unblocking affected work; issue Done
-  alone, a proposed role or a readiness report is not proof of resolution.
-  Within agreed Architecture/Rules, incorporate task-specific knowledge in the
-  consuming Spec/Plan. A finding changing upper decisions or scope returns to the
-  affected decision before execution; resolution cannot silently authorize it.
-  No universal stage before task decomposition or recursive planning-for-planning.
-  Task-map design and document binding are ordinary coordination work, not blockers
-  merely because they precede execution. Preparation is not deployment proof.
+- After task creation/assignment, the lead reads the task/Spec/Plan and relevant
+  Architecture/Rules to identify necessary blockers. In this project, a blocker
+  means prerequisite work, a matter to research, or a decision to settle so that
+  the task can be performed accurately. Required facts, domain knowledge, tacit
+  conventions, inputs and coordination can qualify before any execution failure.
+  Do not restrict this term to a hard stop or an already observed problem.
+  Tie each blocker to a specific prerequisite and its dependent tasks, owner,
+  bounded scope, expected result and evidence that the prerequisite is satisfied.
+  One shared prerequisite has one blocker and all affected task links; separate
+  independent prerequisites. If it needs independent work, create a blocker task
+  with its own Spec/Plan, Owns, lead and permitted scope, linked to its consumers.
+  Small prerequisite items can remain in the consuming Plan without a new issue.
+  Read actual prerequisite results before the dependent step; Done alone or a
+  proposed role is not proof. Independent tasks and steps can continue.
+  Within agreed Architecture/Rules, incorporate the result in consuming Spec/Plan.
+  A finding changing upper decisions or scope returns to that decision; a blocker
+  does not authorize an architecture change. Blockers are optional, not a universal
+  stage before task decomposition or recursive planning-for-planning. Task-map
+  design and document binding qualify when downstream work needs those results;
+  do not exclude them merely because they are coordination. No deployment proof.
 - Each task links separate Spec and Plan documents. Keep Spec focused on goal,
   source criteria, Owns/change boundaries, numbered requirements, Acceptance,
   exclusions and unresolved inputs. Plan covers readiness/dependencies, actual

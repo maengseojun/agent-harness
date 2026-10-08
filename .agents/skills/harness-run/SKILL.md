@@ -139,18 +139,20 @@ existing authorization; do not silently change the frozen route.
 Use the canonical [work-records Project/task workflow](references/work-records/SKILL.md#projecttask-workflow)
 (source checkout: `../../../skills/work-records/SKILL.md`). Relevant interviews
 and research establish Architecture, then Environment & Rules and assigned Tasks
-with separate Spec/Plan. The assigned lead identifies concrete conditions blocking
-accurate execution. Keep one blocker per underlying cause, list all affected
-tasks, owner, resolution boundary and exit evidence. Independent resolution work
-has its own blocker-resolution task and separate Spec/Plan; link it to every
-consumer rather than duplicating work. This is an ordinary `doc` or `code` task,
-not a new ledger kind, universal pre-decomposition stage or execution permission.
-Small reads stay in the main Plan; ready tasks need no blocker. Read actual exit
-evidence before unblocking; do not equate issue Done or readiness with proof.
-Update consuming Spec/Plan within agreed Architecture/Rules; material discoveries
-return to the affected upper decision. Preserve goals, revisions and personal/team
-authority. Do not restart settled interviews or recursively create planning tasks.
-The user's current term is blocker/blocker-resolution task, replacing pre-task.
+with separate Spec/Plan. In this project, a blocker is prerequisite work, a matter
+that needs research, or a decision to settle for accurate task execution. Identify
+it prospectively after task creation/assignment; no actual failure or hard stop
+is required. Record its owner, scope, expected result, evidence and all dependent
+tasks. One shared prerequisite has one blocker. Independent blocker work has its
+own Spec/Plan, Owns and lead and links every consumer; small prerequisite items
+can stay in the consuming Plan. This is an ordinary doc or code task, not a new
+ledger kind, universal pre-decomposition stage or execution permission. Read
+actual prerequisite results before the dependent step; Done or readiness alone
+is not proof. Independent work can continue. Incorporate results within agreed
+Architecture/Rules; material findings return to the affected upper decision.
+Preserve the overall goal, revisions and personal/team authority. Do not restart
+settled interviews or recursively create planning tasks. The user's project term
+blocker replaces pre-task and covers preparation, research and decisions.
 
 ## Choose models only when delegating
 

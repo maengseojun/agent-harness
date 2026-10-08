@@ -13,8 +13,10 @@ Default routing: coding and technical verification to Codex; research, documents
 
 Use [work-records — Project/task workflow](../work-records/SKILL.md#projecttask-workflow)
 for interview/research-informed Architecture/Rules, assigned Tasks and separate
-Spec/Plan, concrete blockers and shared blocker-resolution tasks identified after assignment,
-and revision/approval
+Spec/Plan and blockers identified after task creation/assignment: prerequisite
+work, research or decisions needed for accurate execution, without requiring a
+hard stop. Shared blockers link all dependent tasks; independent blocker work
+has its own Spec/Plan. Use the same contract for revision/approval
 references and requirement-to-task/Acceptance mapping. Interview only unresolved
 criteria; standalone short/mid tasks need no project Architecture overhead.
 
