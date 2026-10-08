@@ -134,6 +134,24 @@ skills in that task. If a newly discovered phase needs another skill, preserve
 the current checkpoint and use a linked, bounded follow-up task within the
 existing authorization; do not silently change the frozen route.
 
+## Preserve the project workflow
+
+Use the canonical [work-records Project/task workflow](references/work-records/SKILL.md#projecttask-workflow)
+(source checkout: `../../../skills/work-records/SKILL.md`). Relevant interviews
+and research establish Architecture, then Environment & Rules and assigned Tasks
+with separate Spec/Plan. The assigned lead identifies concrete conditions blocking
+accurate execution. Keep one blocker per underlying cause, list all affected
+tasks, owner, resolution boundary and exit evidence. Independent resolution work
+has its own blocker-resolution task and separate Spec/Plan; link it to every
+consumer rather than duplicating work. This is an ordinary `doc` or `code` task,
+not a new ledger kind, universal pre-decomposition stage or execution permission.
+Small reads stay in the main Plan; ready tasks need no blocker. Read actual exit
+evidence before unblocking; do not equate issue Done or readiness with proof.
+Update consuming Spec/Plan within agreed Architecture/Rules; material discoveries
+return to the affected upper decision. Preserve goals, revisions and personal/team
+authority. Do not restart settled interviews or recursively create planning tasks.
+The user's current term is blocker/blocker-resolution task, replacing pre-task.
+
 ## Choose models only when delegating
 
 When this task actually needs delegation, read **Design-first model routing** in

@@ -27,12 +27,31 @@ prepare-work-deliverable. Reuse existing Linear documents, relations and working
 records; this contract does not introduce a database, bot, runtime or lock system,
 or prove that hooks enforce it.
 
-- For a project, interview and agree Architecture first, then Environment & Rules,
-  then Tasks and each task's Spec/Plan, before executing the requested task.
-  Architecture is the top entry: goal and success criteria, agreed structure and
-  diagram with textual responsibilities and decision reasons, open questions,
-  Rules and Tasks links. Each task links back to the relevant Architecture section.
-  Navigation is not a claim that a document is a native issue parent.
+- For a project, use relevant interviews and source research to agree Architecture,
+  then Environment & Rules, then decompose and assign Tasks with each task's
+  separate Spec/Plan. Preserve the overall goal and decision context. Architecture
+  is the top entry: goal and success criteria, structure and responsibilities,
+  decision reasons, open questions, and Rules/Tasks links. Each task links to its
+  relevant Architecture section; navigation is not a native issue-parent claim.
+- After assignment, the lead reads the task/Spec/Plan and relevant Architecture/Rules
+  and identifies concrete blockers: conditions preventing accurate execution,
+  such as missing required facts, domain knowledge, tacit conventions or inputs.
+  Record a blocker only when its impact on execution is concrete; not every open
+  research question is a blocker. Use one blocker identity for one underlying
+  condition, list every affected task, and define its resolution boundary, owner,
+  exit criteria and required evidence. Independent causes remain separate.
+  If resolution needs independent work, create a blocker-resolution task with its
+  own separate Spec/Plan, Owns, lead and permitted scope; link it as blocking all
+  affected tasks. Do not duplicate resolution work per consumer. Small reads stay
+  in the consuming Plan; ready tasks proceed without a blocker or extra task.
+  Read actual resolution evidence before unblocking affected work; issue Done
+  alone, a proposed role or a readiness report is not proof of resolution.
+  Within agreed Architecture/Rules, incorporate task-specific knowledge in the
+  consuming Spec/Plan. A finding changing upper decisions or scope returns to the
+  affected decision before execution; resolution cannot silently authorize it.
+  No universal stage before task decomposition or recursive planning-for-planning.
+  Task-map design and document binding are ordinary coordination work, not blockers
+  merely because they precede execution. Preparation is not deployment proof.
 - Each task links separate Spec and Plan documents. Keep Spec focused on goal,
   source criteria, Owns/change boundaries, numbered requirements, Acceptance,
   exclusions and unresolved inputs. Plan covers readiness/dependencies, actual
