@@ -13,6 +13,7 @@ observed correction is reusable in that skill's context.
 | Skill | Use |
 | --- | --- |
 | [blockchain-upstream-review](blockchain-upstream-review/SKILL.md) | Map upstream blockchain changes to a project's actual pins and call sites. |
+| [coherent-writing](coherent-writing/SKILL.md) | Compose connected Korean and English prose with faithful evidence, paragraph reasoning, examples and relevant objections. |
 | [diagram-explainer](diagram-explainer/SKILL.md) | Explain structures and flows through role tables, boundaries, category colors and labeled connectors in tldraw, or Excalidraw for local editable files and explicit requests. |
 | [html-prototype-interview](html-prototype-interview/SKILL.md) | Plan websites and apps through a working HTML prototype, screen-based interviews and iterative revisions. |
 | [interactive-explainer](interactive-explainer/SKILL.md) | Teach a relationship through a small guided simulation and free exploration. |

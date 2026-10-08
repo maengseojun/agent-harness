@@ -1,0 +1,6 @@
+interface:
+  display_name: "Coherent Writing · 유기적 글쓰기"
+  short_description: "Build connected Korean and English prose without losing evidence"
+  default_prompt: "Use $coherent-writing to turn these notes into clear, connected prose while preserving evidence and uncertainty."
+policy:
+  allow_implicit_invocation: true
