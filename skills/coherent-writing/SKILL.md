@@ -42,9 +42,13 @@ For a contested conclusion or proposal, consider the strongest relevant alternat
 
 **Korean:** use natural Korean word order, clear topic continuity and concrete verbs. Reduce stacked noun phrases and empty expressions such as “관련하여” or “측면에서” when they hide the action. An omitted subject is fine when its referent is clear; restore it when actors change. Keep endings appropriate and consistent, and vary rhythm without using fragments to fake emphasis. Do not mechanically import English subject–verb proximity into Korean, or delete qualifications just to shorten sentences.
 
+Use Korean commas sparingly. Do not carry English comma rhythms into Korean or insert a comma at every clause boundary. Prefer natural connective endings or separate sentences when they make the relationship clearer; retain commas needed for enumeration or ambiguity. Do not impose a comma ban or count-based quality score.
+
 **English:** keep the actor and action easy to find; move long interruptions when they bury the predicate. Use familiar information to establish context and place the intended new emphasis where the sentence can support it. Prefer concrete verbs to heavy nominalizations, but preserve useful passive voice when the object or process is the focus. Vary sentence length for reasoning and emphasis, not to satisfy a word-count formula.
 
 **Both:** preserve terminology, numerical meaning, uncertainty and authorial voice. Translate the argument's function into natural prose rather than copying the other language's syntax. Avoid slogans, ornamental metaphors, generic importance claims and repeated “not X but Y” constructions unless they clarify a real distinction.
+
+Keep references easy to resolve while reading. If “this”, “that”, “the former” or an equivalent points across several sentences or competing subjects, repeat the short concrete term or bring its explanation closer. Reduce chains of backward references and source-link detours without removing necessary attribution. Explain the relevant evidence in the prose so the reader need not open a link or return to an earlier section to follow the argument.
 
 ## Review the actual draft
 
@@ -55,7 +59,7 @@ Then compare the draft with the material map:
 1. Are required facts and conclusion-changing conditions retained with the right source and scope?
 2. Does each important claim have adequate support and an explanation of the inference? Are uncertainty and disagreement visible where needed?
 3. Are examples distinguishable from evidence? Have correlation, self-report or a small sample become a causal or universal claim?
-4. Can the reader explain why each paragraph follows the previous one? Do pronouns and key terms have stable referents?
+4. Can the reader explain why each paragraph follows the previous one? Can references be resolved nearby without repeatedly looking back or opening links? In Korean, are commas needed for meaning rather than inherited from English sentence rhythm?
 5. Does the piece meet the requested genre, language, length and voice without redundant conclusions or needless scaffolding?
 
 Deliver the finished prose by default. A one-sentence rewrite normally needs only a direct edit and a meaning check. Show the reasoning map or revision notes only when requested or when an unresolved limitation matters. Never present invented support to make a piece read smoothly.
