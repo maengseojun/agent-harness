@@ -5,12 +5,16 @@
   "defaultVertexStyle": {
     "fontFamily": "나눔손글씨 다행체",
     "fontSize": "28",
+    "labelBackgroundColor": "none",
+    "labelBorderColor": "none",
     "rounded": "1",
     "arcSize": "16"
   },
   "defaultEdgeStyle": {
     "fontFamily": "나눔손글씨 다행체",
     "fontSize": "22",
+    "labelBackgroundColor": "none",
+    "labelBorderColor": "none",
     "edgeStyle": "orthogonalEdgeStyle",
     "rounded": "1"
   }
