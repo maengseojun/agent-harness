@@ -112,6 +112,8 @@ Treat the canvas as a quiet reading surface. Default a new explanation to a ligh
 
 Text itself has a transparent background by default, including standalone explanations, titles, group/lane headings, captions and arrow labels. Do not add white heading strips or opaque label backings that erase boundaries, divider lines or arrowheads. Keep meaningful white/neutral or category fills on the enclosing nodes, table cells and panels, with adequate padding. An empty/inactive table cell can retain a neutral fill without implying activity. Place connector labels beside a clear segment and away from arrowheads; move text or reroute lines when they overlap words. An opaque text backing requires an explicit user request and must still leave boundaries and arrowheads visible. In draw.io, text-only cells use `fillColor=none` and labels use `labelBackgroundColor=none;labelBorderColor=none`; yEd label background/border stays unset.
 
+Measure the rendered label footprint when reserving a connector corridor. Keep a visible gap from glyphs to the stroke, actor silhouette, neighboring node, scope boundary and arrowhead; 12–16 diagram units is a useful starting margin, then verify at the delivered zoom. Expand the actor-to-node spacing or the panel/canvas before shrinking ordinary labels. Align source/target port heights for a short handoff when possible. Position each label for its actual route, including boundary crossings and vertical returns; a uniform offset can create new overlaps after backgrounds become transparent.
+
 Declare a small fill vocabulary by information type. The choices below are starting points, not mandatory notation or permission to invent a status:
 
 | Role | Starting treatment |
@@ -133,6 +135,8 @@ Within a panel, keep peers the same shape and comparable size, align a sequence 
 Use a small typography hierarchy: title > section heading > node/cell body > supporting note. Set a supported font family by role and keep it stable across panels; usually one readable family plus an optional identifier/code family is sufficient. Prefer a Korean-readable body font; a hand-drawn title is optional only if its Korean rendering stays clear. Use size, supported weight, and spacing for hierarchy before adding font families. If a style is unsupported, retain the hierarchy through supported sizes and layout rather than inventing a font or custom renderer. Supporting notes must remain readable, not merely smaller.
 
 Keep body text left-aligned for multi-line explanations and field rows; short node names or table headers may be centered. Reserve space for line wrapping and padding, and grow/split the node instead of shrinking the body to fit. Category-colored headings still need readable contrast against their fill. Inspect the actual Korean glyphs, hierarchy, and label backgrounds at the intended reading zoom and in the exported preview when one is delivered.
+
+Match peer and before/after cards by font size, height, vertical alignment and inner padding. For two-line state summaries, reserve both line heights plus top/bottom padding; do not put 28px two-line text and 24px total padding into a 65px card. Use a consistent subordinate body size where the hierarchy calls for it and grow the card when needed. In draw.io set `verticalAlign=middle` explicitly for centered summary cards, then inspect the rendered top/bottom whitespace and baselines of both peers. Matching geometry alone does not prove visual alignment.
 
 ### Sectioned object and record views
 
