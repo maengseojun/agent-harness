@@ -1,6 +1,6 @@
 ---
 name: harness-run
-description: Execute or resume multi-step research, document, analysis, or coding tasks by selecting relevant specialist skills, saving progress, checking results, and obtaining independent review. Use when the user requests harness execution or work that needs recovery and a verified deliverable; skip ordinary questions and trivial edits.
+description: Plan or execute substantial research, document, analysis, or coding work; clarify briefs and coding handoffs with scoped checks, and use tracked recovery and independent review when needed. Ordinary answers and trivial edits need no ledger.
 ---
 
 # Harness run
@@ -8,6 +8,10 @@ description: Execute or resume multi-step research, document, analysis, or codin
 Use this workflow in the user's selected workspace, including a folder without
 Git. The host agent performs the work; the bundled Python ledger saves evidence.
 This is not a scheduler, sandbox, or replacement for specialist skills.
+
+## Planning and coding handoffs
+
+For a request to scope, specify or prepare a task, use [Task brief](references/README.md#consolidated-task-brief). For an agreed coding brief or implementation handoff, use [Execute a coding brief](references/README.md#consolidated-execute-code-brief). Read only the applicable mode. These replace the former `$task-brief` and `$execute-code-brief` entries without requiring a ledger for small work. Existing briefs and settled decisions remain applicable.
 
 ## Work management and record library
 

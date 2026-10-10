@@ -18,21 +18,20 @@ observed correction is reusable in that skill's context.
 | [html-prototype-interview](html-prototype-interview/SKILL.md) | Plan websites and apps through a working HTML prototype, screen-based interviews and iterative revisions. |
 | [interactive-explainer](interactive-explainer/SKILL.md) | Teach a relationship through a small guided simulation and free exploration. |
 | [tutorial-video](tutorial-video/SKILL.md) | Produce requested tutorial scripts or videos with visual tutoring and authorized ElevenLabs narration. |
-| [execute-code-brief](execute-code-brief/SKILL.md) | Implement an agreed coding brief. |
+| [harness-run](../.agents/skills/harness-run/SKILL.md) | Plan and execute scoped work; former task-brief and execute-code-brief modes are in its references. |
 | [dither-motion-landing](dither-motion-landing/SKILL.md) | Build landing pages with original dithered imagery and purposeful motion. |
 | [frontend-guidance](frontend-guidance/SKILL.md) | Optional guidance for general website and app UI design; preserves requested aesthetics and links selected Impeccable references. |
 | [prepare-work-deliverable](prepare-work-deliverable/SKILL.md) | Produce a substantial report, pitch or presentation from an agreed brief. |
 | [presentation-design-interview](presentation-design-interview/SKILL.md) | Co-design presentations through focused interviews, real visual references, layout previews and typography refinement. |
 | [skill-feedback](skill-feedback/SKILL.md) | Revise a skill after a reusable, observed gap. |
-| [task-brief](task-brief/SKILL.md) | Prepare a substantial task for execution. |
 | [notion-authoring](notion-authoring/SKILL.md) | Compose and verify illustrated Notion pages, subpages, databases and views. |
 | [work-records](work-records/SKILL.md) | Keep work maps and drafts in Linear; propose, save with approval, review and refine finished outcomes in personal Notion. Packaged with harness/install.py for its shared local approval helper. |
 
 For a new Codex installation, use the built-in `skill-installer` with this
 private repository, the selected `skills/<name>` path and a reviewed Git ref.
 It installs only the requested folder and needs access to the private repository.
-For example, ask Codex to install `task-brief` from
-`maengseojun/agent-harness`, path `skills/task-brief`.
+For example, ask Codex to install `harness-run` from
+`maengseojun/agent-harness`, path `.agents/skills/harness-run`.
 Verify the installed files against the exact reviewed commit before claiming the
 version is active. The installer refuses to overwrite an existing skill; inspect
 local changes and preserve the old copy before any update. New tasks may need to

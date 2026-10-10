@@ -80,12 +80,12 @@ recommendation mandatory or override the user's style and scope.
 | Request or action | Existing owner | Optional addition and overlap decision |
 | --- | --- | --- |
 | General website or app UI, including a named style | frontend-guidance | Read selected Impeccable guidance or acquire its reviewed skill folder when justified; bundled runtime/hook execution is separate. |
-| Dithered artwork and purposeful motion | dither-motion-landing | Keep its asset and motion guidance; frontend-guidance only for a distinct design question. |
+| Dithered artwork and purposeful motion | Archived dither-motion-landing reference | Recover its archived asset and motion guidance only when requested; use frontend-guidance for active UI work. |
 | HTML presentation | frontend-slides | Keep deck-specific layout; do not substitute general web rules. |
-| UI compliance audit | web-design-guidelines | Keep the existing reviewer; avoid a duplicate Impeccable audit. |
-| Clarify an assignment | task-brief | [Grilling](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/productivity/grilling/SKILL.md) can inform questions; omit exhaustive interviews and confirmation gates unless requested. |
-| Implement or debug agreed work | execute-code-brief | [Diagnosis](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/engineering/diagnosing-bugs/SKILL.md) for difficult repros; [TDD](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/engineering/tdd/SKILL.md) for behavior tests. No new pre-test approval ritual. |
-| Review a code change | Installed code-review and project checks | [Two review axes](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/engineering/code-review/SKILL.md) can distinguish requirements from code quality; no duplicate skill or tracker setup. |
+| UI compliance audit | frontend-guidance UI audit mode | Read references/ui-audit.md; keep latest official rules and file:line findings. |
+| Clarify an assignment | harness-run task brief mode | [Grilling](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/productivity/grilling/SKILL.md) can inform questions; omit exhaustive interviews and confirmation gates unless requested. |
+| Implement or debug agreed work | harness-run coding mode | [Diagnosis](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/engineering/diagnosing-bugs/SKILL.md) for difficult repros; [TDD](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/engineering/tdd/SKILL.md) for behavior tests. No new pre-test approval ritual. |
+| Review a code change | Retained Ponytail review or native code-review tool and project checks | [Two review axes](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/engineering/code-review/SKILL.md) can distinguish requirements from code quality; no duplicate skill or tracker setup. |
 | Create or revise agent instructions | skill-creator / skill-feedback | [Writing for agents](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/productivity/writing-for-agents/SKILL.md) can inform pruning and conditional references; keep canonical local sources. |
 
 The Matt Pocock pointers above are pinned to reviewed revision
@@ -615,6 +615,56 @@ was not verified; no team automation, schedule, merge or deployment is enabled.
 
 ## Four runtime hooks
 
+### Approved Linear task context
+
+Architecture is the project entry: agreed structure/diagram, Rules and task links.
+Each task has separate Spec and Plan documents. Read the task and these documents,
+the relevant Architecture/Rules and prerequisite results before execution. Keep
+progress, decision reasons and artifacts in Linear; user confirmation controls
+Linear Done. Runtime `done` means verified local execution, not user acceptance.
+
+For a tracked run based on approved Linear documents, add `execution` to
+`configure-hooks` alongside the existing fields:
+
+```json
+{"task_issue":"MAE-32","mode":"project","approval_ref":"ACTUAL_USER_EXECUTE_REFERENCE","documents":[{"id":"ACTUAL_DOCUMENT_UUID","role":"spec","updated_at":"ACTUAL_UPDATED_AT","body_sha256":"SHA256_OF_FETCHED_CONTENT_UTF8"}]}
+```
+
+`documents` needs one distinct Spec and Plan; project mode also needs Architecture
+and Rules. Standalone mode does not require project documents. Use canonical UUIDs
+and the exact task identifier returned by Linear for the task's Spec/Plan parents.
+Freeze actual fetched content revisions, not a guessed version label. Fetch all
+documents through `mcp__linear__get_document` after configuration; native observations
+bind their content, revision, parent and owning session. Failed reads revoke that
+document's observation. Missing or changed reads reject artifact registration,
+delegation and verified completion/delivery. Ownership handoff requires new reads.
+The approval reference is a coordinator attestation, not user authentication.
+Historical/uncontracted runs keep their existing contract; ordinary untracked
+work follows the installed skills and prompt reminder. This is not a universal
+pre-edit sandbox. An approved offline checkpoint may be used cooperatively, but
+must be reconciled before gated completion. Scope changes require re-interview;
+order/file choices within Owns may be logged and updated without new permission.
+
+After a permitted Plan change, fetch the updated Plan and log reason/impact in
+Linear, then call `revise-plan` with `document: {id, updated_at, body_sha256}`,
+`reason_ref` and `within_scope: true`. This accepts only the same Plan ID and
+fresh observed revision; Spec/Architecture/Rules and execute authority remain
+unchanged. Reconcile in-flight actions first. Revision history is retained and
+check/review are invalidated. Scope preservation is the lead's attestation,
+not a semantic proof. Substantive criteria changes need a newly approved run.
+Admitting a document mutation revokes its old observation (UUID or slug), so a
+write acknowledgement cannot leave old criteria usable before a fresh read.
+
+Native `save_document` accepts full title/content and at most one explicit parent
+(`issue`, `project`, `initiative`, `cycle`, `team`). Creation requires a title and
+one parent; update binds the existing document ID. Patches are unsupported in the
+tracked adapter: fetch then prepare complete values. Use the same workspace-bound
+working-context gate as issues, then a separate `get_document` readback. It checks
+actual document identity, requested parent and complete content/title. An uncertain
+write never permits a blind retry. Existing session ownership and required child
+evidence guard handoff/dependencies; shared-file conflicts still require reviewing
+Owns and coordinating write scopes.
+
 Personal work records do not require a Harness task. The work-records prompt
 instructs local Work/Codex to find or create the canonical personal Linear issue
 before substantive work, update it at milestones and closeout, and fetch changes.
@@ -837,3 +887,81 @@ Historical completed runs are not re-opened by the global Stop reminder.
 
 Focused regression command from the repository root:
 `python3 -B -m unittest discover -s harness -p 'test_runtime_hooks.py'`.
+
+### Single-file Notion uploads
+
+Upload URL preparation uses an `update` gate for the intended existing page. Its
+payload is `{"upload":{"target":"<page>","filename":"<name>","asset_path":"<absolute path>","asset_sha256":"<sha256>"}}`.
+The independent work-record operation approval is still required. The native
+response binds `markdown_source`; URL issuance is uncertain. Recheck the local
+hash before the single multipart POST, then separately approve/prepare the page
+attachment edit. A prepared `notion_fetch` of the intended page verifies only an
+exact returned source in native media or Markdown images outside code. Changed files, other pages,
+missing/transformed sources and write acknowledgements cannot verify it. This
+is page-attachment evidence, not a remote byte checksum.
+
+
+## Consolidated task brief
+
+# Task brief
+
+Turn an initial request into enough shared understanding to execute without consequential guessing. Match the request's language. Respect an existing brief and accepted decisions; do not restart an interview.
+
+Inspect relevant available material before asking questions. Resolve factual questions from sources and ask only about consequential preferences, missing inputs, or contradictions. Keep small tasks small. Planning does not require exhaustive detail or an approval ritual.
+
+Default routing: coding and technical verification to Codex; research, documents, spreadsheets, and pitch preparation to Work. Respect the user's chosen surface. Mixed tasks share one brief: verify product capabilities before using them as pitch claims. Never transfer or create a task without the user's request, or claim a handoff occurred merely because a brief exists.
+
+Use [work-records — Project/task workflow](work-records/SKILL.md#projecttask-workflow)
+for interview/research-informed Architecture/Rules, assigned Tasks and separate
+Spec/Plan and blockers identified after task creation/assignment: prerequisite
+work, research or decisions needed for accurate execution, without requiring a
+hard stop. Shared blockers link all dependent tasks; independent blocker work
+has its own Spec/Plan. Use the same contract for revision/approval
+references and requirement-to-task/Acceptance mapping. Interview only unresolved
+criteria; standalone short/mid tasks need no project Architecture overhead.
+
+Produce a concise brief covering only applicable items:
+
+- Goal, audience, and the decision or action the output should support.
+- Deliverables, destination format, language, tone, and constraints.
+- Accepted decisions, source references, and reusable inputs.
+- Unknowns: distinguish questions blocking execution from facts to investigate during execution.
+- Approach and relevant available capabilities, with concrete acceptance checks.
+- Execution destination and immediate next action.
+
+Preserve source URLs or file references rather than embedding whole retrieved documents. State the access requirements for the destination: a local path alone is not a transferable attachment. Include the brief in the answer unless a saved file is requested or necessary for the handoff.
+
+When the user requests execution and the necessary tools are available, use the brief to continue within their authorized scope. Do not force a separate Chat phase or task merely because this skill was selected.
+
+
+## Consolidated execute code brief
+
+# Execute a coding brief
+
+Read the supplied brief and applicable repository guidance. Inspect the relevant code, working changes, and project-defined checks. Preserve accepted decisions; reopen planning only for a contradiction, inaccessible required input, or evidence invalidating the approach.
+
+Apply [work-records — Project/task workflow](work-records/SKILL.md#projecttask-workflow)
+before execution/resumption: read task → Spec/Plan → Architecture/Rules → dependencies.
+Use its criteria, lead/handoff, change and offline rules; keep acceptance evidence
+current and leave Linear Done for user confirmation. Scale standalone tasks down.
+
+Select additional skills only for a concrete need. Prefer available repository tools, APIs, and connectors for structured work; use computer interaction when the UI itself matters or other interfaces do not cover the task. Do not install tools, introduce orchestration, or delegate simply because they are available.
+
+For web UI creation or refinement requiring design judgment, consider the available
+`frontend-guidance` advisory skill. For a requested dithered motion style, recover the archived specialist guidance
+from the MAE-127 GitHub archive when needed; do not silently install it. An HTML deck belongs to `frontend-slides`. The user's
+design requirements outrank optional aesthetic advice. Skip guidance already
+covered by the brief or existing implementation.
+
+When existing guidance lacks a capability needed for the task, inspect relevant
+GitHub skills/files. Either apply useful reading directly or acquire a reviewed
+skill folder for reuse when the user has authorized acquisition. Check
+overlap, pin the source commit, preserve existing skills and verify installation;
+use skill-installer when available. Announce acquisition, and distinguish it from
+permission to run bundled scripts, install runtimes or change hooks.
+
+Implement the smallest sufficient change. For lengthy work, keep a compact project-local progress record with decisions, verification, and the next action; use an existing record if available. This is task state, not a request to update personal memories.
+
+Run the narrowest project-defined checks that cover the change. Inspect the actual result and report what was verified and what remains unverified. Avoid repeated checks after success unless a new change or unresolved concern warrants them.
+
+If the coding work feeds a document or pitch, provide an evidence handoff: implemented capabilities, limitations, test results, and usable demo/artifact references. Label proposed features separately from working features. Ensure a destination can access referenced files before treating the handoff as complete.
