@@ -2,6 +2,12 @@
 
 Verified on this Mac on 2026-10-10. Treat this as a dated installation record; inspect current tool availability before using it.
 
+## Excalidraw+ browser route
+
+Excalidraw+ is the web service at [Excalidraw+](https://plus.excalidraw.com/); ExcalidrawZ is the separate Mac app covered below. The user's Excalidraw-only preference includes both. Existing Plus boards can be continued through the authenticated browser UI without requiring this local MCP server. Preserve the existing destination; do not infer cloud/iCloud synchronization or migrate boards without authorization.
+
+On 2026-10-10, the official Plus homepage loaded in Aside and its account flow reached [Sign-in — Excalidraw Plus](https://app.excalidraw.com/sign-in). That browser was not authenticated, so the existing board list and the exact earlier Plus board were not verified. No Plus board was deleted, migrated or uploaded during this setup. The local MCP errors below concern ExcalidrawZ and do not demonstrate a Plus failure. The registered Mac font also does not establish the same font availability on Plus; check the web board's supported fonts and rendered Korean separately.
+
 ## Connection
 
 - App: `/Applications/ExcalidrawZ.app`, MCP server identifies itself as ExcalidrawZ 2.4.4.
