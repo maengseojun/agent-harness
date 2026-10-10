@@ -81,7 +81,7 @@ These are starting budgets, not hard limits. Increase them only when meaning wou
 | Example | Before/after quantities, result, invariant | One consistent worked case |
 | Footnote/report | Sources, detailed qualifications, implementation references | As much as needed, outside the flow |
 
-Prefer natural Korean and retain exact English identifiers where needed. Introduce an identifier with its meaning. Use relative hierarchy (title > heading > label > source) and inspect Korean at the actual reading zoom. Do not copy the reference's 12px body size into tldraw without checking legibility. Tables compare parallel facts; connected prose explains reasoning that does not fit a cell.
+Prefer natural Korean and retain exact English identifiers where needed. Introduce an identifier with its meaning. Use relative hierarchy (title > heading > label > source) and inspect Korean at the actual reading zoom. Do not copy the reference's 12px body size into Excalidraw without checking legibility. Tables compare parallel facts; connected prose explains reasoning that does not fit a cell.
 
 ## Step and arrow grammar
 
@@ -126,7 +126,7 @@ These light-fill presets apply to a new light canvas. On an existing dark canvas
 
 Use pattern sparsely: it supplements the type label and color, not the reading hierarchy. Keep long text and small cells on a plain fill; if a patterned entity needs detail rows, give those rows a solid background. If a supported pattern obscures Korean strokes or lacks contrast, use solid fill plus a labeled outline instead. A shape type does not require a unique pattern, and a pattern does not establish permission, completion, or uncertainty by itself.
 
-Choose geometry for logical role, preserving existing/domain notation. In an ordinary flow, a rectangle/rounded rectangle can represent an action or entity, a diamond a decision with labeled outgoing conditions, and an ellipse a start/end or actor when explicitly identified. Use a container for actual containment or a labeled reading group; use a storage shape only when storage is the intended meaning. Do not alternate shapes merely for variety. A title or padding should not be squeezed into a diamond; move long rationale beside it and keep the decision short.
+Choose geometry for logical role, preserving existing/domain notation. This user's default is a **rounded rectangle**, not a sharp-corner rectangle, for ordinary action/entity nodes, cards, notes, headers and enclosures. Set native `roundness: {"type": 3}`. Use a diamond for a decision with labeled outgoing conditions, an ellipse for a start/end or explicitly identified actor, and a cylinder for storage. A cylinder's internal body may have straight edges because its outer ellipse supplies the rounded silhouette. Use a container for actual containment or a labeled reading group. Do not alternate shapes merely for variety. A title or padding should not be squeezed into a diamond; move long rationale beside it and keep the decision short.
 
 Within a panel, keep peers the same shape and comparable size, align a sequence along its primary direction, put branches beside their originating decision, and route returns outside the main lane. Arrange hierarchy by actual levels, alternatives in matching rows/columns, and actor lanes by responsibility. Arrows and condition labels express direction and order; the silhouette, left/right placement, or numbering alone must not imply a dependency or execution order.
 
@@ -162,6 +162,7 @@ Use a small declared connector vocabulary, adapted to the subject. These are use
 | Expression | Suggested meaning and required label |
 |---|---|
 | Solid directional arrow | Main action or transfer; name the action/object |
+| Solid line without arrowhead | Association, membership or connection; not execution order |
 | Dashed directional arrow | Conditional/exception path; state the condition and destination |
 | Dotted leader without arrowhead | Explanatory annotation, not an executable step |
 | Return/loop arrow | Retry, feedback, or re-entry; name the trigger and return step |
@@ -169,13 +170,15 @@ Use a small declared connector vocabulary, adapted to the subject. These are use
 
 Use an arrow's color for its declared category or path; keep cross-category handoffs neutral when no owner is clear. Do not assign two meanings to the same style within one explanation. Dashed does not automatically mean asynchronous or uncertain: label waiting, acknowledgement, and evidence status explicitly. Show distinct request and response arrows when that distinction matters; a double-headed arrow can hide their order.
 
+For a sequence view, declare dashed horizontal arrows as returns and dashed vertical lines as lifelines. For a request/response boundary map, a dashed return can be routed in a separate lane. A dashed enclosure has a scope label; it does not inherit the semantics of a dashed arrow. Show the local vocabulary with short native line samples. Reuse the observed layouts in [Blocks & Arrows design guide](blocks-and-arrows-design.md) when this user requests richer visual expression.
+
 Prefer straight connectors for aligned short paths, elbow routes around obstacles, and curves for returns or competing paths when clearer. Bind endpoints to the intended shapes when supported. Keep branches outside the main reading lane and labels away from crossings; use visible step references instead of a long connector spanning unrelated panels. Use consistent stroke weight, reserving emphasis for an important path/difference. Hand-drawn lines must still make endpoints and arrowheads unambiguous.
 
-### Native tldraw implementation
+### Native Excalidraw implementation
 
-Use editable geo/text shapes for table cells and object rows; align repeated widths and row heights and group a table for movement. Use named frames for navigable panels where appropriate, or a background geo shape for a semantic enclosure. Frames may clip child shapes, so inspect crossing arrows and labels rather than assuming a frame behaves like an unbounded background.
+Use native rectangles, ellipses, diamonds, editable text, lines, arrows and groups. Build tables from aligned cells and group each reusable unit. Use named frames when supported, checking clipping and cross-frame arrows. Preserve text container bindings and reciprocal arrow bindings when editing.
 
-Check the live tool's shape/style schema and binding helpers when needed. Set intended category colors, fills, dash styles, and label styles explicitly so remembered editor styles do not leak into new categories. Use supported arrow routing and native labels. Do not assume SDK features are exposed by every connector or add a custom shape package for a table. See official [styles](https://tldraw.dev/sdk-features/styles), [bindings](https://tldraw.dev/sdk-features/bindings), and [shapes](https://tldraw.dev/docs/shapes) documentation for implementation details.
+Read the live ExcalidrawZ MCP schema and the setup reference before selecting a mode's tools. Set semantic fills, dash styles and typography explicitly; remembered editor preferences must not leak into unrelated categories. Library items are starting structures, not evidence. Split a relationship across focused native views when it is crowded; never replace the editable content with a screenshot. Use the registered Korean font by its actual family name in this installation.
 
 These patterns are adapted from the user's supplied workflow, responsibility-table, and key/permission-map images. They are visual references, not verified product documentation or a fixed palette. Retain useful hierarchy and category consistency; do not reproduce tiny text or a sprawling board just to match the reference. No decorative icons, shadows, or emoji are needed by default.
 
