@@ -27,6 +27,8 @@ Fetch only relevant pages, sections, or ranges. Reuse gathered evidence across t
 
 ## Argument and prose
 
+Apply the available coherent-writing skill during composition and review, before splitting an explanation into report sections, slides or diagrams. Preserve accepted interview decisions. A request to execute agreed tasks requires the actual deliverables and their checks; an outline, rewritten example or tool comparison alone does not satisfy it. Show a representative draft only when a consequential decision remains; continue independent production checks while reader feedback is pending.
+
 Before drafting, establish the main conclusion or central question and the role each section plays. Organize around the reader's reasoning needs rather than one summary per source. Explain why evidence supports a conclusion and address material counterevidence. Avoid causal claims when sources establish only correlation.
 
 For a report or paper, map the argument from claim to evidence and from one
@@ -52,5 +54,9 @@ direction before scaling production. Keep native text and simple diagrams
 editable when the requested format supports it.
 
 Use the available document, presentation, spreadsheet, or PDF skill when producing those formats; follow its actual artifact and rendering requirements. Inspect the rendered output when layout matters. Verify material figures and citations against the source record. Distinguish file existence, layout verification, and substantive verification.
+
+For choosing or replacing document/deck tools, read [tool application](references/tool-application.md). Start with the installed path that satisfies the brief. Compare a candidate on the same input and required edit only when it fills a concrete gap; recommendations and repository popularity are not execution evidence.
+
+After the last material change, inspect the final deliverable rather than an earlier preview. For new editable Office files, check native content/objects and reopen in the target application when available. When a partial edit is requested, verify that edit/save and unaffected content and sources; do not add a test edit to the user's final file. State the actual fallback and gap if that application is unavailable. Check chart axes, data labels and table text at the intended viewing size as well as body text. A renderer and Word/PowerPoint may paginate or substitute fonts differently.
 
 Deliver the artifact with a concise account of verification and material limitations. Stop when the brief is satisfied. Do not impose multiple rewrite rounds unless a concrete defect remains.

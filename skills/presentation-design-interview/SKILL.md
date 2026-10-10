@@ -17,6 +17,8 @@ Keep a compact working brief: accepted content, visual choices, rejected approac
 
 ## Find the visual direction
 
+Use the installed `design-reference` skill and its `references/sites.md` catalog for shared reference discovery. If both skills are installed as siblings, its entrypoint is `../design-reference/SKILL.md`; otherwise resolve it from the host's skill catalog (on this host, `~/.codex/skills/design-reference/SKILL.md`). Read the relevant presentation or other design categories, then inspect actual examples. Route requests to add sites through that skill's single catalog; do not keep a duplicate list here. Reuse the established brief and retain the original-company-report and credited-designer sources below when they fit better than catalog entries. If the common skill is unavailable, disclose the gap and continue with supplied references.
+
 If taste is unresolved or the user rejects generic design, inspect actual report or presentation pages before inventing another style. Prefer original company reports, event decks or credited designers. Show actual images with working source links; distinguish a report page from a conference photograph or product screenshot. If browser choice is specified, honor it.
 
 Extract visible design decisions: information hierarchy, content proportions, typography, alignment, spacing, chart grammar, color and emphasis. Don't identify a font by appearance as a confirmed fact. Don't assume a reference's identity or color scheme is what the user likes; ask about the relevant visual choice when needed.
@@ -27,6 +29,8 @@ Use real charts, native text and simple shapes for factual material. Generated i
 
 ## Refine content and hierarchy
 
+Before arranging the slides, use the available coherent-writing skill to check the explanation's through-line and evidence-to-conclusion links. Reuse accepted content and interview decisions. Design previews are for unresolved visual choices; they do not replace production when the user asks to execute the agreed work.
+
 Once the user picks a direction, keep that layout and refine section wording. Allocate space according to the confirmed message and mandatory detail. A compact scope/method line can free space for implications and next questions. Preserve the requested template's semantic sections even if the visual arrangement changes.
 
 Distinguish slide text from spoken explanation when relevant. In a constrained one-page report, compact supporting evidence before reducing the main conclusion. If all required evidence needs small type, disclose the reading limit instead of silently omitting material. Don't add slides against a fixed page requirement.
@@ -36,6 +40,8 @@ Distinguish slide text from spoken explanation when relevant. In a constrained o
 Use a coherent font family with deliberate weights for title, headings, body, numbers and notes. Check Korean glyph coverage and actual weight availability. Readability takes priority over novelty; a familiar report font is suitable if its hierarchy works. Download additional fonts only when needed and verify source/license before distributing them.
 
 Tune title tracking, body leading, line breaks, paragraph spacing and alignment separately. Keep quotations legible rather than applying the lightest weight everywhere. Bold only the phrases that carry the argument. Review word breaks and visual density at the intended presentation size.
+
+Include table cells, chart axes, legends and data labels in that size check; geometry without overlap does not establish legibility. After the final material change, review that revision in the intended renderer or PowerPoint when it is the destination. Resolve Korean theme-font fallback and inspect page/slide breaks instead of assuming an earlier PDF or headless preview proves the editable file. Keep reader comprehension separate from successful export and visual inspection.
 
 Respond to “AI slop” by locating the concrete excess: repeated cards, a large tinted panel, decorative labels, full-width highlight strips, gradients or uniform boldness. Remove or reduce that excess while preserving useful hierarchy. A gradient is neither required nor universally forbidden; explicit user feedback governs. Borrow thin rules, restrained transparency and phrase-level highlights from a selected reference only when they help reading.
 
