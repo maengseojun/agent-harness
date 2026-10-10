@@ -1,0 +1,24 @@
+{
+  "server": {
+    "name": "drawio-mcp",
+    "version": "1.6.3"
+  },
+  "tools": [
+    "open_drawio_xml",
+    "open_drawio_csv",
+    "open_drawio_mermaid",
+    "list_pages",
+    "get_page",
+    "set_page",
+    "search_shapes"
+  ],
+  "pages": [
+    {
+      "type": "text",
+      "text": "[\n  {\n    \"index\": 0,\n    \"id\": \"flow\",\n    \"name\": \"조건 분기 순서도\",\n    \"approxSizeBytes\": 7450\n  },\n  {\n    \"index\": 1,\n    \"id\": \"architecture\",\n    \"name\": \"시스템 경계 지도\",\n    \"approxSizeBytes\": 12776\n  }\n]"
+    }
+  ],
+  "pageSaveReadback": true,
+  "otherPagePreserved": true,
+  "openToolReturned": true
+}

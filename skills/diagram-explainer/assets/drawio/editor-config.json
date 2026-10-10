@@ -1,0 +1,17 @@
+{
+  "customFonts": [
+    "나눔손글씨 다행체"
+  ],
+  "defaultVertexStyle": {
+    "fontFamily": "나눔손글씨 다행체",
+    "fontSize": "28",
+    "rounded": "1",
+    "arcSize": "16"
+  },
+  "defaultEdgeStyle": {
+    "fontFamily": "나눔손글씨 다행체",
+    "fontSize": "22",
+    "edgeStyle": "orthogonalEdgeStyle",
+    "rounded": "1"
+  }
+}

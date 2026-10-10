@@ -1,3 +1,5 @@
+> Historical setup, superseded on 2026-10-10. Current instructions: [diagrams.net and yEd setup](diagrams-net-setup.md). Preserve these old files and boards; do not use this as the default editor workflow.
+
 # ExcalidrawZ local setup
 
 Verified on this Mac on 2026-10-10. Treat this as a dated installation record; inspect current tool availability before using it.
