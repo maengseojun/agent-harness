@@ -8,7 +8,10 @@
     "labelBackgroundColor": "none",
     "labelBorderColor": "none",
     "rounded": "1",
-    "arcSize": "16"
+    "arcSize": "16",
+    "verticalAlign": "middle",
+    "spacingTop": "0",
+    "spacingBottom": "10"
   },
   "defaultEdgeStyle": {
     "fontFamily": "나눔손글씨 다행체",
