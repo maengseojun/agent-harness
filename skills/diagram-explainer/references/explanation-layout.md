@@ -146,6 +146,14 @@ Keep body text left-aligned for multi-line explanations and field rows; short no
 
 Match peer and before/after cards by font size, height, vertical alignment and inner padding. For two-line state summaries, reserve both line heights plus top/bottom padding; do not put 28px two-line text and 24px total padding into a 65px card. Use a consistent subordinate body size where the hierarchy calls for it and grow the card when needed. In draw.io set `verticalAlign=middle` explicitly for centered summary cards, then inspect the rendered top/bottom whitespace and baselines of both peers. Matching geometry alone does not prove visual alignment.
 
+### Optical centering of Korean labels
+
+`verticalAlign=middle` centers a text layout box, which can leave the visible glyphs below a shape's apparent center. Inspect the glyph block against the node silhouette and surrounding whitespace, not just its baseline or nominal box. For the current 나눔손글씨 다행체 sample, start with about 4–6 diagram units upward at 24–28px, then judge the actual export. This is a local calibration, not a universal offset for all fonts, zoom levels or editors.
+
+For a centered draw.io node, use `verticalAlign=middle;spacingTop=0;spacingBottom=10` as the tested starting bias (about 5 units upward), without moving its shape or connection ports. For an edge, adjust the label-only `mxGeometry` offset y by a small negative amount (the 24px sample uses -5), adding it to any existing route-specific offset rather than overwriting that offset. Keep the borderless background mask attached to the label, and ensure it still covers the stroke after the lift. A vertical segment, bend or off-line caption needs its own placement check. Do not move waypoints or node coordinates merely to center the text.
+
+Keep equivalent labels on the same font, size and correction. Check a short name, a Korean/Latin mixed label and the whole multi-line glyph block; grow the card if padding or wrapping is inadequate. Left-aligned field rows, titles and explanatory prose are not centered node labels and should not receive a blanket upward shift. Recalibrate after font substitution or device/editor changes. Preserve horizontal centering and clipping clearance while correcting the vertical impression.
+
 ### Sectioned object and record views
 
 For internal composition rather than execution, use one outer object silhouette with filled section bands, divider lines, and nested field/repeated-item blocks. Name each section through a heading band or an external bracket/brace spanning exactly that group. A bracket is a grouping annotation, not a directional arrow or a security boundary. Use quiet field fills and stronger section labels; no hatch is required when bands and labels already explain the types.

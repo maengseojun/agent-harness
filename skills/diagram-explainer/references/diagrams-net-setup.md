@@ -44,3 +44,5 @@ The yEd Live menu links to [yFiles App Generator](https://www.yworks.com/product
 - Native rendering: representative flow, architecture, rounded comparison and sequence; inspect new layouts when actually used. Structural coverage is not exhaustive visual approval.
 - yEd: import → layout → native GraphML download/readback → PNG inspection. The verified sample does not imply automatic equivalent conversion of all draw.io pages.
 - Connection status, local save, cloud save, other-device sync and user understanding are distinct claims. Preserve drafts and disclose the observed gap if any stage fails.
+
+Optical text calibration (2026-10-11): the editor configuration now starts centered node text at `verticalAlign=middle;spacingTop=0;spacingBottom=10`, giving a small upward bias for the current Korean font. The local 24px sample uses a -5 label-only y offset for edges, preserving its earlier route-specific offset and local-color mask. Inspect actual glyph balance and mask coverage in the export; these settings are starting values, not a device-independent font-metric guarantee. Existing diagrams and running profiles do not change automatically.
