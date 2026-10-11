@@ -20,6 +20,7 @@ observed correction is reusable in that skill's context.
 | [tutorial-video](tutorial-video/SKILL.md) | Produce requested tutorial scripts or videos with visual tutoring and authorized ElevenLabs narration. |
 | [execute-code-brief](execute-code-brief/SKILL.md) | Implement an agreed coding brief. |
 | [dither-motion-landing](dither-motion-landing/SKILL.md) | Build landing pages with original dithered imagery and purposeful motion. |
+| [hangul-wrap](hangul-wrap/SKILL.md) | Measure and fix Korean word splits and overflow in HTML at multiple widths; other document formats require their own rendered checks. |
 | [frontend-guidance](frontend-guidance/SKILL.md) | Optional guidance for general website and app UI design; preserves requested aesthetics and links selected Impeccable references. |
 | [prepare-work-deliverable](prepare-work-deliverable/SKILL.md) | Produce a substantial report, pitch or presentation from an agreed brief. |
 | [presentation-design-interview](presentation-design-interview/SKILL.md) | Co-design presentations through focused interviews, real visual references, layout previews and typography refinement. |
