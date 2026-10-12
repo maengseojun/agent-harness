@@ -10,6 +10,12 @@ Codex `~/.codex/config.toml` has a `drawio` stdio entry using `/Users/maengseoju
 
 Observed tools: `open_drawio_xml`, `open_drawio_csv`, `open_drawio_mermaid`, `list_pages`, `get_page`, `set_page`, `search_shapes`. Inspect the live schemas for arguments and versions. These tools do not independently save a file in Drive. Current-chat tool discovery may need a connection reload; a separate client test is not proof that this conversation has live tools. The hosted endpoint `https://mcp.draw.io/mcp` exists but was not configured or tested for this workflow.
 
+## Route when MCP access is missing
+
+Discover the current chat's draw.io tools and inspect their live schemas; registration history alone is not availability. When exposed, use the relevant native page/open tools. Preserve the generated `.drawio` file separately: `open_drawio_xml` opening a URL is not a durable save or a rendering check.
+
+If MCP access fails or is absent, create valid native `.drawio` XML locally and use the official editor. On this Mac, check the recorded Desktop executable before use: `$HOME/Applications/draw.io.app/Contents/MacOS/draw.io`. Its native export route is `draw.io --export --format png --output <preview.png> <source.drawio>`; inspect the returned PNG and reopen/read the saved source. On another host, use its available official browser/desktop route rather than assuming this Mac path. Disclose a concrete failed stage and keep the editable draft if neither renderer is available; do not replace the deliverable with Markdown only.
+
 ## Desktop and storage
 
 Installed official [draw.io Desktop 32.4.1](https://github.com/jgraph/drawio-desktop/releases/tag/v32.4.1) arm64 at `/Users/maengseojun/Applications/draw.io.app`. The DMG SHA-256 matched the official release: `85e3bd6956b79bc0ff6f36237abd7b5527b1654802ead742c8a78b657e01740c`. macOS signature verification passed and Gatekeeper reported accepted/Notarized Developer ID. CLI version and PNG export were executed successfully.
