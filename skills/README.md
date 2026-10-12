@@ -14,7 +14,7 @@ observed correction is reusable in that skill's context.
 | --- | --- |
 | [blockchain-upstream-review](blockchain-upstream-review/SKILL.md) | Map upstream blockchain changes to a project's actual pins and call sites. |
 | [coherent-writing](coherent-writing/SKILL.md) | Compose connected Korean and English prose with faithful evidence, paragraph reasoning, examples and relevant objections. |
-| [endix-workflow](endix-workflow/SKILL.md) | Read live Endix workflow and code Rules, keeping private preparation separate from team execution. |
+| [endix-workflow](endix-workflow/SKILL.md) | Check migration into Endix and read live workflow and code Rules for subsequent team work. |
 | [diagram-explainer](diagram-explainer/SKILL.md) | Explain structures and flows in diagrams.net/draw.io, with yEd Live layouts, school Google Drive originals, Korean fonts, rounded shapes and Blocks & Arrows motifs. |
 | [html-prototype-interview](html-prototype-interview/SKILL.md) | Plan websites and apps through a working HTML prototype, screen-based interviews and iterative revisions. |
 | [interactive-explainer](interactive-explainer/SKILL.md) | Teach a relationship through a small guided simulation and free exploration. |

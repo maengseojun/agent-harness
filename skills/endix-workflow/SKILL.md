@@ -1,6 +1,6 @@
 ---
 name: endix-workflow
-description: Route Endix (eta) work to its live Notion workflow and code Rules, task Spec/Plan and repository gates. Use before Endix planning, research, documents, design, coding or review, including private preparation; distinguish personal preparation from team execution. Does not apply to unrelated blockchain work.
+description: Check migration from personal preparation into Endix (eta) team work, and route subsequent Endix work to its live Notion workflow and code Rules, task Spec/Plan and repository gates. Use when the user asks to migrate or under the Endix project entry. Do not activate for personal brainstorming, research or drafts merely because they concern Endix, or for unrelated blockchain work.
 ---
 
 # Endix workflow source routing
@@ -8,6 +8,18 @@ description: Route Endix (eta) work to its live Notion workflow and code Rules, 
 This personal skill is a reading guide, not a copy of team rules or a team
 entry stamp. Fetch current sources for the requested work; do not rely on a
 previous summary or a local snapshot as authority.
+
+## Apply at migration, not during personal preparation
+
+Personal brainstorming, research and drafts follow the personal workflow until
+the user requests migration into Endix work. An Endix topic alone does not
+activate this skill or make a personal draft a team record.
+
+At migration, check the prepared material against the live Endix sources below
+before the first team write or implementation. Identify missing criteria and
+decisions, carry the authorized material into the applicable team path, and link
+its personal source without treating it as team-approved. After migration,
+follow the Endix project entry for subsequent work.
 
 ## Start with the live entry
 
