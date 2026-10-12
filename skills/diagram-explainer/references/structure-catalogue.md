@@ -9,9 +9,9 @@ Reviewed on 2026-10-10. These are original, editable Korean starting layouts inf
 - Detailed boundary example: [API gateway/auth architecture](https://blocksandarrows.com/diagrams/band/api-gateway-auth-microservices-architecture-diagram-ywr7). It shows containment plus data paths; the drawing is not proof of security or deployment.
 - Aside tab discovery worked, but opening the source failed with Transport closed. Source reading continued in the Codex browser. Do not turn a failed browser into an assertion that a site has no examples.
 
-## Design defaults
+## Role of this catalogue
 
-The user prefers rounded rectangles. Use labeled solid/dashed arrows, headless relationship lines, dotted note leaders and named dashed boundaries. See [Blocks & Arrows design guide](blocks-and-arrows-design.md) for six visually inspected source examples and their native implementation, including source limitations. All 36 templates now use rounded visible rectangles; storage uses a cylinder assembled from native shapes. Architecture, DFD, network, sequence, ER/class and mind-map layouts have distinct design treatments.
+These 36 historical layouts are optional starting units, not a closed menu, a complete representation library or a reason to express every document as nodes and arrows. Choose from [Representation selection](representation-selection.md) first. If no page fits, build native prose, tables, quantitative marks, annotations, formulas or spatial views directly. [Composition examples](../assets/drawio/composition-examples.drawio) show additional combinations; adapt only what answers the reading task. Visual conventions are maintained once in [Visual grammar](visual-grammar.md).
 
 ## Selection rules
 
@@ -73,3 +73,9 @@ The canonical portable assets are `assets/drawio/structure-templates.drawio` (36
 Copy the bundled native page or library item rather than rebuilding the entire catalogue. The 36 layouts were converted from this skill's own generated Excalidraw teaching masters, preserving editable shapes, Korean labels, connectors and source/target IDs. Bound text became the native draw.io node label; table cells are rounded with a small gap. The user’s old boards were not migrated. `scripts/build_drawio_templates.py <generated-master-folder> <new-output-folder>` is a historical conversion helper and refuses overwriting changed files. The legacy Excalidraw generator is retained for historical files, not the default creation route.
 
 All 36 native files and library items were parsed and read back; representative flow, architecture, rounded comparison and sequence layouts were rendered with the official draw.io Desktop. Other layouts have structural checks, not an assertion of exhaustive visual approval. yEd Live is separately verified with a Korean GraphML sample; the catalogue is not an automatic yEd format converter.
+
+## Regenerate portable teaching templates
+
+Prefer copying the supplied native draw.io assets. Regeneration is optional: `scripts/build_templates.py` requires Python with Pillow plus an explicit `--font-file /verified/font/file` and its actual `--font-family` (default: 나눔손글씨 다행체). No font is bundled or installed. Resolve this skill directory first and use an absolute script path; do not assume a Mac font path exists in cloud. Generate to a new working folder, then run `scripts/build_drawio_templates.py` with that complete 36-template source folder and a separate output folder. Preserve user-edited templates. A substitute font test checks structure only; it does not verify the preferred Korean typeface.
+
+The `file` values in `assets/drawio/index.json` name the historical individual working templates, which are not bundled here. Use each entry's `id` to select the matching page in `structure-templates.drawio`, or its title to select the corresponding library item. Do not report the individual file as present.
