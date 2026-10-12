@@ -1,0 +1,67 @@
+{
+  "price_comparison": {
+    "quantities": [
+      50,
+      50
+    ],
+    "target": [
+      0.5,
+      0.5
+    ],
+    "spot": [
+      1.2,
+      1
+    ],
+    "average": [
+      1,
+      1
+    ]
+  },
+  "weekly_work": {
+    "weeks": [
+      "1주",
+      "2주",
+      "3주",
+      "4주"
+    ],
+    "starting_backlog": 40,
+    "completed": [
+      12,
+      18,
+      15,
+      24
+    ],
+    "added": [
+      10,
+      15,
+      12,
+      14
+    ]
+  },
+  "logical_policy": {
+    "rule": "L iff E and A",
+    "cases": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        0
+      ],
+      [
+        1,
+        0,
+        0
+      ],
+      [
+        1,
+        1,
+        1
+      ]
+    ]
+  },
+  "status": "synthetic teaching data; no financial policy or product specification"
+}

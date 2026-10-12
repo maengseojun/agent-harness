@@ -15,7 +15,7 @@ observed correction is reusable in that skill's context.
 | [blockchain-upstream-review](blockchain-upstream-review/SKILL.md) | Map upstream blockchain changes to a project's actual pins and call sites. |
 | [coherent-writing](coherent-writing/SKILL.md) | Compose connected Korean and English prose with faithful evidence, paragraph reasoning, examples and relevant objections. |
 | [endix-workflow](endix-workflow/SKILL.md) | Check migration into Endix and read live workflow and code Rules for subsequent team work. |
-| [diagram-explainer](diagram-explainer/SKILL.md) | Select tables, charts, trees, diagrams or composite boards for explanations and summaries; retain editable draw.io/yEd sources and verified school Drive delivery. |
+| [diagram-explainer](diagram-explainer/SKILL.md) | Structure explanations and documentation as editable draw.io visual documents; choose prose, tables, quantitative marks, formulas, sets, annotations or relationships from the reading task. |
 | [html-prototype-interview](html-prototype-interview/SKILL.md) | Plan websites and apps through a working HTML prototype, screen-based interviews and iterative revisions. |
 | [interactive-explainer](interactive-explainer/SKILL.md) | Choose the view first, then add useful table/tree/path exploration or parameter simulation; static summaries need no app. |
 | [tutorial-video](tutorial-video/SKILL.md) | Produce requested tutorial scripts or videos with visual tutoring and authorized ElevenLabs narration. |

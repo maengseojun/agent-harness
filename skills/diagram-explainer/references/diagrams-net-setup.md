@@ -14,7 +14,7 @@ Observed tools: `open_drawio_xml`, `open_drawio_csv`, `open_drawio_mermaid`, `li
 
 Discover the current chat's draw.io tools and inspect their live schemas; registration history alone is not availability. When exposed, use the relevant native page/open tools. Preserve the generated `.drawio` file separately: `open_drawio_xml` opening a URL is not a durable save or a rendering check.
 
-If MCP access fails or is absent, create valid native `.drawio` XML locally and use the official editor. On this Mac, check the recorded Desktop executable before use: `$HOME/Applications/draw.io.app/Contents/MacOS/draw.io`. Its native export route is `draw.io --export --format png --output <preview.png> <source.drawio>`; inspect the returned PNG and reopen/read the saved source. On another host, use its available official browser/desktop route rather than assuming this Mac path. Disclose a concrete failed stage and keep the editable draft if neither renderer is available; do not replace the deliverable with Markdown only.
+If MCP access fails or is absent, create valid native `.drawio` XML locally and use the official editor. On this Mac, check the recorded Desktop executable before use: `$HOME/Applications/draw.io.app/Contents/MacOS/draw.io`. Its native export route is `draw.io --export --format png --border <margin> --output <preview.png> <source.drawio>`; inspect the returned PNG and reopen/read the saved source. On another host, use its available official browser/desktop route rather than assuming this Mac path. Disclose a concrete failed stage and keep the editable draft if neither renderer is available; do not replace the deliverable with Markdown only.
 
 ## Desktop and storage
 
@@ -46,7 +46,7 @@ The yEd Live menu links to [yFiles App Generator](https://www.yworks.com/product
 
 ## Proportional completion checks
 
-- Native .drawio: all 36 pages/library items, unique element IDs, valid connector references and consistent Korean font style; remote raw readback must match the uploaded file.
+- Produced .drawio: valid pages/unique element IDs, intact parent/connector references and editable content; inspect the chosen representation, data/logical meaning and Korean rendering. For a catalogue rebuild, separately check its intended page/library count. Remote raw readback must match the uploaded file.
 - Native rendering: representative flow, architecture, rounded comparison and sequence; inspect new layouts when actually used. Structural coverage is not exhaustive visual approval.
 - yEd: import → layout → native GraphML download/readback → PNG inspection. The verified sample does not imply automatic equivalent conversion of all draw.io pages.
 - Connection status, local save, cloud save, other-device sync and user understanding are distinct claims. Preserve drafts and disclose the observed gap if any stage fails.
