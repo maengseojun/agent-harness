@@ -1,6 +1,6 @@
 # Explanation placement and reading order
 
-Use this reference for multi-step teaching boards and detailed explanations. The target is a readable lesson, not a large canvas filled with prose. An explicit diagram-only request needs only the relevant visual rules.
+Use this reference for visual summaries, composite explanation boards, multi-step teaching boards and detailed explanations. The target is a readable lesson, not a large canvas filled with prose. An explicit diagram-only request needs only the relevant visual rules.
 
 ## Plan before drawing
 
@@ -36,6 +36,11 @@ Before arranging shapes, name what a node represents and what a line, position o
 | How is one object, record, or message internally organized? | Sectioned structure view with bands, dividers, and labeled brackets | Actual membership, repeated parts, and whether position/size encodes order or quantity |
 | How do measured category values or trends differ? | Bar chart for category magnitudes; line chart for change over time | Units, time basis, consistent scale, source, and uncertainty |
 | How are measured values distributed or related? | Histogram for distribution; scatter plot for paired values | Bin/axis meaning and sample basis; association is not causation |
+| Which choices follow from which conditions? | Decision tree or decision table | Complete relevant branches and explicit tests; a classification tree does not imply a decision sequence |
+| Which events overlap or exclude one another? | Venn/Euler or another set view | Union, intersection, complement and domain; geometric area is qualitative unless calibrated to quantity |
+| Why does a formula or theorem hold? | Annotated formula, aligned derivation or numbered proof beside a visual example | Definitions, assumptions and justified steps; the example illustrates and does not prove the general claim |
+| How do events relate to dates or durations? | Timeline with intervals or aligned event lanes | Time basis, gaps and uncertainty; do not use process spacing as measured time |
+| What are the main points of mixed material? | Selected prose, table, figure or formula panels | Core answer and conclusion-changing conditions; panel layout follows the content rather than a fixed infographic template |
 | How is a whole divided or an amount transferred? | Part-to-whole chart for measured shares; flow for destinations | Denominator/units and totals; do not imply proportional widths without data |
 
 This is a selection aid, not a catalog to fill. If exact lookup matters, prefer a table; if numeric patterns matter, use a chart. Use a flow for order and a graph for structural connections. Qualitative scores must have a stated basis; do not invent precise values to make a chart. Combine views only when each answers a different question, sharing names and references. Explain the choice briefly when it helps the reader, without turning the internal plan into another deliverable.
@@ -45,6 +50,18 @@ When relations coexist, encode each separately rather than forcing everything in
 For A/B comparison, keep criteria in the same order and use matching layouts and scales. Show common parts neutrally and mark consequential differences; state the tradeoff and the condition under which each choice applies. Keep unknowns explicit rather than scoring them as poor. Before quantitative ranking, check comparable sample populations, measurement definitions, and coverage; incomplete measurements may support a qualified description without establishing a winner. Split overview and detail at a meaningful boundary, not an arbitrary number of shapes.
 
 For graphs paired with process/state diagrams, read [Diagram + graph composition](diagram-graph-composition.md). Keep the quantitative axis separate from process order and align state/event lanes only when they share an explicit time or schematic event basis.
+
+## Compose a mixed explanation or summary
+
+An explanation board can contain different representations. Start with the core answer, then give each needed panel a reader question, a suitable view and an adjacent interpretation. Possible roles include definition/conditions, visual intuition, comparison, mechanism/proof, worked example and application/limits. Select and order only the roles the request needs; do not require every role, a four-panel grid or a mathematics-first layout. For a summary, prioritize the essential facts and their relationships rather than adding a proof, quiz or tutorial automatically.
+
+Choose a dominant reading path and enough space for the most demanding view. Pair a figure with the explanation that lets the reader interpret it; put units/axes beside a chart, criteria in a table header, parent/child meaning beside a tree, and assumptions beside a formula. Reuse terms, example values and semantic colors across panels. Number panels for reading order without implying that categories or proof premises are chronological actions. The board should answer the question on its own when it is the requested reading surface. At narrow widths or a different output format, preserve the reading order and essential content by stacking or splitting panels rather than shrinking all text.
+
+The user-supplied Boole inequality image demonstrates a title/core answer, definition and formula, two-event set picture, indicator proof, generalization and uses arranged together. Adapt that composition when it serves the lesson. Check its wording against the formula: union means “at least one”, while intersection means “all”; a reference image is not authority for a mathematical statement. The overlapping region explains double counting. For a uniform-probability teaching picture, label that assumption before treating area as probability; otherwise mark the geometry qualitative. Do not copy its palette, density, exact sections or incidental mistakes as defaults.
+
+For other topics, use different combinations: an option comparison may need a criteria table and tradeoff paragraph; a taxonomy may need a tree and an ambiguous-membership note; a measurement summary may need a chart and interpretation with source/units. Simple cases can use one representation. Introduce interaction only when an input and its visible consequence answer a learning question; a static summary needs no simulated behavior.
+
+Select the requested output format after selecting the information structure. Freely arranged editable boards retain the draw.io/yEd defaults; requested HTML, documents, PDFs or slides use their relevant authoring and rendering checks. Quantitative figures use appropriate plotting tools and retain data/formulas; embedded previews do not replace separately requested editable sources. Choose a math-capable rendering route when needed and inspect actual notation, subscripts and alignment. A bitmap reference or preview does not replace editable text, equations and shapes in an editable deliverable.
 
 ## Decide what stays in the picture
 
