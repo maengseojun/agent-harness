@@ -19,6 +19,16 @@ Build a compact coverage map: reader question/topic → what must be explained �
 
 Before drawing, compare the map against the request: does each required topic have an explanation and evidence, are essential dependencies/conditions visible, and are exclusions justified? After composing, map topics to pages/sections and check again for gaps, duplicated explanations and unresolved assumptions. An overview plus focused pages can preserve scope and readable density. Do not choose the topic boundary from a template's slots, arbitrary node count or a fit-all image. If the intended boundary is materially ambiguous, ask the missing question; otherwise proceed with an explicit reasonable scope and let feedback refine it.
 
+## Make the essential distinctions visible
+
+After scope selection and before coordinates, write a compact working contract for a nontrivial document: **reader question → essential distinction → supported evidence/state → visual encoding → page/region → rendered check**. Keep it in working notes; it is not another panel to add to the deliverable. A small explanation can use one sentence. Prioritize the few distinctions that determine the answer; do not create a quota of charts or panels.
+
+For example, “when does each policy update what?” needs the same event columns across alternatives and separate rows for the stored state and the value used for the next decision. Mark update/hold/unknown at the relevant event. A generic chain of policy-name boxes does not expose that distinction. If durations or magnitudes are unknown, use an explicitly unscaled event sequence or categorical matrix, not invented slopes or values. Conversely, paired actual/target quantities with a justified common unit can use aligned values or paired marks with the difference labeled.
+
+Choose the main figure and its space from the central reader question. A system overview supplies context; an uncertainty register supplies qualifications. Neither should crowd the requested comparison into a tiny footer. Allocate enough room for the decisive evidence and put consequential unknowns at the affected state, edge or row; keep a linked register for further detail without repeating every paragraph. In codebase work, distinguish object/state, operation and responsibility before connecting them; source order need not become reading order.
+
+Before polishing, sketch the main comparison with actual labels and supported values. Check whether position, alignment, grouping, intervals, marks or equations carry the intended relation. Text may be the clearest expression of an exact condition; do not replace useful prose with decorative geometry. If all substantive distinctions remain sentences inside interchangeable cards, reconsider the representation using an inspected reference.
+
 ## Give sections jobs
 
 Lead with the answer or question. Then arrange the needed material by the reader's next question: definition, comparison, evidence, calculation, mechanism, interpretation, consequence or limit. Use those roles only when needed. Select one dominant reading direction with aligned headings and whitespace; avoid an unmarked serpentine canvas. A prose column can be a primary part of the document. Named sections need not have visible enclosing boxes.
@@ -54,4 +64,12 @@ For an existing board, revise the relevant section in place, preserve IDs/bindin
 
 ## Review the document
 
-Can the reader find the core answer, read the needed evidence, understand why it supports the claim and locate consequential limits without chat history? Does each section add a distinct job instead of duplicating a table as prose? Are terms, facts, scales, logical operators and sources consistent? Can a diagram-only request receive only its requested visual, and a reference document remain a document? Verify native integrity and actual rendered usability under the main skill contract; user understanding still needs response evidence.
+Inspect the actual overview and relevant details at the intended reading size against the working contract:
+
+- **Find the answer:** point to the region that answers each central reader question. Check prominence and reading order; a headline alone is not the supporting explanation.
+- **See the distinction:** locate the concrete marks, alignment, state changes, grouping or annotated formula that reveal each planned distinction. Readable boxes are insufficient when their arrangement adds no understanding. For a useful text/table-first document, exact lookup and aligned criteria can satisfy this check without a chart.
+- **Follow the evidence:** trace one consequential path or comparison using its nearby conditions, units and sources. Check that routing, distant legends or repeated IDs do not force unnecessary back-and-forth. Keep genuinely necessary feedback loops, but isolate their local roles or use focused views when they obscure the main path.
+- **Justify each view:** state what each section adds. A table and chart can serve lookup and pattern recognition; repeated prose with no added interpretation cannot. Keep unknowns visible without making the uncertainty list dominate the answer.
+- **Check transfer and limits:** compare the result with the selected reference's useful relationship, not its decorative style. Verify that no copied layout introduced unsupported chronology, hierarchy, data, policy certainty or omitted scope.
+
+Record concrete locations and pass/fail findings in the task notes, not a self-assigned quality score. On failure, revise the encoding, shared coordinates, grouping, reading order or overview/detail split before tweaking color and padding. Re-render the changed view and repeat the failed checks plus any affected content/geometry checks. If evidence cannot support a needed distinction, show the gap rather than manufacturing it. Keep the requested format and native/render checks from the main contract; this inspection does not prove user comprehension or future-task performance.
