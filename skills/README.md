@@ -15,7 +15,8 @@ observed correction is reusable in that skill's context.
 | [blockchain-upstream-review](blockchain-upstream-review/SKILL.md) | Map upstream blockchain changes to a project's actual pins and call sites. |
 | [coherent-writing](coherent-writing/SKILL.md) | Compose connected Korean and English prose with faithful evidence, paragraph reasoning, examples and relevant objections. |
 | [endix-workflow](endix-workflow/SKILL.md) | Check migration into Endix and read live workflow and code Rules for subsequent team work. |
-| [diagram-explainer](diagram-explainer/SKILL.md) | Structure explanations and documentation as editable draw.io visual documents; choose prose, tables, quantitative marks, formulas, sets, annotations or relationships from the reading task. |
+| [explainer](explainer/) | Diagram Design first for explanations and research; direct HTML/SVG output, explicit text-only routes and verified delivery. |
+| [diagram-explainer](diagram-explainer/) | Original Diagram Design skill and 45 visual types; direct HTML/SVG, one-canvas overviews and school Drive verification. |
 | [html-prototype-interview](html-prototype-interview/SKILL.md) | Plan websites and apps through a working HTML prototype, screen-based interviews and iterative revisions. |
 | [interactive-explainer](interactive-explainer/SKILL.md) | Choose the view first, then add useful table/tree/path exploration or parameter simulation; static summaries need no app. |
 | [tutorial-video](tutorial-video/SKILL.md) | Produce requested tutorial scripts or videos with visual tutoring and authorized ElevenLabs narration. |
@@ -43,10 +44,10 @@ start before their skill catalog sees a newly installed skill.
 ## Share the explanation skills
 
 This repository stays private. Invited collaborators can use the source paths
-`skills/diagram-explainer`, `skills/interactive-explainer`, and
+`skills/explainer`, `skills/diagram-explainer`, `skills/interactive-explainer`, and
 `skills/tutorial-video`. For file-based sharing, use the reviewed
 `explanation-skills.zip` asset on an [explanation-skills release](https://github.com/maengseojun/agent-harness/releases).
-The archive contains only these three skills, their references, and a short
+The archive must include the sibling explainer and diagram-explainer folders plus the selected companions, their references, and a short
 installation guide; it does not include the harness, task records, or settings.
 Keep each complete skill folder together, including `references/` when present.
 

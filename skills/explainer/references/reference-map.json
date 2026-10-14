@@ -1,0 +1,104 @@
+{
+  "revision": "explainer-8",
+  "references": [
+    {
+      "id": "contract",
+      "path": "references/reference-contract.md",
+      "required": true,
+      "modes": [
+        "text",
+        "diagram"
+      ],
+      "sha256": "d5d78d03a75adef8b5df534e8a584da1f4ce5a0cff8fff545322fd1ef5b04791"
+    },
+    {
+      "id": "design",
+      "path": "references/explanation-design.md",
+      "required": true,
+      "modes": [
+        "text"
+      ],
+      "sha256": "0db68e643e8cea6d6b2ba44cdc0c75213d8b292469e1b6ab2c8c332299ed6ad4"
+    },
+    {
+      "id": "upstream-skill",
+      "path": "../diagram-explainer/SKILL.md",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "aaa23aca84a70195e2db5995a78efb2da3cc4437c501e17369ebbad9f4dda491"
+    },
+    {
+      "id": "style",
+      "path": "../diagram-explainer/references/style-guide.md",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "4716fa1a4f4d31cf836e0b4363886aa7242657fb48c624e0b34c433179dc6673"
+    },
+    {
+      "id": "output",
+      "path": "../diagram-explainer/references/output-spec.md",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "12dc0eed3514e387328651652604ef4fba1a76bce1823a79f4da2993336d1e69"
+    },
+    {
+      "id": "personal",
+      "path": "../diagram-explainer/references/personal-additions.md",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "2506acb396cb24e5d243e75b83217ca4e978869298d29a80c693953458fc6047"
+    },
+    {
+      "id": "storage",
+      "path": "../diagram-explainer/references/delivery-storage.md",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "6983085b733704c5b1f7a6fd369c781a4e3936586302d2e17ee1e1c9000d7c21"
+    },
+    {
+      "id": "upstream-manifest",
+      "path": "../diagram-explainer/upstream-manifest.json",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "e9d3232275b005600e3cdb874e69dfd2dbf0dec44909f22722d1b5bc15eb221c"
+    },
+    {
+      "id": "upstream-license",
+      "path": "../diagram-explainer/LICENSE.txt",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "bb7e12e91fecef43024111123ff784cec6c485585561d8b552557c0173b3ed29"
+    },
+    {
+      "id": "third-party-notices",
+      "path": "../diagram-explainer/THIRD_PARTY_LICENSES.md",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "ad931154e2f91bf545fc9c442666a2159aa56c0af3cca0b7246e02c6efeab6ba"
+    },
+    {
+      "id": "optional-timeline-example",
+      "path": "../diagram-explainer/assets/example-timeline.html",
+      "required": false,
+      "modes": [
+        "diagram"
+      ]
+    }
+  ]
+}
