@@ -1,5 +1,5 @@
 {
-  "revision": "explainer-9-local-fonts",
+  "revision": "explainer-10-image-delivery",
   "references": [
     {
       "id": "contract",
@@ -9,7 +9,7 @@
         "text",
         "diagram"
       ],
-      "sha256": "d5d78d03a75adef8b5df534e8a584da1f4ce5a0cff8fff545322fd1ef5b04791"
+      "sha256": "af7657d772dc8ab6b6a469f673c2eb2956c958e4319fae7227c6ef0cdbaf4089"
     },
     {
       "id": "design",
@@ -27,7 +27,7 @@
       "modes": [
         "diagram"
       ],
-      "sha256": "89c8f3e8b60c1e2609d889ea6536e238f3a9394f6d75650047b8b50ec0ce913a"
+      "sha256": "c813f1e17a08faf3e37b8b8b095e0aabe466ed602b7bb9cac12c1776670adb12"
     },
     {
       "id": "style",
@@ -54,7 +54,7 @@
       "modes": [
         "diagram"
       ],
-      "sha256": "3af4896e8b2ee5d02ba73a06a91971e214425c4f4a2abbafb227c43f1f5fe236"
+      "sha256": "df7be15f98381039aa5da9b28628340d80fe7a97332fac9849f272af8bada919"
     },
     {
       "id": "storage",
@@ -63,7 +63,7 @@
       "modes": [
         "diagram"
       ],
-      "sha256": "6983085b733704c5b1f7a6fd369c781a4e3936586302d2e17ee1e1c9000d7c21"
+      "sha256": "adb72470c0159d6ee33f35d6a5c6337a61a2a0fce805efd7a061500c2f49259c"
     },
     {
       "id": "upstream-manifest",
@@ -118,6 +118,15 @@
         "diagram"
       ],
       "sha256": "1590aee300831a79df39270860183b9339196ed063f9ea18ff55b9703b60a1ec"
+    },
+    {
+      "id": "delivery-formats",
+      "path": "../diagram-explainer/references/delivery-formats.md",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "c86188431660064c5269b62e1d6a0bbb159afbafe61f7a268eb00c2878cd8ea1"
     }
   ]
 }

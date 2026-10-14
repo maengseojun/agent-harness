@@ -17,4 +17,4 @@ For a research summary, combine the useful comparisons, dependencies, causes or 
 
 ## Delivery
 
-Return the actual requested visual and source files, not only a plan or skill-installation claim. Keep source evidence and long validation logs in a companion. Save delivered files through [delivery-storage.md](delivery-storage.md). Confirm source copy, installation, host discovery, actual current-task execution and remote save separately.
+Return the actual requested files under [delivery-formats.md](delivery-formats.md), not only a plan or skill-installation claim. Image-only requests deliver only their selected PNG/SVG files; keep HTML source, validation captures and long logs private. Save the selected delivery set through [delivery-storage.md](delivery-storage.md). Confirm source copy, installation, host discovery, actual current-task execution and remote save separately.

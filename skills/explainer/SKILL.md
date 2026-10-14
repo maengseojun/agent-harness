@@ -9,6 +9,8 @@ For a substantive explanation request, start with [diagram-explainer](../diagram
 
 Resolve the reader's question, inspected evidence and explicit output requirements. A brief chat answer or explicit text-only/table-only request stays in that format. A direct diagram-explainer invocation requests a visual even when a timeline or causal map is called a `표`. A skill edit plus an artifact request requires both.
 
+For “PNG only”, “SVG only”, “PNG+SVG” or “이미지만”, select [delivery formats](../diagram-explainer/references/delivery-formats.md) before authoring. Keep the one HTML/SVG authoring source private and deliver/upload only the selected images. Image-only without a format uses PNG. An explicit no-HTML-authoring request is a separate constraint, not merely image-only delivery.
+
 ## Shared meaning and routes
 
 Read [reference-contract.md](references/reference-contract.md) and the relevant scope/evidence sections of [explanation-design.md](references/explanation-design.md). Run `scripts/check_references.py --mode diagram` for figures or `--mode text` for prose. A missing/conflicting required source blocks only its affected step; name the gap rather than substituting stale content.
@@ -26,6 +28,6 @@ Specialists execute their own contract without routing back recursively. Prefer 
 
 Use the original Diagram Design palette and layout with the five downloaded default faces in diagram-explainer's [local-fonts.md](../diagram-explainer/references/local-fonts.md). The retired Casual and personal-balanced profiles are not defaults. Generate a supporting symbol only if it adds useful meaning; compose the complete explanation in the SVG.
 
-Keep facts, proposals, unknowns, chronology and causes distinct. Inspect real rendering, text fit, reading order and coverage. Preserve existing output files. Follow diagram-explainer's [personal additions](../diagram-explainer/references/personal-additions.md) and [school Drive storage](../diagram-explainer/references/delivery-storage.md): save sources/previews, verify the school account/folder, separately fetch raw files and return observed links.
+Keep facts, proposals, unknowns, chronology and causes distinct. Inspect real rendering, text fit, reading order and coverage. Preserve existing output files. Follow diagram-explainer's [personal additions](../diagram-explainer/references/personal-additions.md) and [school Drive storage](../diagram-explainer/references/delivery-storage.md): save only the selected delivery set, verify the school account/folder, separately fetch raw files and return observed links.
 
 For reviewed skill updates, follow [installation and maintenance](references/personal-installation.md). Source copy, installation, host discovery, actual execution and remote storage each need their own evidence.
