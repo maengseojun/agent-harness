@@ -24,7 +24,7 @@ Specialists execute their own contract without routing back recursively. Prefer 
 
 ## Verify and deliver
 
-Use the original typography and palette. The retired Casual and personal-balanced profiles are not defaults. Generate a supporting symbol only if it adds useful meaning; compose the complete explanation in the SVG.
+Use the original Diagram Design palette and layout with the five downloaded default faces in diagram-explainer's [local-fonts.md](../diagram-explainer/references/local-fonts.md). The retired Casual and personal-balanced profiles are not defaults. Generate a supporting symbol only if it adds useful meaning; compose the complete explanation in the SVG.
 
 Keep facts, proposals, unknowns, chronology and causes distinct. Inspect real rendering, text fit, reading order and coverage. Preserve existing output files. Follow diagram-explainer's [personal additions](../diagram-explainer/references/personal-additions.md) and [school Drive storage](../diagram-explainer/references/delivery-storage.md): save sources/previews, verify the school account/folder, separately fetch raw files and return observed links.
 

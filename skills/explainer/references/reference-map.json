@@ -1,5 +1,5 @@
 {
-  "revision": "explainer-8",
+  "revision": "explainer-9-local-fonts",
   "references": [
     {
       "id": "contract",
@@ -27,7 +27,7 @@
       "modes": [
         "diagram"
       ],
-      "sha256": "aaa23aca84a70195e2db5995a78efb2da3cc4437c501e17369ebbad9f4dda491"
+      "sha256": "89c8f3e8b60c1e2609d889ea6536e238f3a9394f6d75650047b8b50ec0ce913a"
     },
     {
       "id": "style",
@@ -54,7 +54,7 @@
       "modes": [
         "diagram"
       ],
-      "sha256": "2506acb396cb24e5d243e75b83217ca4e978869298d29a80c693953458fc6047"
+      "sha256": "3af4896e8b2ee5d02ba73a06a91971e214425c4f4a2abbafb227c43f1f5fe236"
     },
     {
       "id": "storage",
@@ -98,7 +98,26 @@
       "required": false,
       "modes": [
         "diagram"
-      ]
+      ],
+      "sha256": "d853c86bfd40491d5b747a07ca10b9d55d3349701ca01f508d83ba972b805788"
+    },
+    {
+      "id": "local-fonts",
+      "path": "../diagram-explainer/references/local-fonts.md",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "9ba1a7d2d3ec2699f3885b1d1058b7943c7a16e87e41b48d0b1f7763dd35c423"
+    },
+    {
+      "id": "local-font-faces",
+      "path": "../diagram-explainer/assets/local-fonts.css",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "1590aee300831a79df39270860183b9339196ed063f9ea18ff55b9703b60a1ec"
     }
   ]
 }

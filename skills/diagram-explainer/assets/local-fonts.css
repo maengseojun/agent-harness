@@ -1,0 +1,6 @@
+/* The five installed faces; inline this CSS in the authored HTML and SVG. */
+@font-face { font-family: 'Diagram Nunito Sans'; src: local('NunitoSans-Regular'); font-weight: 400; font-style: normal; }
+@font-face { font-family: 'Diagram Nunito Sans'; src: local('NunitoSans-SemiBold'), local('Nunito Sans SemiBold'); font-weight: 600; font-style: normal; }
+@font-face { font-family: 'Diagram Nunito Sans'; src: local('NunitoSans-Bold'); font-weight: 700; font-style: normal; }
+@font-face { font-family: 'Diagram LINE Seed Sans KR'; src: local('LINESeedSansKR-Regular'); font-weight: 400; font-style: normal; }
+@font-face { font-family: 'Diagram LINE Seed Sans KR'; src: local('LINESeedSansKR-Bold'); font-weight: 700; font-style: normal; }
