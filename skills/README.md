@@ -28,6 +28,7 @@ observed correction is reusable in that skill's context.
 | [presentation-design-interview](presentation-design-interview/SKILL.md) | Co-design presentations through focused interviews, real visual references, layout previews and typography refinement. |
 | [skill-feedback](skill-feedback/SKILL.md) | Revise a skill after a reusable, observed gap. |
 | [task-brief](task-brief/SKILL.md) | Prepare a substantial task for execution. |
+| [obsidian-workspace](obsidian-workspace/SKILL.md) | Preserve selected sources and outputs, compile linked knowledge with Current/Archive evidence, and refresh local retrieval through the Obsidian CLI. |
 | [notion-authoring](notion-authoring/SKILL.md) | Compose and verify illustrated Notion pages, subpages, databases and views. |
 | [work-records](work-records/SKILL.md) | Keep work maps and drafts in Linear; propose, save with approval, review and refine finished outcomes in personal Notion. Packaged with harness/install.py for its shared local approval helper. |
 
