@@ -36,6 +36,8 @@ These are skill operations, not installed Obsidian slash commands. Invoke natura
 
 ## Read, synthesize and compile
 
+For selected Word, PowerPoint, PDF or local HTML conversion, read [conversion.md](references/conversion.md). Preview the extraction and coverage before preserving originals or saving selected knowledge through MCP; native Notion/Linear bodies stay on the native-source route.
+
 For source-to-wiki work, follow [wiki-compile.md](references/wiki-compile.md). A filename, byte copy or source receipt is not a semantic read: inspect the selected material with an available format reader, preserve its original and coverage limits, reuse matching concepts, then review the exact affected-note set before applying it through native MCP. Query and lint stay read-only.
 
 ## Save or refresh a project
