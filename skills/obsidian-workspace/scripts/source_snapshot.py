@@ -3,28 +3,23 @@
 
 import argparse
 import difflib
-import errno
 import fcntl
 import hashlib
 import json
 import os
-import pty
 import re
-import select
 import stat
-import subprocess
 import sys
 import tempfile
-import time
-import tty
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from urllib.parse import parse_qsl, urlsplit
 
+import mcp_vault
+
 
 EXPECTED_VAULT = Path("/Users/maengseojun/Documents/Obsidian Vault")
-OBSIDIAN = "/Applications/Obsidian.app/Contents/MacOS/obsidian"
 CAPTURE_ROOT = "raw/native-captures"
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 SENSITIVE_KEYS = {
@@ -202,113 +197,27 @@ def validate_impact_path(value):
     return value
 
 
-def cli_command(arguments):
-    return [OBSIDIAN, f"vault={EXPECTED_VAULT.name}", *arguments]
-
-
-def remove_record_ending(value):
-    if value.endswith("\r\n"):
-        return value[:-2]
-    if value.endswith("\n") or value.endswith("\r"):
-        return value[:-1]
-    return value
-
-
-def invoke_obsidian(arguments):
-    master_fd = slave_fd = None
-    process = None
-    try:
-        master_fd, slave_fd = pty.openpty()
-        tty.setraw(slave_fd)
-        process = subprocess.Popen(
-            cli_command(arguments), stdin=slave_fd, stdout=slave_fd,
-            stderr=subprocess.PIPE, close_fds=True,
-        )
-        os.close(slave_fd)
-        slave_fd = None
-        stderr_fd = process.stderr.fileno()
-        open_fds = {master_fd, stderr_fd}
-        stdout_bytes = bytearray()
-        stderr_bytes = bytearray()
-        deadline = time.monotonic() + 30
-        while open_fds:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                raise TimeoutError("Obsidian CLI timed out after 30 seconds")
-            ready, _, _ = select.select(list(open_fds), [], [], min(remaining, 0.1))
-            for descriptor in ready:
-                try:
-                    chunk = os.read(descriptor, 65536)
-                except OSError as exc:
-                    if descriptor == master_fd and exc.errno == errno.EIO:
-                        chunk = b""
-                    else:
-                        raise
-                if not chunk:
-                    open_fds.remove(descriptor)
-                    continue
-                (stdout_bytes if descriptor == master_fd else stderr_bytes).extend(chunk)
-        return_code = process.wait(timeout=max(0.1, deadline - time.monotonic()))
-    except (OSError, subprocess.SubprocessError, TimeoutError) as exc:
-        if process is not None and process.poll() is None:
-            process.kill()
-            process.wait()
-        fail("obsidian_cli_failed", f"Obsidian CLI could not complete: {exc}")
-    finally:
-        if slave_fd is not None:
-            os.close(slave_fd)
-        if master_fd is not None:
-            os.close(master_fd)
-        if process is not None and process.stderr is not None:
-            process.stderr.close()
-    try:
-        stdout = stdout_bytes.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        fail("obsidian_cli_invalid_output", f"Obsidian CLI output is not UTF-8: {exc}")
-    stderr = stderr_bytes.decode("utf-8", errors="replace")
-    if return_code != 0 or stderr:
-        detail = remove_record_ending(stderr) or remove_record_ending(stdout) or f"exit code {return_code}"
-        fail("obsidian_cli_failed", detail)
-    return remove_record_ending(stdout)
-
-
-def assert_cli_vault(vault):
-    output = invoke_obsidian(["vault", "info=path"])
-    if output != str(vault):
-        fail("wrong_vault", f"Obsidian CLI resolved a different or empty vault path: {output!r}")
-
-
-def read_impact_notes(paths):
+def read_impact_notes(paths, adapter):
     if not paths:
         return []
-    code = (
-        "(async()=>{const paths=" + json.dumps(paths, ensure_ascii=False) +
-        ";const notes=[];for(const path of paths){const file=app.vault.getAbstractFileByPath(path);"
-        "if(!file||file.path!==path||file.extension!=='md'){notes.push({path,ok:false,error:'missing_or_not_markdown'});continue;}"
-        "try{notes.push({path,ok:true,body:await app.vault.read(file)});}"
-        "catch(error){notes.push({path,ok:false,error:String(error)});}}"
-        "return JSON.stringify({notes});})()"
-    )
-    output = invoke_obsidian(["eval", f"code={code}"])
-    if not output.startswith("=> "):
-        fail("obsidian_cli_invalid_output", f"Obsidian eval returned no JSON result: {output[:200]!r}")
     try:
-        payload = json.loads(output[3:])
-    except json.JSONDecodeError as exc:
-        fail("obsidian_cli_invalid_output", f"Obsidian eval returned invalid JSON: {exc}")
-    if not isinstance(payload, dict) or not isinstance(payload.get("notes"), list):
-        fail("obsidian_cli_invalid_output", "Obsidian eval result is missing notes")
-    if len(payload["notes"]) != len(paths):
-        fail("obsidian_cli_invalid_output", "Obsidian eval returned a different number of notes")
+        states = adapter.read_notes(paths)
+    except Exception as exc:
+        fail("impact_note_unavailable", f"cannot read selected impact notes through MCP: {exc}")
     result = []
-    for expected, item in zip(paths, payload["notes"]):
-        if not isinstance(item, dict) or item.get("path") != expected or item.get("ok") is not True:
-            detail = item.get("error", "invalid note result") if isinstance(item, dict) else "invalid note result"
-            fail("impact_note_unavailable", f"cannot read selected impact note {expected}: {detail}")
+    for path in paths:
+        item = states.get(path)
+        if not isinstance(item, dict):
+            fail("impact_note_unavailable", f"MCP returned no selected impact note state: {path}")
+        if item.get("exists") is not True:
+            fail("impact_note_missing", f"selected impact note is missing: {path}")
         body = item.get("body")
         if not isinstance(body, str):
-            fail("obsidian_cli_invalid_output", f"Obsidian eval returned no text body for {expected}")
-        result.append({"path": expected, "sha256": sha256(body.encode("utf-8")), "body": body})
+            fail("impact_note_unavailable", f"MCP returned no raw Markdown for selected impact note: {path}")
+        digest = sha256(body.encode("utf-8"))
+        if digest != item.get("sha256"):
+            fail("impact_note_changed", f"selected impact note changed during full raw read: {path}")
+        result.append({"path": path, "sha256": digest, "body": body})
     return result
 
 
@@ -434,7 +343,7 @@ def read_capture_body(vault, version):
         fail("capture_changed", f"stored native body is not UTF-8: {exc}")
 
 
-def prepare_preview(vault, receipt, impact_paths, catalog, catalog_raw):
+def prepare_preview(vault, receipt, impact_paths, catalog, catalog_raw, adapter=None):
     identity = receipt["identity"]
     identity_hash = identity_key(identity)
     revision_hash = revision_key(receipt["revision"])
@@ -461,7 +370,7 @@ def prepare_preview(vault, receipt, impact_paths, catalog, catalog_raw):
     if matching_revision and matching_revision["native_body_sha256"] != receipt["body_sha256"]:
         details = {
             "ok": False, "applied": False, "action": "conflict", "changed": changed,
-            "impact_notes": read_impact_notes(impact_paths),
+            "impact_notes": read_impact_notes(impact_paths, adapter),
         }
         raise SnapshotError("version_conflict", "the same native revision has a different body", details=details)
     version_exists = source is not None and candidate_key in source["versions"]
@@ -487,7 +396,7 @@ def prepare_preview(vault, receipt, impact_paths, catalog, catalog_raw):
         "current": current_metadata,
         "candidate": candidate,
         "changed": changed,
-        "impact_notes": read_impact_notes(impact_paths),
+        "impact_notes": read_impact_notes(impact_paths, adapter),
         "writes": {"note_files": 0, "attachments": [], "metadata_changed": False},
     }, candidate_key, catalog_raw
 
@@ -642,23 +551,36 @@ def apply_capture(vault, receipt, payload, candidate_key, catalog, catalog_raw):
         raise
 
 
-def run(args):
+def _run(args, receipt, impact_paths, vault, adapter):
+    if adapter is not None:
+        adapter.assert_vault(vault)
+    if args.apply:
+        with catalog_lock(vault):
+            catalog, catalog_raw = load_catalog(vault)
+            payload, candidate_key, catalog_raw = prepare_preview(
+                vault, receipt, impact_paths, catalog, catalog_raw, adapter
+            )
+            return apply_capture(vault, receipt, payload, candidate_key, catalog, catalog_raw)
+    catalog, catalog_raw = load_catalog(vault)
+    payload, _, _ = prepare_preview(vault, receipt, impact_paths, catalog, catalog_raw, adapter)
+    return payload
+
+
+def run(args, adapter=None):
     receipt = load_receipt(args.receipt)
     impact_paths = [validate_impact_path(path) for path in (args.impact_note or [])]
     if len(impact_paths) != len(set(impact_paths)):
         fail("duplicate_impact_path", "each impact note must be selected once")
     vault = validate_vault(args.vault)
-    assert_cli_vault(vault)
-    if args.apply:
-        with catalog_lock(vault):
-            catalog, catalog_raw = load_catalog(vault)
-            payload, candidate_key, catalog_raw = prepare_preview(
-                vault, receipt, impact_paths, catalog, catalog_raw
-            )
-            return apply_capture(vault, receipt, payload, candidate_key, catalog, catalog_raw)
-    catalog, catalog_raw = load_catalog(vault)
-    payload, _, _ = prepare_preview(vault, receipt, impact_paths, catalog, catalog_raw)
-    return payload
+    if adapter is not None:
+        return _run(args, receipt, impact_paths, vault, adapter)
+    if not impact_paths:
+        return _run(args, receipt, impact_paths, vault, None)
+    try:
+        with mcp_vault.MCPVaultHelpers(expected_vault=vault) as client:
+            return _run(args, receipt, impact_paths, vault, client)
+    except mcp_vault.MCPVaultError as exc:
+        fail("mcp_unavailable", f"configured native MCPVault could not complete selected reads: {exc}")
 
 
 def parser_for_cli():

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import errno
 import os
 import select
 import stat
@@ -178,6 +180,7 @@ class MCPVault:
         self.process = None
         self.buffer = bytearray()
         self.next_id = 0
+        self.client_name = "obsidian-workspace-qmd"
 
     def __enter__(self):
         self.connect()
@@ -201,7 +204,7 @@ class MCPVault:
             initialized = self._request("initialize", {
                 "protocolVersion": "2025-03-26",
                 "capabilities": {},
-                "clientInfo": {"name": "obsidian-workspace-qmd", "version": "1.0"},
+                "clientInfo": {"name": self.client_name, "version": "1.0"},
             })
             if initialized.get("protocolVersion") != "2025-03-26":
                 raise MCPVaultError("MCP server negotiated an unsupported protocol version")
@@ -350,7 +353,7 @@ class MCPVault:
 
 def _open_vault_entry(root, parts, *, directory):
     root = validate_vault_root(root, root)
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
     directory_flags = flags | getattr(os, "O_DIRECTORY", 0)
     descriptor = os.open(root, directory_flags)
     try:
@@ -400,3 +403,193 @@ def hash_vault_note(path, root=EXPECTED_VAULT):
             hasher.update(chunk)
     finally:
         os.close(descriptor)
+
+
+def _valid_helper_note_path(value, *, write=False):
+    """Validate an explicitly selected helper Markdown path, separate from QMD scope."""
+    if (not isinstance(value, str) or not value or "\\" in value or "\x00" in value
+            or any(ord(char) < 32 for char in value)):
+        raise MCPVaultError("Invalid helper note path")
+    posix = PurePosixPath(value)
+    windows = PureWindowsPath(value)
+    parts = value.split("/")
+    if (posix.is_absolute() or windows.is_absolute() or windows.drive
+            or any(part in ("", ".", "..") for part in parts)
+            or posix.as_posix() != value or not value.lower().endswith(".md")
+            or any(part.startswith(".") or part.lower() in {".git", ".obsidian", "node_modules"} for part in parts)):
+        raise MCPVaultError("Invalid or restricted helper Markdown path")
+    if write:
+        allowed = (
+            value == "log.md" or value == "wiki/index.md"
+            or (len(parts) >= 2 and parts[0] == "hubs")
+            or (len(parts) >= 3 and parts[0] == "wiki" and parts[1] in {"answers", "concepts", "entities"})
+        )
+        if not allowed:
+            raise MCPVaultError("Helper write path is outside the derived-note scope")
+    return parts
+
+
+def _helper_file_hash(path, root=EXPECTED_VAULT):
+    parts = _valid_helper_note_path(path)
+    descriptor = _open_vault_entry(root, parts, directory=False)
+    try:
+        hasher = hashlib.sha256()
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                return hasher.hexdigest()
+            hasher.update(chunk)
+    finally:
+        os.close(descriptor)
+
+
+def _helper_file_exists(path, root=EXPECTED_VAULT):
+    parts = _valid_helper_note_path(path)
+    try:
+        descriptor = _open_vault_entry(root, parts, directory=False)
+    except MCPVaultError as exc:
+        cause = exc.__cause__
+        if isinstance(cause, OSError) and cause.errno == errno.ENOENT:
+            return False
+        raise
+    os.close(descriptor)
+    return True
+
+
+def _validate_helper_parent_chain(path, root=EXPECTED_VAULT):
+    parts = _valid_helper_note_path(path)
+    root = validate_vault_root(root, root)
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_DIRECTORY", 0)
+    descriptor = os.open(root, flags)
+    try:
+        for part in parts[:-1]:
+            try:
+                next_descriptor = os.open(part, flags, dir_fd=descriptor)
+            except FileNotFoundError:
+                return
+            except OSError as exc:
+                raise MCPVaultError("Helper note parent is symlinked or unavailable") from exc
+            os.close(descriptor)
+            descriptor = next_descriptor
+    finally:
+        os.close(descriptor)
+
+
+class MCPVaultHelpers(MCPVault):
+    """Selected-note client for source snapshots and explicit wiki plans.
+
+    The base MCPVault client remains read-only for QMD. This separate client
+    adds only full-note writes to the permitted derived-note destinations.
+    """
+
+    client_name = "obsidian-workspace-helper"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.client_name = type(self).client_name
+
+    def _call_tool(self, name, arguments):
+        if name not in {"list_directory", "read_note_lines", "write_note"}:
+            raise MCPVaultError("Helper MCP client permits selected reads and derived-note writes only")
+        return self._request("tools/call", {"name": name, "arguments": arguments})
+
+    def assert_vault(self, vault):
+        validate_vault_root(vault, self.expected_vault)
+
+    def note_exists(self, path):
+        return _helper_file_exists(path, self.expected_vault)
+
+    def read_note_lines(self, path):
+        _valid_helper_note_path(path)
+        _assert_vault_file(self.expected_vault, _valid_helper_note_path(path))
+        result = self._call_tool("read_note_lines", {
+            "path": path,
+            "startLine": 1,
+            "endLine": FULL_NOTE_END_LINE,
+        })
+        text = _one_text(result, "raw helper note read")
+        try:
+            returned_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+            disk_hash = _helper_file_hash(path, self.expected_vault)
+        except UnicodeError as exc:
+            raise MCPVaultError("MCP note read is not valid UTF-8") from exc
+        if returned_hash != disk_hash:
+            raise MCPVaultError("MCP note read differs from the complete no-follow file hash")
+        return text
+
+    def read_notes(self, paths):
+        result = {}
+        for path in paths:
+            _valid_helper_note_path(path)
+            if not self.note_exists(path):
+                result[path] = {"exists": False, "body": None, "sha256": None}
+                continue
+            body = self.read_note_lines(path)
+            result[path] = {
+                "exists": True,
+                "body": body,
+                "sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
+            }
+        return result
+
+    def write_note(self, path, content):
+        _valid_helper_note_path(path, write=True)
+        if not isinstance(content, str) or "\x00" in content:
+            raise MCPVaultError("Helper note content must be UTF-8 text")
+        try:
+            content.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            raise MCPVaultError("Helper note content is not valid UTF-8") from exc
+        _validate_helper_parent_chain(path, self.expected_vault)
+        # Reject a terminal symlink or non-file even for direct client callers.
+        self.note_exists(path)
+        # Omit frontmatter: content is the complete prepared raw Markdown string.
+        return _one_text(self._call_tool("write_note", {"path": path, "content": content}), "derived-note write")
+
+    def find_note_paths(self, basename):
+        """Find same-basename Markdown files by safe filesystem metadata only."""
+        if not isinstance(basename, str) or not basename or "/" in basename or "\\" in basename:
+            raise MCPVaultError("Invalid note basename")
+        wanted = basename[:-3] if basename.lower().endswith(".md") else basename
+        root = validate_vault_root(self.expected_vault, self.expected_vault)
+        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        root_fd = os.open(root, flags)
+        matches = []
+
+        def visit(directory_fd, prefix):
+            try:
+                names = os.listdir(directory_fd)
+            except OSError as exc:
+                raise MCPVaultError("Vault note metadata is unavailable") from exc
+            for name in names:
+                if (not name or name.startswith(".") or name.lower() in {".git", ".obsidian", "node_modules"}
+                        or "/" in name or "\\" in name or any(ord(char) < 32 for char in name)):
+                    continue
+                relative = f"{prefix}/{name}" if prefix else name
+                try:
+                    metadata = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+                except FileNotFoundError:
+                    continue
+                except OSError as exc:
+                    raise MCPVaultError("Vault note metadata is unavailable") from exc
+                if stat.S_ISLNK(metadata.st_mode):
+                    continue
+                if stat.S_ISDIR(metadata.st_mode):
+                    try:
+                        child_fd = os.open(name, flags, dir_fd=directory_fd)
+                    except OSError as exc:
+                        if exc.errno == errno.ENOENT:
+                            continue
+                        raise MCPVaultError("Vault note metadata is unavailable") from exc
+                    try:
+                        visit(child_fd, relative)
+                    finally:
+                        os.close(child_fd)
+                elif stat.S_ISREG(metadata.st_mode) and name.lower().endswith(".md") and name[:-3].casefold() == wanted.casefold():
+                    matches.append(relative)
+
+        try:
+            visit(root_fd, "")
+        finally:
+            os.close(root_fd)
+        return sorted(matches)

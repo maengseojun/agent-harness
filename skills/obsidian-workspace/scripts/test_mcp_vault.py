@@ -1,7 +1,10 @@
-"""Protocol, root, path and raw-text checks for the read-only MCPVault client."""
+"""Protocol, root, path and raw-text checks for the read-only and helper clients."""
 
+import errno
 import hashlib
 import json
+import os
+import stat
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,8 +14,9 @@ import mcp_vault
 
 
 SERVER = r'''#!/usr/bin/env python3
-import json, sys, time
+import json, os, pathlib, sys, time
 MODE = __MODE__
+VAULT = pathlib.Path(sys.argv[1])
 for raw in sys.stdin.buffer:
     message = json.loads(raw)
     method = message.get("method")
@@ -35,9 +39,21 @@ for raw in sys.stdin.buffer:
         if MODE == "tool_error":
             result = {"content": [{"type": "text", "text": "Error: fixture"}], "isError": True}
         elif name == "list_directory":
-            result = {"content": [{"type": "text", "text": json.dumps({"dirs": [], "files": ["source.md"]})}]}
+            directory = VAULT / message["params"]["arguments"].get("path", "")
+            result = {"content": [{"type": "text", "text": json.dumps({"dirs": sorted(p.name for p in directory.iterdir() if p.is_dir()), "files": sorted(p.name for p in directory.iterdir() if p.is_file())})}]}
         elif name == "read_note_lines":
-            result = {"content": [{"type": "text", "text": "---\ntitle: original yaml\n---\n# Heading\nBody\n"}]}
+            args = message["params"]["arguments"]
+            body = (VAULT / args["path"]).read_bytes().decode("utf-8")
+            if MODE == "truncated":
+                body = body[:max(1, len(body) // 2)]
+            lines = body.split("\n")
+            result = {"content": [{"type": "text", "text": "\n".join(lines[args["startLine"] - 1:args["endLine"]])}]}
+        elif name == "write_note":
+            args = message["params"]["arguments"]
+            target = VAULT / args["path"]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(args["content"].encode("utf-8"))
+            result = {"content": [{"type": "text", "text": "ack"}]}
         else:
             result = {"content": [{"type": "text", "text": "Unexpected tool"}], "isError": True}
     else:
@@ -57,7 +73,7 @@ class MCPVaultTests(unittest.TestCase):
         self.node.chmod(0o755)
         self.vault = self.base / 'vault'
         (self.vault / 'wiki').mkdir(parents=True)
-        (self.vault / 'wiki' / 'source.md').write_text('---\ntitle: original yaml\n---\n# Heading\nBody\n', encoding='utf-8')
+        (self.vault / 'wiki' / 'source.md').write_bytes(b'---\ntitle: original yaml\n---\n# Heading\nBody\n')
         package = self.base / 'node_modules' / '@bitbonsai' / 'mcpvault'
         (package / 'dist').mkdir(parents=True)
         self.server = package / 'dist' / 'server.js'
@@ -86,10 +102,15 @@ class MCPVaultTests(unittest.TestCase):
             with self.settings.open('a', encoding='utf-8') as stream:
                 stream.write(f'enabled = {json.dumps(enabled)}\n')
 
-    def client(self, mode='normal', timeout=1):
+    def client(self, mode='normal', timeout=3):
         self.write_server(mode)
         self.write_config()
         return mcp_vault.MCPVault(expected_vault=self.vault, settings_path=self.settings, timeout=timeout)
+
+    def helper(self, mode='normal', timeout=3):
+        self.write_server(mode)
+        self.write_config()
+        return mcp_vault.MCPVaultHelpers(expected_vault=self.vault, settings_path=self.settings, timeout=timeout)
 
     def test_exact_root_and_pinned_server_configuration(self):
         self.write_server()
@@ -156,11 +177,65 @@ class MCPVaultTests(unittest.TestCase):
         self.assertEqual(listing, {'dirs': [], 'files': ['source.md']})
         self.assertEqual(mcp_vault.hash_vault_note('wiki/source.md', self.vault), hashlib.sha256(expected.encode('utf-8')).hexdigest())
 
+    def test_helper_preserves_raw_yaml_crlf_and_writes_complete_markdown(self):
+        source = '---\r\ntitle: old: [serialization]\r\ncomment: "keep"\r\n---\r\n# Heading\r\nBody\r\n'
+        (self.vault / 'wiki' / 'source.md').write_bytes(source.encode('utf-8'))
+        desired = '---\r\ntitle: complete prepared note\r\n---\r\n# New\r\nBody\r\n'
+        with self.helper() as vault:
+            state = vault.read_notes(['wiki/source.md'])['wiki/source.md']
+            vault.write_note('wiki/concepts/new.md', desired)
+            saved = vault.read_notes(['wiki/concepts/new.md'])['wiki/concepts/new.md']
+        self.assertEqual(state['body'], source)
+        self.assertEqual(state['sha256'], hashlib.sha256(source.encode('utf-8')).hexdigest())
+        self.assertEqual(saved['body'], desired)
+        self.assertEqual((self.vault / 'wiki' / 'concepts' / 'new.md').read_bytes(), desired.encode('utf-8'))
+
+    def test_helper_rejects_truncated_mcp_text_and_terminal_symlink(self):
+        with self.helper(mode='truncated') as vault:
+            with self.assertRaisesRegex(mcp_vault.MCPVaultError, 'hash'):
+                vault.read_note_lines('wiki/source.md')
+        outside = self.base / 'outside.md'
+        outside.write_text('outside', encoding='utf-8')
+        target = self.vault / 'wiki' / 'concepts' / 'linked.md'
+        target.parent.mkdir(parents=True)
+        target.symlink_to(outside)
+        with self.helper() as vault:
+            with self.assertRaises(mcp_vault.MCPVaultError):
+                vault.write_note('wiki/concepts/linked.md', '# unsafe\n')
+        self.assertEqual(outside.read_text(encoding='utf-8'), 'outside')
+
+    def test_helper_metadata_link_scan_rejects_symlinks_and_reports_all_matches(self):
+        first = self.vault / 'wiki' / 'one' / 'Same.md'
+        second = self.vault / 'hubs' / 'Same.md'
+        first.parent.mkdir(parents=True)
+        second.parent.mkdir(parents=True)
+        first.write_text('one', encoding='utf-8')
+        second.write_text('two', encoding='utf-8')
+        linked = self.vault / 'wiki' / 'one' / 'Linked.md'
+        linked.symlink_to(first)
+        with self.helper() as vault:
+            matches = vault.find_note_paths('same')
+        self.assertEqual(matches, ['hubs/Same.md', 'wiki/one/Same.md'])
+        self.assertNotIn('wiki/one/Linked.md', matches)
+
+    def test_nonregular_note_is_rejected_without_blocking(self):
+        if not hasattr(os, 'mkfifo'):
+            self.skipTest('FIFO is unavailable on this platform')
+        target = self.vault / 'wiki' / 'fifo.md'
+        os.mkfifo(target)
+        with self.helper() as vault:
+            with self.assertRaises(mcp_vault.MCPVaultError):
+                vault.read_notes(['wiki/fifo.md'])
+
     def test_only_read_only_tools_can_be_called(self):
         vault = self.client()
         with self.assertRaises(mcp_vault.MCPVaultError):
             vault._call_tool('write_note', {'path': 'wiki/source.md', 'content': 'x'})
         self.assertIsNone(vault.process)
+
+    def test_read_only_qmd_client_still_rejects_writes(self):
+        with self.assertRaises(mcp_vault.MCPVaultError):
+            self.client()._call_tool('write_note', {'path': 'wiki/source.md', 'content': 'x'})
 
     def test_protocol_and_tool_errors_are_reported_without_echoing_payload(self):
         for mode in ('rpc_error', 'tool_error'):

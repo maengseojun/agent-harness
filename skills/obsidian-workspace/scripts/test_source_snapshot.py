@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,42 +11,48 @@ from unittest import mock
 import source_snapshot
 
 
+class MemoryMCP:
+    def __init__(self, vault, notes=None, *, error=None, reported_hash=None):
+        self.vault = vault
+        self.notes = dict(notes or {})
+        self.error = error
+        self.reported_hash = reported_hash
+        self.calls = []
+
+    def assert_vault(self, vault):
+        if Path(vault) != self.vault:
+            raise AssertionError("wrong test vault")
+
+    def read_notes(self, paths):
+        self.calls.append(list(paths))
+        if self.error:
+            raise self.error
+        result = {}
+        for path in paths:
+            body = self.notes.get(path)
+            if body is None:
+                result[path] = {"exists": False, "body": None, "sha256": None}
+            else:
+                digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
+                result[path] = {"exists": True, "body": body, "sha256": self.reported_hash or digest}
+        return result
+
+
 class SourceSnapshotTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="source-snapshot-test-")
         self.base = Path(self.temp.name)
         self.vault = self.base / "Obsidian Vault"
         self.vault.mkdir()
-        self.cli_vault = self.vault
         self.notes = {}
-        self.calls = []
         self.expected_patch = mock.patch.object(source_snapshot, "EXPECTED_VAULT", self.vault)
-        self.obsidian_patch = mock.patch.object(source_snapshot, "OBSIDIAN", "/fake/obsidian")
-        self.invoke_patch = mock.patch.object(source_snapshot, "invoke_obsidian", side_effect=self.fake_cli)
         self.expected_patch.start()
-        self.obsidian_patch.start()
-        self.invoke_patch.start()
+        self.adapter = MemoryMCP(self.vault, self.notes)
+        self.adapter.notes = self.notes
 
     def tearDown(self):
-        self.invoke_patch.stop()
-        self.obsidian_patch.stop()
         self.expected_patch.stop()
         self.temp.cleanup()
-
-    def fake_cli(self, command):
-        self.calls.append(list(command))
-        if command == ["vault", "info=path"]:
-            return str(self.cli_vault)
-        if len(command) == 2 and command[0] == "eval" and command[1].startswith("code="):
-            code = command[1][5:]
-            literal = code.split("const paths=", 1)[1].split(";const notes", 1)[0]
-            paths = json.loads(literal)
-            items = [
-                {"path": path, "ok": path in self.notes, "body": self.notes.get(path, ""), "error": "missing"}
-                for path in paths
-            ]
-            return "=> " + json.dumps({"notes": items}, ensure_ascii=False)
-        raise AssertionError(f"unexpected command: {command!r}")
 
     def make_receipt(self, *, body="first native body\n", revision="rev-1", fetched_at="2026-10-14T09:00:00+09:00", raw_response=None):
         if raw_response is None:
@@ -85,7 +90,7 @@ class SourceSnapshotTests(unittest.TestCase):
 
     def assert_snapshot_error(self, receipt, code, *, impacts=(), apply=False, vault=None):
         with self.assertRaises(source_snapshot.SnapshotError) as caught:
-            source_snapshot.run(self.args(receipt, impacts=impacts, apply=apply, vault=vault))
+            source_snapshot.run(self.args(receipt, impacts=impacts, apply=apply, vault=vault), self.adapter)
         self.assertEqual(caught.exception.code, code)
         return caught.exception
 
@@ -107,82 +112,62 @@ class SourceSnapshotTests(unittest.TestCase):
                 source_snapshot.validate_impact_path(path)
             self.assertEqual(caught.exception.code, "invalid_path")
 
-    def test_wrong_cli_target_stops_before_capture_or_note_read(self):
+    def test_wrong_vault_stops_before_capture_or_note_read(self):
         receipt = self.write_receipt(self.make_receipt())
-        self.cli_vault = self.base / "different vault"
         before = self.snapshot()
-        self.assert_snapshot_error(receipt, "wrong_vault", apply=True)
+        self.assert_snapshot_error(receipt, "wrong_vault", apply=True, vault=self.base / "different vault")
         self.assertEqual(self.snapshot(), before)
-        self.assertEqual(self.calls, [["vault", "info=path"]])
+        self.assertEqual(self.adapter.calls, [])
 
-    def test_preview_reads_selected_notes_through_cli_and_writes_nothing(self):
+    def test_preview_reads_selected_raw_markdown_through_mcp_and_writes_nothing(self):
         receipt = self.write_receipt(self.make_receipt())
         note_path = "wiki/sources/P-MAE166.md"
-        self.notes[note_path] = "# Existing source\nreview this claim\n"
+        original = "---\r\ntitle: legacy: [raw]\r\ncomment: \"keep me\"\r\n---\r\n# Existing source\r\nreview this claim\r\n"
+        self.notes[note_path] = original
         before = self.snapshot()
-        payload = source_snapshot.run(self.args(receipt, impacts=[note_path]))
+        payload = source_snapshot.run(self.args(receipt, impacts=[note_path]), self.adapter)
         self.assertEqual(self.snapshot(), before)
         self.assertEqual(payload["action"], "would_create")
         self.assertTrue(payload["changed"]["body"])
         self.assertIn("first native body", payload["changed"]["diff"])
         self.assertEqual(payload["impact_notes"], [{
             "path": note_path,
-            "sha256": hashlib.sha256(self.notes[note_path].encode("utf-8")).hexdigest(),
-            "body": self.notes[note_path],
+            "sha256": hashlib.sha256(original.encode("utf-8")).hexdigest(),
+            "body": original,
         }])
-        self.assertFalse((self.vault / note_path).exists())
-        self.assertEqual([call[0] for call in self.calls], ["vault", "eval"])
-        self.assertIn(note_path, self.calls[1][1])
-        self.assertNotIn("first native body", self.calls[1][1])
+        self.assertEqual(self.adapter.calls, [[note_path]])
+        self.assertNotIn("first native body", str(self.adapter.calls))
 
-    def test_large_native_body_is_loaded_from_receipt_not_cli_arguments(self):
+    def test_large_native_body_stays_in_receipt_not_mcp_arguments(self):
         body = "selected native body\n" + ("long line\n" * 35_000)
         receipt = self.write_receipt(self.make_receipt(body=body), "large-receipt.json")
         note_path = "wiki/sources/P-MAE166.md"
-        self.notes[note_path] = "selected impact note\n"
-        payload = source_snapshot.run(self.args(receipt, impacts=[note_path]))
+        self.adapter.notes[note_path] = "selected impact note\n"
+        payload = source_snapshot.run(self.args(receipt, impacts=[note_path]), self.adapter)
         self.assertEqual(payload["candidate"]["native_body_sha256"], hashlib.sha256(body.encode()).hexdigest())
         self.assertTrue(payload["changed"]["diff"].endswith("+long line\n"))
-        self.assertLess(len(self.calls[1][1]), 1000)
-        self.assertTrue(all(body not in " ".join(call) for call in self.calls))
+        self.assertEqual(self.adapter.calls, [[note_path]])
+        self.assertNotIn(body, str(self.adapter.calls))
 
-    def test_pty_eval_preserves_note_carriage_returns_exactly(self):
-        executable = self.base / "fake-obsidian"
-        payload_path = self.base / "eval-result.json"
-        log_path = self.base / "cli-log.json"
+    def test_missing_and_unavailable_impact_notes_are_distinct(self):
+        receipt = self.write_receipt(self.make_receipt())
         note_path = "wiki/sources/S-LING-002.md"
-        expected_body = "first line\r\nsecond line\rfinal carriage return\r"
-        payload_path.write_text(json.dumps({"notes": [{
-            "path": note_path, "ok": True, "body": expected_body,
-        }]}), encoding="utf-8")
-        executable.write_text(
-            "#!/usr/bin/env python3\n"
-            "import json, os, sys\n"
-            "with open(os.environ['FAKE_OBSIDIAN_PAYLOAD'], encoding='utf-8') as stream:\n"
-            "    payload = json.load(stream)\n"
-            "with open(os.environ['FAKE_OBSIDIAN_LOG'], 'w', encoding='utf-8') as stream:\n"
-            "    json.dump({'executable': sys.argv[0], 'argv': sys.argv[1:], 'stdout_isatty': sys.stdout.isatty()}, stream)\n"
-            "sys.stdout.write('=> ' + json.dumps(payload, ensure_ascii=False) + '\\r\\n')\n",
-            encoding="utf-8",
-        )
-        executable.chmod(0o755)
-        self.invoke_patch.stop()
-        try:
-            with mock.patch.object(source_snapshot, "OBSIDIAN", str(executable)), mock.patch.dict(
-                os.environ,
-                {"FAKE_OBSIDIAN_PAYLOAD": str(payload_path), "FAKE_OBSIDIAN_LOG": str(log_path)},
-            ):
-                notes = source_snapshot.read_impact_notes([note_path])
-        finally:
-            self.invoke_patch.start()
+        with self.assertRaises(source_snapshot.SnapshotError) as missing:
+            source_snapshot.run(self.args(receipt, impacts=[note_path]), self.adapter)
+        self.assertEqual(missing.exception.code, "impact_note_missing")
+        self.adapter.error = RuntimeError("fixture access failure")
+        with self.assertRaises(source_snapshot.SnapshotError) as unavailable:
+            source_snapshot.run(self.args(receipt, impacts=[note_path]), self.adapter)
+        self.assertEqual(unavailable.exception.code, "impact_note_unavailable")
 
-        self.assertEqual(notes[0]["body"], expected_body)
-        self.assertEqual(notes[0]["sha256"], hashlib.sha256(expected_body.encode("utf-8")).hexdigest())
-        log = json.loads(log_path.read_text(encoding="utf-8"))
-        self.assertEqual(log["executable"], str(executable))
-        self.assertTrue(log["stdout_isatty"])
-        self.assertEqual(log["argv"][:2], ["vault=Obsidian Vault", "eval"])
-        self.assertIn(note_path, log["argv"][2])
+    def test_mismatched_raw_readback_hash_is_rejected(self):
+        receipt = self.write_receipt(self.make_receipt())
+        note_path = "wiki/sources/S-LING-002.md"
+        self.adapter.notes[note_path] = "---\r\ntitle: keep raw\r\n---\r\nbody\r\n"
+        self.adapter.reported_hash = "0" * 64
+        with self.assertRaises(source_snapshot.SnapshotError) as caught:
+            source_snapshot.run(self.args(receipt, impacts=[note_path]), self.adapter)
+        self.assertEqual(caught.exception.code, "impact_note_changed")
 
     def test_apply_reuses_identical_version_and_keeps_prior_bytes(self):
         first_receipt = self.write_receipt(self.make_receipt())
