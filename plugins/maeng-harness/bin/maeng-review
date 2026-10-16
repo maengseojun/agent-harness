@@ -15,9 +15,16 @@ from maeng import tree as treelib  # noqa: E402
 from maeng.cli_common import die, require_personal  # noqa: E402
 from maeng.common import canonical, git, git_out, home_dir, sha256, write_json  # noqa: E402
 
-DEFAULT_CODEX = "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex"
+CODEX_CANDIDATES = (  # verified live 2026-10-17; the npm codex install on this Mac is broken
+    "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+    "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex",
+)
+DEFAULT_CODEX = next((c for c in CODEX_CANDIDATES if os.access(c, os.X_OK)), CODEX_CANDIDATES[0])
 ASTRA, SOL = "gpt-6-astra", "gpt-6.1-sol"
-DISABLED_FEATURES = ("apps", "browser", "computer_use", "hooks", "plugins", "memories", "multi_agent", "image")
+# Feature families to switch off for an isolated reviewer (design §4). Exact names vary by Codex version,
+# so they are matched against `codex features list` at run time; unknown names are never passed.
+DISABLE_FAMILIES = ("apps", "browser", "computer_use", "hooks", "plugin", "memories", "multi_agent", "image",
+                    "skill", "view_image")
 PROMPT = """You are an independent, adversarial reviewer. Review ONLY the bundle below.
 Rules: you are read-only; do not use skills, plugins, browsers or any tool that needs approval.
 Start from the assumption that the change is wrong; try to falsify it against the acceptance criteria (AC-n).
@@ -40,15 +47,37 @@ def tier_for(kind, binding):
     return SOL, "xhigh"
 
 
+def features_to_disable(codex):
+    """Enabled Codex features whose name matches a family we must switch off."""
+    try:
+        out = subprocess.run([codex, "features", "list"], capture_output=True, text=True, timeout=30).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    names = []
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[-1] == "true" and any(fam in parts[0] for fam in DISABLE_FAMILIES):
+            names.append(parts[0])
+    return names
+
+
 def codex_command(model, effort, schema_path, out_path):
     codex = os.environ.get("MAENG_CODEX") or DEFAULT_CODEX
     cmd = [codex, "exec", "--ignore-user-config", "--ignore-rules"]
-    for feature in DISABLED_FEATURES:
+    for feature in features_to_disable(codex):
         cmd += ["--disable", feature]
     cmd += ["--sandbox", "read-only", "-c", 'approval_policy="never"', "--ephemeral",
             "-m", model, "-c", f'model_reasoning_effort="{effort}"',
             "--output-schema", str(schema_path), "-o", str(out_path), "-"]
     return cmd
+
+
+def plan_text(binding):
+    """Full Spec/Plan text so the reviewer can judge each AC-n, not just its id."""
+    doc = binding.get("plan_doc")
+    if doc and Path(doc).is_file():
+        return Path(doc).read_text(encoding="utf-8", errors="replace")
+    return None
 
 
 def code_bundle(a, cwd, st):
@@ -79,6 +108,8 @@ def code_bundle(a, cwd, st):
         missing.append("verification evidence")
     if binding.get("criteria") is None or not binding.get("criteria"):
         missing.append("Spec/Plan AC-n criteria")
+    elif not plan_text(binding):
+        missing.append("Spec/Plan text (bind with --plan <file>)")
     size = len(diff) + sum(len(v) for v in contents.values())
     if size > a.max_bytes:
         missing.append(f"bundle is {size} bytes (> --max-bytes {a.max_bytes}); narrow it with --path/--exclude")
@@ -87,6 +118,7 @@ def code_bundle(a, cwd, st):
                       "exclusion_reason": a.exclusion_reason},
             "base": base, "head": head, "diff": diff, "changed_files": contents,
             "criteria": binding.get("criteria"), "criteria_rev": binding.get("plan_updated_at"),
+            "plan_text": plan_text(binding), "required_checks": binding.get("checks"),
             "evidence": ev, "ship_verified": ok, "ship_verified_reasons": reasons, "missing": missing}
 
 

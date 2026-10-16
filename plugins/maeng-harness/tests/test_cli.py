@@ -1,6 +1,8 @@
 import importlib.machinery
 import importlib.util
 import json
+from pathlib import Path
+import tempfile
 import os
 import stat
 import sys
@@ -29,13 +31,22 @@ class ReviewConfig(HarnessCase):
         self.assertEqual(rv.tier_for("docs", None), ("gpt-6-astra", "high"))
         self.assertEqual(rv.tier_for("notion", None), ("gpt-6.1-sol", "medium"))
 
+    def test_feature_names_come_from_codex_features_list(self):
+        rv = load_bin("maeng-review")
+        fake = self.tmp / "codex-features" if hasattr(self, "tmp") else Path(tempfile.mkdtemp()) / "codex-features"
+        fake.write_text(f"#!{sys.executable}\nprint('apps stable true\\nbrowser_use stable true\\nplugins stable false\\nshell_tool stable true\\nimage_generation stable true')\n")
+        fake.chmod(0o755)
+        self.assertEqual(rv.features_to_disable(str(fake)), ["apps", "browser_use", "image_generation"])
+        self.assertEqual(rv.features_to_disable("/nonexistent/codex"), [])
+
     def test_isolated_flags_and_default_binary(self):
         rv = load_bin("maeng-review")
+        rv.features_to_disable = lambda codex: ["apps", "browser_use", "hooks"]  # real names come from `features list`
         cmd = rv.codex_command("gpt-6-astra", "medium", "/s.json", "/o.json")
-        self.assertEqual(cmd[0], "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex")
+        self.assertIn(cmd[0], rv.CODEX_CANDIDATES)  # ChatGPT.app-bundled CLI (npm codex is broken here)
         self.assertEqual(cmd[1:4], ["exec", "--ignore-user-config", "--ignore-rules"])
         disabled = [cmd[i + 1] for i, a in enumerate(cmd) if a == "--disable"]
-        self.assertEqual(disabled, ["apps", "browser", "computer_use", "hooks", "plugins", "memories", "multi_agent", "image"])
+        self.assertEqual(disabled, ["apps", "browser_use", "hooks"])
         self.assertEqual(cmd[cmd.index("--sandbox") + 1], "read-only")
         self.assertIn('approval_policy="never"', cmd)
         self.assertIn("--ephemeral", cmd)
@@ -63,6 +74,9 @@ class ReviewRun(HarnessCase):
         self.codex = self.tmp / "fake-codex"
         self.codex.write_text(
             f"#!{sys.executable}\nimport json, sys\n"
+            f"if sys.argv[1:3] == ['features', 'list']:\n"
+            f"    print('apps stable true\\nbrowser_use stable true\\nshell_tool stable true\\nplugins stable false')\n"
+            f"    sys.exit(0)\n"
             f"open({str(self.log)!r}, 'w').write(json.dumps(sys.argv[1:]))\n"
             f"open({str(self.stdin_log)!r}, 'w').write(sys.stdin.read())\n"
             f"out = sys.argv[sys.argv.index('-o') + 1]\n"
@@ -85,8 +99,10 @@ class ReviewRun(HarnessCase):
         self.assertIn('model_reasoning_effort="medium"', argv)
         for flag in ("--ignore-user-config", "--ignore-rules", "--ephemeral"):
             self.assertIn(flag, argv)
+        disabled = [argv[i + 1] for i, a in enumerate(argv) if a == "--disable"]
+        self.assertEqual(disabled, ["apps", "browser_use"])  # only enabled features that exist; never "browser"
         bundle = self.stdin_log.read_text()
-        for needle in (self.base, self.h, "AC-1", "feature", "pytest"):
+        for needle in (self.base, self.h, "AC-1 feature works", "pytest"):  # AC text, not just its id
             self.assertIn(needle, bundle)
         key = json.loads(r.stdout)["receipt"]
         rec = receipts.load(key)
