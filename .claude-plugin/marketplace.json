@@ -1,0 +1,9 @@
+{
+  "name": "maeng",
+  "owner": { "name": "Seojun Maeng" },
+  "description": "Personal Claude Code harness: maeng-tools (craft skills + model-routed agents, safe in every repo) and maeng-harness (hooks + personal record workflow, off in the eta world).",
+  "plugins": [
+    { "name": "maeng-tools", "source": "./plugins/maeng-tools", "description": "Hookless craft skills, Aside collect/research, Obsidian workspace and the architect/implementer/researcher agents. Enabled everywhere." },
+    { "name": "maeng-harness", "source": "./plugins/maeng-harness", "description": "Personal workflow: hooks (guard, ship gates, verification, self-recording), review/verify/ship CLIs and personal record skills. Disabled in the eta world." }
+  ]
+}
