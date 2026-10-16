@@ -20,7 +20,8 @@ def subject_key(subject):
     if kind == "notion":
         return "notion-{}-{}".format(subject["digest"][:16], sha256(f"{subject['destination']}|{subject['op']}")[:8])
     core = {k: subject.get(k) for k in ("kind", "repo", "pr", "base", "head", "criteria_rev", "digest",
-                                         "destination", "op")}
+                                         "destination", "op",
+                                         "files_reviewed", "files_excluded")}
     return "code-" + sha256(canonical(core))[:24]
 
 
@@ -72,26 +73,76 @@ def _scan(prefix):
             yield p, None
 
 
-def find_code(base, head, ref, criteria_rev):
-    """Receipt for exactly this base/head/ref. -> (record | None, problem)."""
-    unreadable = False
-    stale = None
+def changed_files(cwd, base, head):
+    rc, out, _ = git(cwd, "diff", "--name-only", "--no-renames", f"{base}...{head}")
+    return sorted(set(out.splitlines())) if rc == 0 else None
+
+
+def diff_digest(cwd, base, head, files):
+    rc, out, _ = git(cwd, "diff", "--no-renames", f"{base}...{head}", "--", *files)
+    return sha256(out.strip()) if rc == 0 else None
+
+
+def find_code(cwd, repo, base, head, ref, criteria_rev, files=None):
+    """Pass receipts that together cover every file changed between base and head for this exact
+    repo/base/head/criteria. A file is covered when it is in `files_reviewed` of a pass receipt, or in
+    `files_excluded` of a pass receipt of kind `parent` (the parent reviewer accepted the exclusion).
+    -> (list of records | None, problem). Every returned record must be consumed together."""
+    unreadable = stale = failed = False
+    seen_status = None
+    cands = []
     for _, rec in _scan("code-"):
         if rec is None:
             unreadable = True
             continue
         s = rec["verdict"]["subject"]
+        if s.get("kind") not in ("code", "parent"):
+            continue
         if (s.get("base"), s.get("head")) != (base, head) or s.get("destination") not in (ref, ref.replace("refs/heads/", "")):
             continue
-        if rec["verdict"]["verdict"] != "pass":
-            return None, "review verdict is not pass"
-        if (s.get("criteria_rev") or None) != (criteria_rev or None):
-            stale = "review is stale: criteria updatedAt changed since review"
+        if not repo or s.get("repo") != repo:
             continue
-        return rec, ""
-    if stale:
-        return None, stale
-    return None, "receipt unreadable" if unreadable else "no pass receipt for this base/head"
+        if rec["verdict"]["verdict"] != "pass":
+            failed = True
+            continue
+        if (s.get("criteria_rev") or None) != (criteria_rev or None):
+            stale = True
+            continue
+        if rec["status"] != UNCONSUMED:
+            seen_status = rec["status"]
+            continue
+        cands.append(rec)
+    if failed:
+        return None, "review verdict is not pass"
+    if not cands:
+        if stale:
+            return None, "review is stale: criteria updatedAt changed since review"
+        if seen_status:
+            return None, f"receipt is {seen_status}; run `maeng-review reconcile`"
+        return None, "receipt unreadable" if unreadable else "no pass receipt for this repo/base/head"
+    if unreadable:
+        return None, "receipt unreadable"
+    if files is None:
+        files = changed_files(cwd, base, head)
+    if files is None:
+        return None, "cannot list the files changed between base and head"
+    uncovered, used = set(files), []
+    for rec in cands:
+        s = rec["verdict"]["subject"]
+        reviewed = set(s.get("files_reviewed") or [])
+        got = (uncovered & reviewed)
+        if s.get("kind") == "parent":
+            got |= uncovered & set(s.get("files_excluded") or [])
+        if reviewed and diff_digest(cwd, base, head, sorted(reviewed)) != s.get("digest"):
+            continue  # the recorded diff digest does not match what is being shipped
+        if got or (not files and not used):
+            used.append(rec)
+            uncovered -= got
+    if uncovered or not used:
+        shown = ", ".join(sorted(uncovered)[:8])
+        return None, ("review coverage incomplete: no pass receipt covers " + (shown or "this change") +
+                      " (each changed file must be in some receipt's files_reviewed, or in a parent receipt's files_excluded)")
+    return used, ""
 
 
 def find_notion(digest, destination, op):
@@ -123,6 +174,22 @@ def begin(key, intent):
         rec["status"], rec["intent"] = PENDING, intent
         rec["history"].append({"at": now_iso(), "event": "pending"})
     return _mutate(key, f)
+
+
+def begin_many(items):
+    """Reserve several receipts atomically: all become pending, or none do. items = [(key, intent)]."""
+    done = []
+    try:
+        for key, intent in sorted(items, key=lambda x: x[0]):
+            begin(key, intent)
+            done.append(key)
+    except Exception:
+        for key in done:
+            try:
+                reject(key, "reservation-rolled-back")
+            except Exception:
+                pass
+        raise
 
 
 def consume(key, result):
@@ -194,7 +261,12 @@ def unresolved_entries():
 
 def journal_pending(entry):
     entry = {**entry, "status": "pending", "page_ids": [], "at": now_iso()}
-    journal_update(lambda es: es.append(entry))
+
+    def f(es):
+        if any(e["status"] in ("pending", "sent") for e in es):
+            raise ReceiptError("an earlier Notion write is unresolved")
+        es.append(entry)
+    journal_update(f)
     return entry
 
 
@@ -230,7 +302,9 @@ def journal_readback(page_id, entry_id=None):
     """A successful readback of `page_id` resolves the matching entry, consumes the receipt, fills the registry."""
     def f(es):
         for e in es:
-            if e["status"] == "sent" and (page_id in e["page_ids"] or entry_id == e["id"]):
+            sent = e["status"] == "sent" and (page_id in e["page_ids"] or entry_id == e["id"])
+            confirmed_pending = e["status"] == "pending" and entry_id == e["id"]  # agent read the page back
+            if sent or confirmed_pending:
                 e["status"] = "read_back"
                 if page_id not in e["page_ids"]:
                     e["page_ids"].append(page_id)

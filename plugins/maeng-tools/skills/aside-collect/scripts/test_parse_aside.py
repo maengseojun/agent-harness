@@ -35,8 +35,21 @@ class ParseAside(unittest.TestCase):
         self.assertIn('url: not-a-header-inside-content', item['content'])
         self.assertEqual(item['url'].split('?')[0].lower().startswith('https://github.com'), True)
 
+    def test_snapshot_block_then_plain_text_answer_is_no_final_answer(self):
+        res, _ = pa.parse(TRANSCRIPT.replace(TEMPLATE_ECHO, ITEM) + SNAPSHOT + 'Sorry, I could not finish.\n')
+        self.assertEqual(res['parse_status'], 'no_final_answer')
+        self.assertEqual(res['items'], [])
+
+    def test_trailing_ansi_and_whitespace_still_final(self):
+        res, _ = pa.parse(SNAPSHOT + ITEM + f'\n\n{ESC}[0m  \n')
+        self.assertEqual(res['parse_status'], 'ok')
+
     def test_template_echo_is_not_a_result(self):
         res, _ = pa.parse(TRANSCRIPT + SNAPSHOT)
+        self.assertEqual(res['items'], [])
+        self.assertEqual(res['parse_status'], 'no_final_answer')
+        res, _ = pa.parse(SNAPSHOT + TEMPLATE_ECHO + '\n')
+        self.assertEqual(res['items'], [])
         self.assertEqual(res['parse_status'], 'parse_failed')
         self.assertEqual(res['items'], [])
         self.assertEqual(res['blocks_total'], 1)

@@ -10,7 +10,7 @@ Use the supplied brief and accepted decisions. If absent, infer a compact workin
 In the personal world, apply the project/task workflow of the `maeng-harness:work-records` skill; in an eta checkout that plugin is off and eta's own rules govern the workflow. Before execution or resumption: read task → Spec/Plan → Architecture/Rules → dependencies.
 Use its criteria, lead/handoff, change and offline rules for this deliverable;
 an inferred brief does not approve draft criteria. Keep evidence current, leave
-Linear Done for user confirmation and avoid Architecture overhead for standalone tasks.
+close the Linear issue yourself (Done) once AC are met, review passed and records are linked, and avoid Architecture overhead for standalone tasks.
 
 Interview the user only about choices they own that cannot be inferred from the
 materials and would change the result: audience and desired response, central

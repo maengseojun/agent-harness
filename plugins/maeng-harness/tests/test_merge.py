@@ -28,12 +28,27 @@ class MergeBase(HarnessCase):
 
     def set_pr(self, base, head, state="OPEN"):
         self.pr_json.write_text(json.dumps({"number": 7, "state": state, "baseRefName": "main", "baseRefOid": base,
-                                            "headRefName": "feat", "headRefOid": head}))
+                                            "headRefName": "feat", "headRefOid": head,
+                                            "url": f"{self.remote}/pull/7"}))
 
-    def verdict(self, base=None, head=None, criteria_rev=None, verdict="pass"):
+    def changed(self, base, head):
+        return sorted(self.git(self.repo, "diff", "--name-only", "--no-renames", f"{base}...{head}").stdout.split())
+
+    def digest(self, base, head, files):
+        import hashlib
+        out = self.git(self.repo, "diff", "--no-renames", f"{base}...{head}", "--", *files).stdout
+        return hashlib.sha256(out.strip().encode()).hexdigest()
+
+    def verdict(self, base=None, head=None, criteria_rev=None, verdict="pass", kind="code", files=None,
+                excluded=None, repo="__remote__", pr=7, digest=None):
+        base, head = base or self.base, head or self.h
+        files = self.changed(base, head) if files is None else files
+        repo = str(self.remote.resolve()) if repo == "__remote__" else repo
         v = {"verdict": verdict, "reviewer": {"model": "gpt-6-astra", "effort": "medium"}, "findings": [],
-             "subject": {"kind": "code", "repo": "o/r", "pr": 7, "base": base or self.base, "head": head or self.h,
-                         "criteria_rev": criteria_rev, "digest": "d", "destination": "refs/heads/main", "op": "merge"}}
+             "subject": {"kind": kind, "repo": repo, "pr": pr, "base": base, "head": head,
+                         "criteria_rev": criteria_rev, "digest": digest or self.digest(base, head, files),
+                         "destination": "refs/heads/main", "op": "merge", "files_reviewed": files,
+                         "files_excluded": excluded or [], "exclusion_reason": "x" if excluded else None}}
         f = self.tmp / "verdict.json"
         f.write_text(json.dumps(v))
         r = self.cli("maeng-review", ["store", str(f)], self.repo)

@@ -19,7 +19,10 @@
         "criteria_rev": {"type": ["string", "null"]},
         "digest": {"type": ["string", "null"]},
         "destination": {"type": ["string", "null"]},
-        "op": {"type": ["string", "null"]}
+        "op": {"type": ["string", "null"]},
+        "files_reviewed": {"type": "array", "items": {"type": "string"}},
+        "files_excluded": {"type": "array", "items": {"type": "string"}},
+        "exclusion_reason": {"type": ["string", "null"]}
       }
     },
     "reviewer": {

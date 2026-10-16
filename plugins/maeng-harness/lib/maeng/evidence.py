@@ -15,6 +15,10 @@ PY_RE = re.compile(r"^python[\d.]*$")
 
 # ---- runner recognition -------------------------------------------------
 
+NO_RUN_FLAGS = {"--version", "-V", "--help", "-h", "--collect-only", "--co", "--dry-run", "--no-run", "--list-tests"}
+BENIGN_FLAG = re.compile(r"^(?:-v+|-q+|-s|-x|--verbose|--quiet|--no-header|-ra|-rA|--color=\S+|--tb=\S+)$")
+
+
 def _first_arg(toks, skip_flags=True):
     for t in toks[1:]:
         if not (skip_flags and t.startswith("-")):
@@ -22,8 +26,26 @@ def _first_arg(toks, skip_flags=True):
     return None
 
 
+def _drop_first(toks, *words):
+    out, used = [], set()
+    for t in toks:
+        if t in words and t not in used:
+            used.add(t)
+            continue
+        out.append(t)
+    return out
+
+
+def _result(name, kind, args):
+    """(name, kind, identity): identity = runner + args, whitespace-normalized, minus verbosity-only flags."""
+    if any(a in NO_RUN_FLAGS or a.startswith("--collect-only") for a in args):
+        return None  # --version / --help / --collect-only ... run no checks: never evidence
+    kept = [a for a in args if not BENIGN_FLAG.match(a)]
+    return name, kind, " ".join([name, *kept])
+
+
 def _runner(tokens):
-    """Return (name, kind) if this segment is a recognized check runner."""
+    """Return (name, kind, identity) if this segment is a recognized check runner."""
     prog, toks = program(tokens)
     if not prog:
         return None
@@ -36,15 +58,18 @@ def _runner(tokens):
     if PY_RE.match(prog):
         if "-m" in toks[1:-1]:
             i = toks.index("-m")
-            mod, rest = toks[i + 1], toks[i + 1:]
-            return {"pytest": ("pytest", TEST_KINDS), "unittest": ("unittest", TEST_KINDS),
-                    "mypy": ("mypy", "check")}.get(mod) or (
-                ("ruff check", "check") if mod == "ruff" and _first_arg(rest) == "check" else None)
+            mod, rest = toks[i + 1], toks[i + 2:]
+            if mod in ("pytest", "unittest"):
+                return _result(mod, TEST_KINDS, rest)
+            if mod == "mypy":
+                return _result("mypy", "check", rest)
+            if mod == "ruff" and _first_arg([mod, *rest]) == "check":
+                return _result("ruff check", "check", _drop_first(rest, "check"))
         return None
     if prog in ("pytest", "py.test"):
-        return "pytest", TEST_KINDS
+        return _result("pytest", TEST_KINDS, toks[1:])
     if prog in ("mypy", "tsc"):
-        return prog, "check"
+        return _result(prog, "check", toks[1:])
     sub = _first_arg(toks)
     table = {
         "ruff": {"check": ("ruff check", "check")},
@@ -56,23 +81,25 @@ def _runner(tokens):
         "playwright": {"test": ("playwright test", TEST_KINDS)},
     }
     if prog in table:
-        return table[prog].get(sub)
+        hit = table[prog].get(sub)
+        return _result(hit[0], hit[1], _drop_first(toks[1:], sub)) if hit else None
     if prog == "claude" and toks[1:3] == ["plugin", "validate"]:
-        return "claude plugin validate", "check"
+        return _result("claude plugin validate", "check", toks[3:])
     if prog in ("npm", "pnpm", "yarn"):
         args = [t for t in toks[1:] if not t.startswith("-")]
+        rest = toks[1:]
         if args[:1] in (["test"], ["t"]):
-            return f"{prog} test", TEST_KINDS
+            return _result(f"{prog} test", TEST_KINDS, _drop_first(rest, "test", "t"))
         script = args[1] if args[:1] == ["run"] and len(args) > 1 else (args[0] if prog == "yarn" and args else None)
         if script in ("lint", "build", "typecheck"):
-            return f"{prog} run {script}", "check"
+            return _result(f"{prog} run {script}", "check", _drop_first(rest, "run", script))
         if script == "test":
-            return f"{prog} test", TEST_KINDS
+            return _result(f"{prog} test", TEST_KINDS, _drop_first(rest, "run", "test"))
     return None
 
 
 def recognize(command):
-    """-> {'checks': [(name, kind)], 'cd': dir|None} or None (also for background/compound)."""
+    """-> {'checks': [(name, kind, identity)], 'cd': dir|None} or None (also for background/compound)."""
     try:
         segs = split_segments(command)
     except ParseError:
@@ -106,13 +133,18 @@ def post_runner(st, key, ok, tree_finish):
     if ok and (not started or started != tree_finish):
         return []  # code changed during the check, or tree undecidable: no evidence
     added = []
-    for name, kind in pend["checks"]:
-        added.append(add_evidence(st, name, kind, pend["cmd"], ok, started, tree_finish, pend["common"], "runner"))
+    for name, kind, identity in pend["checks"]:
+        added.append(add_evidence(st, name, kind, pend["cmd"], ok, started, tree_finish, pend["common"], "runner",
+                                  identity))
     return added
 
 
-def add_evidence(st, check, kind, cmd, ok, tree_start, tree_finish, common, source):
-    ev = {"seq": bump(st), "check": check, "kind": kind, "cmd": cmd, "ok": bool(ok), "tree_start": tree_start,
+def norm_identity(text):
+    return " ".join(str(text).replace("`", "").split())
+
+
+def add_evidence(st, check, kind, cmd, ok, tree_start, tree_finish, common, source, identity=None):
+    ev = {"seq": bump(st), "check": check, "kind": kind, "cmd": cmd, "identity": identity or norm_identity(check), "ok": bool(ok), "tree_start": tree_start,
           "tree_finish": tree_finish, "finished_at": now_iso(), "common": common, "source": source}
     st["evidence"].append(ev)
     return ev
@@ -174,12 +206,21 @@ def plan_is_stale(binding):
 
 # ---- predicates ---------------------------------------------------------
 
-def _matches(ev, pat):
-    pat_l, check = pat.lower(), ev["check"].lower()
+def _identity(ev):
+    return (ev.get("identity") or norm_identity(ev["check"])).lower()
+
+
+def _pat_identities(pat):
     rec = recognize(pat)
     if rec:
-        return ev["check"] in [n for n, _ in rec["checks"]]
-    return fnmatch.fnmatch(check, pat_l) or pat_l in check or check in pat_l or pat_l in ev["cmd"].lower()
+        return [i.lower() for _, _, i in rec["checks"]]
+    return [norm_identity(pat).lower()]
+
+
+def _matches(ev, pat):
+    """A required check is met only by a run whose identity equals it or matches it as a glob."""
+    ident = _identity(ev)
+    return any(ident == p or fnmatch.fnmatchcase(ident, p) for p in _pat_identities(pat))
 
 
 class Verifier:
@@ -225,8 +266,8 @@ class Verifier:
                     reasons.append(f"required check not passed on this tree: {p}")
         for f in evs:
             if not f["ok"] and f["tree_finish"] and self.eq(f["tree_finish"], tree):
-                if not any(g["check"] == f["check"] and g["seq"] > f["seq"] for g in good):
-                    reasons.append(f"unresolved failure: {f['check']}")
+                if not any(_identity(g) == _identity(f) and g["seq"] > f["seq"] for g in good):
+                    reasons.append(f"unresolved failure: {f.get('identity') or f['check']}")
         reasons += self._plan_reasons(tree)
         return not reasons, reasons
 

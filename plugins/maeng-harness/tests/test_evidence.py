@@ -80,7 +80,7 @@ class EvidenceTests(ShipBase):
         denied, reason = self.bash_pre(self.repo, "git push origin feat")
         self.assertTrue(denied)
         self.assertIn("ruff check", reason)
-        self.run_check(self.repo, "ruff check .")
+        self.run_check(self.repo, "ruff check")
         self.assertFalse(self.bash_pre(self.repo, "git push origin feat")[0])
         # a bound plan's Verification section takes precedence over the policy
         plan = self.repo.parent / "plan.md"

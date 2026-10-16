@@ -51,7 +51,7 @@ The stub keeps the original frontmatter, adds `status: archived` and `archive: {
 - Never delete without a verified copy. The script enforces this; do not delete vault files or archive copies by hand.
 - The cold tier is never the only copy of anything essential: stubs stay in the vault, and backups go to both clouds when both are available.
 - eta material is allowed: use `--world eta`, keep it under `eta/` in the vault, and the stub carries `world: eta`. Never mix eta and personal archive paths.
-- Respect `<private>` rules: do not archive text that must not leave the machine.
+- Respect `<private>` rules: backups exclude any file containing a `<private` tag (listed under `excluded_private` in the manifest, warning printed, originals untouched). Backup aborts, with no pruning, if the vault root is missing or has no `.md` file; the harness root is optional but reported. Moves and restores refuse symlinked paths and anything resolving outside the vault, and a binary move refuses to overwrite an existing `<name>.archived.md` unless it is a stub for the same sha256. Do not `move` a note that contains `<private>` text.
 - Do not write to the vault or cloud folders outside these commands. Restoring a backup never overwrites the live vault in place.
 
 ## Searching and reading Google Drive

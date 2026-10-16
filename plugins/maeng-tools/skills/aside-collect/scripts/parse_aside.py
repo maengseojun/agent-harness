@@ -81,25 +81,34 @@ def parse_block(body):
 
 
 def last_run(text):
-    """Return (blocks_in_last_contiguous_run, total_block_count)."""
+    """Return (blocks_of_final_answer, total_block_count, final_ok).
+
+    The final answer is the contiguous run of blocks that ends at the last
+    `=== END ===` AND that END must be followed only by whitespace to the end of
+    the (ANSI-stripped) output. Otherwise there is no identifiable final answer.
+    """
     spans = [(m.start(), m.end(), m.group(1)) for m in BLOCK.finditer(text)]
     if not spans:
-        return [], 0
+        return [], 0, False
+    if text[spans[-1][1]:].strip() != '':
+        return [], len(spans), False
     run = [spans[-1]]
     for prev in reversed(spans[:-1]):
         if text[prev[1]:run[0][0]].strip() == '':
             run.insert(0, prev)
         else:
             break
-    return [s[2] for s in run], len(spans)
+    return [s[2] for s in run], len(spans), True
 
 
 def parse(raw):
     text = strip_ansi(raw)
-    bodies, total = last_run(text)
+    bodies, total, final_ok = last_run(text)
     items = [parse_block(b) for b in bodies]
     items = [i for i in items if not i['placeholder']]
-    if not items:
+    if total and not final_ok:
+        status = 'no_final_answer'
+    elif not items:
         status = 'parse_failed'
     elif any(i['missing'] for i in items):
         status = 'partial'
@@ -119,7 +128,7 @@ def main(argv=None):
         with open(a.clean, 'w', encoding='utf-8') as fh:
             fh.write(clean)
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0 if result['parse_status'] != 'parse_failed' else 2
+    return 0 if result['parse_status'] not in ('parse_failed', 'no_final_answer') else 2
 
 
 if __name__ == '__main__':

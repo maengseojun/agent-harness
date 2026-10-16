@@ -108,6 +108,105 @@ class MoveTests(Base):
         self.assertIn("world: eta", (self.vault / "eta/n.md").read_text())
 
 
+class SafetyTests(Base):
+    def test_binary_move_refuses_existing_unrelated_stub(self):
+        p = self.vault / "files" / "x.pdf"
+        p.parent.mkdir()
+        p.write_bytes(b"pdf-bytes")
+        other = self.vault / "files" / "x.pdf.archived.md"
+        other.write_text("my own note", encoding="utf-8")
+        with self.assertRaises(A.ArchiveError):
+            A.cmd_move("files/x.pdf", "onedrive", "personal", False)
+        self.assertEqual(other.read_text(), "my own note")
+        self.assertTrue(p.exists())
+        self.assertFalse((self.od / A.ARCHIVE_DIR).exists())
+
+    def test_binary_move_stub_with_same_hash_is_idempotent(self):
+        p = self.vault / "files" / "x.pdf"
+        p.parent.mkdir()
+        p.write_bytes(b"pdf-bytes")
+        meta = {"store": "onedrive", "path": "maeng-archive/personal/2026/files/x.pdf",
+                "sha256": A.sha256_file(p), "size": 9, "archived_at": "2026-01-01T00:00:00+00:00"}
+        (self.vault / "files" / "x.pdf.archived.md").write_text(
+            A.build_stub(None, meta, "personal", "files/x.pdf"), encoding="utf-8")
+        r = A.cmd_move("files/x.pdf", "onedrive", "personal", False)
+        self.assertEqual(r["action"], "archived")
+
+    def test_move_rejects_symlinked_directory_outside_vault(self):
+        outside = Path(self.td.name) / "outside"
+        outside.mkdir()
+        (outside / "n.md").write_text("external secret", encoding="utf-8")
+        (self.vault / "raw").symlink_to(outside, target_is_directory=True)
+        with self.assertRaises(A.ArchiveError):
+            A.cmd_move("raw/n.md", "onedrive", "personal", False)
+        self.assertEqual((outside / "n.md").read_text(), "external secret")
+        self.assertFalse((self.od / A.ARCHIVE_DIR).exists())
+
+    def test_move_rejects_symlinked_file(self):
+        outside = Path(self.td.name) / "ext.md"
+        outside.write_text("ext", encoding="utf-8")
+        (self.vault / "link.md").symlink_to(outside)
+        with self.assertRaises(A.ArchiveError):
+            A.cmd_move("link.md", "onedrive", "personal", False)
+        self.assertEqual(outside.read_text(), "ext")
+
+    def test_restore_rejects_symlinked_target_dir(self):
+        self.note("wiki/old.md", "body\n")
+        A.cmd_move("wiki/old.md", "onedrive", "personal", False)
+        outside = Path(self.td.name) / "outside"
+        outside.mkdir()
+        (self.vault / "wiki").rename(self.vault / "wiki-real")
+        (self.vault / "wiki").symlink_to(outside, target_is_directory=True)
+        (outside / "old.md").write_text((self.vault / "wiki-real" / "old.md").read_text())
+        with self.assertRaises(A.ArchiveError):
+            A.cmd_restore("wiki/old.md", True, None)
+        self.assertEqual(list(outside.glob("*.restored.md")), [])
+
+
+class BackupSafetyTests(Base):
+    def seed_old(self):
+        old = self.od / A.BACKUP_DIR
+        old.mkdir()
+        for i in range(3):
+            (old / f"maeng-2020010{i}-000000.zip").write_bytes(b"x")
+        return old
+
+    def test_missing_vault_errors_without_pruning(self):
+        old = self.seed_old()
+        with mock.patch.dict(os.environ, {"MAENG_VAULT": str(Path(self.td.name) / "nope")}):
+            with self.assertRaises(A.ArchiveError):
+                A.cmd_backup(["onedrive"], 1, False)
+        self.assertEqual(len(list(old.glob("maeng-*.zip"))), 3)
+
+    def test_empty_vault_errors_without_pruning(self):
+        old = self.seed_old()
+        with self.assertRaises(A.ArchiveError):
+            A.cmd_backup(["onedrive"], 1, False)
+        self.assertEqual(len(list(old.glob("maeng-*.zip"))), 3)
+
+    def test_missing_harness_root_reported_but_ok(self):
+        self.note("a.md", "A")
+        with mock.patch.dict(os.environ, {"MAENG_HOME": str(Path(self.td.name) / "nohome")}):
+            r = A.cmd_backup(["onedrive"], 10, False)
+        self.assertEqual(r["stores"]["onedrive"]["status"], "ok")
+        self.assertFalse(r["harness_root"]["present"])
+
+    def test_private_files_excluded_from_zip_and_listed(self):
+        self.note("ok.md", "fine")
+        sec = self.note("secret.md", "x <PRIVATE>hide</private> y")
+        (self.home / "h.json").write_text('{"a": "<private>z"}')
+        before = sec.read_bytes()
+        r = A.cmd_backup(["onedrive"], 10, False)
+        with zipfile.ZipFile(r["stores"]["onedrive"]["zip"]) as zf:
+            names = zf.namelist()
+            man = json.loads(zf.read("manifest.json"))
+        self.assertIn("vault/ok.md", names)
+        self.assertNotIn("vault/secret.md", names)
+        self.assertNotIn("harness/h.json", names)
+        self.assertEqual(sorted(man["excluded_private"]), ["harness/h.json", "vault/secret.md"])
+        self.assertEqual(sec.read_bytes(), before)
+
+
 class BackupTests(Base):
     def test_backup_manifest_exclusions_and_prune(self):
         self.note("a.md", "A")

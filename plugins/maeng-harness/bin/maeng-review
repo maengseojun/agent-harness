@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
 
-from maeng import evidence, receipts, schema, state  # noqa: E402
+from maeng import evidence, guard, receipts, schema, state  # noqa: E402
 from maeng import tree as treelib  # noqa: E402
 from maeng.cli_common import die, require_personal  # noqa: E402
 from maeng.common import canonical, git, git_out, home_dir, sha256, write_json  # noqa: E402
@@ -27,6 +27,11 @@ DISABLE_FAMILIES = ("apps", "browser", "computer_use", "hooks", "plugin", "memor
                     "skill", "view_image")
 PROMPT = """You are an independent, adversarial reviewer. Review ONLY the bundle below.
 Rules: you are read-only; do not use skills, plugins, browsers or any tool that needs approval.
+Threat model (user decision): the agent is cooperative. Hooks and gates are guardrails against mistakes and
+convenience shortcuts, not a security boundary; a deliberately disguised route (for example a script with an
+innocuous name that pushes) is out of scope and is not a finding. Judge against that model: every KNOWN,
+non-disguised route must still be gated, and every gate must fail closed when it cannot decide. Report a gap in
+a known route or a gate that fails open; do not report out-of-scope disguised bypasses.
 Start from the assumption that the change is wrong; try to falsify it against the acceptance criteria (AC-n).
 Answer with JSON matching the supplied schema. verdict=pass only if no critical/high finding remains and every AC is met.
 Use verdict=blocked if the bundle lacks something required.
@@ -80,6 +85,16 @@ def plan_text(binding):
     return None
 
 
+def read_evidence_files(paths):
+    out = {}
+    for p in paths or []:
+        try:
+            out[str(p)] = Path(p).read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            out[str(p)] = f"<unreadable: {exc}>"
+    return out
+
+
 def code_bundle(a, cwd, st):
     missing = []
     base, head = a.base, a.head
@@ -88,11 +103,11 @@ def code_bundle(a, cwd, st):
         return {"missing": missing}
     spec = list(a.path or []) + [f":(exclude){x}" for x in (a.exclude or [])]
     tail = ["--", *spec] if spec else []
-    diff = git_out(cwd, "diff", f"{base}...{head}", *tail) or ""
-    files = (git_out(cwd, "diff", "--name-only", f"{base}...{head}", *tail) or "").splitlines()
+    diff = git_out(cwd, "diff", "--no-renames", f"{base}...{head}", *tail) or ""
+    files = sorted(set((git_out(cwd, "diff", "--name-only", "--no-renames", f"{base}...{head}", *tail) or "").splitlines()))
     excluded = []
     if spec:
-        every = (git_out(cwd, "diff", "--name-only", f"{base}...{head}") or "").splitlines()
+        every = (git_out(cwd, "diff", "--name-only", "--no-renames", f"{base}...{head}") or "").splitlines()
         excluded = sorted(set(every) - set(files))
     contents = {}
     for f in files:
@@ -110,10 +125,13 @@ def code_bundle(a, cwd, st):
         missing.append("Spec/Plan AC-n criteria")
     elif not plan_text(binding):
         missing.append("Spec/Plan text (bind with --plan <file>)")
-    size = len(diff) + sum(len(v) for v in contents.values())
+    evidence_files = read_evidence_files(a.evidence)
+    size = len(diff) + sum(len(v) for v in contents.values()) + sum(len(v) for v in evidence_files.values())
     if size > a.max_bytes:
         missing.append(f"bundle is {size} bytes (> --max-bytes {a.max_bytes}); narrow it with --path/--exclude")
-    return {"kind": a.kind, "repo": git_out(cwd, "config", "--get", "remote.origin.url"), "pr": a.pr,
+    remote_url = git_out(cwd, "remote", "get-url", "--push", a.remote)
+    return {"kind": a.kind, "repo": guard.normalize_repo(remote_url), "pr": a.pr, "files_reviewed": files,
+            "evidence_files": evidence_files,
             "scope": {"paths": a.path or [], "exclude": a.exclude or [], "excluded_files": excluded,
                       "exclusion_reason": a.exclusion_reason},
             "base": base, "head": head, "diff": diff, "changed_files": contents,
@@ -131,7 +149,11 @@ def run_review(a, cwd):
         digest = sha256(canonical(payload))
         bundle = {"kind": "notion", "payload": payload, "digest": digest, "destination": a.destination,
                   "op": a.op, "draft": a.draft and Path(a.draft).read_text(), "sources": a.source or [],
+                  "evidence_files": read_evidence_files(a.evidence),
                   "missing": [] if a.destination and a.op else ["destination/op"]}
+        total = len(json.dumps(payload)) + sum(len(v) for v in bundle["evidence_files"].values())
+        if total > a.max_bytes:
+            bundle["missing"].append(f"bundle is {total} bytes (> --max-bytes {a.max_bytes})")
         subject = {"kind": "notion", "repo": None, "pr": None, "base": None, "head": None, "criteria_rev": None,
                    "digest": digest, "destination": a.destination, "op": a.op}
     else:
@@ -139,6 +161,9 @@ def run_review(a, cwd):
         diff_digest = sha256(bundle.get("diff", ""))
         subject = {"kind": a.kind, "repo": bundle.get("repo"), "pr": a.pr, "base": a.base, "head": a.head,
                    "criteria_rev": bundle.get("criteria_rev"), "digest": diff_digest,
+                   "files_reviewed": bundle.get("files_reviewed", []),
+                   "files_excluded": (bundle.get("scope") or {}).get("excluded_files", []),
+                   "exclusion_reason": (bundle.get("scope") or {}).get("exclusion_reason"),
                    "destination": f"refs/heads/{a.base_ref}" if a.base_ref else None, "op": "merge"}
         if not a.base_ref:
             bundle.setdefault("missing", []).append("base ref name (--base-ref)")
@@ -208,6 +233,8 @@ def main(argv=None):
     r.add_argument("--path", action="append", help="git pathspec to include (repeatable)")
     r.add_argument("--exclude", action="append", help="git pathspec to exclude (repeatable); listed in the bundle")
     r.add_argument("--exclusion-reason", help="why excluded files need no review (shown to the reviewer)")
+    r.add_argument("--remote", default="origin", help="remote whose repository the receipt is bound to")
+    r.add_argument("--evidence", action="append", help="file whose contents are embedded as evidence_files (repeatable)")
     r.add_argument("--max-bytes", type=int, default=1_500_000, help="bundle size limit; larger bundles are blocked")
     c = sub.add_parser("reconcile"); c.add_argument("--repo"); c.add_argument("--notion")
     c.add_argument("--page-id"); c.add_argument("--absent", action="store_true")

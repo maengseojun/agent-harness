@@ -1,0 +1,62 @@
+{
+  "verdict": "blocked",
+  "receipt": null,
+  "findings": [
+    {
+      "body": "AC-1 requires the Aside smoke document, but that document is explicitly excluded and its contents are absent. AC-5 requires evidence that vault policy edits were read back, but no edited policy or readback result is supplied. The declared test and line-count records establish neither criterion. Supply both artifacts before acceptance can be determined.",
+      "file": null,
+      "line": null,
+      "severity": "high",
+      "title": "Required evidence for AC-1 and AC-5 is missing"
+    },
+    {
+      "body": "For input '<private>outer <private>inner</private>SECRET</private>', the non-greedy substitution removes only through the inner closing tag, leaving 'SECRET</private>' in the output. The subsequent OPEN search finds no opening tag and allows the secret through. Track nesting or reject nested markup so everything within the outer private span remains excluded.",
+      "file": "plugins/maeng-tools/skills/obsidian-workspace/scripts/private_filter.py",
+      "line": 21,
+      "severity": "high",
+      "title": "Nested private tags leak protected content"
+    },
+    {
+      "body": "last_run selects the last matching blocks anywhere in stdout without establishing that they belong to the final answer. If a page snapshot contains a complete non-placeholder ITEM block and Aside subsequently fails or returns plain text, parse reports that snapshot block as 'ok'. This contradicts the promised separation between raw browser snapshots and source notes. Require an identifiable final-answer boundary and fail closed when it is absent.",
+      "file": "plugins/maeng-tools/skills/aside-collect/scripts/parse_aside.py",
+      "line": 83,
+      "severity": "high",
+      "title": "Transcript blocks can be promoted as collected sources"
+    },
+    {
+      "body": "When moving x.pdf, an existing x.pdf.archived.md is not checked if x.pdf still exists. write_text_atomic replaces that sibling unconditionally, although only x.pdf was copied and verified. An unrelated note or an earlier archive stub and its summary can therefore be destroyed without a backup. Reject an existing sibling unless it is explicitly reconciled.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": 224,
+      "severity": "high",
+      "title": "Moving a binary silently overwrites an existing stub"
+    },
+    {
+      "body": "cmd_move rejects lexical traversal but follows symlinked ancestor directories. If vault/raw points outside the vault, moving raw/n.md copies the external file and then replaces that external file with a stub. Resolve and validate containment and reject symlink ancestors before reading or changing the source and destination.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": 174,
+      "severity": "high",
+      "title": "Archive moves can modify files outside the vault"
+    },
+    {
+      "body": "build_backup_zip silently skips missing vault and harness roots. cmd_backup then accepts the resulting empty or incomplete ZIP as verified and prunes older backups. With a missing mount or incorrect MAENG_VAULT, repeated backups can retire the last useful copies while reporting success. Require the expected source roots and validate backup completeness before allowing retention pruning.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": 261,
+      "severity": "high",
+      "title": "Missing source roots can produce successful backups that prune valid copies"
+    },
+    {
+      "body": "The backup walker uploads every eligible file from the vault and harness state without checking private spans or providing a content exclusion mechanism. A file containing '<private>secret</private>' is copied verbatim to both cloud stores, despite the archive skill explicitly prohibiting such text from leaving the machine. Reject protected files before cloud dispatch and report the omission; do not silently alter originals.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": 263,
+      "severity": "high",
+      "title": "Cloud backups bypass the declared private-content restriction"
+    },
+    {
+      "body": "This instruction leaves Linear Done for user confirmation, while harness-run and the canonical work-records contract require the agent to close accepted tasks itself. work-records also retains 'close-out-for-confirmation' in its Roles section. Remove these stale instructions so deliverable tasks follow the required Claude workflow consistently.",
+      "file": "plugins/maeng-tools/skills/prepare-work-deliverable/SKILL.md",
+      "line": 13,
+      "severity": "medium",
+      "title": "Closeout instructions contradict the autonomous Linear workflow"
+    }
+  ]
+}

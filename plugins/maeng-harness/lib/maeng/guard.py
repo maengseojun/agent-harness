@@ -32,6 +32,25 @@ def parse_remote(url):
     return None
 
 
+def normalize_repo(url):
+    """Canonical repository identity: `host/owner/name` for network URLs, a resolved path for local ones."""
+    url = (url or "").strip()
+    if not url:
+        return None
+    if url.startswith(("/", "~", "file://", ".")):
+        try:
+            return str(Path(url.replace("file://", "", 1)).expanduser().resolve())
+        except OSError:
+            return url
+    m = (re.match(r"^(?:https?|ssh|git)://(?:[^@/]+@)?([^/:]+)(?::\d+)?/(.+?)(?:\.git)?/?$", url)
+         or re.match(r"^(?:[^@/]+@)?([^:/]+):(.+?)(?:\.git)?/?$", url))
+    if m:
+        return f"{m.group(1).lower()}/{m.group(2).lower()}"
+    if re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?(?:\.git)?$", url):
+        return "github.com/" + re.sub(r"\.git$", "", url).lower()
+    return url
+
+
 def remote_is_eta(url):
     if url and (url.startswith(("/", "~")) or url.startswith("file://")):
         try:

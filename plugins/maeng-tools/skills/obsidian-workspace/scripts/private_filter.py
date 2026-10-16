@@ -13,16 +13,32 @@ import json
 import re
 import sys
 
-PRIVATE = re.compile(r'<private>.*?</private>', re.S | re.I)
-OPEN = re.compile(r'<private>', re.I)
+TAG = re.compile(r'<(/?)\s*private(?=[\s/>])[^>]*>', re.I)
 
 
 def strip_private(text):
-    text, n = PRIVATE.subn('[private omitted]', text)
-    m = OPEN.search(text)
-    if m:
-        text, n = text[:m.start()] + '[private omitted]', n + 1
-    return text, n
+    """Nesting-aware scan. Depth>0 content is dropped; an unclosed open tag drops
+    everything to the end; a stray close tag at depth 0 stays as inert text."""
+    out, pos, depth, start, n = [], 0, 0, 0, 0
+    for m in TAG.finditer(text):
+        closing = bool(m.group(1))
+        if depth == 0:
+            if closing:
+                continue  # stray close: plain text, exposes nothing
+            out.append(text[pos:m.start()])
+            depth, start = 1, m.start()
+        elif closing:
+            depth -= 1
+            if depth == 0:
+                out.append('[private omitted]')
+                pos, n = m.end(), n + 1
+        else:
+            depth += 1
+    if depth:
+        out.append('[private omitted]')
+        return ''.join(out), n + 1
+    out.append(text[pos:])
+    return ''.join(out), n
 
 
 def redact(text, patterns):

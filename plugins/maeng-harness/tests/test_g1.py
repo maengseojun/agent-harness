@@ -198,17 +198,24 @@ class McpRoutes(ShipBase):
             self.assertTrue(denied, tool)
         for tool, tin in (("add_issue_comment", {**base, "issue_number": 1, "body": "x"}),
                           ("get_file_contents", {**base, "path": "a"}),
-                          ("create_or_update_file", {**base, "branch": "feat", "path": "a", "content": "b", "message": "m"}),
                           ("create_pull_request", {**base, "head": "feat", "base": "main", "title": "t"})):
             denied, reason = self.pre(self.repo, "mcp__github__" + tool, tin)
             self.assertFalse(denied, f"{tool}: {reason}")
 
+    def test_push_files_and_create_or_update_file_are_always_denied(self):
+        """R1#6: contents are never tied to the verified tree, even on a verified feature branch."""
+        self.verified()
+        base = {"owner": "o", "repo": "r"}
+        for tool, tin in (("push_files", {**base, "branch": "feat", "files": [], "message": "m"}),
+                          ("create_or_update_file", {**base, "branch": "feat", "path": "a", "content": "b",
+                                                     "message": "m"})):
+            denied, reason = self.pre(self.repo, "mcp__github__" + tool, tin)
+            self.assertTrue(denied, tool)
+            self.assertIn("verified `git commit`", reason)
+
     def test_mcp_pr_and_push_files_need_verification(self):
         (self.repo / "app.py").write_text("print('dirty')\n")
         base = {"owner": "o", "repo": "r"}
-        denied, _ = self.pre(self.repo, "mcp__github__create_or_update_file",
-                             {**base, "branch": "feat", "path": "a", "content": "b", "message": "m"})
-        self.assertTrue(denied)
         self.git(self.repo, "checkout", "-q", "app.py")
         denied, _ = self.pre(self.repo, "mcp__github__create_pull_request", {**base, "head": "feat", "base": "main"})
         self.assertTrue(denied)

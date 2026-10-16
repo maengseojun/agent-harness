@@ -9,7 +9,7 @@ Records are autonomous. You write Linear and Obsidian without asking. You publis
 
 ## Roles
 
-- **Linear** (workspace `maeng`, team MAE): live work map. Goals, task trees, Spec/Plan documents, dependencies, decisions, progress, blockers, review findings, links. You create, start, update and close-out-for-confirmation; the user never has to touch it.
+- **Linear** (workspace `maeng`, team MAE): live work map. Goals, task trees, Spec/Plan documents, dependencies, decisions, progress, blockers, review findings, links. You create, start, update and close it yourself (Done) once AC are met, review passed and records are linked; the user never has to touch it.
 - **Obsidian vault**: LLM context. Drafts, ADRs, reviews, session logs (see `obsidian-workspace`).
 - **Personal Notion**: library of finished outcomes (Runs & Evaluations) and policies (Knowledge & Skills). Locators and schema: [notion-records.md](references/notion-records.md).
 

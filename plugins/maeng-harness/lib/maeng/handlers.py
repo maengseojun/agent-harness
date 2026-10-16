@@ -115,6 +115,7 @@ def on_pre(payload):
     if world == guard.ETA:
         return None
     tool, tin, tuid = payload.get("tool_name", ""), payload.get("tool_input") or {}, payload.get("tool_use_id", "")
+    tin = tin if isinstance(tin, dict) else {}
     try:
         dec = gates.evaluate(tool, tin, gates.Ctx(cwd, st, world), tuid)
     except Exception as exc:  # gate cannot decide: fail closed
@@ -125,19 +126,28 @@ def on_pre(payload):
         return None
     try:
         track_pre(sid, cwd, tool, tin, tuid, dec.effects)
-    except Exception as exc:
-        warn(f"pre-tool tracker failed: {exc}")
+    except Exception as exc:  # authorization effects could not be persisted: fail closed
+        return deny_out(f"maeng: could not reserve the receipt/journal entry for this call "
+                        f"({type(exc).__name__}: {exc}); denied because the mutation would be unjournaled.")
     return None
 
 
 def track_pre(sid, cwd, tool, tin, tuid, effects):
-    receipt_key = None
-    for eff in effects:
-        if eff[0] == "receipt_pending":
-            receipts.begin(eff[1], eff[2])
-            receipt_key = eff[1]
-        elif eff[0] == "journal_pending":
-            receipts.journal_pending(eff[1])
+    reserve = [(eff[1], eff[2]) for eff in effects if eff[0] == "receipt_pending"]
+    receipt_keys = [k for k, _ in reserve]
+    if reserve:
+        receipts.begin_many(reserve)  # atomic under the receipt locks: a concurrent second call raises
+    try:
+        for eff in effects:
+            if eff[0] == "journal_pending":
+                receipts.journal_pending(eff[1])
+    except Exception:
+        for k in receipt_keys:
+            try:
+                receipts.reject(k, "reservation-rolled-back")
+            except Exception:
+                pass
+        raise
     rec = None
     if tool == "Bash" and not tin.get("run_in_background"):
         rec = evidence.recognize(str(tin.get("command", "")))
@@ -152,9 +162,9 @@ def track_pre(sid, cwd, tool, tin, tuid, effects):
         if rec:
             evidence.pre_runner(st, key, tin.get("command", ""), rec, tree_start, common)
             st["pending"][key]["cwd"] = run_cwd
-        if receipt_key:
-            st["pending"].setdefault(key, {})["receipt_key"] = receipt_key
-    if rec or receipt_key:
+        if receipt_keys:
+            st["pending"].setdefault(key, {})["receipt_keys"] = receipt_keys
+    if rec or receipt_keys:
         state.update(sid, mark, cwd)
 
 
@@ -265,7 +275,7 @@ def on_post(payload, failed=False):
         elif tool in EDIT_TOOLS and not failed:
             post_edit(sid, cwd, tool, tin, tresp)
         elif tool.startswith("mcp__"):
-            post_mcp(sid, cwd, st0, tool, tin, tresp, tuid, failed)
+            post_mcp(sid, cwd, st0, tool, tin, tresp, tuid, failed, payload)
     except Exception as exc:
         warn(f"post-tool tracker failed: {type(exc).__name__}: {exc}")
     return out or None
@@ -281,8 +291,7 @@ def post_bash(sid, cwd, st0, tin, tuid, failed, interrupted, payload):
     if need_tree:
         tree, _ = treelib.tree_id(run_cwd)
     commit = not failed and has_commit(command)
-    receipt_key = pend.get("receipt_key")
-    if receipt_key:
+    for receipt_key in pend.get("receipt_keys") or []:
         settle_merge_receipt(receipt_key, failed, payload)
     top = treelib.toplevel(run_cwd)
 
@@ -347,12 +356,20 @@ def notion_ids(obj):
     return sorted({m.replace("-", "").lower() for s in _flatten(obj) for m in UUID.findall(s)})
 
 
-def post_mcp(sid, cwd, st0, tool, tin, tresp, tuid, failed):
+CONFIRMED_NOTION_REJECTION = re.compile(
+    r"validation_error|object_not_found|unauthorized|restricted_resource|invalid_request|invalid_json|"
+    r"\b(?:http|status)[ :=]*(?:400|401|403|404|422)\b", re.I)
+
+
+def post_mcp(sid, cwd, st0, tool, tin, tresp, tuid, failed, payload=None):
     name = tool.split("__")[-1]
     if tool.startswith("mcp__claude_ai_Notion__"):
         if name in ("notion-create-pages", "notion-update-page", "notion-update-data-source"):
             if failed:
-                receipts.journal_rejected(tuid)
+                err = " ".join(str(x) for x in ((payload or {}).get("error"), (payload or {}).get("tool_response"), tresp) if x)
+                if CONFIRMED_NOTION_REJECTION.search(err):
+                    receipts.journal_rejected(tuid)
+                # else (timeout, connection reset, unknown): the write may have landed; stay pending until reconcile
             else:
                 ids = notion_ids(tresp) if name == "notion-create-pages" else notion_ids(tin)
                 receipts.journal_sent(tuid, ids)

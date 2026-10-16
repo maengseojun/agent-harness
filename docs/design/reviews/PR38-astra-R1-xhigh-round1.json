@@ -1,0 +1,90 @@
+{
+  "verdict": "blocked",
+  "receipt": null,
+  "findings": [
+    {
+      "body": "AC-5 explicitly requires transcript proof, but the bundle supplies only declared success and agent configuration. The transcript-derived model report is excluded. Mandatory scenario results for AC-4 and AC-6 are also excluded; the aggregate 57/61 assertion cannot establish their individual outcomes. Include the relevant execution results, model-routing evidence, and S5 plugin/hook/repository observations. These criteria cannot be independently verified from this bundle.",
+      "file": null,
+      "line": null,
+      "severity": "high",
+      "title": "Required acceptance evidence is missing"
+    },
+    {
+      "body": "track_pre performs the mandatory receipt and journal reservations, but this exception handler permits execution when either reservation fails. A disk error allows an unjournaled mutation. Concurrent calls can both pass evaluation, then the second receipts.begin raises because the first reserved the receipt; that second call is nevertheless allowed. Fail closed when authorization effects cannot be persisted, and reserve receipts atomically before dispatch.",
+      "file": "plugins/maeng-harness/lib/maeng/handlers.py",
+      "line": 128,
+      "severity": "high",
+      "title": "Receipt reservation failures allow the mutation"
+    },
+    {
+      "body": "A pass produced with --path or --exclude becomes sufficient authorization to merge the entire head. find_code checks base/head/ref/revision but ignores the reviewed diff digest and scope, and no aggregation requires the remaining reviews. Consequently, an R1 pass can authorize merging before R2 passes. Preserve reviewed scope and require complete coverage, or issue a separate integration receipt after all required reviews succeed.",
+      "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+      "line": 84,
+      "severity": "high",
+      "title": "Partial review receipts authorize the entire PR"
+    },
+    {
+      "body": "Neither this merge path nor maeng-ship validates the push destination against the receipt's repository or rejects eta remotes. maeng-ship accepts --remote independently of the repository queried by gh, while find_code ignores subject.repo. Forks can share the same base/head SHAs, so a personal receipt can authorize a push to another repository, including eta. Bind authorization to the resolved push repository and enforce G3 before both merge routes.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 400,
+      "severity": "high",
+      "title": "Merge authorization is not bound to the target repository"
+    },
+    {
+      "body": "When no refspec is supplied, Git honors remote.<name>.push before push.default, but this resolver ignores it. From a verified feature branch, git -c remote.origin.push=HEAD:refs/heads/main push origin is checked as a feature-branch push although Git updates main. This bypasses the review-receipt requirement. Resolve effective remote push configuration, including command-line overrides, or require explicit refspecs when configuration cannot be evaluated.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 379,
+      "severity": "high",
+      "title": "Configured push refspecs bypass the default-branch gate"
+    },
+    {
+      "body": "The parser accepts conditional syntax without understanding it. For if true; then git push origin main; fi, the segments begin with if, then, and fi, so check_git is never called and this fallback allows the command without verification or a receipt. Parse supported control structures correctly, or reject unsupported structures containing known shipping routes.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 164,
+      "severity": "high",
+      "title": "Shell conditionals bypass shipping checks"
+    },
+    {
+      "body": "push_files and create_or_update_file are authorized using only the local working tree's verification. Their supplied contents, destination repository, and resulting remote tree are never matched to that evidence. After a local test passes, arbitrary untested bytes can therefore be published to a feature branch. Deny these routes unless their resulting tree can be tied to verification, or require publication through a verified Git commit.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 575,
+      "severity": "high",
+      "title": "GitHub file uploads are unrelated to the verified tree"
+    },
+    {
+      "body": "Runner recognition reduces pytest --version, pytest tests/unit, and pytest tests/integration to the same check name. A successful version query counts as test evidence, and a unit-only run satisfies an integration-test requirement. A later passing subset also clears a full-suite failure because failures are matched by that same name. Reject invocations that execute no checks and retain the command scope needed to distinguish required checks and failures.",
+      "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+      "line": 182,
+      "severity": "high",
+      "title": "Verification discards whether the required tests actually ran"
+    },
+    {
+      "body": "Redirect targets are checked only when they begin with /, ~, ../, or ./. For an eta-classified /eta, cd /eta && printf x > file.txt passes: file.txt is skipped and printf is considered read-only. The command then modifies eta from a personal session. Resolve every filesystem output target against the effective segment directory before applying read-only exemptions.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 144,
+      "severity": "high",
+      "title": "Relative redirections bypass eta isolation"
+    },
+    {
+      "body": "The read-only exemption depends solely on the executable name. For example, find /eta -type f -delete is immediately allowed without inspecting its eta target, despite deleting files. sort -o /eta/file input has the same problem. Validate mutation-capable options and their targets before treating these commands as read-only.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 154,
+      "severity": "high",
+      "title": "Read-only command exemptions permit filesystem writes"
+    },
+    {
+      "body": "Every failed Notion write calls journal_rejected, which removes the unresolved obligation and returns the receipt to unconsumed. A timeout or connection loss can occur after Notion has created the page; retrying then creates a duplicate with the same receipt. Release receipts only after confirmed rejection or proven absence. Ambiguous failures must remain pending until reconciliation.",
+      "file": "plugins/maeng-harness/lib/maeng/handlers.py",
+      "line": 355,
+      "severity": "high",
+      "title": "Ambiguous Notion failures release single-use receipts"
+    },
+    {
+      "body": "If Notion accepts a write but the post hook never completes, its journal entry remains pending. Even after locating and reading the created page, reconcile --notion <entry> --page-id <page> cannot resolve it because journal_readback accepts only sent entries. All subsequent gated Notion writes remain blocked. Support confirmed readback reconciliation of pending entries without requiring a false --absent declaration.",
+      "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+      "line": 233,
+      "severity": "medium",
+      "title": "Pending Notion writes cannot be reconciled as successful"
+    }
+  ]
+}

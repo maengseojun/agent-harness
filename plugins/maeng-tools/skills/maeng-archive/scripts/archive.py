@@ -11,6 +11,7 @@ import glob
 import hashlib
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -171,12 +172,56 @@ def build_stub(original_text: str | None, meta: dict, world: str, rel: str) -> s
     )
 
 
+# ---------- containment ----------
+def resolved_vault() -> Path:
+    try:
+        return vault_root().resolve(strict=True)
+    except (FileNotFoundError, OSError):
+        raise ArchiveError(f"vault not found: {vault_root()}")
+
+
+def ensure_inside_vault(vault: Path, path: Path, must_exist: bool = True) -> Path:
+    """Reject paths that leave the resolved vault, or that reach it through a symlink
+    (any ancestor between vault and the file, or the file itself)."""
+    vault = vault.resolve(strict=True)
+    p = path if path.is_absolute() else vault / path
+    try:  # rebase a lexical (unresolved) vault prefix onto the resolved vault
+        p = vault / p.relative_to(vault_root())
+    except ValueError:
+        pass
+    try:
+        parts = p.relative_to(vault).parts
+    except ValueError:
+        # path may be spelled via an unresolved vault prefix; compare resolved parent
+        try:
+            parts = p.parent.resolve(strict=False).relative_to(vault).parts + (p.name,)
+        except ValueError:
+            raise ArchiveError(f"path is outside the vault: {path}")
+    cur = vault
+    for comp in parts:
+        cur = cur / comp
+        if cur.is_symlink():
+            raise ArchiveError(f"symlink in path (refusing): {cur}")
+        if not cur.exists():
+            break
+    if must_exist:
+        try:
+            real = (vault / Path(*parts)).resolve(strict=True)
+        except (FileNotFoundError, OSError):
+            raise ArchiveError(f"not found: {path}")
+        if real != vault and vault not in real.parents:
+            raise ArchiveError(f"path resolves outside the vault: {path}")
+        return real
+    return vault / Path(*parts)
+
+
 # ---------- move ----------
 def cmd_move(rel: str, store: str, world: str, dry_run: bool) -> dict:
-    vault = vault_root()
-    src = (vault / rel)
     if Path(rel).is_absolute() or ".." in Path(rel).parts:
         raise ArchiveError("path must be vault-relative without '..'")
+    vault = resolved_vault()
+    src = vault / rel
+    ensure_inside_vault(vault, src, must_exist=False)
     is_md = src.suffix.lower() == ".md"
     stub_path = src if is_md else src.with_name(src.name + ".archived.md")
     if is_md and src.is_file():
@@ -190,6 +235,7 @@ def cmd_move(rel: str, store: str, world: str, dry_run: bool) -> dict:
             return {"action": "already-archived", "stub": str(stub_path), "archive": existing}
     if not src.is_file():
         raise ArchiveError(f"not a file in vault: {src}")
+    ensure_inside_vault(vault, src, must_exist=True)
     root = store_root(store)
     if root is None:
         raise ArchiveError(f"store '{store}' not found; nothing changed")
@@ -199,6 +245,10 @@ def cmd_move(rel: str, store: str, world: str, dry_run: bool) -> dict:
     dest = root / arch_rel
     src_hash = sha256_file(src)
     size = src.stat().st_size
+    if not is_md and stub_path.exists():
+        prior = parse_stub(stub_path.read_text(encoding="utf-8", errors="replace")) if stub_path.is_file() else None
+        if not prior or prior.get("sha256") != src_hash:
+            raise ArchiveError(f"refusing to overwrite existing {stub_path.name}: not a stub for this file")
     plan = {"source": str(src), "destination": str(dest), "sha256": src_hash, "size": size, "stub": str(stub_path)}
     reuse = False
     if dest.exists():
@@ -250,25 +300,70 @@ def _walk(base: Path):
                 yield p, rel
 
 
+_PRIVATE_BYTES = re.compile(rb"<\s*private", re.I)
+
+
+def _has_private(p: Path) -> bool:
+    tail = b""
+    with open(p, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            if _PRIVATE_BYTES.search(tail + chunk):
+                return True
+            tail = chunk[-16:]
+    return False
+
+
 def build_backup_zip(zip_path: Path, stamp: str) -> dict:
-    files = []
+    files, excluded = [], []
+    walked = md_count = 0
+    vault, harness = vault_root(), maeng_home()
+    present = {"vault": vault.is_dir(), "harness": harness.is_dir()}
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for label, base in (("vault", vault_root()), ("harness", maeng_home())):
-            if not base.is_dir():
+        for label, base in (("vault", vault), ("harness", harness)):
+            if not present[label]:
                 continue
             for p, rel in _walk(base):
+                walked += 1
                 arc = f"{label}/{rel.as_posix()}"
+                if label == "vault" and p.suffix.lower() == ".md":
+                    md_count += 1
+                if _has_private(p):
+                    excluded.append(arc)
+                    continue
                 files.append({"path": arc, "sha256": sha256_file(p), "size": p.stat().st_size})
                 zf.write(p, arc)
-        manifest = {"created": stamp, "file_count": len(files), "files": files}
+        manifest = {"created": stamp, "file_count": len(files), "files": files,
+                    "excluded_private": excluded, "walked": walked, "vault_md_count": md_count,
+                    "roots_present": present}
         zf.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=1))
     return manifest
+
+
+def verify_backup(zip_path: Path, manifest: dict) -> None:
+    if not manifest["roots_present"]["vault"]:
+        raise ArchiveError(f"vault root missing: {vault_root()}")
+    if manifest["vault_md_count"] < 1:
+        raise ArchiveError(f"vault has no .md files: {vault_root()}")
+    if manifest["file_count"] + len(manifest["excluded_private"]) != manifest["walked"]:
+        raise ArchiveError("manifest count does not match files walked")
+    with zipfile.ZipFile(zip_path) as zf:
+        bad = zf.testzip()
+        if bad:
+            raise ArchiveError(f"corrupt zip member: {bad}")
+        if len(zf.namelist()) != manifest["file_count"] + 1:
+            raise ArchiveError("zip member count does not match manifest")
 
 
 def cmd_backup(targets: list[str], keep: int, dry_run: bool) -> dict:
     stamp = now().strftime("%Y%m%d-%H%M%S")
     name = f"maeng-{stamp}"
     result: dict = {"name": name, "stores": {}}
+    vault = vault_root()
+    if not vault.is_dir():
+        raise ArchiveError(f"vault root missing: {vault}; nothing backed up, nothing pruned")
+    if not any(p.suffix.lower() == ".md" for p, _ in _walk(vault)):
+        raise ArchiveError(f"vault has no .md files: {vault}; nothing backed up, nothing pruned")
+    result["harness_root"] = {"path": str(maeng_home()), "present": maeng_home().is_dir()}
     avail = {}
     for t in targets:
         root = store_root(t)
@@ -277,7 +372,7 @@ def cmd_backup(targets: list[str], keep: int, dry_run: bool) -> dict:
         else:
             avail[t] = root
     if dry_run:
-        count = sum(1 for b in (vault_root(), maeng_home()) if b.is_dir() for _ in _walk(b))
+        count = sum(1 for b in (vault, maeng_home()) if b.is_dir() for _ in _walk(b))
         for t, root in avail.items():
             result["stores"][t] = {"status": "dry-run", "would_write": str(root / BACKUP_DIR / f"{name}.zip"), "file_count": count}
         return result
@@ -286,6 +381,11 @@ def cmd_backup(targets: list[str], keep: int, dry_run: bool) -> dict:
     with tempfile.TemporaryDirectory(prefix="maeng-backup-") as td:
         tmp_zip = Path(td) / f"{name}.zip"
         manifest = build_backup_zip(tmp_zip, stamp)
+        verify_backup(tmp_zip, manifest)  # raises before any copy or prune
+        if manifest["excluded_private"]:
+            result["excluded_private"] = manifest["excluded_private"]
+            print(f"warning: {len(manifest['excluded_private'])} file(s) containing <private> excluded from backup: "
+                  + ", ".join(manifest["excluded_private"]), file=sys.stderr)
         local_hash = sha256_file(tmp_zip)
         manifest_text = json.dumps({**manifest, "zip_sha256": local_hash}, ensure_ascii=False, indent=1)
         tmp_manifest = Path(td) / f"{name}.manifest.json"
@@ -340,6 +440,8 @@ def cmd_restore(path: str, apply: bool, target: str | None) -> dict:
         p = vault_root() / p  # same vault-relative form that `move` accepts
     if not p.is_file():
         raise ArchiveError(f"not found: {p}")
+    vault = resolved_vault()
+    ensure_inside_vault(vault, p, must_exist=True)
     meta = parse_stub(p.read_text(encoding="utf-8", errors="replace"))
     if not meta:
         raise ArchiveError("not an archive stub (no status: archived / archive.sha256)")
@@ -352,6 +454,7 @@ def cmd_restore(path: str, apply: bool, target: str | None) -> dict:
     if sha256_file(arch) != meta["sha256"]:
         raise ArchiveError("archived file hash differs from stub; refusing")
     orig = _original_of_stub(p)
+    ensure_inside_vault(vault, orig, must_exist=False)
     kept = p.with_name(p.stem + ".restored.md")
     plan = {"archive": str(arch), "restore_to": str(orig), "stub_renamed_to": str(kept)}
     if orig != p and orig.exists():

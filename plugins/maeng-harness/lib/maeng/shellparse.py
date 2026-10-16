@@ -133,8 +133,9 @@ def split_segments(command, _depth=0):
             k = j
             while k < n and command[k] not in " \t\n;&|()<>":
                 k += 1
-            if ">" in op and k > j:
-                redirects.append(command[j:k].strip("'\""))
+            target = command[j:k].strip("'\"")
+            if ">" in op and k > j and not (op.endswith("&") and (target.isdigit() or target == "-")):
+                redirects.append(target)
             i = k
         elif c in " \t":
             flush_word()
@@ -197,3 +198,35 @@ def uses_wrapper(segments):
         if prog == "eval":
             return " ".join(toks)
     return None
+
+
+STRUCTURE_WORDS = {"if", "then", "elif", "else", "fi", "while", "until", "for", "do", "done", "case", "esac",
+                   "select", "function", "{", "}", "!"}
+ROUTE = re.compile(r"\bpush\b|\bmerge\b|\bpr\s+create\b|\bgh\s+(?:release|api|repo|workflow|pr)\b|"
+                   r"\bupdate-branch\b|\bmaeng-ship\b|\bgit\b.*\s(?:-C|--git-dir|--work-tree)\b|\bgit\s+(?:-c\b)")
+
+
+def has_control_structure(command, segments):
+    """True for if/while/for/case/function bodies, `{ ...; }` groups and `( )` subshells (not evaluated)."""
+    for seg in segments:
+        toks = list(seg.tokens)
+        while toks and ENV_ASSIGN.match(toks[0]):
+            toks.pop(0)
+        if toks and (toks[0] in STRUCTURE_WORDS or toks[0].endswith("()")):
+            return True
+    quote, i, n = None, 0, len(command)
+    while i < n:
+        c = command[i]
+        if quote:
+            if c == "\\" and quote == '"':
+                i += 1
+            elif c == quote:
+                quote = None
+        elif c in "'\"":
+            quote = c
+        elif c == "\\":
+            i += 1
+        elif c == "(" and command[i - 1:i] not in ("$", "<", ">"):
+            return True
+        i += 1
+    return False
