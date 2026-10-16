@@ -2,7 +2,7 @@
 id: DESIGN-MAE216
 title: Two-harness Claude Code environment (personal plugins + eta isolation)
 linear: MAE-216
-status: proposed (rev 6.1, Astra pass on rev 6; after Astra reviews 1–4, Phase 2 rerun and user decisions 2026-10-17)
+status: approved 2026-10-17 (rev 6.2: Aside split into collect/research; rev 6 Astra pass; after Astra reviews 1–4, Phase 2 rerun and user decisions 2026-10-17)
 author: Claude (Opus 5.5), architect
 date: 2026-10-17
 ---
@@ -427,18 +427,16 @@ Filesystem and state effects are asserted separately from hook events.
 ---
 
 ## 5.9 Phase 2 adoptions (`MAE-216-phase2-adoption.md`)
-- **`aside-research` skill (maeng-tools).** Stages:
-  1. scope;
-  2. `aside exec` (default permission);
-  3. save raw output to `raw/aside/` with a sidecar file;
-  4. write source notes with provenance, deduped;
-  5. the researcher verifies each claim against its source;
-  6. draft;
-  7. Sol/Astra review with a devil's-advocate lens;
-  8. revise, at most 2 loops;
-  9. finalize.
-
-  Phase 4 starts with one manual `aside exec` smoke run, because the output shape and session ids are unverified.
+- **Aside is split into two skills** (user, 2026-10-17), so research doesn't dominate:
+  - **`aside-collect` (자료수집, collection).**
+    - Triggers: "자료수집", "긁어와", "모아줘", "collect", "gather", "scrape".
+    - **Gathers material without judgment:** `aside exec` (default permission) with a fixed collection template → raw output saved under `raw/aside/` with a sidecar (prompt, time, session id if any) → normalized **source notes with provenance, deduped by canonical URL/DOI** → an index note.
+    - No synthesis, no claim verdicts, no external review. A provenance check only (each item has a resolvable source).
+    - In the eta world, notes are tagged `world: eta`.
+  - **`aside-research` (리서치, research).**
+    - Triggers: "리서치", "조사해서 판단", "분석", "research", "assess".
+    - **Collection plus judgment:** scope (question, criteria) → collection via `aside-collect` → the researcher verifies each claim against its source → synthesis with an explicit judgment and confidence → draft → Sol/Astra review with a devil's-advocate lens → at most 2 revise loops (leftovers become Limitations) → finalize (Notion via Sol medium in the personal world; eta Docs via eta rules in the eta world).
+  - Phase 4 starts with one manual `aside exec` smoke run (output shape and session ids are unverified). Both skills live in maeng-tools.
 - **Global `~/.claude/CLAUDE.md`** (new, ≤30 lines, world-neutral): think before coding (ask when ambiguity is material), simplicity, surgical changes, goal-driven success criteria. It loads in eta_v1 too, so nothing world-specific goes in it.
 - **Vault retrieval** works in three layers: compact index, then timeline, then fetch by id. Before a vault write, apply the `<private>` tag and opt-in regex redaction (both from claude-mem).
 - **Skill hygiene:**
@@ -457,7 +455,7 @@ Sonnet implements, Opus reviews each step, and Astra reviews the PR (medium per 
 3. Guard, dispatcher, G1–G3, evidence, Stop/§5.4, handlers, unit tests.
 4. Agents + model check.
 5. `maeng-review`, `maeng-verify`, `maeng-ship` (merge), `maeng-eta-isolate` + schemas.
-6. harness-run and work-records Claude editions, vault rule edits, and the §5.9 items: aside-research (after its smoke run), global CLAUDE.md, skill hygiene, graphify fixes.
+6. harness-run and work-records Claude editions, vault rule edits, and the §5.9 items: aside-collect and aside-research (after the smoke run), global CLAUDE.md, skill hygiene, graphify fixes.
 7. Staging smoke S1–S8 via `--plugin-dir`. S8 is a successful `maeng-ship merge` against a local bare remote, run before the real merge in step 8.
 8. PR → Astra → fix until pass → `maeng-ship merge` (this is also the first real exercise of the permitted merge route).
 9. Release (§1.2) → isolation → retirement sequence → re-run S5–S7 installed.
