@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""maeng-ship merge <PR>: lease-guarded fast-forward push of the reviewed head to the base branch."""
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
+
+from maeng import evidence, receipts, state  # noqa: E402
+from maeng import tree as treelib  # noqa: E402
+from maeng.cli_common import die, require_personal, session_for  # noqa: E402
+from maeng.common import git  # noqa: E402
+
+REJECTED = re.compile(r"stale info|non-fast-forward|\[rejected\]|\[remote rejected\]|rejected", re.I)
+PR_FIELDS = "number,state,baseRefName,baseRefOid,headRefName,headRefOid"
+
+
+def pr_info(pr, cwd):
+    gh = os.environ.get("MAENG_GH", "gh")
+    proc = subprocess.run([gh, "pr", "view", str(pr), "--json", PR_FIELDS], cwd=cwd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        die("gh pr view failed: " + proc.stderr.strip())
+    try:
+        return json.loads(proc.stdout)
+    except ValueError:
+        die("gh pr view returned unreadable JSON")
+
+
+def merge(a, cwd):
+    require_personal(cwd)
+    info = pr_info(a.pr, cwd)
+    if str(info.get("state", "")).upper() != "OPEN":
+        die(f"PR {a.pr} is {info.get('state')}, not OPEN")
+    base_ref, head_ref = info["baseRefName"], info["headRefName"]
+    base, head = info["baseRefOid"], info["headRefOid"]
+    ref = f"refs/heads/{base_ref}"
+    git(cwd, "fetch", "--quiet", a.remote, ref, f"refs/heads/{head_ref}", timeout=120)
+    for sha in (base, head):
+        if git(cwd, "cat-file", "-e", sha + "^{commit}")[0] != 0:
+            die(f"commit {sha[:10]} is not available locally")
+    if git(cwd, "merge-base", "--is-ancestor", base, head)[0] != 0:
+        die("PR is BEHIND/diverged: base is not an ancestor of head. Update the branch, re-verify, re-review.")
+    sid = session_for(cwd, a.session)
+    st = state.load(sid, cwd)
+    top, common = treelib.toplevel(cwd), treelib.common_dir(cwd)
+    ok, reasons = evidence.Verifier(st, top, common).ship_verified(treelib.commit_tree(cwd, head))
+    if not ok:
+        die("head tree is not ship-verified: " + "; ".join(reasons))
+    rev = (st.get("binding") or {}).get("plan_updated_at")
+    rec, problem = receipts.find_code(base, head, ref, rev)
+    if not rec:
+        die("merge denied: " + problem)
+    if rec["status"] != receipts.UNCONSUMED:
+        die(f"receipt is {rec['status']}; run `maeng-review reconcile`")
+    pr_subject = rec["verdict"]["subject"].get("pr")
+    if pr_subject is not None and str(pr_subject) != str(a.pr):
+        die(f"receipt is for PR {pr_subject}, not {a.pr}")
+    key = rec["key"]
+    receipts.begin(key, {"remote": a.remote, "ref": ref, "base_sha": base, "head_sha": head})
+    cmd = [os.environ.get("MAENG_GIT", "git"), "push", f"--force-with-lease={ref}:{base}", a.remote, f"{head}:{ref}"]
+    proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, env={**os.environ, "LC_ALL": "C"})
+    if proc.returncode == 0:
+        receipts.consume(key, {"merge_sha": head, "via": "maeng-ship"})
+        print(f"merged PR {a.pr}: {base_ref} fast-forwarded to {head}")
+        return 0
+    if REJECTED.search(proc.stderr):
+        receipts.reject(key, "confirmed-rejection")
+        print("base moved: update the branch, re-verify, re-review.\n" + proc.stderr.strip(), file=sys.stderr)
+        return 1
+    print("push outcome unknown; receipt stays pending. Run `maeng-review reconcile`.\n" + proc.stderr.strip(),
+          file=sys.stderr)
+    return 3
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(prog="maeng-ship")
+    p.add_argument("--session")
+    sub = p.add_subparsers(dest="cmd", required=True)
+    m = sub.add_parser("merge"); m.add_argument("pr"); m.add_argument("--remote", default="origin")
+    a = p.parse_args(argv)
+    sys.exit(merge(a, os.getcwd()))
+
+
+if __name__ == "__main__":
+    main()

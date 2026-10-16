@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+"""maeng-eta-isolate: turn maeng-harness off in every eta checkout (settings.local.json only)."""
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
+
+from maeng import guard  # noqa: E402
+from maeng.common import atomic_write, git  # noqa: E402
+
+
+def plan_for(checkout):
+    """-> (action, detail). action: write | ok | skip"""
+    rel = ".claude/settings.local.json"
+    if git(checkout, "rev-parse", "--git-dir")[0] != 0:
+        return "skip", "not a git checkout"
+    if git(checkout, "check-ignore", "-q", rel)[0] != 0:
+        return "skip", f"{rel} is not git-ignored; refusing to touch it"
+    if git(checkout, "ls-files", "--error-unmatch", rel)[0] == 0:
+        return "skip", f"{rel} is tracked; refusing to touch it"
+    path = Path(checkout) / rel
+    try:
+        data = json.loads(path.read_text()) if path.exists() else {}
+        plugins = data.setdefault("enabledPlugins", {})
+        if not isinstance(plugins, dict):
+            raise ValueError("enabledPlugins is not an object")
+    except ValueError as exc:
+        return "skip", f"cannot merge into {rel}: {exc}"
+    needed = [k for k in guard.ISOLATION_KEYS if plugins.get(k) is not False]
+    if not needed:
+        return "ok", "already isolated"
+    for k in needed:
+        plugins[k] = False
+    return "write", (path, data, needed)
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(prog="maeng-eta-isolate")
+    p.add_argument("--apply", action="store_true", help="write the changes (default: dry run)")
+    p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--extra", action="append", default=[], help="additional eta checkout path")
+    a = p.parse_args(argv)
+    checkouts = guard.eta_checkouts() + [Path(x) for x in a.extra]
+    if not checkouts:
+        print("no eta checkouts found")
+        return 0
+    apply = a.apply and not a.dry_run
+    for co in checkouts:
+        action, detail = plan_for(co)
+        if action == "write":
+            path, data, needed = detail
+            print(f"{'write' if apply else 'would write'} {path}: {', '.join(needed)} = false")
+            if apply:
+                atomic_write(path, json.dumps(data, indent=2) + "\n")
+        else:
+            print(f"{action} {co}: {detail}")
+    if not apply:
+        print("(dry run; pass --apply to write)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

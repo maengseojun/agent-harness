@@ -2,6 +2,18 @@
 
 Author is never the reviewer. `maeng-review` runs a read-only `codex exec` reviewer and writes a verdict bound to the exact subject; run `maeng-review --help` for the current flags.
 
+Commands (tier is picked from the bound issue; see the table below):
+
+| Subject | Command |
+|---|---|
+| Child-task PR / small work | `maeng-review run --kind code --pr <N>` |
+| Parent integration | `maeng-review run --kind parent --pr <N>` |
+| Design / rules doc | `maeng-review run --kind docs --draft <path>` |
+| Notion outcome payload | `maeng-review run --kind notion --payload publish/<id>.json --destination <db-or-page-id> --op create\|update --draft wiki/drafts/DRAFT-….md` |
+| Uncertain outcome | `maeng-review reconcile` (add `--notion` for Notion journal entries) |
+
+Store payloads under the session repo's `publish/` directory (`publish/<id>.json`, git-ignored) so the reviewed bytes and the published bytes are the same file.
+
 | Subject | Reviewer | Effort | Use when |
 |---|---|---|---|
 | Child-task PR in a structured implementation | Astra | medium | the bound issue has a parent and the task has a Plan with `AC-n` |

@@ -1,0 +1,11 @@
+{
+  "_comment": "Personal Harness hub outcome databases gated by G2 (design §5.2). Both database page ids and data-source (collection) ids, plus the inline views on the hub page. Override with MAENG_NOTION_DBS or $MAENG_HOME/config.json notion_databases.",
+  "notion_databases": [
+    "e1e730a443014b538eb61f0fabc43840",
+    "399492eb-3723-43a8-8002-8b660f136add",
+    "3e3e203190cd81bbbb5dfed0d43c900f",
+    "0326e3f3e9974ae3b14c36ba87596197",
+    "7903c212-74ce-4738-997f-88c4421ab21d",
+    "3e3e203190cd81a2be05d505d8302c2b"
+  ]
+}

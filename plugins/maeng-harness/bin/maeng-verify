@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+"""maeng-verify: bind a session to an issue/plan and record verification facts."""
+import argparse
+import json
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
+
+from maeng import evidence, state  # noqa: E402
+from maeng import tree as treelib  # noqa: E402
+from maeng.cli_common import die, load_state, require_personal, session_for  # noqa: E402
+from maeng.common import atomic_write, home_dir, read_json  # noqa: E402
+
+
+def need_tree(cwd):
+    tree, info = treelib.tree_id(cwd)
+    if not tree:
+        die("no tree id (" + info.get("reason", "unknown") + "); no evidence can be recorded")
+    return tree, treelib.common_dir(cwd)
+
+
+def cmd_bind(a, cwd):
+    sid = session_for(cwd, a.session)
+    binding = evidence.make_binding(
+        a.issue, a.plan, a.plan_updated, a.criteria.split(",") if a.criteria else None, a.check or None, a.parent,
+        treelib.toplevel(cwd))
+    state.update(sid, lambda st: st.update(binding=binding, cwd=st.get("cwd") or cwd), cwd)
+    sugg_path = home_dir() / "last-bindings.json"
+    try:
+        sugg = read_json(sugg_path, {}) or {}
+    except ValueError:
+        sugg = {}
+    sugg[os.path.realpath(cwd)] = {"issue": a.issue, "plan_doc": a.plan}
+    atomic_write(sugg_path, json.dumps(sugg, indent=1))
+    print(f"bound {a.issue}; criteria={binding['criteria']} checks={binding['checks']}")
+
+
+def cmd_ran(a, cwd):
+    tree, common = need_tree(cwd)
+    sid = session_for(cwd, a.session)
+    ok = a.ok
+    state.update(sid, lambda st: evidence.add_evidence(st, a.what, "declared", a.what, ok, tree, tree, common, "declared"), cwd)
+    print(f"recorded {'ok' if ok else 'FAIL'}: {a.what} at tree {tree[:10]}")
+
+
+def cmd_skip(a, cwd):
+    tree, common = need_tree(cwd)
+    sid = session_for(cwd, a.session)
+    state.update(sid, lambda st: evidence.add_skip(st, a.reason, tree, common), cwd)
+    print(f"recorded skip at tree {tree[:10]} (a skip never makes a tree ship-verified)")
+
+
+def cmd_plan(a, cwd):
+    sid, st = load_state(cwd, a.session)
+    b = st.get("binding")
+    if not b:
+        die("no binding: run `maeng-verify bind MAE-n --plan <doc>` first")
+    tree, common = need_tree(cwd)
+    met = [x for x in (a.met or "").split(",") if x]
+    unmet = [x for x in (a.unmet or "").split(",") if x]
+    state.update(sid, lambda s: evidence.add_plan_record(s, met, unmet, a.notes or "", tree, common, b.get("plan_updated_at")), cwd)
+    print(f"plan record: met={met} unmet={unmet}")
+
+
+def cmd_decision(a, cwd):
+    sid = session_for(cwd, a.session)
+    def add(st):
+        st["decisions"].append({"seq": evidence.bump(st), "text": a.text})
+        st["last_change_seq"] = st["seq"]
+    state.update(sid, add, cwd)
+    print("decision recorded; write it to Linear/Obsidian too")
+
+
+def cmd_status(a, cwd):
+    sid, st = load_state(cwd, a.session)
+    tree, _ = treelib.tree_id(cwd)
+    top, common = treelib.toplevel(cwd), treelib.common_dir(cwd)
+    out = {"session": sid, "binding": st.get("binding"), "tree": tree}
+    if tree and top:
+        v = evidence.Verifier(st, top, common)
+        ok, reasons = v.ship_verified(tree)
+        out.update(ship_verified=ok, missing=reasons, stop_satisfied=v.stop_satisfied(tree),
+                   required=v.required())
+    print(json.dumps(out, indent=2))
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(prog="maeng-verify")
+    p.add_argument("--session")
+    sub = p.add_subparsers(dest="cmd", required=True)
+    b = sub.add_parser("bind"); b.add_argument("issue"); b.add_argument("--plan"); b.add_argument("--plan-updated")
+    b.add_argument("--criteria"); b.add_argument("--check", action="append"); b.add_argument("--parent")
+    r = sub.add_parser("ran"); g = r.add_mutually_exclusive_group(required=True)
+    g.add_argument("--ok", action="store_true"); g.add_argument("--fail", action="store_true"); r.add_argument("what")
+    s = sub.add_parser("skip"); s.add_argument("reason")
+    pl = sub.add_parser("plan"); pl.add_argument("--met"); pl.add_argument("--unmet"); pl.add_argument("notes", nargs="?")
+    d = sub.add_parser("decision"); d.add_argument("text")
+    sub.add_parser("status")
+    a = p.parse_args(argv)
+    cwd = os.getcwd()
+    require_personal(cwd)
+    {"bind": cmd_bind, "ran": cmd_ran, "skip": cmd_skip, "plan": cmd_plan, "decision": cmd_decision,
+     "status": cmd_status}[a.cmd](a, cwd)
+
+
+if __name__ == "__main__":
+    main()

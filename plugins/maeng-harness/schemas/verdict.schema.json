@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "maeng review verdict",
+  "type": "object",
+  "required": ["verdict", "subject", "reviewer", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "verdict": {"enum": ["pass", "fail", "blocked"]},
+    "subject": {
+      "type": "object",
+      "required": ["kind", "repo", "pr", "base", "head", "criteria_rev", "digest", "destination", "op"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"enum": ["code", "parent", "docs", "notion"]},
+        "repo": {"type": ["string", "null"]},
+        "pr": {"type": ["integer", "string", "null"]},
+        "base": {"type": ["string", "null"]},
+        "head": {"type": ["string", "null"]},
+        "criteria_rev": {"type": ["string", "null"]},
+        "digest": {"type": ["string", "null"]},
+        "destination": {"type": ["string", "null"]},
+        "op": {"type": ["string", "null"]}
+      }
+    },
+    "reviewer": {
+      "type": "object",
+      "required": ["model", "effort"],
+      "additionalProperties": false,
+      "properties": {"model": {"type": "string"}, "effort": {"enum": ["low", "medium", "high", "xhigh"]}}
+    },
+    "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}}
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "required": ["severity", "title", "body", "file", "line"],
+      "additionalProperties": false,
+      "properties": {
+        "severity": {"enum": ["critical", "high", "medium", "low"]},
+        "title": {"type": "string"},
+        "body": {"type": "string"},
+        "file": {"type": ["string", "null"]},
+        "line": {"type": ["integer", "null"]}
+      }
+    },
+    "reviewer_output": {
+      "type": "object",
+      "required": ["verdict", "findings"],
+      "additionalProperties": false,
+      "properties": {
+        "verdict": {"enum": ["pass", "fail", "blocked"]},
+        "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}}
+      }
+    }
+  }
+}
