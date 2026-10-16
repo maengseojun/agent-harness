@@ -20,9 +20,10 @@ FORMS = (
     "git push [-u] <remote> <branch>",
     "git push [-u] <remote> <branch-or-sha>:<refs/heads/name|name>",
     "git push --force-with-lease=refs/heads/<base>:<sha> <remote> <sha>:refs/heads/<base> (maeng-ship's exact lease)",
-    "gh pr create [--base B] [--head H] [--title T] [--body B | --body-file F] [--draft] [--repo R]",
+    "gh pr create --repo <owner/repo of origin> [--base B] [--head H] [--title T] [--body B | --body-file F] [--draft]",
     "maeng-ship merge <N> [--remote R] [--session S]",
-    "read-only gh commands and gh pr/issue comment|edit|review|ready|close, issue *",
+    "read-only gh commands; gh pr comment|edit|review|ready|close and gh issue * ONLY with -R <owner/repo>; "
+    "gh pr checkout / repo clone / release download / run download / gist clone in a personal directory",
 )
 
 
@@ -199,7 +200,7 @@ def route_mentions(segs, command):
                 if sub == "push" or any(k.startswith("alias.") for k in cfg):
                     found.append("git push")
             elif base == "gh":
-                if ghcmd.classify_gh(toks[i:])[0] != "read":
+                if ghcmd.classify_gh(toks[i:])[0] not in ("read", "local"):
                     found.append("gh write/ship route")
             elif base == "maeng-ship" and "merge" in toks[i + 1:]:
                 found.append("maeng-ship merge")

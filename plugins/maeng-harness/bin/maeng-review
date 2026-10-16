@@ -35,9 +35,10 @@ a known route or a gate that fails open; do not report out-of-scope disguised by
 Shipping and cross-world gating is an ALLOWLIST of canonical forms, by design: a Bash command that mentions a
 shipping route is allowed only as one plain single command in one of these forms: `git push [-u] <remote>
 <branch>`, `git push [-u] <remote> <branch-or-sha>:<refs/heads/name|name>`, maeng-ship's exact lease push
-(`git push --force-with-lease=refs/heads/<base>:<sha> <remote> <sha>:refs/heads/<base>`), `gh pr create` with only
---base/--head/--title/--body/--body-file/--draft/--repo, `maeng-ship merge <N>`, and read-only or comment-style gh
-commands. Everything else (compound commands, wrappers, env assignments, `git -c/-C/--git-dir`, substitutions,
+(`git push --force-with-lease=refs/heads/<base>:<sha> <remote> <sha>:refs/heads/<base>`), `gh pr create --repo <owner/repo>` (the
+repo must equal origin) with only --base/--head/--title/--body/--body-file/--draft/--repo, `maeng-ship merge <N>`,
+read-only gh commands, and gh pr/issue writes (comment/edit/review/ready/close, issue *) that carry an explicit
+`-R <owner/repo>` (never eta). gh checkout/clone/download commands are local writes gated by the effective directory. Everything else (compound commands, wrappers, env assignments, `git -c/-C/--git-dir`, substitutions,
 redirects, other flags) is denied by design, so do NOT enumerate disguised or non-canonical variants as findings.
 Instead verify that the allowlist is closed (no route reaches the shell without passing it) and that each
 canonical form is fully checked (remote configuration, default branch, verified tree/remote head, receipts,

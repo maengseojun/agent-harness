@@ -1,0 +1,69 @@
+{
+  "verdict": "fail",
+  "receipt": null,
+  "findings": [
+    {
+      "body": "When --repo is omitted, check_pr_head verifies origin, while gh can select another repository through an existing GH_REPO environment variable or configured default repository. A canonical `gh pr create --head feat --title t --body b` can therefore pass verification against personal origin while publishing an unverified head in another repository, including eta. Comment commands likewise check only the checkout. Resolve gh's effective repository and use it consistently for verification and G3.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 350,
+      "severity": "high",
+      "title": "Bind gh authorization to its effective repository"
+    },
+    {
+      "body": "default_head trusts the local remote-tracking HEAD without checking the destination's current default branch. If the server changes its default from main to develop while origin/HEAD remains main, a verified `git push origin feat:develop` passes without a review receipt. The missing-ref check does not address stale refs. Establish the default branch from the effective remote and deny when that cannot be established.",
+      "file": "plugins/maeng-harness/lib/maeng/remotecfg.py",
+      "line": 20,
+      "severity": "high",
+      "title": "A stale origin/HEAD permits direct default-branch pushes"
+    },
+    {
+      "body": "plain_remote rejects mirror, configured refspecs and followTags, but ignores push.recurseSubmodules. With on-demand configured, the canonical `git push origin feat` can also push unpublished submodule commits to their own remotes. Those destinations and commits receive no G1 verification, receipt checks or eta classification. Reject recursive pushes unless every additional push is independently authorized; checking only the superproject remote does not close this route.",
+      "file": "plugins/maeng-harness/lib/maeng/remotecfg.py",
+      "line": 52,
+      "severity": "high",
+      "title": "Recursive push configuration expands shipment beyond the checked repository"
+    },
+    {
+      "body": "maeng-review run sends fail/blocked outcomes to revoke_passes instead of storing them as receipts, but revoke_passes immediately ignores Notion subjects. After a passing review followed by a failed review of the identical payload, find_notion still returns the earlier unconsumed pass and G2 permits publication. Persist and honor non-pass outcomes for matching Notion digest, destination and operation as well as code subjects.",
+      "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+      "line": 59,
+      "severity": "high",
+      "title": "Failed Notion re-reviews leave earlier passes usable"
+    },
+    {
+      "body": "The Python recognizer searches for -m without validating preceding interpreter options. A read-only probe confirmed that `python3 --version -m pytest` exits successfully after printing the Python version, while recognize records it as the full pytest test identity. That evidence can satisfy both default verification and an explicit pytest requirement without executing tests. The launcher parser similarly discards --help in `npx --help playwright test`. Reject no-run options before normalizing launcher arguments.",
+      "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+      "line": 83,
+      "severity": "high",
+      "title": "Launcher-only invocations still become passing test evidence"
+    },
+    {
+      "body": "PreToolUse validation checks only that tool_input is an object. A missing tool_name falls through evaluate to allow, and missing or numeric Bash.command values become harmless-looking strings and are allowed. Read-only probes reproduced all three cases, including an unidentified tool carrying `git push origin main`. These inputs leave the gate unable to determine the operation. Validate the tool identity and required per-tool fields, denying malformed gate requests.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 486,
+      "severity": "high",
+      "title": "Malformed operation fields still fail open"
+    },
+    {
+      "body": "_arg_paths ignores ordinary filenames without a slash. From a personal directory containing an eta checkout named eta_checkout, `cp app.py eta_checkout` therefore passes and writes inside eta; spelling the same destination as ./eta_checkout correctly denies it. A read-only probe confirmed this difference. Inspect filesystem operands even when they are bare names and classify their resolved destinations before allowing mutations.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 195,
+      "severity": "high",
+      "title": "Bare filesystem destinations bypass eta isolation"
+    },
+    {
+      "body": "checkout, clone and download are classified as read-only despite modifying local files. check_gh immediately allows that classification without checking the effective directory. Consequently, a personal session that changes its working directory into eta can execute the plain command `gh pr checkout 1`, changing eta's HEAD and working tree. Classify local writes separately from remote reads and apply G3 to their effective destinations.",
+      "file": "plugins/maeng-harness/lib/maeng/ghcmd.py",
+      "line": 17,
+      "severity": "high",
+      "title": "Locally mutating gh commands bypass G3 as reads"
+    },
+    {
+      "body": "reconcile processes pending receipts globally, but reconcile_code queries the stored remote name in the caller's checkout without checking intent.repo. After an ambiguous push to repository A, running reconciliation from fork B whose origin still contains the same base SHA releases A's receipt and reports that no mutation happened\u2014even if A received the push. Verify the effective destination against the stored repository and preserve pending status on mismatch.",
+      "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+      "line": 255,
+      "severity": "medium",
+      "title": "Reconciliation can settle a receipt using another repository"
+    }
+  ]
+}

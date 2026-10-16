@@ -41,6 +41,41 @@ def git(root, *args):
     return r.stdout.strip()
 
 
+# The installed runtime is a plain directory (it sits inside another repository), so git state cannot
+# identify it. Pin the reviewed source instead: sha256 over (relative path, file sha256) of every
+# graphify/**/*.py plus pyproject.toml, computed from the 0.9.85 runtime at PIN_REVISION on 2026-10-17.
+PIN_SOURCE_SHA256 = '942420c60047e05cb41e597ba5c950ef5e1fd419983dcbf3c41910c1a8668ea9'
+
+
+def runtime_source_digest(runtime):
+    runtime = Path(runtime)
+    files = sorted([p for p in (runtime / 'graphify').rglob('*.py') if '__pycache__' not in p.parts]
+                   + [runtime / 'pyproject.toml'])
+    h = hashlib.sha256()
+    for p in files:
+        h.update(p.relative_to(runtime).as_posix().encode() + b'\0'
+                 + hashlib.sha256(p.read_bytes()).hexdigest().encode() + b'\n')
+    return h.hexdigest()
+
+
+def verify_runtime(runtime):
+    """Refuse unless the runtime's source matches the pinned manifest digest.
+
+    Returns PIN_REVISION (the revision that digest was taken from). Raises ValueError before any extraction.
+    """
+    runtime = Path(runtime)
+    if not (runtime / 'graphify').is_dir() or not (runtime / 'pyproject.toml').is_file():
+        raise ValueError(f'Graphify runtime {runtime} has no graphify/ package or pyproject.toml; refusing to extract')
+    try:
+        digest = runtime_source_digest(runtime)
+    except OSError as e:
+        raise ValueError(f'Graphify runtime {runtime} is unreadable; refusing to extract ({e})')
+    if digest != PIN_SOURCE_SHA256:
+        raise ValueError(f'Graphify runtime source digest {digest[:12]} != pinned {PIN_SOURCE_SHA256[:12]} '
+                         f'(modified or different version); refusing to extract')
+    return PIN_REVISION
+
+
 def default_cache_root(root):
     """Persistent per-repository extraction cache, outside the repo and any --out dir."""
     return CACHE_BASE / hashlib.sha256(str(Path(root).resolve()).encode()).hexdigest()[:16]
@@ -145,6 +180,7 @@ def main(argv=None):
                               'semantic_truth_verified': False,
                               'resolution_context_fully_fingerprinted': False}))
             return
+    runtime_revision = verify_runtime(a.runtime)  # before any extraction or output
     out.mkdir(parents=True, exist_ok=False)
     cache_root.mkdir(parents=True, exist_ok=True)
     spec = {'root': str(root), 'files': [str(p) for p in files], 'cache': str(cache_root)}
@@ -159,7 +195,7 @@ def main(argv=None):
     status_after = scoped_status(root, a.include, a.exclude, ignore)
     graph = json.loads((out/'graph.json').read_text())
     snapshot = {'schema_version': 1, 'graphify_version': PIN_VERSION,
-                'graphify_revision': PIN_REVISION,
+                'graphify_revision': runtime_revision,
                 'repository': {'root': str(root), 'revision': revision, 'status_scope': 'in-scope',
                                'dirty': bool(status), 'status': status, 'status_after': status_after},
                 'scope': {'include': a.include, 'exclude': a.exclude, 'omitted': omitted,

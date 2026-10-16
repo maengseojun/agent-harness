@@ -19,11 +19,12 @@ ETA_URL = "git@github.com:endix-foundation-v1/web.git"
 class R2_A_CanonicalShippingForms(ShipBase):
     def test_canonical_forms_are_allowed_when_verified(self):
         self.verified()
+        self.alias_origin()
         for cmd in ("git push origin feat", "git push -u origin feat", "git push --set-upstream origin feat",
                     "git push origin feat:feat", "git push origin feat:refs/heads/feat",
-                    "gh pr create --head feat --title t --body b", "gh pr create -H feat -t t -b b -d -B main",
-                    "gh pr create --head=feat --title='a title' --body-file=body.md",
-                    "gh pr view 1", "gh pr comment 1 -b hi", "gh issue create -t x -b y", "ls && echo hi",
+                    "gh pr create -R o/r --head feat --title t --body b", "gh pr create -R o/r -H feat -t t -b b -d -B main",
+                    "gh pr create --repo=o/r --head=feat --title='a title' --body-file=body.md",
+                    "gh pr view 1", "gh pr comment 1 -R o/r -b hi", "gh issue create -R o/r -t x -b y", "ls && echo hi",
                     "maeng-ship merge 7", "maeng-ship merge 7 --remote origin", "maeng-ship --session s1 merge 7"):
             self.assertAllowed(cmd)
 
@@ -149,6 +150,7 @@ class R2_B_PlainRemoteConfig(ShipBase):
     def test_remote_default_branch_other_than_main_is_protected(self):
         self.git(self.repo, "push", "-q", "origin", "feat:develop")
         self.git(self.repo, "fetch", "-q", "origin")
+        self.git(self.tmp / "repo-remote.git", "symbolic-ref", "HEAD", "refs/heads/develop")  # the server's default
         self.git(self.repo, "remote", "set-head", "origin", "develop")
         self.assertDenied("git push origin feat:develop", "default branch")
         self.assertAllowed("git push origin feat")
@@ -242,9 +244,9 @@ class R2_C_G3Targets(HarnessCase):
                     f"gh pr edit {eta}/pull/2 --title t", f"gh issue close {eta}/issues/1",
                     "gh pr comment 1 -R endix-foundation-v1/x -b hi", "gh issue create --repo endix-foundation-v1/x -t t -b b",
                     "gh issue comment https://github.com/maengseojun/eta_v1/issues/3 -b hi"):
-            self.denied(cmd, "eta")
+            self.denied(cmd)
         self.allowed(f"gh issue view {eta}/issues/1")                       # read-only on eta stays allowed
-        self.allowed("gh issue comment https://github.com/o/r/issues/1 -b hi")
+        self.allowed("gh issue comment https://github.com/o/r/issues/1 -R o/r -b hi")
         self.allowed("gh pr comment 1 -R o/r -b hi")
 
 
@@ -554,6 +556,10 @@ class R2_G_DelegatedSubjectInShipFlow(MergeBase):
 
 
 class R2_H_PullRequestRemoteHead(ShipBase):
+    def setUp(self):
+        super().setUp()
+        self.alias_origin()
+
     def push_unverified_commit(self):
         (self.repo / "app.py").write_text("print('unverified')\n")
         self.commit_all(self.repo, "unverified")
@@ -561,10 +567,10 @@ class R2_H_PullRequestRemoteHead(ShipBase):
 
     def test_gh_pr_create_denied_when_the_remote_head_is_not_the_verified_commit(self):
         self.verified()
-        self.assertAllowed("gh pr create --head feat --title t --body b")
+        self.assertAllowed("gh pr create -R o/r --head feat --title t --body b")
         self.push_unverified_commit()                      # remote head advanced to an unverified tree
-        self.assertDenied("gh pr create --head feat --title t --body b", "not ship-verified")
-        self.assertDenied("gh pr create --title t --body b", "not ship-verified")
+        self.assertDenied("gh pr create -R o/r --head feat --title t --body b", "not ship-verified")
+        self.assertDenied("gh pr create -R o/r --title t --body b", "not ship-verified")
 
     def test_remote_head_advanced_by_someone_else_is_denied(self):
         self.verified()
@@ -575,12 +581,12 @@ class R2_H_PullRequestRemoteHead(ShipBase):
         self.git(other, "add", "-A")
         self.git(other, "commit", "-qm", "theirs")
         self.git(other, "push", "-q", "origin", "feat")
-        self.assertDenied("gh pr create --head feat --title t --body b", "not ship-verified")
+        self.assertDenied("gh pr create -R o/r --head feat --title t --body b", "not ship-verified")
 
     def test_unpushed_local_branch_is_denied(self):
         self.verified()
         self.git(self.repo, "checkout", "-qb", "local-only")
-        self.assertDenied("gh pr create --head local-only --title t --body b", "cannot establish the remote head")
+        self.assertDenied("gh pr create -R o/r --head local-only --title t --body b", "cannot establish the remote head")
 
     def test_ls_remote_failure_is_denied(self):
         self.verified()
@@ -588,25 +594,21 @@ class R2_H_PullRequestRemoteHead(ShipBase):
         fake.write_text(f"#!{sys.executable}\nimport sys\nprint('fatal: unable to access', file=sys.stderr)\nsys.exit(128)\n")
         fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
         self.env["MAENG_GIT"] = str(fake)
-        self.assertDenied("gh pr create --head feat --title t --body b", "cannot establish the remote head")
+        self.assertDenied("gh pr create -R o/r --head feat --title t --body b", "cannot establish the remote head")
 
-    def test_repo_flag_for_a_different_repository_is_checked_against_that_repository(self):
+    def test_repo_flag_must_name_origin_repository(self):
         self.verified()
-        denied, reason = self.bash_pre(self.repo, "gh pr create -R o/r --head feat --title t --body b")
+        denied, reason = self.bash_pre(self.repo, "gh pr create -R x/y --head feat --title t --body b")
         self.assertTrue(denied)
-        self.assertIn("cannot establish the remote head", reason)    # https://github.com/o/r.git is unreachable here
-        remote = self.git(self.repo, "config", "remote.origin.url").stdout.strip()
-        self.git(self.repo, "config", f"url.{remote}.insteadOf", "https://github.com/o/r.git")
-        self.assertAllowed("gh pr create -R o/r --head feat --title t --body b")
+        self.assertIn("must name origin's repository", reason)
+        self.assertAllowed("gh pr create --repo o/r --head feat --title t --body b")
 
     def test_cross_repository_head_is_denied(self):
         self.verified()
-        self.assertDenied("gh pr create --head someone:feat --title t --body b", "cross-repository")
+        self.assertDenied("gh pr create -R o/r --head someone:feat --title t --body b", "cross-repository")
 
     def test_mcp_create_pull_request_checks_the_remote_head_too(self):
         self.verified()
-        remote = self.git(self.repo, "config", "remote.origin.url").stdout.strip()
-        self.git(self.repo, "config", f"url.{remote}.insteadOf", "https://github.com/o/r.git")
         tin = {"owner": "o", "repo": "r", "head": "feat", "base": "main", "title": "t"}
         self.assertFalse(self.pre(self.repo, "mcp__github__create_pull_request", tin)[0])
         self.push_unverified_commit()

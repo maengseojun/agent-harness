@@ -42,9 +42,10 @@ Single use. A `pass` receipt is consumed only when the gated action succeeded (m
 
 - Shipping commands must use a **canonical form**: one plain command, no `&&`/`;`/pipes, no `git -c`, wrappers, env prefixes or `$(...)`. Non-canonical forms are denied by design (design D-6):
   - `git push <remote> <branch>` or `git push <remote> <src>:refs/heads/<name>` (optionally `-u`), after the tree is ship-verified;
-  - `gh pr create --base <b> --head <h> --title "<t>" --body-file <file>` (also `--draft`, `-R <owner/repo>`); the remote head must be the verified commit, so push first;
+  - `gh pr create -R <owner/repo> --base <b> --head <h> --title "<t>" --body-file <file>` (optionally `--draft`); `-R` is required and must name origin's repository, and the remote head must be the verified commit, so push first;
+  - other gh writes (`gh pr comment|edit|review|ready|close`, `gh issue …`) also need an explicit `-R <owner/repo>`;
   - `maeng-ship merge <PR>` (the only merge route).
-- The remote must be plain (one URL, no mirror, no `remote.<r>.push`, no `push.followTags`) and its default branch known; if a push is denied for an unknown default branch, run `git remote set-head <remote> --auto` once.
+- The remote must be plain (one URL, no mirror, no `remote.<r>.push`, no `push.followTags`, no recursive submodule push) and its default branch known and current on the server; if a push is denied for an unknown default branch, run `git remote set-head <remote> --auto` once.
 - Merge is only `maeng-ship merge <PR>`: it requires the base to be an ancestor of the head, a ship-verified head tree and a matching `pass` receipt, then does a lease-guarded fast-forward push. If it reports "base moved", update the branch, re-verify, re-review.
 - Denied routes: `gh pr merge` (all modes), `gh pr update-branch`, force pushes, pushes to the default branch except via `maeng-ship`, contents-API writes, `mcp__github__merge_pull_request`.
 - After `gh pr create`, the hook reminds you which review tier applies.

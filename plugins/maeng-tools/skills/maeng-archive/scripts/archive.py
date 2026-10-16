@@ -320,14 +320,12 @@ def _walk(base: Path):
 _PRIVATE_BYTES = re.compile(rb"<\s*private", re.I)
 
 
+def _has_private_bytes(data: bytes) -> bool:
+    return bool(_PRIVATE_BYTES.search(data))
+
+
 def _has_private(p: Path) -> bool:
-    tail = b""
-    with open(p, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            if _PRIVATE_BYTES.search(tail + chunk):
-                return True
-            tail = chunk[-16:]
-    return False
+    return _has_private_bytes(p.read_bytes())
 
 
 def build_backup_zip(zip_path: Path, stamp: str) -> dict:
@@ -344,11 +342,15 @@ def build_backup_zip(zip_path: Path, stamp: str) -> dict:
                 arc = f"{label}/{rel.as_posix()}"
                 if label == "vault" and p.suffix.lower() == ".md":
                     md_count += 1
-                if _has_private(p):
+                # Single read: privacy scan, hash, size and archived bytes all come from `data`.
+                data = p.read_bytes()
+                if _has_private_bytes(data):
                     excluded.append(arc)
                     continue
-                files.append({"path": arc, "sha256": sha256_file(p), "size": p.stat().st_size})
-                zf.write(p, arc)
+                files.append({"path": arc, "sha256": hashlib.sha256(data).hexdigest(), "size": len(data)})
+                zi = zipfile.ZipInfo.from_file(p, arc)
+                zi.compress_type = zipfile.ZIP_DEFLATED
+                zf.writestr(zi, data)
         manifest = {"created": stamp, "file_count": len(files), "files": files,
                     "excluded_private": excluded, "walked": walked, "vault_md_count": md_count,
                     "roots_present": present}
@@ -369,6 +371,16 @@ def verify_backup(zip_path: Path, manifest: dict) -> None:
             raise ArchiveError(f"corrupt zip member: {bad}")
         if len(zf.namelist()) != manifest["file_count"] + 1:
             raise ArchiveError("zip member count does not match manifest")
+        names = set(zf.namelist())
+        for entry in manifest["files"]:
+            if entry["path"] not in names:
+                raise ArchiveError(f"zip member missing: {entry['path']}")
+            h = hashlib.sha256()
+            with zf.open(entry["path"]) as m:
+                for chunk in iter(lambda: m.read(1 << 20), b""):
+                    h.update(chunk)
+            if h.hexdigest() != entry["sha256"]:
+                raise ArchiveError(f"archived bytes differ from manifest sha256: {entry['path']}")
 
 
 def cmd_backup(targets: list[str], keep: int, dry_run: bool) -> dict:
@@ -453,12 +465,13 @@ def cmd_restore(path: str, apply: bool, target: str | None) -> dict:
     p = Path(path).expanduser()
     if p.suffix == ".zip":
         return _restore_zip(p, apply, target)
-    if not p.is_absolute() and not p.is_file():
-        p = vault_root() / p  # same vault-relative form that `move` accepts
+    vault = resolved_vault()
+    if not p.is_absolute():
+        p = vault / p  # vault-relative, never CWD-relative (same form `move` accepts)
+    # Resolve ONCE; every later read, copy and rename uses this absolute vault path.
+    p = ensure_inside_vault(vault, p, must_exist=True)
     if not p.is_file():
         raise ArchiveError(f"not found: {p}")
-    vault = resolved_vault()
-    ensure_inside_vault(vault, p, must_exist=True)
     meta = parse_stub(p.read_text(encoding="utf-8", errors="replace"))
     if not meta:
         raise ArchiveError("not an archive stub (no status: archived / archive.sha256)")
@@ -471,7 +484,7 @@ def cmd_restore(path: str, apply: bool, target: str | None) -> dict:
     if sha256_file(arch) != meta["sha256"]:
         raise ArchiveError("archived file hash differs from stub; refusing")
     orig = _original_of_stub(p)
-    ensure_inside_vault(vault, orig, must_exist=False)
+    orig = ensure_inside_vault(vault, orig, must_exist=False)
     kept = p.with_name(p.stem + ".restored.md")
     plan = {"archive": str(arch), "restore_to": str(orig), "stub_renamed_to": str(kept)}
     if orig != p and orig.exists():

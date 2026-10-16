@@ -56,6 +56,8 @@ def store_verdict(verdict):
 def revoke_passes(subject, by):
     """A `fail`/`blocked` verdict revokes every earlier UNCONSUMED pass receipt for the same repo/base/head.
     Consumed/pending receipts are untouched (their merge already happened or is in flight). -> revoked keys."""
+    if subject.get("kind") == "notion":
+        return _revoke_notion(subject, by)
     if subject.get("kind") not in ("code", "parent"):
         return []
     revoked = []
@@ -65,6 +67,30 @@ def revoke_passes(subject, by):
         s = rec["verdict"]["subject"]
         if (s.get("repo"), s.get("base"), s.get("head")) != (subject.get("repo"), subject.get("base"),
                                                               subject.get("head")):
+            continue
+
+        def mark(r, by=by):
+            if r["verdict"]["verdict"] == "pass" and r["status"] == UNCONSUMED and not r.get("revoked"):
+                r["revoked"] = {"at": now_iso(), "by": by}
+                r["history"].append({"at": now_iso(), "event": "revoked:" + by})
+        _mutate(rec["key"], mark)
+        revoked.append(rec["key"])
+    return revoked
+
+
+def _revoke_notion(subject, by):
+    """A fail/blocked outcome for a Notion payload revokes every unconsumed pass for the same digest + destination
+    + op, so an earlier pass of the identical payload can no longer authorize the write."""
+    digest = subject.get("digest")
+    revoked = []
+    if not digest:
+        return revoked
+    for _, rec in list(_scan("notion-" + digest[:16])):
+        if rec is None or rec["verdict"]["verdict"] != "pass" or rec["status"] != UNCONSUMED or rec.get("revoked"):
+            continue
+        s = rec["verdict"]["subject"]
+        if (s.get("digest"), s.get("destination"), s.get("op")) != (digest, subject.get("destination"),
+                                                                     subject.get("op")):
             continue
 
         def mark(r, by=by):
@@ -196,6 +222,8 @@ def find_notion(digest, destination, op):
         if (s["destination"], s["op"]) == (destination, op):
             if rec["verdict"]["verdict"] != "pass":
                 return None, "review verdict is not pass"
+            if rec.get("revoked"):
+                return None, "review was revoked by a later fail/blocked verdict for this payload"
             if rec["status"] != UNCONSUMED:
                 return None, f"receipt is {rec['status']}"
             return rec, ""
@@ -252,6 +280,12 @@ def reconcile_code(key, cwd):
     if not rec or rec["status"] != PENDING:
         return "not-pending", ""
     it = rec["intent"]
+    from . import guard  # local import: guard is a leaf module, keep receipts importable on its own
+    rc, url, _ = git(cwd, "remote", "get-url", "--push", it["remote"])
+    here = guard.normalize_repo(url.strip()) if rc == 0 and url.strip() else None
+    if not it.get("repo") or here != it["repo"]:
+        return "pending", (f"run reconcile in a checkout of {it.get('repo') or 'the receipt repository'} "
+                           f"(remote `{it['remote']}` here is {here or 'unresolvable'}); receipt left pending")
     rc, out, err = git(cwd, "ls-remote", it["remote"], it["ref"])
     if rc != 0:
         return "pending", "cannot reach remote: " + err.strip()

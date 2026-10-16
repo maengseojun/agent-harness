@@ -114,7 +114,10 @@ def on_pre(payload):
     world = world_of(payload, st)
     if world == guard.ETA:
         return None
-    tool, tin, tuid = payload.get("tool_name", ""), payload.get("tool_input"), payload.get("tool_use_id", "")
+    tool, tin, tuid = payload.get("tool_name"), payload.get("tool_input"), payload.get("tool_use_id", "")
+    if not isinstance(tool, str) or not tool.strip():
+        return deny_out("maeng gate: tool_name is missing or not a string; denied because the gate cannot tell "
+                        "what the call does.")
     if not isinstance(tin, dict):  # the gate cannot inspect what it is asked to allow
         return deny_out("maeng gate: tool_input is not an object; denied because the gate cannot inspect the call.")
     try:

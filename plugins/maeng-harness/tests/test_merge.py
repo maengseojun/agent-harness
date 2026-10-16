@@ -73,7 +73,8 @@ class MergeBase(HarnessCase):
 
     def fake_git(self, name, body):
         path = self.tmp / name
-        path.write_text(f"#!{sys.executable}\nimport subprocess, sys\n{body}\n")
+        path.write_text(f"#!{sys.executable}\nimport subprocess, sys\n"
+                        f"if sys.argv[1] != 'push':\n    sys.exit(subprocess.run(['git'] + sys.argv[1:]).returncode)\n{body}\n")
         path.chmod(path.stat().st_mode | stat.S_IEXEC)
         return str(path)
 

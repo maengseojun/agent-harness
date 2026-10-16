@@ -196,6 +196,17 @@ def _arg_paths(toks):
             yield t
 
 
+def _operands(toks):
+    """Every non-flag operand (bare names included), with `--opt=value` / `of=value` reduced to the value."""
+    for t in toks[1:]:
+        if t.startswith("-") and "=" not in t:
+            continue
+        if "=" in t and not t.startswith("/"):
+            t = t.split("=", 1)[1]
+        if t and not t.startswith("-"):
+            yield t
+
+
 def check_segment(seg, cwd, ctx):
     prog, toks = program(seg.tokens)
     for target in seg.redirects:  # every output target, relative to this segment's effective directory
@@ -215,7 +226,7 @@ def check_segment(seg, cwd, ctx):
     d = _cwd_gate(cwd, ctx, prog, True)
     if d:
         return d, cwd
-    for t in _arg_paths(toks):
+    for t in _operands(toks):  # bare names resolve against this segment's directory like any other path
         d = g3_path(t, cwd, ctx, f"`{prog}` argument")
         if d:
             return d, cwd
@@ -337,7 +348,7 @@ def _ls_remote_sha(cwd, url, branch):
     return None, f"{ref} does not exist on the remote"
 
 
-def check_pr_head(ctx, cwd, head, repo_spec):
+def check_pr_head(ctx, cwd, head, repo_spec, must_be_origin=False):
     """PR creation: the repository's REMOTE head must be a ship-verified commit (never a local branch by name)."""
     head = (head or "").strip() or _current_branch(cwd) or ""
     if not head:
@@ -348,7 +359,16 @@ def check_pr_head(ctx, cwd, head, repo_spec):
     if not canon.BRANCH_RE.match(head):
         return deny(f"maeng G1: `{head}` is not a plain branch name.")
     origin_url, err = remotecfg.plain_remote(cwd, "origin", for_push=False)
-    if repo_spec:
+    if must_be_origin:
+        if err:
+            return deny(err)
+        rid = guard.normalize_repo(repo_spec)
+        _, raw, _ = git(cwd, "config", "--get", "remote.origin.url")
+        if rid not in (guard.normalize_repo(origin_url), guard.normalize_repo(raw.strip())):
+            return deny(f"maeng G1: `gh pr create --repo {repo_spec}` must name origin's repository "
+                        f"({guard.normalize_repo(origin_url)}); the PR head is verified on origin only.")
+        url = origin_url
+    elif repo_spec:
         rid = guard.normalize_repo(repo_spec)
         url = origin_url if origin_url and guard.normalize_repo(origin_url) == rid else f"https://{rid}.git"
     elif err:
@@ -373,6 +393,15 @@ def check_gh(toks, cwd, ctx):
         return deny(UNKNOWN_REASON)
     if kind == "deny":
         return deny(canon.message(reason))
+    if kind == "local":  # reads from the remote but writes files locally: G3 on every local destination
+        blocked = _cwd_gate(cwd, ctx, "gh " + " ".join(info["pos"][:2]), True)
+        if blocked:
+            return blocked
+        for dest in ghcmd.local_destinations(info):
+            blocked = g3_path(dest, cwd, ctx, f"`gh {' '.join(info['pos'][:2])}` destination")
+            if blocked:
+                return blocked
+        return Decision()
     targets = ghcmd.target_repos(info)
     for t in targets:
         if guard.spec_is_eta(t):
@@ -385,7 +414,11 @@ def check_gh(toks, cwd, ctx):
         parsed, why = ghcmd.parse_pr_create(toks)
         if not parsed:
             return deny(canon.message(why))
-        return check_pr_head(ctx, cwd, parsed["head"], parsed["repo"])
+        if not (parsed["repo"] and ghcmd.REPO_RE.match(parsed["repo"])):
+            return deny(canon.message("`gh pr create` needs an explicit `--repo <owner/repo>` equal to origin"))
+        return check_pr_head(ctx, cwd, parsed["head"], parsed["repo"], must_be_origin=True)
+    if info["pos"][:1] != ["api"] and not (info["repo"] and ghcmd.REPO_RE.match(info["repo"])):
+        return deny(canon.message("gh writes need an explicit `-R <owner/repo>`"))
     return Decision()
 
 
@@ -483,10 +516,29 @@ def check_mcp_notion(tool, tool_input, ctx, tool_use_id=""):
 
 # ---- dispatcher entry ----------------------------------------------------
 
+def malformed(tool_name, tool_input):
+    """-> a reason when the operation fields the gate relies on are missing or of the wrong type, else ''."""
+    if not isinstance(tool_name, str) or not tool_name.strip():
+        return "tool_name is missing or not a string"
+    if tool_name == "Bash":
+        cmd = tool_input.get("command")
+        if not isinstance(cmd, str) or not cmd.strip():
+            return "Bash command is missing, not a string, or empty"
+    elif tool_name in ("Edit", "Write", "MultiEdit", "NotebookEdit"):
+        keys = ("file_path", "notebook_path") if tool_name == "NotebookEdit" else ("file_path",)
+        if not any(isinstance(tool_input.get(k), str) and tool_input[k].strip() for k in keys):
+            return f"{tool_name} file_path is missing or not a string"
+    return ""
+
+
 def evaluate(tool_name, tool_input, ctx, tool_use_id=""):
     tool_input = tool_input if isinstance(tool_input, dict) else {}
+    bad = malformed(tool_name, tool_input)
+    if bad:
+        return deny(f"maeng gate: malformed operation ({bad}); denied because the gate cannot determine what the "
+                    f"call does.")
     if tool_name == "Bash":
-        return check_bash(str(tool_input.get("command", "")), ctx)
+        return check_bash(tool_input["command"], ctx)
     if tool_name in ("Edit", "Write", "NotebookEdit", "MultiEdit"):
         if ctx.unknown:
             return deny(UNKNOWN_REASON)

@@ -245,7 +245,7 @@ class EtaAndUnknown(HarnessCase):
         self.assertIsNone(self.hook("Stop", repo, stop_hook_active=False)[1])
         self.hook("SessionEnd", repo, reason="x")
         self.assertEqual(snapshot(self.maeng_home, self.vault), before)       # no state, no stub
-        for cmd in ("git push origin feat", "gh pr comment 1 -b x", "gh pr create --title t --body b",
+        for cmd in ("git push origin feat", "gh pr comment 1 -R o/r -b x", "gh pr create -R o/r --title t --body b",
                     "touch marker.txt", "git commit --allow-empty -m x"):
             denied, reason = self.bash_pre(repo, cmd)
             self.assertTrue(denied, cmd)
@@ -299,6 +299,6 @@ class DispatcherFailureModes(HarnessCase):
         repo = self.make_repo()
         self.start(repo)
         denied, reason = self.pre(repo, "Bash", {"command": 123})        # malformed tool_input
-        self.assertFalse(denied)                                          # a non-string command is simply not parseable as risky
+        self.assertTrue(denied)                                           # (round 3) a non-string command is malformed: denied
         denied, reason = self.pre(repo, "Bash", "garbage")                # (round 2) not an object: denied
         self.assertTrue(denied)

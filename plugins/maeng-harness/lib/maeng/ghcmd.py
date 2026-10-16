@@ -14,12 +14,17 @@ GH_ALLOWED = {
     "ssh-key": {"list"}, "gpg-key": {"list"}, "extension": {"list", "search", "browse"},
     "alias": {"list"}, "config": {"get", "list"},
 }
-READ_ACTIONS = {"view", "list", "diff", "checks", "status", "checkout", "watch", "download", "clone", "set-default",
-                "token", "get", "check", "search", "browse"}
+READ_ACTIONS = {"view", "list", "diff", "checks", "status", "watch", "set-default", "token", "get", "check",
+                "search", "browse"}
+# Remote reads that also write files into the local working directory / a destination operand.
+LOCAL_WRITES = {("pr", "checkout"), ("repo", "clone"), ("release", "download"), ("run", "download"),
+                ("gist", "clone")}
+REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 GH_VALUE_FLAGS = {"-X", "--method", "-H", "--header", "-f", "-F", "--field", "--raw-field", "-q", "--jq", "-t",
                   "--template", "--hostname", "--cache", "--input", "-B", "--base", "-H", "--head", "-t", "--title",
                   "-b", "--body", "-F", "--body-file", "-a", "--assignee", "-l", "--label", "-m", "--milestone",
-                  "-r", "--reviewer", "-p", "--project", "--jq"}
+                  "-r", "--reviewer", "-p", "--project", "--jq", "-D", "--dir", "-O", "--output", "-A", "--archive",
+                  "--pattern", "-n", "--name"}
 URL_REPO = re.compile(r"(?:https?://)?(?:www\.)?(?:api\.)?github\.com/(?:repos/)?([^/\s]+)/([^/\s#?]+)", re.I)
 API_REPO = re.compile(r"^/?repos/([^/]+)/([^/]+)")
 
@@ -88,6 +93,8 @@ def classify_gh(toks):
     if allowed is not None and action not in allowed:
         return "deny", f"`gh {group} {action or ''}` is not on the G1 allowlist " \
                        f"(merge/sync/release/repo-edit routes go through maeng-ship or are denied).", repo, info
+    if (group, action) in LOCAL_WRITES:
+        return "local", "", repo, info
     if group in ("issue",) or action in ("comment", "edit", "review", "ready", "close"):
         return ("read" if action in READ_ACTIONS else "write"), "", repo, info
     return "read", "", repo, info
@@ -124,6 +131,20 @@ def target_repos(info):
     return out
 
 
+def local_destinations(info):
+    """Paths a local-write gh command writes to beyond the working directory: --dir/-D, --output/-O and the
+    clone destination operand."""
+    out = []
+    for flag in ("-D", "--dir", "-O", "--output"):
+        v = info["flags"].get(flag)
+        if isinstance(v, str) and v:
+            out.append(v)
+    pos = info["pos"]
+    if len(pos) > 3 and pos[1] == "clone":
+        out.append(pos[3])
+    return out
+
+
 def parse_pr_create(toks):
     """Canonical `gh pr create` -> ({base, head, title, body, body_file, repo, draft}, why)."""
     if toks[1:3] != ["pr", "create"]:
@@ -154,9 +175,16 @@ def canonical_gh(toks):
     kind, reason, _, info = classify_gh(toks)
     if kind == "create":
         parsed, why = parse_pr_create(toks)
+        if parsed and not (parsed["repo"] and REPO_RE.match(parsed["repo"])):
+            return None, "`gh pr create` needs an explicit `--repo <owner/repo>` equal to origin"
         return ({"form": "gh-pr-create", **parsed} if parsed else None), why
     if kind == "write" and info["pos"][0] != "api":
+        if not (info["repo"] and REPO_RE.match(info["repo"])):
+            return None, (f"`gh {' '.join(info['pos'][:2])}` writes need an explicit `-R <owner/repo>` "
+                          f"(gh would otherwise pick the repository from GH_REPO or its configured default)")
         return {"form": "gh-write", "repos": target_repos(info)}, ""
+    if kind == "local":
+        return {"form": "gh-local", "repos": target_repos(info)}, ""
     if kind == "read":
         return {"form": "gh-read", "repos": target_repos(info)}, ""
     return None, reason or "this gh command is not on the G1 allowlist"

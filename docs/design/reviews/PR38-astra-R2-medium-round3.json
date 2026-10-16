@@ -1,0 +1,27 @@
+{
+  "verdict": "fail",
+  "receipt": null,
+  "findings": [
+    {
+      "body": "If a relative stub path already exists in the current working directory, cmd_restore leaves it relative. ensure_inside_vault validates that path relative to the vault, but its returned absolute path is discarded; subsequent reads, copies and os.replace calls use the current working directory instead. When both locations contain the same relative filename, validation can pass and restore can rename or overwrite files outside the vault. Normalize p to the validated absolute vault path before any read or mutation, and test this overlapping-path case.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": 461,
+      "severity": "high",
+      "title": "Relative restore validates one file but modifies another"
+    },
+    {
+      "body": "build_backup_zip scans privacy markers, hashes the source, and writes it into the ZIP through separate reads. verify_backup checks CRC and member counts but never compares archived bytes with the manifest SHA-256. A normal concurrent editor or sync update can therefore produce a backup whose contents differ from its manifest, yet verification passes and older backups are pruned. Hash the bytes actually archived and validate every member against the manifest before copying or pruning; ensure the privacy scan covers those same bytes.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": 355,
+      "severity": "medium",
+      "title": "Backup verification does not validate the recorded content hashes"
+    },
+    {
+      "body": "The worker checks only pyproject.toml's version string before importing the supplied runtime. PIN_REVISION is never checked against that runtime, yet every snapshot records it as the extraction revision. An accidentally modified checkout or another checkout retaining version 0.9.85 is accepted and attributed to the reviewed commit. Verify runtime revision and cleanliness, or a pinned source manifest, before execution and record the verified identity.",
+      "file": "plugins/maeng-tools/skills/graphify-repository/scripts/index_repository.py",
+      "line": 23,
+      "severity": "medium",
+      "title": "Graphify records a pinned revision without verifying the runtime"
+    }
+  ]
+}

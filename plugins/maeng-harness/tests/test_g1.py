@@ -9,6 +9,14 @@ class ShipBase(HarnessCase):
         self.git(self.repo, "push", "-q", "-u", "origin", "feat")
         self.start(self.repo)
 
+    def alias_origin(self, slug="o/r"):
+        """Make origin a github.com URL (what `gh pr create --repo` must name) that git maps to the local bare repo."""
+        remote = self.git(self.repo, "config", "remote.origin.url").stdout.strip()
+        url = f"https://github.com/{slug}.git"
+        self.git(self.repo, "config", f"url.{remote}.insteadOf", url)
+        self.git(self.repo, "config", "remote.origin.url", url)
+        return slug
+
     def verified(self):
         self.run_check(self.repo, "pytest -q")
 
@@ -138,7 +146,8 @@ class PushRoutes(ShipBase):
         r = self.cli("maeng-verify", ["skip", "no tests for this prototype"], self.repo)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertDenied("git push origin feat", "not ship-verified")
-        self.assertDenied("gh pr create --title t --body b", "not ship-verified")
+        self.alias_origin()
+        self.assertDenied("gh pr create -R o/r --title t --body b", "not ship-verified")
         rc, out, _ = self.hook("Stop", self.repo, stop_hook_active=False)
         # stop-satisfied via the skip: only the (separate) record obligation remains
         self.assertIsNotNone(out)
@@ -165,21 +174,23 @@ class GhRoutes(ShipBase):
             self.assertDenied(cmd)
 
     def test_gh_allowed_routes(self):
-        for cmd in ("gh pr comment 1 -b hi", "gh pr edit 1 --title t", "gh pr review 1 --approve", "gh pr ready 1",
-                    "gh pr close 1", "gh issue create -t x -b y", "gh issue comment 2 -b z", "gh pr checkout 3",
+        for cmd in ("gh pr comment 1 -R o/r -b hi", "gh pr edit 1 -R o/r --title t", "gh pr review 1 -R o/r --approve",
+                    "gh pr ready 1 -R o/r", "gh pr close 1 -R o/r", "gh issue create -R o/r -t x -b y",
+                    "gh issue comment 2 --repo o/r -b z", "gh pr checkout 3",
                     "gh pr view 1 --json state", "gh pr list", "gh api repos/o/r/pulls", "gh api user",
                     "gh api graphql -f query='query { viewer { login } }'", "gh run list", "gh release list"):
             self.assertAllowed(cmd)
 
     def test_pr_create_needs_verified_head(self):
-        self.assertDenied("gh pr create --title t --body b", "not ship-verified")
-        self.assertDenied("gh pr create --head feat --title t --body b")
+        self.alias_origin()
+        self.assertDenied("gh pr create -R o/r --title t --body b", "not ship-verified")
+        self.assertDenied("gh pr create -R o/r --head feat --title t --body b")
         self.verified()
-        self.assertAllowed("gh pr create --title t --body b")
-        self.assertAllowed("gh pr create --head feat --title t --body b --draft --base main")
-        self.assertDenied("gh pr create --head nosuchbranch --title t")
-        self.assertDenied("gh pr create --fill", "canonical")         # --fill is not a canonical flag
-        self.assertDenied("gh pr create --head feat --title t --web", "canonical")
+        self.assertAllowed("gh pr create -R o/r --title t --body b")
+        self.assertAllowed("gh pr create -R o/r --head feat --title t --body b --draft --base main")
+        self.assertDenied("gh pr create -R o/r --head nosuchbranch --title t")
+        self.assertDenied("gh pr create -R o/r --fill", "canonical")         # --fill is not a canonical flag
+        self.assertDenied("gh pr create -R o/r --head feat --title t --web", "canonical")
 
     def test_pr_create_reminds_review_tier(self):
         self.verified()

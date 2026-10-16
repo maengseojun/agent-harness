@@ -46,6 +46,8 @@ def _result(name, kind, args):
     return name, kind, " ".join([name, *kept])
 
 
+LAUNCHER_NO_RUN = {"--help", "-h", "--version", "-v", "-V", "--versions"}
+PY_PLAIN_OPTS = {"-B", "-u", "-I", "-E", "-s"}
 LAUNCHER_VALUE_OPTS = {"-p", "--package", "--cache", "--userconfig", "--prefix", "--registry", "--workspace", "-w"}
 
 
@@ -60,6 +62,8 @@ def _launched(args):
             break
         if not t.startswith("-"):
             break
+        if t in LAUNCHER_NO_RUN:
+            return None  # launcher-level --help/--version: runs nothing
         if t in ("-c", "--call", "--shell-mode"):
             return None  # a shell string: not a recognized runner
         i += 2 if (t in LAUNCHER_VALUE_OPTS) else 1
@@ -80,8 +84,10 @@ def _runner(tokens):
     if prog in ("pnpm", "yarn", "npm") and len(toks) > 2 and toks[1] in ("dlx", "exec"):
         return _launched(toks[2:])
     if PY_RE.match(prog):
-        if "-m" in toks[1:-1]:
-            i = toks.index("-m")
+        i = 1  # only `<python> [-B|-u|-I|-E|-s ...] -m <runner> ...`; any other interpreter option is no evidence
+        while i < len(toks) and toks[i] in PY_PLAIN_OPTS:
+            i += 1
+        if i + 1 < len(toks) and toks[i] == "-m":
             mod, rest = toks[i + 1], toks[i + 2:]
             if mod in ("pytest", "unittest"):
                 return _result(mod, TEST_KINDS, rest)

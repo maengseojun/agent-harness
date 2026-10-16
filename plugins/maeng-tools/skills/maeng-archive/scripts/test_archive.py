@@ -1,4 +1,4 @@
-import json, os, tempfile, unittest, zipfile
+import hashlib, json, os, tempfile, unittest, zipfile
 from pathlib import Path
 from unittest import mock
 
@@ -352,6 +352,99 @@ class RestoreTests(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BackupConsistencyTests(Base):
+    def test_file_changing_after_read_stays_consistent(self):
+        target = self.note("a.md", "original\n")
+        self.note("b.md", "other\n")
+        real = Path.read_bytes
+
+        def racing(self_):
+            data = real(self_)
+            if self_ == target:
+                target.write_text("changed after read\n")  # concurrent editor/sync
+            return data
+        with mock.patch.object(Path, "read_bytes", racing):
+            r = A.cmd_backup(["onedrive"], 10, False)
+        self.assertEqual(r["stores"]["onedrive"]["status"], "ok")
+        with zipfile.ZipFile(r["stores"]["onedrive"]["zip"]) as zf:
+            man = json.loads(zf.read("manifest.json"))
+            entry = next(f for f in man["files"] if f["path"] == "vault/a.md")
+            self.assertEqual(zf.read("vault/a.md"), b"original\n")
+            self.assertEqual(entry["sha256"], hashlib.sha256(b"original\n").hexdigest())
+            self.assertEqual(entry["size"], len(b"original\n"))
+            self.assertEqual(zf.getinfo("vault/a.md").date_time[0] >= 1980, True)
+
+    def test_verify_catches_corrupted_manifest_no_copy_no_prune(self):
+        self.note("a.md", "hello\n")
+        old = self.od / A.BACKUP_DIR
+        old.mkdir()
+        for i in range(3):
+            (old / f"maeng-2020010{i}-000000.zip").write_bytes(b"x")
+        real_build = A.build_backup_zip
+
+        def bad_build(zp, stamp):
+            m = real_build(zp, stamp)
+            m["files"][0]["sha256"] = "0" * 64
+            return m
+        with mock.patch.object(A, "build_backup_zip", bad_build):
+            with self.assertRaises(A.ArchiveError) as cm:
+                A.cmd_backup(["onedrive"], 1, False)
+        self.assertIn("differ from manifest", str(cm.exception))
+        self.assertEqual(len(list(old.glob("maeng-*.zip"))), 3)  # not copied, not pruned
+        self.assertEqual(len(list(old.glob("*.manifest.json"))), 0)
+
+    def test_verify_catches_zip_member_tampered(self):
+        self.note("a.md", "hello\n")
+        with tempfile.TemporaryDirectory() as td:
+            zp = Path(td) / "t.zip"
+            m = A.build_backup_zip(zp, "s")
+            A.verify_backup(zp, m)
+            m["files"][0]["sha256"] = hashlib.sha256(b"different").hexdigest()
+            with self.assertRaises(A.ArchiveError):
+                A.verify_backup(zp, m)
+
+
+class RestoreCwdTests(Base):
+    def test_same_named_file_in_cwd_untouched(self):
+        self.note("n.md", "hello\n")
+        A.cmd_move("n.md", "onedrive", "personal", False)
+        with tempfile.TemporaryDirectory() as cwd:
+            decoy = Path(cwd) / "n.md"
+            decoy.write_text("DECOY")
+            (Path(cwd) / "n.restored.md").write_text("DECOY2")
+            old = os.getcwd()
+            os.chdir(cwd)
+            try:
+                r = A.cmd_restore("n.md", True, None)
+            finally:
+                os.chdir(old)
+            self.assertEqual(decoy.read_text(), "DECOY")
+            self.assertEqual((Path(cwd) / "n.restored.md").read_text(), "DECOY2")
+            self.assertEqual(sorted(os.listdir(cwd)), ["n.md", "n.restored.md"])
+        self.assertEqual(r["action"], "restored")
+        self.assertEqual((self.vault / "n.md").read_text(), "hello\n")
+        self.assertTrue((self.vault / "n.restored.md").exists())
+
+    def test_relative_cwd_file_not_in_vault_not_found(self):
+        with tempfile.TemporaryDirectory() as cwd:
+            (Path(cwd) / "only-here.md").write_text("x")
+            old = os.getcwd()
+            os.chdir(cwd)
+            try:
+                with self.assertRaises(A.ArchiveError):
+                    A.cmd_restore("only-here.md", False, None)
+            finally:
+                os.chdir(old)
+
+    def test_absolute_path_outside_vault_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "n.md"
+            f.write_text("x")
+            with self.assertRaises(A.ArchiveError):
+                A.cmd_restore(str(f), True, None)
+            self.assertEqual(f.read_text(), "x")
 
 
 class CliRoundTrip(unittest.TestCase):
