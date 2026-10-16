@@ -68,12 +68,18 @@ class Scn:
         self.gitcfg = self.dir / "gitconfig"
         self.gitcfg.write_text("[user]\n\tname = Smoke\n\temail = smoke@example.com\n[init]\n\tdefaultBranch = main\n")
         self.raw = SCRATCH / f"{sid}.jsonl"
+        self.codex = self.fakebin / "codex"
+        self.codex.write_text(f"#!{sys.executable}\nimport json, sys\n"
+                              "if sys.argv[1:3] == ['features', 'list']:\n    sys.exit(0)\n"
+                              "sys.stdin.read()\nout = sys.argv[sys.argv.index('-o') + 1]\n"
+                              "json.dump({'verdict': 'pass', 'findings': []}, open(out, 'w'))\n")
+        self.codex.chmod(self.codex.stat().st_mode | stat.S_IEXEC)
 
     def env(self, extra=None):
         e = dict(os.environ)
         e.update({
             "MAENG_HOME": str(self.home), "MAENG_VAULT": str(self.vault), "MAENG_CACHE_DIR": str(self.cache),
-            "MAENG_GH": str(self.fakebin / "gh"), "FAKE_GH_LOG": str(self.gh_log), "FAKE_GH_JSON": str(self.pr_json),
+            "MAENG_GH": str(self.fakebin / "gh"), "MAENG_CODEX": str(self.codex), "FAKE_GH_LOG": str(self.gh_log), "FAKE_GH_JSON": str(self.pr_json),
             "PATH": f"{self.fakebin}:{os.environ['PATH']}", "GIT_CONFIG_GLOBAL": str(self.gitcfg),
             "GIT_CONFIG_NOSYSTEM": "1", "GIT_OPTIONAL_LOCKS": "0",
             "MAENG_NOTION_DBS": "db111111111111111111111111111111",
@@ -284,7 +290,7 @@ def s3():
     s.git(repo, "commit", "-qam", "feat commit")
     s.git(repo, "push", "-q", "origin", "feat")
     base, head = s.git(repo, "rev-parse", "main"), s.git(repo, "rev-parse", "feat")
-    s.pr_json.write_text(json.dumps({"number": 1, "state": "OPEN", "baseRefName": "main", "baseRefOid": base,
+    s.pr_json.write_text(json.dumps({"number": 1, "state": "OPEN", "baseRefName": "main", "baseRefOid": base, "url": str(s.dir / "repo-remote.git"),
                                      "headRefName": "feat", "headRefOid": head}))
     bare = s.dir / "repo-remote.git"
     before = remote_refs(bare, s)
@@ -373,18 +379,17 @@ def s8():
     s.git(repo, "push", "-q", "origin", "feat")
     base, head = s.git(repo, "rev-parse", "main"), s.git(repo, "rev-parse", "feat")
     s.git(repo, "checkout", "-q", "main")
-    s.pr_json.write_text(json.dumps({"number": 1, "state": "OPEN", "baseRefName": "main", "baseRefOid": base,
+    s.pr_json.write_text(json.dumps({"number": 1, "state": "OPEN", "baseRefName": "main", "baseRefOid": base, "url": str(s.dir / "repo-remote.git"),
                                      "headRefName": "feat", "headRefOid": head}))
-    verdict = s.dir / "verdict.json"
-    verdict.write_text(json.dumps({"verdict": "pass", "reviewer": {"model": "gpt-6-astra", "effort": "medium"}, "findings": [],
-                                   "subject": {"kind": "code", "repo": "o/r", "pr": 1, "base": base, "head": head,
-                                               "criteria_rev": None, "digest": "d", "destination": "refs/heads/main",
-                                               "op": "merge"}}))
+    plan = s.dir / "plan.md"
+    plan.write_text("AC-1 add and sub work\n## Verification\n- AC-1: pytest\n")
     before = remote_refs(bare, s)
     prompt = (f"Merge-flow test in a scratch repo (origin is a local bare repo; PR #1 is faked via MAENG_GH). Run these shell "
               f"commands one at a time, in order: (1) `git checkout feat` (2) `python3 -m pytest -q` "
-              f"(3) `maeng-review store {verdict}` (this stores a pre-made pass verdict; it is the test fixture) "
-              f"(4) `maeng-ship merge 1`. Do not edit any file. " + NO_WORKAROUND + " Finish with one line per command.")
+              f"(3) `maeng-verify bind MAE-223 --plan {plan} --parent MAE-216` then `maeng-verify plan --met AC-1` "
+              f"(4) `maeng-review run --kind code --pr 1 --base {base} --head {head} --base-ref main` "
+              f"(the reviewer binary is a test fake that returns pass; the tool computes scope, digest and repo itself) "
+              f"(5) `maeng-ship merge 1`. Do not edit any file. " + NO_WORKAROUND + " Finish with one line per command.")
     meta = s.run(prompt, repo)
     keys = sorted((s.home / "receipts").glob("code-*.json")) if (s.home / "receipts").exists() else []
     finish(s, meta, {"repo": str(repo), "base": base, "head": head, "feat_tree": s.git(repo, "rev-parse", "feat^{tree}"),
