@@ -1,0 +1,11 @@
+# Source
+
+- **Author:** written new for eta-craft on 2026-10-13 (Claude, for Henry; END-687).
+- **What it draws on:**
+  - The team's gate research (`sol-gates.md`, sections 3.1 and 3.2, gate-table rows on rounding and the first-depositor attack): internal accounting and never `balanceOf` for the price, SCSVS vault chapter C4 (credit what is received, deposit rounds down and withdraw rounds up, only pull from the caller, the inflation attack), Solcurity D2 and C47, Cyfrin's donation-attack item, and the FREI-PI order (requirements, effects, interactions, then the protocol invariant check).
+  - Public sources: EIP-4626 (the rounding of each function), OpenZeppelin 5.7.0 `ERC4626` (virtual shares and `_decimalsOffset`, read in the source), `Math.mulDiv` and `SafeERC20`, and Trail of Bits' token integration checklist for the odd-token list.
+  - Written new: the attack numbers, the direction test and the fee dilution formula (`supply * f / (1 - f)`, checked in Python).
+- **Run, not just read:** on 2026-10-13, in a scratch project (forge 1.7.1, solc 0.8.37, OpenZeppelin 5.7.0). The code block compiles as written. Tests passed for: the attack on a naive vault (attacker +10,000e18), the same attack with 1e6 virtual shares (attacker about -5,000e18), internal accounting ignoring a donation, a fee-on-transfer token credited by what arrived, a round-trip fuzz test, a direction-of-rounding fuzz test, and a handler invariant campaign (solvency, ledger, share sum, price never falls). Flipping `previewRedeem` to round up passed the round-trip fuzz test and failed the direction test and the price invariant. The scratch project is not in this repo.
+- **Not run:** read-only reentrancy and the token callback case are stated from the public sources, with no test.
+- **Why it is here:** a craft skill: know-how with no eta rule (Testing and quality §8, OPS-A4-16). The eta vault rules (the first mint, pauses, what a redeem may read) are left to eta-mint-redeem, which the skill names.
+- **Open:** no eval yet (`evals/writing-a-vault/`). `eta-mint-redeem` should name this skill in its hand-off (Testing and quality §8: each domain skill names the craft skills for its part); that file is in eta-rules and was not changed here.

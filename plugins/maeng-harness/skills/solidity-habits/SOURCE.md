@@ -1,0 +1,10 @@
+# Source
+
+- **Author:** written new for eta-craft on 2026-10-13 (Claude, for Henry; END-687).
+- **What it draws on:**
+  - The team's gate research (`sol-gates.md`, sections 3.1 and 3.2, and the gate table): the Solidity security considerations (interaction last, fix every compiler warning), the Solidity style guide (file and contract order, 120 columns), Foundry's best practices (named imports, `forge lint`), OpenZeppelin's guidelines (a reason on every `unchecked`, custom errors), Solcurity (validate parameters even for trusted callers, comment every `unchecked`, SafeERC20, check that a call target has code), the ConsenSys and Trail of Bits development guidelines (simple code, bounded loops, little assembly), and the lint names that research lists (`unaliased-plain-import`, `unused-import`, `unsafe-typecast`, `divide-before-multiply`, `tx-origin`).
+  - Written new: the code block (a `Wad` type), the checklist, and how the habits fit together.
+- **Run, not just read:** on 2026-10-13, in a scratch project (forge 1.7.1, solc 0.8.37). Compiled and linted clean: custom errors with `require(cond, Error(args))`, named constants, `immutable`, a `transient` guard, `SafeCast`, and the `Wad` type with operators. Also run: an explicit narrowing cast truncating (`uint8(300)` is 44), the `deny = "warnings"` key, a lint finding failing `forge build` and the inline `forge-lint: disable-next-line` comment clearing it, `forge build --sizes --skip test`, and `transient` compiling on solc 0.8.28 with `cancun` and failing with `shanghai`.
+- **Not run:** the Solidity version in which `require(cond, Error())` first works (taken from the changelog), and the habits that only repeat public guidance (the `transfer` gas stipend, `tx.origin`, forced ETH).
+- **Why it is here:** a craft skill: know-how with no eta rule (Testing and quality §8, OPS-A4-16). Where a habit is also an eta rule (names, errors, events, NatSpec, the security rows), the skill says "eta rule: load" and names eta-code-style, eta-natspec, eta-security or eta-tests.
+- **Open:** no eval yet (`evals/solidity-habits/`).

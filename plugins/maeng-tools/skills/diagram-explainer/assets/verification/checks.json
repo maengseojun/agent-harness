@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-10",
+  "templates": 36,
+  "libraryItems": 36,
+  "jsonAndBindings": "passed",
+  "codexConfig": "passed",
+  "fontRegistration": "verified native UI",
+  "MCPTransport": "initialize and tools/list passed",
+  "MCPGeneration": "create_view failed -32603: target file did not finish loading",
+  "nativeFullEditor": "JavaScript exception",
+  "libraryImport": "unverified",
+  "crossDeviceSync": "unverified",
+  "codexCLIRegistration": "enabled=true, streamable_http",
+  "designRevision": "rounded rectangles and Blocks & Arrows motifs",
+  "rectangleCount": 259,
+  "visibleRectangleRoundness": "type 3; straight internal cylinder body only",
+  "boundLabelMeasurement": "passed",
+  "userModifiedTemplatesBeforeRevision": [],
+  "MCPToolExposure": "available in current chat"
+}

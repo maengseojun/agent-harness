@@ -1,0 +1,17 @@
+---
+name: graphify-repository
+description: Support repository-grounded diagram/interactive explanations when repeated relationship extraction or a reusable large-codebase index helps, and handle explicit repository indexing. Use as an internal helper; verify important relationships in source. Do not run for every code question or enable semantic document/media analysis automatically.
+---
+
+# Repository evidence with Graphify
+
+Use the pinned Graphify 0.9.85 local AST runtime within the user's requested repository analysis or repository-grounded explanation. Existing diagram-explainer/interactive-explainer may call this helper when repeated relationship extraction or index reuse helps; the user does not need a separate skill invocation or indexing request. For a small one-off question, read the relevant source directly. Repository-free lessons do not use Graphify. Read [local execution and evidence](references/local-evidence.md) when building, refreshing or reusing an index.
+
+- Choose the repository root and a narrow file/directory scope. Record revision, dirty state, included files and hashes, exclusions and extraction failures. Pass `--previous <snapshot.json>` to check reuse; unchanged revision, hashes, scope and Git status permit reuse, otherwise extract a fresh snapshot into a new output directory while preserving the old one. Resolver context outside the indexed files is not exhaustively fingerprinted: a changed external dependency/configuration needs an explicit rebuild, and important conclusions always need direct source inspection.
+- Run `scripts/index_repository.py` with an already provisioned isolated Python and the pinned runtime path. It does not install anything. Do not run upstream `install`, upgrade, global graph registration, hooks or always-on instructions. Never use `--break-system-packages` or change global AGENTS.md.
+- Code AST extraction is separate from semantic document/media analysis. The latter is off. Do not read/configure existing keys, call Gemini or another external LLM, or transmit source automatically. A separate request must establish provider, data scope, destination and authorization before such a route is considered.
+- Extraction is a navigation aid. Preserve EXTRACTED, INFERRED and UNVERIFIED status, relationship type, stored direction, path/line and omissions. Dynamic dispatch, imports and partial scope can leave relationships unresolved. Do not present reachability or a citation as proof of runtime causality.
+- For a structure explanation, select a small relevant subgraph and review its important edges in source. Resolve the installed skill whose frontmatter name is `interactive-explainer`; read its `references/graphify-adapter.md` and use its `scripts/graphify_to_archify.py`. Do not assume a sibling directory name: cloud skill directories can be renamed during saving. This is our minimal adapter, not an official Graphify/Archify converter. Keep its provenance sidecar with the Archify JSON and HTML.
+- For editable diagrams, diagram-explainer retains draw.io first and yEd GraphML for graph layouts. Archify HTML/SVG is a viewing/explanation companion; it does not replace those editable originals.
+
+Deliver the evidence index, scope/limits, verified source references and unresolved relationships. Do not claim the index covers omitted documentation or proves the learner understood.

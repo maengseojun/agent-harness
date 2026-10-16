@@ -1,0 +1,132 @@
+{
+  "revision": "explainer-10-image-delivery",
+  "references": [
+    {
+      "id": "contract",
+      "path": "references/reference-contract.md",
+      "required": true,
+      "modes": [
+        "text",
+        "diagram"
+      ],
+      "sha256": "af7657d772dc8ab6b6a469f673c2eb2956c958e4319fae7227c6ef0cdbaf4089"
+    },
+    {
+      "id": "design",
+      "path": "references/explanation-design.md",
+      "required": true,
+      "modes": [
+        "text"
+      ],
+      "sha256": "0db68e643e8cea6d6b2ba44cdc0c75213d8b292469e1b6ab2c8c332299ed6ad4"
+    },
+    {
+      "id": "upstream-skill",
+      "path": "../diagram-explainer/SKILL.md",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "c813f1e17a08faf3e37b8b8b095e0aabe466ed602b7bb9cac12c1776670adb12"
+    },
+    {
+      "id": "style",
+      "path": "../diagram-explainer/references/style-guide.md",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "4716fa1a4f4d31cf836e0b4363886aa7242657fb48c624e0b34c433179dc6673"
+    },
+    {
+      "id": "output",
+      "path": "../diagram-explainer/references/output-spec.md",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "12dc0eed3514e387328651652604ef4fba1a76bce1823a79f4da2993336d1e69"
+    },
+    {
+      "id": "personal",
+      "path": "../diagram-explainer/references/personal-additions.md",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "df7be15f98381039aa5da9b28628340d80fe7a97332fac9849f272af8bada919"
+    },
+    {
+      "id": "storage",
+      "path": "../diagram-explainer/references/delivery-storage.md",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "adb72470c0159d6ee33f35d6a5c6337a61a2a0fce805efd7a061500c2f49259c"
+    },
+    {
+      "id": "upstream-manifest",
+      "path": "../diagram-explainer/upstream-manifest.json",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "e9d3232275b005600e3cdb874e69dfd2dbf0dec44909f22722d1b5bc15eb221c"
+    },
+    {
+      "id": "upstream-license",
+      "path": "../diagram-explainer/LICENSE.txt",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "bb7e12e91fecef43024111123ff784cec6c485585561d8b552557c0173b3ed29"
+    },
+    {
+      "id": "third-party-notices",
+      "path": "../diagram-explainer/THIRD_PARTY_LICENSES.md",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "ad931154e2f91bf545fc9c442666a2159aa56c0af3cca0b7246e02c6efeab6ba"
+    },
+    {
+      "id": "optional-timeline-example",
+      "path": "../diagram-explainer/assets/example-timeline.html",
+      "required": false,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "d853c86bfd40491d5b747a07ca10b9d55d3349701ca01f508d83ba972b805788"
+    },
+    {
+      "id": "local-fonts",
+      "path": "../diagram-explainer/references/local-fonts.md",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "9ba1a7d2d3ec2699f3885b1d1058b7943c7a16e87e41b48d0b1f7763dd35c423"
+    },
+    {
+      "id": "local-font-faces",
+      "path": "../diagram-explainer/assets/local-fonts.css",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "1590aee300831a79df39270860183b9339196ed063f9ea18ff55b9703b60a1ec"
+    },
+    {
+      "id": "delivery-formats",
+      "path": "../diagram-explainer/references/delivery-formats.md",
+      "required": true,
+      "modes": [
+        "diagram"
+      ],
+      "sha256": "c86188431660064c5269b62e1d6a0bbb159afbafe61f7a268eb00c2878cd8ea1"
+    }
+  ]
+}

@@ -73,7 +73,7 @@ Reading the whole vault is allowed in both worlds.
    - A fresh session must show the expected versions, and the installed files must hash-match the release clone.
 3. **Retirement.** In this order:
    1. A fresh session shows every planned skill and agent under its namespace.
-   2. Quarantine, using an **explicit inventory**: the 30 personal entries listed in `docs/design/retirement-inventory.txt`, generated and reviewed before the move. Moved to `_to_delete/`. **`synced/` (Anthropic-managed official skills) and `_to_delete/` are never moved.**
+   2. Quarantine, using an **explicit inventory**: the 29 personal entries listed in `docs/design/retirement-inventory.txt`, generated and reviewed before the move. Moved to `_to_delete/`. **`synced/` (Anthropic-managed official skills) and `_to_delete/` are never moved.**
    3. A *second* fresh session shows no un-namespaced duplicates and no missing skills, **and still lists the official synced skills** (docx, pdf, pptx, xlsx, skill-creator, deep-research, browser skills).
    4. If that check fails, move the entries back (rollback) and record why.
 

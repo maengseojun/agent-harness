@@ -1,0 +1,4 @@
+interface:
+  display_name: "Harness Run"
+  short_description: "Run and resume verified work in any local project"
+  default_prompt: "Use $harness-run in this workspace to complete the requested work with saved progress, relevant skills, and independent review."
