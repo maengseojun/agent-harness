@@ -1,0 +1,70 @@
+{
+ "ok": true,
+ "session": "05e742ba-81e6-4d31-b4f2-f6dba6b12635",
+ "transcript": "/Users/maengseojun/.claude/projects/-private-tmp-maeng-smoke-S4-repo/05e742ba-81e6-4d31-b4f2-f6dba6b12635.jsonl",
+ "calls": [
+  {
+   "subagent_type": "maeng-tools:researcher",
+   "tool_use_id": "toolu_01AHDVWyfDjRLoDZ8MLb7wbC",
+   "models": [
+    "claude-haiku-5-5"
+   ],
+   "resolvedModel": "claude-haiku-5-5",
+   "tools_used": [
+    "Read"
+   ],
+   "expected": "haiku"
+  },
+  {
+   "subagent_type": "maeng-tools:architect",
+   "tool_use_id": "toolu_01SsirG14mDpjKL9xnE8g31y",
+   "models": [
+    "claude-opus-5-5"
+   ],
+   "resolvedModel": "claude-opus-5-5",
+   "tools_used": [
+    "Read"
+   ],
+   "expected": "opus"
+  },
+  {
+   "subagent_type": "maeng-tools:implementer",
+   "tool_use_id": "toolu_01SBCJzvsFL1L4VEmURZJEjC",
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "resolvedModel": "claude-sonnet-5-5",
+   "tools_used": [
+    "Bash",
+    "Grep",
+    "Write"
+   ],
+   "expected": "sonnet"
+  },
+  {
+   "subagent_type": "maeng-tools:researcher",
+   "tool_use_id": "toolu_0196LkWDMh15W7e57AuRnJxG",
+   "models": [
+    "claude-haiku-5-5"
+   ],
+   "resolvedModel": "claude-haiku-5-5",
+   "tools_used": [],
+   "expected": "haiku"
+  }
+ ],
+ "frontmatter_tools": {
+  "maeng-tools:researcher": [
+   "Read",
+   "Grep",
+   "Glob",
+   "WebFetch",
+   "WebSearch"
+  ],
+  "maeng-tools:architect": [
+   "Read",
+   "Grep",
+   "Glob"
+  ]
+ },
+ "errors": []
+}

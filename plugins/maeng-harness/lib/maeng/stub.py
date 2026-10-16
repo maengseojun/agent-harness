@@ -44,6 +44,12 @@ def write(st, status="in-progress", notes=(), ended=False):
           f"updated: {now_iso()}"]
     if ended:
         fm.append(f"ended: {now_iso()}")
+        # SessionEnd carries no obligations of its own: keep the last Stop's open items.
+        notes = notes or meta.get("open", [])
+        if meta.get("last_status") not in (None, "ok"):
+            status = f"ended ({meta['last_status']})"
+    else:
+        meta["open"], meta["last_status"] = list(notes), status
     fm.append("---")
     text = "\n".join(fm) + "\n\n" + _body(st, status, notes)
     path = vault / "wiki/sessions" / (name + ".md")

@@ -27,3 +27,5 @@ subscription-harness
 tutorial-video
 vercel-deploy
 work-records -> /Users/maengseojun/.local/share/agent-harness/releases/3cdfa1655e2e8fcca7d33859d649a6e85fe937f624b027db7c777da4a6eed130/harness-run/references/work-records
+# user-level agents (staging S5 finding)
+~/.claude/agents/codebase-explorer.md

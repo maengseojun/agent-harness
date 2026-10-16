@@ -74,6 +74,7 @@ Reading the whole vault is allowed in both worlds.
 3. **Retirement.** In this order:
    1. A fresh session shows every planned skill and agent under its namespace.
    2. Quarantine, using an **explicit inventory**: the 29 personal entries listed in `docs/design/retirement-inventory.txt`, generated and reviewed before the move. Moved to `_to_delete/`. **`synced/` (Anthropic-managed official skills) and `_to_delete/` are never moved.**
+   - The inventory also covers user-level **agents**: `~/.claude/agents/codebase-explorer.md`. It loads in every project, eta included (staging S5), and `maeng-tools:researcher` replaces it.
    3. A *second* fresh session shows no un-namespaced duplicates and no missing skills, **and still lists the official synced skills** (docx, pdf, pptx, xlsx, skill-creator, deep-research, browser skills).
    4. If that check fails, move the entries back (rollback) and record why.
 
@@ -275,6 +276,11 @@ What that gives:
 - **Gates (G1–G3):** registered with `onFailure: "block"`. They fail closed: a missing or unreadable receipt means deny.
 - **Trackers and context:** fail open with a stderr warning.
 - **Minimum Claude Code version:** 2.1.301.
+- **Known host limit (staging GF4).**
+  - `onFailure: "block"` blocks when the gate script exits non-zero, is missing, or times out (verified live: GF1–GF3).
+  - It does **not** block when a script exits 0 with malformed JSON. Claude Code then treats the call as allowed.
+  - The dispatcher therefore never prints non-JSON on stdout, and it exits 2 on any internal PreToolUse error (unit-tested).
+  - A malformed-output failure from outside the dispatcher is out of scope under the cooperative threat model.
 
 ### 5.2 Gates
 **G1 code-ship.** `gh` writes use an **allowlist**:

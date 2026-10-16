@@ -97,7 +97,11 @@ class StopTests(StopBase):
         self.assertIn("UNVERIFIED/UNRECORDED", files[0].read_text())
         self.assertIn("linear: [MAE-220]", files[0].read_text())
         self.hook("SessionEnd", self.repo, reason="other")
-        self.assertIn("ended:", files[0].read_text())
+        ended = files[0].read_text()
+        self.assertIn("ended:", ended)
+        # Regression (staging S1): SessionEnd must keep the last Stop's open obligations.
+        self.assertIn("Status: ended (UNVERIFIED/UNRECORDED)", ended)
+        self.assertIn("## Open", ended)
         self.assertEqual([p for p in files[0].parent.iterdir() if p.name.startswith(".tmp")], [])
 
     def test_no_vault_means_no_stub_and_no_error(self):

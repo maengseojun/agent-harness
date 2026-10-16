@@ -1,0 +1,3 @@
+# raw stream-json lives in /private/tmp/maeng-smoke; only *.summary.json is kept
+evidence/*.jsonl
+__pycache__/
