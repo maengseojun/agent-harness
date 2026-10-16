@@ -6,6 +6,7 @@ Raw stream-json -> $SMOKE_SCRATCH/<id>.jsonl ; condensed evidence -> tests/live/
 No real vault/home/remote is touched: every scenario gets temp MAENG_HOME/VAULT/CACHE dirs, a fake `gh` first on
 PATH, and local bare remotes only.
 """
+import hashlib
 import json
 import os
 import shutil
@@ -25,6 +26,20 @@ ETA_REAL = Path.home() / "Documents/Project/eta_v1"
 WRITE_TOOLS = "Bash Edit Write Read Glob Grep"
 TIMEOUT = int(os.environ.get("SMOKE_TIMEOUT", "900"))
 
+
+
+ETA_MARKERS = (".sisyphus", ".agent/", ".codex-worktrees", "/eta_v1/")
+
+
+def scrub_eta(obj):
+    """Evidence lives in a personal repo: drop any text that quotes eta_v1 working-tree content."""
+    if isinstance(obj, dict):
+        return {k: scrub_eta(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [scrub_eta(v) for v in obj]
+    if isinstance(obj, str) and any(m in obj for m in ETA_MARKERS):
+        return "[redacted: eta_v1 content is not stored in the personal repo]"
+    return obj
 
 def sh(cmd, cwd=None, env=None, check=True):
     p = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL)
@@ -221,6 +236,7 @@ def finish(scn, meta, facts):
                    gh_log=scn.gh_log.read_text().splitlines() if scn.gh_log.exists() else [],
                    scratch=str(scn.dir), raw=str(scn.raw))
     EVIDENCE.mkdir(exist_ok=True)
+    summary = scrub_eta(summary)
     (EVIDENCE / f"{scn.id}.summary.json").write_text(json.dumps(summary, indent=1, ensure_ascii=False) + "\n")
     r = summary["result"] or {}
     print(f"[{scn.id}] rc={meta['returncode']} {meta['seconds']}s result={r.get('subtype')} hooks={len(summary['hooks'])} "
@@ -301,7 +317,10 @@ def s4():
 
 def eta_status():
     p = sh(["git", "status", "--porcelain=v1", "--untracked-files=all"], cwd=ETA_REAL, env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"})
-    return {"head": sh(["git", "rev-parse", "HEAD"], cwd=ETA_REAL).stdout.strip(), "porcelain": p.stdout}
+    # Never store eta paths in this personal repo: keep only a digest and a line count.
+    return {"head": sh(["git", "rev-parse", "HEAD"], cwd=ETA_REAL).stdout.strip(),
+            "porcelain_sha256": hashlib.sha256(p.stdout.encode()).hexdigest(),
+            "porcelain_lines": len(p.stdout.splitlines())}
 
 
 def s5():

@@ -32,8 +32,8 @@
   },
   {
    "check": "[extra, design \u00a75.3/5.5] stub still lists the open UNVERIFIED/UNRECORDED items after SessionEnd",
-   "pass": false,
-   "detail": "False"
+   "pass": true,
+   "detail": ""
   },
   {
    "check": "state binds MAE-223 and keeps unverified (no evidence)",

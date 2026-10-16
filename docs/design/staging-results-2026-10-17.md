@@ -89,3 +89,13 @@ python3 tests/live/check_models.py --summary tests/live/evidence/S4.summary.json
   - architect → `claude-opus-5-5`
   - implementer → `claude-sonnet-5-5`
   - main session → opus
+
+## Re-run and redaction (2026-10-17)
+- **S1 re-run live after the stub fix:** 8/8 PASS, including "stub still lists the open items after SessionEnd".
+- **Totals: 57/61 PASS.** The 4 remaining are known and dispositioned:
+  - S5 ×2 (user-level agent and loose skills): retirement at release, MAE-224, re-checked there.
+  - GF4 ×2: Claude Code host limit, documented in design §5.1.
+- **Privacy fix.**
+  - S5/S7 evidence had stored eta_v1 `git status` output (eta file paths) in this personal repo. Replaced with `porcelain_sha256` + line count. Before and after match: `eb2d9150f3bc…`, 565 lines, so "unchanged" is still proven.
+  - `run_smoke.py` now scrubs eta_v1 content (`scrub_eta`) before writing any summary.
+  - The earlier commit `1785bca` on this branch still contains those paths in git history (private repo, file names only, no content).
