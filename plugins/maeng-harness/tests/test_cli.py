@@ -110,6 +110,24 @@ class ReviewRun(HarnessCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("schema", r.stderr)
 
+    def test_oversized_bundle_is_blocked_without_calling_reviewer(self):
+        r = self.review("--max-bytes", "10")
+        self.assertEqual(r.returncode, 2)
+        out = json.loads(r.stdout)
+        self.assertEqual(out["verdict"], "blocked")
+        self.assertIn("--max-bytes", out["findings"][0]["body"])
+        self.assertFalse(self.log.exists())
+
+    def test_path_scope_limits_bundle_and_lists_exclusions(self):
+        r = self.review("--exclude", "app.py", "--exclusion-reason", "verbatim copy")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        sent = self.stdin_log.read_text()
+        bundle = json.loads(sent[sent.index("\n{") + 1:])  # stdin = prompt text, then the bundle JSON
+        self.assertEqual(bundle["scope"]["excluded_files"], ["app.py"])
+        self.assertEqual(bundle["scope"]["exclusion_reason"], "verbatim copy")
+        self.assertNotIn("app.py", bundle["changed_files"])
+        self.assertNotIn("app.py", bundle["diff"])
+
     def test_incomplete_bundle_is_blocked_without_calling_reviewer(self):
         r = self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h],
                      self.repo, extra_env={"MAENG_CODEX": str(self.codex)})

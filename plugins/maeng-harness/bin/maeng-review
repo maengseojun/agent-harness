@@ -57,8 +57,14 @@ def code_bundle(a, cwd, st):
     if not (base and head):
         missing.append("base/head SHAs")
         return {"missing": missing}
-    diff = git_out(cwd, "diff", f"{base}...{head}") or ""
-    files = (git_out(cwd, "diff", "--name-only", f"{base}...{head}") or "").splitlines()
+    spec = list(a.path or []) + [f":(exclude){x}" for x in (a.exclude or [])]
+    tail = ["--", *spec] if spec else []
+    diff = git_out(cwd, "diff", f"{base}...{head}", *tail) or ""
+    files = (git_out(cwd, "diff", "--name-only", f"{base}...{head}", *tail) or "").splitlines()
+    excluded = []
+    if spec:
+        every = (git_out(cwd, "diff", "--name-only", f"{base}...{head}") or "").splitlines()
+        excluded = sorted(set(every) - set(files))
     contents = {}
     for f in files:
         rc, out, _ = git(cwd, "show", f"{head}:{f}")
@@ -73,7 +79,12 @@ def code_bundle(a, cwd, st):
         missing.append("verification evidence")
     if binding.get("criteria") is None or not binding.get("criteria"):
         missing.append("Spec/Plan AC-n criteria")
+    size = len(diff) + sum(len(v) for v in contents.values())
+    if size > a.max_bytes:
+        missing.append(f"bundle is {size} bytes (> --max-bytes {a.max_bytes}); narrow it with --path/--exclude")
     return {"kind": a.kind, "repo": git_out(cwd, "config", "--get", "remote.origin.url"), "pr": a.pr,
+            "scope": {"paths": a.path or [], "exclude": a.exclude or [], "excluded_files": excluded,
+                      "exclusion_reason": a.exclusion_reason},
             "base": base, "head": head, "diff": diff, "changed_files": contents,
             "criteria": binding.get("criteria"), "criteria_rev": binding.get("plan_updated_at"),
             "evidence": ev, "ship_verified": ok, "ship_verified_reasons": reasons, "missing": missing}
@@ -162,6 +173,10 @@ def main(argv=None):
     r.add_argument("--pr"); r.add_argument("--base"); r.add_argument("--head"); r.add_argument("--base-ref")
     r.add_argument("--payload"); r.add_argument("--destination"); r.add_argument("--op")
     r.add_argument("--draft"); r.add_argument("--source", action="append")
+    r.add_argument("--path", action="append", help="git pathspec to include (repeatable)")
+    r.add_argument("--exclude", action="append", help="git pathspec to exclude (repeatable); listed in the bundle")
+    r.add_argument("--exclusion-reason", help="why excluded files need no review (shown to the reviewer)")
+    r.add_argument("--max-bytes", type=int, default=1_500_000, help="bundle size limit; larger bundles are blocked")
     c = sub.add_parser("reconcile"); c.add_argument("--repo"); c.add_argument("--notion")
     c.add_argument("--page-id"); c.add_argument("--absent", action="store_true")
     s = sub.add_parser("store"); s.add_argument("verdict_file")
