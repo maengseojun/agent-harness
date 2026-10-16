@@ -249,6 +249,20 @@ def cmd_move(rel: str, store: str, world: str, dry_run: bool) -> dict:
         prior = parse_stub(stub_path.read_text(encoding="utf-8", errors="replace")) if stub_path.is_file() else None
         if not prior or prior.get("sha256") != src_hash:
             raise ArchiveError(f"refusing to overwrite existing {stub_path.name}: not a stub for this file")
+        # Retry of an interrupted move: the stub is already written and is NOT disposable.
+        # Verify its archived copy, remove only the binary, leave the stub byte-identical.
+        prior_root = store_root(str(prior.get("store", "")))
+        prior_copy = prior_root / str(prior.get("path", "")) if prior_root is not None else None
+        if prior_copy is None or not prior_copy.is_file() or sha256_file(prior_copy) != src_hash:
+            raise ArchiveError(
+                f"existing stub {stub_path.name} has no verified archive copy with the same sha256; "
+                "nothing changed")
+        if dry_run:
+            return {"action": "dry-run", "resume_binary_removal": True, "source": str(src),
+                    "destination": str(prior_copy), "sha256": src_hash, "stub": str(stub_path)}
+        src.unlink()
+        return {"action": "archived", "stub_preserved": True, "archive": prior, "source": str(src),
+                "destination": str(prior_copy), "sha256": src_hash, "size": size, "stub": str(stub_path)}
     plan = {"source": str(src), "destination": str(dest), "sha256": src_hash, "size": size, "stub": str(stub_path)}
     reuse = False
     if dest.exists():
@@ -289,7 +303,10 @@ def _excluded(rel: Path) -> bool:
 
 
 def _walk(base: Path):
-    for dirpath, dirnames, filenames in os.walk(base):
+    def _onerror(err):
+        raise ArchiveError(f"cannot read {getattr(err, 'filename', base)}: {err}; backup aborted, nothing written or pruned")
+
+    for dirpath, dirnames, filenames in os.walk(base, onerror=_onerror):
         dirnames[:] = [d for d in dirnames if d not in EXCLUDE_DIRS]
         for fn in filenames:
             p = Path(dirpath) / fn

@@ -32,6 +32,18 @@ convenience shortcuts, not a security boundary; a deliberately disguised route (
 innocuous name that pushes) is out of scope and is not a finding. Judge against that model: every KNOWN,
 non-disguised route must still be gated, and every gate must fail closed when it cannot decide. Report a gap in
 a known route or a gate that fails open; do not report out-of-scope disguised bypasses.
+Shipping and cross-world gating is an ALLOWLIST of canonical forms, by design: a Bash command that mentions a
+shipping route is allowed only as one plain single command in one of these forms: `git push [-u] <remote>
+<branch>`, `git push [-u] <remote> <branch-or-sha>:<refs/heads/name|name>`, maeng-ship's exact lease push
+(`git push --force-with-lease=refs/heads/<base>:<sha> <remote> <sha>:refs/heads/<base>`), `gh pr create` with only
+--base/--head/--title/--body/--body-file/--draft/--repo, `maeng-ship merge <N>`, and read-only or comment-style gh
+commands. Everything else (compound commands, wrappers, env assignments, `git -c/-C/--git-dir`, substitutions,
+redirects, other flags) is denied by design, so do NOT enumerate disguised or non-canonical variants as findings.
+Instead verify that the allowlist is closed (no route reaches the shell without passing it) and that each
+canonical form is fully checked (remote configuration, default branch, verified tree/remote head, receipts,
+repository binding, eta isolation).
+Files listed as delegated (files_delegated / scope.delegated_files) are OUT of this review's scope but are NOT
+covered by it: they still need their own passing review. Files listed as excluded are exempt.
 Start from the assumption that the change is wrong; try to falsify it against the acceptance criteria (AC-n).
 Answer with JSON matching the supplied schema. verdict=pass only if no critical/high finding remains and every AC is met.
 Use verdict=blocked if the bundle lacks something required.
@@ -101,14 +113,18 @@ def code_bundle(a, cwd, st):
     if not (base and head):
         missing.append("base/head SHAs")
         return {"missing": missing}
-    spec = list(a.path or []) + [f":(exclude){x}" for x in (a.exclude or [])]
+    delegate = list(a.delegate or [])
+    spec = list(a.path or []) + [f":(exclude){x}" for x in [*(a.exclude or []), *delegate]]
     tail = ["--", *spec] if spec else []
     diff = git_out(cwd, "diff", "--no-renames", f"{base}...{head}", *tail) or ""
     files = sorted(set((git_out(cwd, "diff", "--name-only", "--no-renames", f"{base}...{head}", *tail) or "").splitlines()))
-    excluded = []
+    excluded, delegated = [], []
     if spec:
         every = (git_out(cwd, "diff", "--name-only", "--no-renames", f"{base}...{head}") or "").splitlines()
-        excluded = sorted(set(every) - set(files))
+        if delegate:  # delegated files are reviewed elsewhere and are never exempt
+            delegated = sorted(set((git_out(cwd, "diff", "--name-only", "--no-renames", f"{base}...{head}", "--",
+                                            *delegate) or "").splitlines()))
+        excluded = sorted(set(every) - set(files) - set(delegated))
     contents = {}
     for f in files:
         rc, out, _ = git(cwd, "show", f"{head}:{f}")
@@ -133,6 +149,7 @@ def code_bundle(a, cwd, st):
     return {"kind": a.kind, "repo": guard.normalize_repo(remote_url), "pr": a.pr, "files_reviewed": files,
             "evidence_files": evidence_files,
             "scope": {"paths": a.path or [], "exclude": a.exclude or [], "excluded_files": excluded,
+                      "delegate": delegate, "delegated_files": delegated,
                       "exclusion_reason": a.exclusion_reason},
             "base": base, "head": head, "diff": diff, "changed_files": contents,
             "criteria": binding.get("criteria"), "criteria_rev": binding.get("plan_updated_at"),
@@ -163,6 +180,7 @@ def run_review(a, cwd):
                    "criteria_rev": bundle.get("criteria_rev"), "digest": diff_digest,
                    "files_reviewed": bundle.get("files_reviewed", []),
                    "files_excluded": (bundle.get("scope") or {}).get("excluded_files", []),
+                   "files_delegated": (bundle.get("scope") or {}).get("delegated_files", []),
                    "exclusion_reason": (bundle.get("scope") or {}).get("exclusion_reason"),
                    "destination": f"refs/heads/{a.base_ref}" if a.base_ref else None, "op": "merge"}
         if not a.base_ref:
@@ -196,6 +214,7 @@ def run_review(a, cwd):
         verdict_key = receipts.store_verdict(verdict)
     else:
         verdict_key = None
+        receipts.revoke_passes(subject, verdict["verdict"])  # a failed re-review revokes earlier unconsumed passes
     reviews = home_dir() / "reviews"
     write_json(reviews / f"{sha256(canonical(verdict))[:16]}.json", verdict)
     print(json.dumps({"verdict": verdict["verdict"], "receipt": verdict_key, "findings": verdict["findings"]}, indent=2))
@@ -232,6 +251,8 @@ def main(argv=None):
     r.add_argument("--draft"); r.add_argument("--source", action="append")
     r.add_argument("--path", action="append", help="git pathspec to include (repeatable)")
     r.add_argument("--exclude", action="append", help="git pathspec to exclude (repeatable); listed in the bundle")
+    r.add_argument("--delegate", action="append",
+                   help="git pathspec reviewed by ANOTHER receipt (repeatable); not covered by this one")
     r.add_argument("--exclusion-reason", help="why excluded files need no review (shown to the reviewer)")
     r.add_argument("--remote", default="origin", help="remote whose repository the receipt is bound to")
     r.add_argument("--evidence", action="append", help="file whose contents are embedded as evidence_files (repeatable)")

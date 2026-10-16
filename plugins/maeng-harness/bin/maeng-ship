@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
 
-from maeng import evidence, guard, receipts, state  # noqa: E402
+from maeng import evidence, guard, receipts, remotecfg, state  # noqa: E402
 from maeng import tree as treelib  # noqa: E402
 from maeng.cli_common import die, require_personal, session_for  # noqa: E402
 from maeng.common import git  # noqa: E402
@@ -38,11 +38,9 @@ def merge(a, cwd):
     base, head = info["baseRefOid"], info["headRefOid"]
     ref = f"refs/heads/{base_ref}"
     # bind the authorization to the repository: push remote == receipt repo == repo queried via gh; never eta
-    push_url = git(cwd, "remote", "get-url", "--push", a.remote)[1].strip()
-    if not push_url:
-        die(f"cannot resolve push remote `{a.remote}`")
-    if guard.remote_is_eta(push_url):
-        die(f"push remote {push_url} is an eta repository; eta is a separate world")
+    push_url, err = remotecfg.plain_remote(cwd, a.remote)
+    if err:
+        die(err)
     repo = guard.normalize_repo(push_url)
     gh_repo = guard.normalize_repo(re.sub(r"/pull/\d+/?$", "", str(info.get("url") or "")))
     if not gh_repo or gh_repo != repo:
@@ -95,7 +93,9 @@ def main(argv=None):
     p.add_argument("--session")
     sub = p.add_subparsers(dest="cmd", required=True)
     m = sub.add_parser("merge"); m.add_argument("pr"); m.add_argument("--remote", default="origin")
+    m.add_argument("--session", dest="session_sub", default=None)
     a = p.parse_args(argv)
+    a.session = a.session or a.session_sub
     sys.exit(merge(a, os.getcwd()))
 
 

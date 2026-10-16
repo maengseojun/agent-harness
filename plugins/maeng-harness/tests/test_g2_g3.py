@@ -182,11 +182,11 @@ class G3Tests(HarnessCase):
     def test_git_push_to_eta_urls(self):
         for url in ("https://github.com/maengseojun/eta_v1.git", "git@github.com:endix-foundation-v1/web.git",
                     "https://github.com/endix-foundation-v1/contracts"):
-            self.denied(f"git push {url} feat", "eta")
+            self.denied(f"git push {url} feat", "canonical")            # (round 2) URL remotes are not canonical
             self.denied(f"git push {url} HEAD:refs/heads/feat")
         self.git(self.repo, "remote", "add", "etar", "https://github.com/maengseojun/eta_v1.git")
         self.denied("git push etar feat", "eta")
-        self.denied(f"git push {self.eta_root} feat")
+        self.denied(f"git push {self.eta_root} feat", "canonical")
 
     def test_gh_remote_targets(self):
         self.denied("gh pr create -R endix-foundation-v1/x --title t --body b", "eta")

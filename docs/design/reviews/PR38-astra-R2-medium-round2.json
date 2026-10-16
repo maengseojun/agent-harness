@@ -1,0 +1,27 @@
+{
+  "verdict": "fail",
+  "receipt": null,
+  "findings": [
+    {
+      "body": "The round-1 transcript-promotion finding remains unresolved. A snapshot ending with a valid ITEM block is accepted as `ok` if Aside subsequently terminates without writing more stdout (including errors reported only on stderr). EOF does not establish a final-answer boundary, and the pipeline records but never gates on the Aside exit code. Require independently identifiable final-answer provenance and successful execution before promoting blocks; otherwise collect nothing.",
+      "file": "plugins/maeng-tools/skills/aside-collect/scripts/parse_aside.py",
+      "line": 88,
+      "severity": "high",
+      "title": "EOF check still accepts snapshot content as a final answer"
+    },
+    {
+      "body": "`os.walk(base)` silently skips directory enumeration errors without an `onerror` handler. If one vault directory becomes unreadable while another contains a Markdown file, the backup passes validation: its counts describe only successfully enumerated files. It then prunes older complete backups despite being incomplete. Make traversal errors abort backup before cloud copying or pruning, and test an unreadable subtree.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": null,
+      "severity": "high",
+      "title": "Backup completeness check fails open on directory read errors"
+    },
+    {
+      "body": "The existing-stub fix permits replacement whenever the binary hash matches, then unconditionally builds and writes a fresh placeholder stub. If an earlier move wrote the stub but failed before unlinking the binary, or the same binary was restored separately, retrying destroys the existing summary, links and metadata without backing them up. Matching binary bytes do not establish that the stub is disposable. Preserve or explicitly reconcile the existing stub, and test a retry with a populated summary.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": null,
+      "severity": "high",
+      "title": "Retrying a binary move still destroys an existing populated stub"
+    }
+  ]
+}

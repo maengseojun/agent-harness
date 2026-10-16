@@ -44,17 +44,37 @@ def glob_regex(pattern):
     return re.compile("^" + out + "$")
 
 
+def _str_list(value):
+    return isinstance(value, list) and all(isinstance(v, str) for v in value)
+
+
 def load_policy(top):
-    """`.maeng/verify.json`: non_code_globs, required, protected_branches, formatter."""
-    policy = {"non_code_globs": DEFAULT_NON_CODE, "required": [], "protected_branches": [], "formatter": None}
+    """`.maeng/verify.json`: non_code_globs, required, protected_branches, formatter.
+
+    A missing file gives the defaults. A file that exists but is unreadable, not JSON, not an object, or has
+    wrongly typed fields gives the defaults plus `invalid` (a reason): shipping is denied until it is fixed."""
+    policy = {"non_code_globs": DEFAULT_NON_CODE, "required": [], "protected_branches": [], "formatter": None,
+              "invalid": None}
+    path = Path(top) / ".maeng/verify.json"
     try:
-        data = read_json(Path(top) / ".maeng/verify.json", {}) or {}
-    except ValueError:
+        data = read_json(path, None)
+    except (OSError, ValueError) as exc:
+        policy["invalid"] = f"{path} is unreadable or not valid JSON ({type(exc).__name__})"
         return policy
-    if isinstance(data, dict):
-        for k in policy:
-            if k in data:
-                policy[k] = data[k]
+    if data is None and not path.exists():
+        return policy
+    if not isinstance(data, dict):
+        policy["invalid"] = f"{path} must contain a JSON object"
+        return policy
+    bad = [k for k in ("non_code_globs", "required", "protected_branches") if k in data and not _str_list(data[k])]
+    if "formatter" in data and data["formatter"] is not None and not _str_list(data["formatter"]):
+        bad.append("formatter")
+    if bad:
+        policy["invalid"] = f"{path}: invalid field(s) " + ", ".join(bad)
+        return policy
+    for k in ("non_code_globs", "required", "protected_branches", "formatter"):
+        if k in data:
+            policy[k] = data[k]
     return policy
 
 

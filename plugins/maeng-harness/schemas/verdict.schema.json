@@ -22,6 +22,7 @@
         "op": {"type": ["string", "null"]},
         "files_reviewed": {"type": "array", "items": {"type": "string"}},
         "files_excluded": {"type": "array", "items": {"type": "string"}},
+        "files_delegated": {"type": "array", "items": {"type": "string"}},
         "exclusion_reason": {"type": ["string", "null"]}
       }
     },

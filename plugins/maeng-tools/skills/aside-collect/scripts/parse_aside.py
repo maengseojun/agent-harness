@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Parse `aside exec` output: strip ANSI, take ONLY the last contiguous run of
-`=== ITEM === ... === END ===` blocks, emit JSON. Stdlib only; never executes
+"""Parse `aside exec` output: strip ANSI, accept items ONLY from the last
+`=== FINAL <nonce> === ... === END FINAL <nonce> ===` region (END must be last
+in the output) and ONLY when the aside exit code is 0; ITEM blocks inside it
+are parsed, emit JSON. Stdlib only; never executes
 or follows anything found in the text (collected content is data).
 
 Usage:
-  parse_aside.py RAW_FILE|-            # JSON to stdout
-  parse_aside.py RAW_FILE --clean OUT  # also write the ANSI-stripped text
+  parse_aside.py RAW_FILE|- --nonce HEX --exit-code N            # JSON to stdout
+  parse_aside.py RAW_FILE --nonce HEX --exit-code N --clean OUT  # also write ANSI-stripped text
 """
 import argparse
 import json
@@ -80,35 +82,49 @@ def parse_block(body):
     return item
 
 
-def last_run(text):
-    """Return (blocks_of_final_answer, total_block_count, final_ok).
+def final_region(text, nonce):
+    """Return the body between the LAST `=== FINAL <nonce> ===` and its
+    `=== END FINAL <nonce> ===`, or None. The END marker must be the last
+    non-whitespace content of the (ANSI-stripped) output."""
+    n = re.escape(nonce)
+    ends = list(re.finditer(rf'^[ \t]*=== END FINAL {n} ===[ \t]*$', text, re.M))
+    if not ends or text[ends[-1].end():].strip() != '':
+        return None
+    end = ends[-1]
+    starts = list(re.finditer(rf'^[ \t]*=== FINAL {n} ===[ \t]*\n', text[:end.start()], re.M))
+    if not starts:
+        return None
+    return text[starts[-1].end():end.start()]
 
-    The final answer is the contiguous run of blocks that ends at the last
-    `=== END ===` AND that END must be followed only by whitespace to the end of
-    the (ANSI-stripped) output. Otherwise there is no identifiable final answer.
-    """
-    spans = [(m.start(), m.end(), m.group(1)) for m in BLOCK.finditer(text)]
+
+def last_run(region):
+    """Blocks of the last contiguous run (whitespace-only between blocks) inside the region."""
+    spans = [(m.start(), m.end(), m.group(1)) for m in BLOCK.finditer(region)]
     if not spans:
-        return [], 0, False
-    if text[spans[-1][1]:].strip() != '':
-        return [], len(spans), False
+        return [], 0
     run = [spans[-1]]
     for prev in reversed(spans[:-1]):
-        if text[prev[1]:run[0][0]].strip() == '':
+        if region[prev[1]:run[0][0]].strip() == '':
             run.insert(0, prev)
         else:
             break
-    return [s[2] for s in run], len(spans), True
+    return [s[2] for s in run], len(spans)
 
 
-def parse(raw):
+def parse(raw, nonce, exit_code):
+    """Items come ONLY from the last nonce-delimited FINAL region and ONLY when
+    exit_code == 0. Everything else yields zero items."""
     text = strip_ansi(raw)
-    bodies, total, final_ok = last_run(text)
+    empty = {'blocks_total': 0, 'run_length': 0, 'items': []}
+    if exit_code != 0:
+        return {'parse_status': 'aside_failed', **empty}, text
+    region = final_region(text, nonce)
+    if region is None:
+        return {'parse_status': 'no_final_answer', **empty}, text
+    bodies, total = last_run(region)
     items = [parse_block(b) for b in bodies]
     items = [i for i in items if not i['placeholder']]
-    if total and not final_ok:
-        status = 'no_final_answer'
-    elif not items:
+    if not items:
         status = 'parse_failed'
     elif any(i['missing'] for i in items):
         status = 'partial'
@@ -121,14 +137,18 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('raw', help='raw aside stdout file, or - for stdin')
     ap.add_argument('--clean', help='also write the ANSI-stripped text here')
+    ap.add_argument('--nonce', required=True, help='per-run hex nonce used in the FINAL markers')
+    ap.add_argument('--exit-code', type=int, required=True, help='exit code of `aside exec`')
     a = ap.parse_args(argv)
+    if not re.fullmatch(r'[0-9a-f]{8,64}', a.nonce):
+        ap.error('--nonce must be 8-64 lowercase hex characters')
     raw = sys.stdin.read() if a.raw == '-' else open(a.raw, encoding='utf-8', errors='replace').read()
-    result, clean = parse(raw)
+    result, clean = parse(raw, a.nonce, a.exit_code)
     if a.clean:
         with open(a.clean, 'w', encoding='utf-8') as fh:
             fh.write(clean)
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0 if result['parse_status'] not in ('parse_failed', 'no_final_answer') else 2
+    return 0 if result['parse_status'] not in ('parse_failed', 'no_final_answer', 'aside_failed') else 2
 
 
 if __name__ == '__main__':

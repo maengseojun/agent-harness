@@ -67,6 +67,7 @@ class HarnessCase(unittest.TestCase):
             self.git(repo, "remote", "add", "origin", str(remote))
             self.git(repo, "push", "-q", "origin", "main")
             self.git(repo, "fetch", "-q", "origin")
+            self.git(repo, "remote", "set-head", "origin", "main")  # push gating needs the remote's default branch
         return repo
 
     def commit_all(self, repo, msg="c"):

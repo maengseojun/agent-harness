@@ -22,6 +22,8 @@ def subject_key(subject):
     core = {k: subject.get(k) for k in ("kind", "repo", "pr", "base", "head", "criteria_rev", "digest",
                                          "destination", "op",
                                          "files_reviewed", "files_excluded")}
+    if subject.get("files_delegated"):
+        core["files_delegated"] = subject["files_delegated"]
     return "code-" + sha256(canonical(core))[:24]
 
 
@@ -42,9 +44,36 @@ def store_verdict(verdict):
             raise ReceiptError(f"receipt {key} is {existing['status']}; cannot replace")
         rec = existing or {"key": key, "status": UNCONSUMED, "history": []}
         rec["verdict"] = verdict
+        if verdict["verdict"] == "pass":
+            rec.pop("revoked", None)  # a newer pass for this exact subject supersedes an earlier revocation
         rec["history"].append({"at": now_iso(), "event": "stored:" + verdict["verdict"]})
         write_json(p, rec)
+    if verdict["verdict"] != "pass":
+        revoke_passes(verdict["subject"], verdict["verdict"])
     return key
+
+
+def revoke_passes(subject, by):
+    """A `fail`/`blocked` verdict revokes every earlier UNCONSUMED pass receipt for the same repo/base/head.
+    Consumed/pending receipts are untouched (their merge already happened or is in flight). -> revoked keys."""
+    if subject.get("kind") not in ("code", "parent"):
+        return []
+    revoked = []
+    for _, rec in list(_scan("code-")):
+        if rec is None or rec["verdict"]["verdict"] != "pass" or rec["status"] != UNCONSUMED or rec.get("revoked"):
+            continue
+        s = rec["verdict"]["subject"]
+        if (s.get("repo"), s.get("base"), s.get("head")) != (subject.get("repo"), subject.get("base"),
+                                                              subject.get("head")):
+            continue
+
+        def mark(r, by=by):
+            if r["verdict"]["verdict"] == "pass" and r["status"] == UNCONSUMED and not r.get("revoked"):
+                r["revoked"] = {"at": now_iso(), "by": by}
+                r["history"].append({"at": now_iso(), "event": "revoked:" + by})
+        _mutate(rec["key"], mark)
+        revoked.append(rec["key"])
+    return revoked
 
 
 def load(key):
@@ -88,7 +117,7 @@ def find_code(cwd, repo, base, head, ref, criteria_rev, files=None):
     repo/base/head/criteria. A file is covered when it is in `files_reviewed` of a pass receipt, or in
     `files_excluded` of a pass receipt of kind `parent` (the parent reviewer accepted the exclusion).
     -> (list of records | None, problem). Every returned record must be consumed together."""
-    unreadable = stale = failed = False
+    unreadable = stale = failed = revoked = False
     seen_status = None
     cands = []
     for _, rec in _scan("code-"):
@@ -105,6 +134,9 @@ def find_code(cwd, repo, base, head, ref, criteria_rev, files=None):
         if rec["verdict"]["verdict"] != "pass":
             failed = True
             continue
+        if rec.get("revoked"):
+            revoked = True
+            continue
         if (s.get("criteria_rev") or None) != (criteria_rev or None):
             stale = True
             continue
@@ -115,6 +147,8 @@ def find_code(cwd, repo, base, head, ref, criteria_rev, files=None):
     if failed:
         return None, "review verdict is not pass"
     if not cands:
+        if revoked:
+            return None, "review was revoked by a later fail/blocked verdict for this head"
         if stale:
             return None, "review is stale: criteria updatedAt changed since review"
         if seen_status:
@@ -131,8 +165,8 @@ def find_code(cwd, repo, base, head, ref, criteria_rev, files=None):
         s = rec["verdict"]["subject"]
         reviewed = set(s.get("files_reviewed") or [])
         got = (uncovered & reviewed)
-        if s.get("kind") == "parent":
-            got |= uncovered & set(s.get("files_excluded") or [])
+        if s.get("kind") == "parent":  # exempt exclusions only; delegated files need their own pass receipt
+            got |= uncovered & (set(s.get("files_excluded") or []) - set(s.get("files_delegated") or []))
         if reviewed and diff_digest(cwd, base, head, sorted(reviewed)) != s.get("digest"):
             continue  # the recorded diff digest does not match what is being shipped
         if got or (not files and not used):
@@ -141,7 +175,8 @@ def find_code(cwd, repo, base, head, ref, criteria_rev, files=None):
     if uncovered or not used:
         shown = ", ".join(sorted(uncovered)[:8])
         return None, ("review coverage incomplete: no pass receipt covers " + (shown or "this change") +
-                      " (each changed file must be in some receipt's files_reviewed, or in a parent receipt's files_excluded)")
+                      " (each changed file must be in some receipt's files_reviewed, or in a parent receipt's files_excluded; "
+                      "files_delegated are NOT covered by the parent and need their own pass receipt)")
     return used, ""
 
 

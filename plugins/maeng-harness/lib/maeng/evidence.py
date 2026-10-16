@@ -1,6 +1,8 @@
 """Runner recognition, tree-bound evidence, ship-verified and stop-satisfied predicates."""
 import fnmatch
 import hashlib
+import os
+import posixpath
 import re
 from pathlib import Path
 
@@ -44,6 +46,27 @@ def _result(name, kind, args):
     return name, kind, " ".join([name, *kept])
 
 
+LAUNCHER_VALUE_OPTS = {"-p", "--package", "--cache", "--userconfig", "--prefix", "--registry", "--workspace", "-w"}
+
+
+def _launched(args):
+    """npx / pnpm dlx / yarn dlx: strip only the launcher's own options; the runner's own arguments are kept
+    (so `npx playwright test --help` stays a no-run invocation)."""
+    i = 0
+    while i < len(args):
+        t = args[i]
+        if t == "--":
+            i += 1
+            break
+        if not t.startswith("-"):
+            break
+        if t in ("-c", "--call", "--shell-mode"):
+            return None  # a shell string: not a recognized runner
+        i += 2 if (t in LAUNCHER_VALUE_OPTS) else 1
+    rest = args[i:]
+    return _runner(rest) if rest else None
+
+
 def _runner(tokens):
     """Return (name, kind, identity) if this segment is a recognized check runner."""
     prog, toks = program(tokens)
@@ -53,8 +76,9 @@ def _runner(tokens):
         rest = [t for t in toks[2:] if t != "--"]
         return _runner(rest)
     if prog == "npx":
-        rest = [t for t in toks[1:] if not t.startswith("-")]
-        return _runner(rest) if rest else None
+        return _launched(toks[1:])
+    if prog in ("pnpm", "yarn", "npm") and len(toks) > 2 and toks[1] in ("dlx", "exec"):
+        return _launched(toks[2:])
     if PY_RE.match(prog):
         if "-m" in toks[1:-1]:
             i = toks.index("-m")
@@ -121,8 +145,24 @@ def recognize(command):
 
 # ---- recording (pure functions over the state dict) ---------------------
 
-def pre_runner(st, key, command, rec, tree_start, common):
-    st["pending"][key] = {"cmd": command, "checks": rec["checks"], "tree_start": tree_start, "common": common}
+def rel_dir(run_cwd, top):
+    """Working directory relative to the repository root ('' for the root itself)."""
+    if not (run_cwd and top):
+        return ""
+    try:
+        rel = os.path.relpath(os.path.realpath(run_cwd), os.path.realpath(top))
+    except ValueError:
+        return ""
+    return "" if rel == "." or rel.startswith("..") else rel.replace(os.sep, "/")
+
+
+def scoped_identity(identity, rel):
+    return f"{identity}@{rel}" if rel else identity
+
+
+def pre_runner(st, key, command, rec, tree_start, common, rel=""):
+    st["pending"][key] = {"cmd": command, "checks": rec["checks"], "tree_start": tree_start, "common": common,
+                          "dir": rel}
 
 
 def post_runner(st, key, ok, tree_finish):
@@ -132,10 +172,10 @@ def post_runner(st, key, ok, tree_finish):
     started = pend["tree_start"]
     if ok and (not started or started != tree_finish):
         return []  # code changed during the check, or tree undecidable: no evidence
-    added = []
+    added, rel = [], pend.get("dir") or ""
     for name, kind, identity in pend["checks"]:
         added.append(add_evidence(st, name, kind, pend["cmd"], ok, started, tree_finish, pend["common"], "runner",
-                                  identity))
+                                  scoped_identity(identity, rel), rel))
     return added
 
 
@@ -143,8 +183,9 @@ def norm_identity(text):
     return " ".join(str(text).replace("`", "").split())
 
 
-def add_evidence(st, check, kind, cmd, ok, tree_start, tree_finish, common, source, identity=None):
-    ev = {"seq": bump(st), "check": check, "kind": kind, "cmd": cmd, "identity": identity or norm_identity(check), "ok": bool(ok), "tree_start": tree_start,
+def add_evidence(st, check, kind, cmd, ok, tree_start, tree_finish, common, source, identity=None, rel=""):
+    ev = {"seq": bump(st), "check": check, "kind": kind, "cmd": cmd, "identity": identity or norm_identity(check),
+          "dir": rel, "ok": bool(ok), "tree_start": tree_start,
           "tree_finish": tree_finish, "finished_at": now_iso(), "common": common, "source": source}
     st["evidence"].append(ev)
     return ev
@@ -210,17 +251,49 @@ def _identity(ev):
     return (ev.get("identity") or norm_identity(ev["check"])).lower()
 
 
-def _pat_identities(pat):
-    rec = recognize(pat)
-    if rec:
-        return [i.lower() for _, _, i in rec["checks"]]
-    return [norm_identity(pat).lower()]
+def _norm_dir(path):
+    path = posixpath.normpath(path.strip()) if path.strip() else ""
+    return "" if path in (".", "") else path
 
 
-def _matches(ev, pat):
-    """A required check is met only by a run whose identity equals it or matches it as a glob."""
-    ident = _identity(ev)
-    return any(ident == p or fnmatch.fnmatchcase(ident, p) for p in _pat_identities(pat))
+def parse_requirement(pat):
+    """A required-check string -> [(identity, dir)], ALL of which must be satisfied. `a && b` / `a; b` are
+    compound; `cd X &&` scopes later constituents to X (relative to the repository root)."""
+    literal = [(norm_identity(pat).lower(), "")]
+    if "`" in pat or "$(" in pat:
+        return literal
+    try:
+        segs = split_segments(pat)
+    except ParseError:
+        return literal
+    if not segs or any(s.op_after not in ("&&", ";", "") or s.redirects for s in segs):
+        return literal
+    out, cur = [], ""
+    for seg in segs:
+        prog, toks = program(seg.tokens)
+        if prog == "cd" and len(toks) == 2:
+            cur = _norm_dir(toks[1])
+            continue
+        r = _runner(seg.tokens)
+        if r:
+            out.append((r[2].lower(), cur))
+        elif len(segs) == 1:
+            return literal
+        else:
+            out.append((norm_identity(" ".join(seg.tokens)).lower(), cur))
+    return out or literal
+
+
+def _ev_ident(ev):
+    ident = (ev.get("identity") or norm_identity(ev["check"])).lower()
+    rel = ev.get("dir") or ""
+    suffix = f"@{rel}".lower()
+    return (ident[:-len(suffix)] if rel and ident.endswith(suffix) else ident), rel
+
+
+def requirement_met(good, pat):
+    return all(any(_ev_ident(e)[1] == d and (_ev_ident(e)[0] == p or fnmatch.fnmatchcase(_ev_ident(e)[0], p))
+                   for e in good) for p, d in parse_requirement(pat))
 
 
 class Verifier:
@@ -252,6 +325,8 @@ class Verifier:
         """(ok, reasons). Skips never count here."""
         if not tree:
             return False, ["tree id unavailable (dirty submodule or git failure)"]
+        if self.policy.get("invalid"):
+            return False, ["invalid verification policy: " + self.policy["invalid"]]
         reasons = []
         evs = self._evidence()
         good = [e for e in evs if e["ok"] and e["tree_start"] and e["tree_start"] == e["tree_finish"]
@@ -262,7 +337,7 @@ class Verifier:
                 reasons.append("no passing test-runner evidence for this tree")
         else:
             for p in pats:
-                if not any(_matches(e, p) for e in good):
+                if not requirement_met(good, p):
                     reasons.append(f"required check not passed on this tree: {p}")
         for f in evs:
             if not f["ok"] and f["tree_finish"] and self.eq(f["tree_finish"], tree):

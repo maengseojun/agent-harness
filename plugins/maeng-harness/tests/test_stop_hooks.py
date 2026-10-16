@@ -245,11 +245,14 @@ class EtaAndUnknown(HarnessCase):
         self.assertIsNone(self.hook("Stop", repo, stop_hook_active=False)[1])
         self.hook("SessionEnd", repo, reason="x")
         self.assertEqual(snapshot(self.maeng_home, self.vault), before)       # no state, no stub
-        for cmd in ("git push origin feat", "git push --force origin feat", "gh pr comment 1 -b x", "gh pr create --fill",
-                    "gh pr merge 1", "gh api -X POST repos/o/r/issues/1/comments -f body=x"):
+        for cmd in ("git push origin feat", "gh pr comment 1 -b x", "gh pr create --title t --body b",
+                    "touch marker.txt", "git commit --allow-empty -m x"):
             denied, reason = self.bash_pre(repo, cmd)
             self.assertTrue(denied, cmd)
             self.assertIn("cannot classify", reason)
+        for cmd in ("git push --force origin feat", "gh pr merge 1", "gh api -X POST repos/o/r/issues/1/comments -f body=x",
+                    "gh pr create --fill"):            # (round 2) non-canonical forms are denied by the allowlist
+            self.assertTrue(self.bash_pre(repo, cmd)[0], cmd)
         self.assertTrue(self.pre(repo, "Edit", {"file_path": str(repo / "app.py")})[0])
         self.assertTrue(self.pre(repo, "mcp__github__create_issue", {"owner": "o", "repo": "r", "title": "t"})[0])
         self.assertFalse(self.bash_pre(repo, "ls -la")[0])
@@ -275,7 +278,8 @@ class DispatcherFailureModes(HarnessCase):
     def test_gate_crash_fails_closed_tracker_crash_fails_open(self):
         def boom(payload):
             raise RuntimeError("kaboom")
-        rc, out, err = self.run_main(json.dumps({"hook_event_name": "PreToolUse"}), {"PreToolUse": boom})
+        rc, out, err = self.run_main(json.dumps({"hook_event_name": "PreToolUse", "tool_input": {}}),
+                                     {"PreToolUse": boom})
         self.assertEqual(rc, 2)
         self.assertIn("kaboom", err)
         rc, out, err = self.run_main(json.dumps({"hook_event_name": "Stop"}), {"Stop": boom})
@@ -283,9 +287,11 @@ class DispatcherFailureModes(HarnessCase):
         self.assertEqual(out, "")
 
     def test_malformed_input_and_unknown_events_are_inert(self):
+        # (round 2) unreadable input can be a PreToolUse gate call: it now fails closed (exit 2); see test_r2.R2_D
         for text in ("", "not json", "[]"):
-            rc, out, _ = self.run_main(text, {})
-            self.assertEqual((rc, out), (0, ""))
+            rc, out, err = self.run_main(text, {})
+            self.assertEqual((rc, out), (2, ""))
+            self.assertTrue(err.strip())
         rc, out, _ = self.run_main(json.dumps({"hook_event_name": "Elicitation"}), {})
         self.assertEqual((rc, out), (0, ""))
 
@@ -294,5 +300,5 @@ class DispatcherFailureModes(HarnessCase):
         self.start(repo)
         denied, reason = self.pre(repo, "Bash", {"command": 123})        # malformed tool_input
         self.assertFalse(denied)                                          # a non-string command is simply not parseable as risky
-        denied, reason = self.pre(repo, "Bash", "garbage")
-        self.assertFalse(denied)
+        denied, reason = self.pre(repo, "Bash", "garbage")                # (round 2) not an object: denied
+        self.assertTrue(denied)

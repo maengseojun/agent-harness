@@ -64,6 +64,14 @@ def remote_is_eta(url):
     return owner in ETA_ORGS or f"{owner}/{name}" in ETA_SLUGS
 
 
+def spec_is_eta(text):
+    """Generous eta test for any repo spec (slug, URL, host/owner/name, API path): deny on any eta mention."""
+    low = (text or "").lower()
+    if any(org in low for org in ETA_ORGS) or any(slug in low for slug in ETA_SLUGS):
+        return True
+    return remote_is_eta(text)
+
+
 def _under(path, root):
     try:
         path.relative_to(root.resolve())

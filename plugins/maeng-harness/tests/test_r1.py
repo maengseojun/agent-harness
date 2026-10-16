@@ -149,32 +149,35 @@ class R1_3_RepositoryBinding(MergeBase):
 
 
 class R1_4_ConfiguredPushRefspec(ShipBase):
+    """Round 2 replaced refspec resolution with: explicit refspec only, and no remote.<r>.push at all."""
+
     def test_c_override_of_remote_push_to_default_branch_denied(self):
         self.verified()
-        self.assertDenied("git -c remote.origin.push=HEAD:refs/heads/main push origin", "default branch")
-        self.assertDenied("git -c remote.origin.push=HEAD:refs/heads/main push", "default branch")
+        self.assertDenied("git -c remote.origin.push=HEAD:refs/heads/main push origin", "canonical")
+        self.assertDenied("git -c remote.origin.push=HEAD:refs/heads/main push", "canonical")
 
     def test_config_file_remote_push_denied(self):
         self.verified()
         self.git(self.repo, "config", "remote.origin.push", "HEAD:refs/heads/main")
-        self.assertDenied("git push origin", "default branch")
-        self.assertDenied("git push", "default branch")
-        self.assertAllowed("git push origin feat")                     # explicit refspec ignores remote.push
+        self.assertDenied("git push origin", "canonical")
+        self.assertDenied("git push", "canonical")
+        self.assertDenied("git push origin feat", "remote.origin.push")      # was allowed: now any remote.push denies
 
-    def test_undeterminable_refspec_is_denied_with_explicit_refspec_hint(self):
+    def test_undeterminable_refspec_is_denied(self):
         self.verified()
         self.git(self.repo, "config", "remote.origin.push", "+refs/heads/*:refs/heads/*")
-        self.assertDenied("git push origin", "explicit refspec")
+        self.assertDenied("git push origin", "canonical")
+        self.assertDenied("git push origin feat", "remote.origin.push")
         self.git(self.repo, "config", "--unset", "remote.origin.push")
         self.git(self.repo, "config", "remote.origin.push", "refs/heads/*:refs/heads/*")
-        self.assertDenied("git push origin", "explicit refspec")
-        self.assertDenied("GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=remote.origin.push git push origin", "explicit refspec")
+        self.assertDenied("git push origin", "canonical")
+        self.assertDenied("GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=remote.origin.push git push origin", "canonical")
 
-    def test_benign_configured_refspec_is_checked_like_explicit(self):
+    def test_benign_configured_refspec_no_longer_allows_implicit_pushes(self):
         self.verified()
         self.git(self.repo, "config", "remote.origin.push", "HEAD:refs/heads/feat")
-        self.assertAllowed("git push origin")
-        self.assertAllowed("git -c remote.origin.push= push origin")   # empty value resets the list
+        self.assertDenied("git push origin", "canonical")
+        self.assertDenied("git -c remote.origin.push= push origin", "canonical")
 
 
 class R1_5_ControlStructures(ShipBase):
@@ -184,7 +187,7 @@ class R1_5_ControlStructures(ShipBase):
                     "for i in 1; do gh pr merge 1; done", "case x in x) git push origin feat;; esac",
                     "f() { git push origin main; }; f", "{ git push origin main; }", "( git push origin main )",
                     "true && if true; then gh api -X POST repos/o/r/merges; fi", "if x; then git -C /tmp push; fi"):
-            self.assertDenied(cmd, "control structures")
+            self.assertDenied(cmd, "canonical")
 
     def test_structures_without_routes_and_plain_pushes_unchanged(self):
         self.verified()

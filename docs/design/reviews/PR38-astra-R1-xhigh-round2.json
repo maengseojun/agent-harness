@@ -1,0 +1,132 @@
+{
+  "verdict": "blocked",
+  "receipt": null,
+  "findings": [
+    {
+      "body": "AC-1 and AC-3 have only manually declared success labels, without validation results for all three plugin artifacts or results for the three named script suites. The S8 description also covers the earlier pre-made receipt flow, while the revised runner invokes maeng-review run. Supply the relevant execution results and S8 evidence tied to this revision; the bundle does not establish every AC.",
+      "file": null,
+      "line": null,
+      "severity": "high",
+      "title": "Required acceptance evidence remains incomplete"
+    },
+    {
+      "body": "For this parent-kind R1 bundle, files_excluded contains the skills delegated to R2. This code counts every excluded file as covered without requiring that other review to pass or distinguishing deferred review from an approved exemption. An R1 pass therefore still authorizes the whole PR before R2 completes. Require receipts for deferred scopes or a separate integration receipt after all required reviews.",
+      "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+      "line": 134,
+      "severity": "high",
+      "title": "Parent exclusions still bypass outstanding scoped reviews"
+    },
+    {
+      "body": "All segments are evaluated before any executes. After verifying HEAD and then editing tracked code, git commit -am wip && git push origin feat checks the old, verified commit but subsequently pushes the new, unverified commit. This ordinary combined command bypasses tree-bound verification. Reject shipping after preceding mutations or require an immutable source SHA whose execution cannot be changed by earlier segments.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 129,
+      "severity": "high",
+      "title": "Combined commit-and-push checks the wrong commit"
+    },
+    {
+      "body": "The remote lookup ignores parsed -c overrides. A verified feature push using git -c remote.origin.pushurl=git@github.com:endix-foundation-v1/web.git push origin feat is checked against the original personal remote but actually targets eta. The exact-lease route has the same problem. Additionally, get-url --push returns only one URL although a remote can push to multiple URLs. Resolve and authorize every effective push destination.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 337,
+      "severity": "high",
+      "title": "Repository binding ignores effective push destinations"
+    },
+    {
+      "body": "The push checks recognize --mirror only as an argument and never inspect remote.<name>.mirror. With a verified feature branch, git -c remote.origin.mirror=true push origin can pass as a normal feature push while Git mirrors other refs, including unreviewed default-branch changes. Configuration such as push.followTags is likewise omitted. Evaluate configuration that expands the operation or reject it.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 384,
+      "severity": "high",
+      "title": "Configured mirror pushes escape the push restrictions"
+    },
+    {
+      "body": "Wrapper removal stops at wrapper options. For command -- git push origin main, the detected program becomes --; for env -u FOO git push origin main, it becomes FOO. Both then reach the generic allow path without G1 verification or receipt checks. These commands expose the push directly. Parse wrapper arguments correctly or deny visible shipping routes when unwrapping is unsupported.",
+      "file": "plugins/maeng-harness/lib/maeng/shellparse.py",
+      "line": 171,
+      "severity": "high",
+      "title": "Ordinary wrapper options bypass shipping checks"
+    },
+    {
+      "body": "The space-separated --git-dir and --work-tree forms discard their target paths. From a personal checkout, git --git-dir /eta/.git --work-tree /eta commit --allow-empty -m x is consequently evaluated against the personal directory and allowed to mutate eta. GIT_DIR/GIT_WORK_TREE assignments are also stripped without applying their targeting semantics. Resolve these explicit repository selectors or reject unsupported forms.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 238,
+      "severity": "high",
+      "title": "Explicit Git repository selectors bypass eta isolation"
+    },
+    {
+      "body": "When refs/remotes/<remote>/HEAD is absent or unreadable, this predicate treats an unfamiliar branch as non-default. A remote added and fetched without that symbolic ref can therefore receive a direct push to its actual default branch, such as develop, without a review receipt. Resolve the remote default branch or deny when it cannot be established.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 53,
+      "severity": "high",
+      "title": "Unknown default branches are treated as safe destinations"
+    },
+    {
+      "body": "The npx branch removes every option, including options belonging to the invoked runner. Thus npx playwright test --help becomes the identity playwright test and can produce passing test evidence despite executing no tests. It can satisfy both the default verification rule and an explicit playwright test requirement. Preserve runner arguments and apply no-run detection after parsing only npx's own options.",
+      "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+      "line": 56,
+      "severity": "high",
+      "title": "npx help invocations become passing test evidence"
+    },
+    {
+      "body": "cd changes the recorded execution directory but is absent from the check identity. Consequently, cd tests/unit && pytest records identity pytest against the repository's full tree and satisfies a root-level pytest requirement, although only the unit directory was exercised. Include the effective working directory in requirement matching and failure identity.",
+      "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+      "line": 112,
+      "severity": "high",
+      "title": "Test working directories are omitted from verification scope"
+    },
+    {
+      "body": "A requirement such as pytest && ruff check . is expanded into two identities, but this any() accepts either identity. A passing pytest invocation alone therefore satisfies the entire requirement without running Ruff. Require evidence for every constituent check of a compound requirement.",
+      "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+      "line": 224,
+      "severity": "high",
+      "title": "Compound verification requirements use OR instead of AND"
+    },
+    {
+      "body": "A later fail or blocked review writes only to reviews/ and leaves an earlier pass receipt for the same subject usable. find_code scans receipts/ exclusively, so maeng-ship can still merge after the latest review rejected that exact head. Persist non-pass outcomes as authorization revocations and make receipt selection honor the current review outcome.",
+      "file": "plugins/maeng-harness/bin/maeng-review",
+      "line": 195,
+      "severity": "high",
+      "title": "Failed re-reviews leave earlier pass receipts usable"
+    },
+    {
+      "body": "PR creation verifies a local branch selected only by its name. It never establishes that the requested repository's remote head has that commit. A create_pull_request call for another repository, or a remote branch advanced by someone else, can therefore publish an unverified PR head using evidence for an unrelated local feat branch. The gh path has the same issue. Verify the actual remote repository and head SHA.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 658,
+      "severity": "high",
+      "title": "PR creation verification is unrelated to the actual remote head"
+    },
+    {
+      "body": "The GitHub target is taken from --repo or an API endpoint, but not from positional issue/PR URLs. From a personal checkout, gh issue comment https://github.com/endix-foundation-v1/x/issues/1 -b hi has repo=None and passes the personal-cwd check, allowing an eta write. Resolve supported URL arguments and other effective repository selectors before applying G3.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 618,
+      "severity": "high",
+      "title": "GitHub URL arguments bypass eta target checks"
+    },
+    {
+      "body": "This guard rejects ETA but allows UNKNOWN. With malformed checkout settings, touch marker.txt passes because classification is unknown and the bare filename is omitted by _arg_paths. Mutating Git commands other than push also lack a general UNKNOWN denial. Reject mutations whenever the effective target directory cannot be classified.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 141,
+      "severity": "high",
+      "title": "Unknown checkout classification permits Bash mutations"
+    },
+    {
+      "body": "check_mcp_notion does not reject an UNKNOWN world. With a matching pass receipt, it returns authorization effects, but this early return skips track_pre and allows publication without reserving either the receipt or journal. Post tracking also skips UNKNOWN, allowing repeated use of the same receipt. Deny this mutation when classification is unknown.",
+      "file": "plugins/maeng-harness/lib/maeng/handlers.py",
+      "line": 125,
+      "severity": "high",
+      "title": "Unknown-world Notion calls skip receipt reservation"
+    },
+    {
+      "body": "Malformed JSON or a non-object hook payload returns exit 0 with no denial. A missing event name also returns success, while malformed tool_input is converted to an empty object and allowed. During PreToolUse these cases mean the gate cannot inspect the requested operation, yet execution proceeds. Establish the hook event independently and fail closed on invalid gate input.",
+      "file": "plugins/maeng-harness/hooks/maeng_hooks.py",
+      "line": 18,
+      "severity": "high",
+      "title": "Unreadable gate input silently allows execution"
+    },
+    {
+      "body": "Invalid verification-policy JSON silently selects defaults, dropping required checks and protected branches. For example, after an accidental malformed policy edit, a passing pytest run can authorize shipment without the additional checks that policy was supposed to require. Distinguish a missing optional policy from an unreadable existing policy, and deny shipping until the latter is repaired.",
+      "file": "plugins/maeng-harness/lib/maeng/tree.py",
+      "line": 53,
+      "severity": "high",
+      "title": "Malformed verification policies weaken the gate"
+    }
+  ]
+}

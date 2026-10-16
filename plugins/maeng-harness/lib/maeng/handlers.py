@@ -114,15 +114,16 @@ def on_pre(payload):
     world = world_of(payload, st)
     if world == guard.ETA:
         return None
-    tool, tin, tuid = payload.get("tool_name", ""), payload.get("tool_input") or {}, payload.get("tool_use_id", "")
-    tin = tin if isinstance(tin, dict) else {}
+    tool, tin, tuid = payload.get("tool_name", ""), payload.get("tool_input"), payload.get("tool_use_id", "")
+    if not isinstance(tin, dict):  # the gate cannot inspect what it is asked to allow
+        return deny_out("maeng gate: tool_input is not an object; denied because the gate cannot inspect the call.")
     try:
         dec = gates.evaluate(tool, tin, gates.Ctx(cwd, st, world), tuid)
     except Exception as exc:  # gate cannot decide: fail closed
         return deny_out(f"maeng gate error ({type(exc).__name__}: {exc}); denied because the gate cannot decide.")
     if not dec.allow:
         return deny_out(dec.reason)
-    if world != guard.PERSONAL:
+    if world != guard.PERSONAL and not dec.effects:  # never skip the reservation of an allowed G2/G1 effect
         return None
     try:
         track_pre(sid, cwd, tool, tin, tuid, dec.effects)
@@ -152,15 +153,17 @@ def track_pre(sid, cwd, tool, tin, tuid, effects):
     if tool == "Bash" and not tin.get("run_in_background"):
         rec = evidence.recognize(str(tin.get("command", "")))
     tree_start = common = run_cwd = None
+    rel = ""
     if rec:
         run_cwd = gates._abs(rec["cd"], cwd) if rec["cd"] else cwd
         tree_start, _ = treelib.tree_id(run_cwd)
         common = treelib.common_dir(run_cwd)
+        rel = evidence.rel_dir(run_cwd, treelib.toplevel(run_cwd))
     key = tuid or sha256(str(tin.get("command", "")))[:16]
 
     def mark(st):
         if rec:
-            evidence.pre_runner(st, key, tin.get("command", ""), rec, tree_start, common)
+            evidence.pre_runner(st, key, tin.get("command", ""), rec, tree_start, common, rel)
             st["pending"][key]["cwd"] = run_cwd
         if receipt_keys:
             st["pending"].setdefault(key, {})["receipt_keys"] = receipt_keys

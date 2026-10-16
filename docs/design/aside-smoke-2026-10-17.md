@@ -28,3 +28,8 @@ date: 2026-10-17
   - treats the transcript and snapshot as non-source data.
 - **Privacy:** the raw snapshot can contain account details from the logged-in browser. Raw files stay in `raw/aside/` and are never promoted. Source notes take only the parsed block fields.
 - **Failure handling:** if no ITEM block is found, the agent records `parse_failed` in the sidecar and asks Aside again once via `aside session resume <id> "Reply only in the template"`.
+
+## Second live run: nonce-delimited final answer (after PR #38 review round 2)
+- `aside exec --effort low` with the final answer wrapped in `=== FINAL f9e812a6e33bcefd ===` … `=== END FINAL f9e812a6e33bcefd ===`. Exit 0.
+- `parse_aside.py --nonce f9e812a6e33bcefd --exit-code 0` → `parse_status: ok`, 1 item, canonical URL https://github.com/anthropics/claude-plugins-official, nothing missing.
+- Aside honors the per-run nonce wrapper, so snapshot or transcript text can no longer be promoted as a source (it cannot contain the fresh nonce).

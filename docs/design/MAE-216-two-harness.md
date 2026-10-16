@@ -298,6 +298,14 @@ Commands are split into segments (`;`, `&&`, `||`, `|`). A command is **denied w
 | (Denied — use `maeng-ship merge`) `gh pr merge` (all modes incl. `--auto`), `gh pr update-branch`, `gh repo sync`, `gh release create/upload/delete`, `gh repo edit --default-branch`, `gh api` merge, ref-write endpoints, **contents API writes (`PUT`/`DELETE repos/*/contents/*`)**, GraphQL mutations (`createCommitOnBranch`, `mergePullRequest`), `mcp__github__merge_pull_request` | Deny; merge only through `maeng-ship merge` |
 | `mcp__github__push_files` / `create_or_update_file` | Same rules as `git push` against the target branch |
 
+**D-6, allowlist (PR #38 review round 2).** Shipping and cross-world routes are gated by an **allowlist of canonical forms**, not by parsing arbitrary shell. Any Bash command that mentions a shipping route must be exactly one plain command in one of these forms; anything else is denied by design:
+- `git push <remote> <branch|src:refs/heads/x>`
+- the restricted `gh pr create` flags
+- `maeng-ship merge <N>`
+- the read-only gh allowlist
+
+The remote must have a plain config, and its default branch must be known. PR creation verifies the remote head SHA via `git ls-remote`. G3 resolves `--git-dir`/`--work-tree`/`-C` and gh URL arguments, and denies `GIT_DIR` assignments. When the effective directory is **unknown**, every mutation is denied. Reviewers check that the allowlist is closed.
+
 **G2 Sol publish.**
 - **Scope:** Notion create-pages into the two databases, plus update-page/update-data on page ids in the registry.
 - **Registry:** filled after each readback, and re-seeded from a database query when the agent binds a task.

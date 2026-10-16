@@ -129,8 +129,50 @@ class SafetyTests(Base):
                 "sha256": A.sha256_file(p), "size": 9, "archived_at": "2026-01-01T00:00:00+00:00"}
         (self.vault / "files" / "x.pdf.archived.md").write_text(
             A.build_stub(None, meta, "personal", "files/x.pdf"), encoding="utf-8")
+        arch = self.od / meta["path"]
+        arch.parent.mkdir(parents=True)
+        arch.write_bytes(b"pdf-bytes")
         r = A.cmd_move("files/x.pdf", "onedrive", "personal", False)
         self.assertEqual(r["action"], "archived")
+        self.assertFalse(p.exists())
+
+    def test_binary_retry_preserves_populated_stub_byte_for_byte(self):
+        p = self.vault / "files" / "x.pdf"
+        p.parent.mkdir()
+        p.write_bytes(b"pdf-bytes")
+        meta = {"store": "onedrive", "path": "maeng-archive/personal/2026/files/x.pdf",
+                "sha256": A.sha256_file(p), "size": 9, "archived_at": "2026-01-01T00:00:00+00:00"}
+        stub = self.vault / "files" / "x.pdf.archived.md"
+        stub.write_text(A.build_stub(None, meta, "personal", "files/x.pdf").replace(
+            "<!-- agent: fill a 3-5 line summary of what was here and why it was archived -->",
+            "Real summary. See [[other-note]]."), encoding="utf-8")
+        before = stub.read_bytes()
+        arch = self.od / meta["path"]
+        arch.parent.mkdir(parents=True)
+        arch.write_bytes(b"pdf-bytes")
+        r = A.cmd_move("files/x.pdf", "onedrive", "personal", False)
+        self.assertTrue(r["stub_preserved"])
+        self.assertEqual(stub.read_bytes(), before)
+        self.assertFalse(p.exists())
+
+    def test_binary_retry_aborts_when_archive_copy_missing_or_different(self):
+        p = self.vault / "files" / "x.pdf"
+        p.parent.mkdir()
+        p.write_bytes(b"pdf-bytes")
+        meta = {"store": "onedrive", "path": "maeng-archive/personal/2026/files/x.pdf",
+                "sha256": A.sha256_file(p), "size": 9, "archived_at": "2026-01-01T00:00:00+00:00"}
+        stub = self.vault / "files" / "x.pdf.archived.md"
+        stub.write_text(A.build_stub(None, meta, "personal", "files/x.pdf"), encoding="utf-8")
+        before = stub.read_bytes()
+        with self.assertRaises(A.ArchiveError):
+            A.cmd_move("files/x.pdf", "onedrive", "personal", False)
+        arch = self.od / meta["path"]
+        arch.parent.mkdir(parents=True)
+        arch.write_bytes(b"different")
+        with self.assertRaises(A.ArchiveError):
+            A.cmd_move("files/x.pdf", "onedrive", "personal", False)
+        self.assertTrue(p.exists())
+        self.assertEqual(stub.read_bytes(), before)
 
     def test_move_rejects_symlinked_directory_outside_vault(self):
         outside = Path(self.td.name) / "outside"
@@ -183,6 +225,23 @@ class BackupSafetyTests(Base):
         with self.assertRaises(A.ArchiveError):
             A.cmd_backup(["onedrive"], 1, False)
         self.assertEqual(len(list(old.glob("maeng-*.zip"))), 3)
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root ignores chmod 000")
+    def test_unreadable_directory_aborts_before_write_and_prune(self):
+        old = self.seed_old()
+        self.note("a.md", "A")
+        bad = self.vault / "locked"
+        bad.mkdir()
+        (bad / "b.md").write_text("B", encoding="utf-8")
+        bad.chmod(0)
+        try:
+            with self.assertRaises(A.ArchiveError):
+                A.cmd_backup(["onedrive", "gdrive"], 1, False)
+        finally:
+            bad.chmod(0o755)
+        self.assertEqual(len(list(old.glob("maeng-*.zip"))), 3)
+        self.assertEqual(list((self.od / A.BACKUP_DIR).glob("maeng-2026*")), [])
+        self.assertFalse((self.gd / A.BACKUP_DIR).exists())
 
     def test_missing_harness_root_reported_but_ok(self):
         self.note("a.md", "A")

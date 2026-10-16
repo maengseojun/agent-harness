@@ -29,7 +29,11 @@ class PushRoutes(ShipBase):
         self.verified()
         self.assertAllowed("git push origin feat")
         self.assertAllowed("git push -u origin feat")
-        self.assertAllowed("git push")  # simple: upstream feat == current
+        self.assertAllowed("git push origin feat:feat")
+        self.assertAllowed("git push origin feat:refs/heads/feat")
+        sha = self.head(self.repo)
+        self.assertAllowed(f"git push origin {sha}:refs/heads/feat")
+        self.assertDenied("git push", "canonical")          # implicit remote/refspec is not a canonical form
 
     def test_force_variants_denied_even_when_verified(self):
         self.verified()
@@ -37,7 +41,8 @@ class PushRoutes(ShipBase):
                     "git push --force-with-lease=feat origin feat", "git push origin +feat", "git push origin +feat:feat",
                     "git push -fu origin feat", "git push --force-if-includes origin feat",
                     "git push origin feat --force", "git -C . push --force origin feat"):
-            self.assertDenied(cmd, "force")
+            self.assertDenied(cmd, "canonical")
+        self.assertDenied("git push -f origin feat", "force")
 
     def test_default_branch_destinations_denied(self):
         self.verified()
@@ -45,27 +50,23 @@ class PushRoutes(ShipBase):
                     "git push origin :main", "git push --delete origin main", "git push origin master"):
             self.assertDenied(cmd)
 
-    def test_implicit_destination_via_upstream_and_push_default(self):
+    def test_implicit_destination_forms_are_not_canonical(self):
+        """Allowlist (was: upstream/push.default resolution): only an explicit `<remote> <refspec>` is allowed."""
         self.verified()
         self.git(self.repo, "branch", "--set-upstream-to=origin/main")
-        self.assertDenied("git -c push.default=upstream push", "default branch")
+        for cmd in ("git -c push.default=upstream push", "git push", "git push origin", "git push -u origin",
+                    "git push origin HEAD", "git push origin HEAD:feat"):
+            self.assertDenied(cmd, "canonical")
         self.git(self.repo, "config", "push.default", "upstream")
-        self.assertDenied("git push", "default branch")
-        self.assertDenied("git push origin", "default branch")
-        self.git(self.repo, "config", "push.default", "simple")
-        self.assertDenied("git push", "upstream")  # simple with mismatched upstream is refused
-        self.git(self.repo, "config", "push.default", "matching")
-        self.assertDenied("git push")
-        self.git(self.repo, "config", "push.default", "nothing")
-        self.assertDenied("git push")
+        self.assertDenied("git push", "canonical")
+        self.assertAllowed("git push origin feat")                 # explicit refspec ignores push.default
 
     def test_implicit_current_branch_main(self):
         self.git(self.repo, "checkout", "-q", "main")
         self.verified()
-        self.assertDenied("git push", "default branch")
-        self.assertDenied("git push origin HEAD", "default branch")
-        self.git(self.repo, "config", "push.default", "current")
-        self.assertDenied("git push")
+        self.assertDenied("git push", "canonical")
+        self.assertDenied("git push origin HEAD", "canonical")
+        self.assertDenied("git push origin main", "default branch")
 
     def test_tags_mirror_all_and_non_branch_refs(self):
         self.verified()
@@ -91,7 +92,7 @@ class PushRoutes(ShipBase):
         self.assertAllowed("bash -c 'echo hello'")
         self.assertAllowed("git commit -m \"$(cat <<'EOF'\nfix: push bug and merge docs\nEOF\n)\"")
         self.assertAllowed("git status && git log --oneline | head -3")
-        self.assertAllowed("git push --dry-run origin main")
+        self.assertDenied("git push --dry-run origin main", "canonical")   # was allowed before the allowlist
 
     def test_verify_edit_commit_push_denied(self):
         self.verified()
@@ -137,7 +138,7 @@ class PushRoutes(ShipBase):
         r = self.cli("maeng-verify", ["skip", "no tests for this prototype"], self.repo)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertDenied("git push origin feat", "not ship-verified")
-        self.assertDenied("gh pr create --fill", "not ship-verified")
+        self.assertDenied("gh pr create --title t --body b", "not ship-verified")
         rc, out, _ = self.hook("Stop", self.repo, stop_hook_active=False)
         # stop-satisfied via the skip: only the (separate) record obligation remains
         self.assertIsNotNone(out)
@@ -159,24 +160,26 @@ class GhRoutes(ShipBase):
                     "gh pr merge 1", "gh pr merge --auto 1", "gh pr merge 1 --squash", "gh pr merge --admin --rebase 1",
                     "gh pr merge --merge", "gh repo sync", "gh repo sync --force", "gh repo sync o/r -b main",
                     "gh pr update-branch 1", "gh release create v1", "gh release upload v1 f", "gh release delete v1",
-                    "gh repo edit --default-branch dev", "gh workflow run x.yml", "gh repo delete o/r --yes"):
+                    "gh repo edit --default-branch dev", "gh workflow run x.yml", "gh repo delete o/r --yes",
+                    "gh api -X POST repos/o/r/issues/1/comments -f body=hi"):  # allowed before the allowlist
             self.assertDenied(cmd)
 
     def test_gh_allowed_routes(self):
         for cmd in ("gh pr comment 1 -b hi", "gh pr edit 1 --title t", "gh pr review 1 --approve", "gh pr ready 1",
                     "gh pr close 1", "gh issue create -t x -b y", "gh issue comment 2 -b z", "gh pr checkout 3",
                     "gh pr view 1 --json state", "gh pr list", "gh api repos/o/r/pulls", "gh api user",
-                    "gh api graphql -f query='query { viewer { login } }'", "gh run list", "gh release list",
-                    "gh api -X POST repos/o/r/issues/1/comments -f body=hi"):
+                    "gh api graphql -f query='query { viewer { login } }'", "gh run list", "gh release list"):
             self.assertAllowed(cmd)
 
     def test_pr_create_needs_verified_head(self):
-        self.assertDenied("gh pr create --fill", "not ship-verified")
+        self.assertDenied("gh pr create --title t --body b", "not ship-verified")
         self.assertDenied("gh pr create --head feat --title t --body b")
         self.verified()
-        self.assertAllowed("gh pr create --fill")
-        self.assertAllowed("gh pr create --head feat --title t --body b")
+        self.assertAllowed("gh pr create --title t --body b")
+        self.assertAllowed("gh pr create --head feat --title t --body b --draft --base main")
         self.assertDenied("gh pr create --head nosuchbranch --title t")
+        self.assertDenied("gh pr create --fill", "canonical")         # --fill is not a canonical flag
+        self.assertDenied("gh pr create --head feat --title t --web", "canonical")
 
     def test_pr_create_reminds_review_tier(self):
         self.verified()
@@ -188,6 +191,8 @@ class GhRoutes(ShipBase):
 class McpRoutes(ShipBase):
     def test_github_mcp(self):
         base = {"owner": "o", "repo": "r"}
+        remote = self.git(self.repo, "config", "remote.origin.url").stdout.strip()
+        self.git(self.repo, "config", f"url.{remote}.insteadOf", "https://github.com/o/r.git")  # o/r -> local bare
         self.verified()
         for tool, tin in (("merge_pull_request", {**base, "pullNumber": 1}),
                           ("update_pull_request_branch", {**base, "pullNumber": 1}),
