@@ -237,10 +237,10 @@ def check_git(toks, cwd, ctx):
             cwd = path
         if not ro:
             if not os.path.exists(path):
-                return deny(f"maeng G3: git --{'C' if kind == 'C' else kind} target {path} does not exist, so its "
+                return deny(f"maeng G3: git {'-C' if kind == 'C' else '--' + kind} target {path} does not exist, so its "
                             f"world cannot be determined; denied.")
             probe = os.path.dirname(path) if kind == "git-dir" and os.path.basename(path.rstrip("/")) == ".git" else path
-            blocked = g3_path(probe, cwd, ctx, f"git --{'C' if kind == 'C' else kind}")
+            blocked = g3_path(probe, cwd, ctx, f"git {'-C' if kind == 'C' else '--' + kind}")
             if blocked:
                 return blocked
     if sub is None:

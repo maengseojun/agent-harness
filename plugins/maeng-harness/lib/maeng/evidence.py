@@ -334,7 +334,9 @@ class Verifier:
         mode, pats = self.required()
         if mode == "default":
             if not any(e["kind"] == TEST_KINDS for e in good):
-                reasons.append("no passing test-runner evidence for this tree")
+                reasons.append("no passing test-runner evidence for this tree (evidence counts only for a recognized "
+                               "test runner run as one plain command, e.g. `python3 -m pytest -q`; pipes, `;` and `&&` "
+                               "hide its exit status)")
         else:
             for p in pats:
                 if not requirement_met(good, p):

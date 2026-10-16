@@ -29,3 +29,8 @@ If something is missing, Stop blocks once with the full list. After that it lets
 ## Self-recording
 
 After the last substantive change of a turn (a code change, a commit, a decision), write a record for the bound issue: a Linear comment or document update on that issue, or an Obsidian note whose frontmatter `linear` includes it. With no binding, any Linear or Obsidian write after the change counts. Question-only turns need nothing. A "starting work" comment followed by more changes still needs a later record. The session stub in `wiki/sessions/SESSION-<MAE-or-none>-<YYYYMMDD-HHMM>-<session_id[:8]>` is written by the Stop hook; add decisions and results yourself.
+
+## How evidence is recorded
+- A check counts only when a recognized test runner runs **as one plain command** (for example `python3 -m pytest -q`, `npm test`, `forge test`). Pipes (`| tail`), `;` and `&&` hide the runner's exit status, so those runs are not evidence; run the check by itself, then inspect output separately.
+- The working directory is part of the check: `cd tests/unit && pytest` does not satisfy a root-level `pytest` requirement.
+- `--version`, `--help`, `--collect-only` and similar no-run invocations never count.
