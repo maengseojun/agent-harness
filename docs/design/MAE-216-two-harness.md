@@ -211,6 +211,20 @@ eta notes are never promoted to personal Notion and never linked from personal L
 
 The Notion `harness-run` page text that requires user approval is revised in Phase 5.
 
+### 3.5 Cold storage: archive and backup (user, 2026-10-17)
+The vault is the **hot** tier (what the LLM reads). Google Drive and OneDrive (both on the Korea University accounts) are the **cold** tier: kept, never loaded into context.
+
+| Use | Where | How |
+|---|---|---|
+| **Archive** of distilled-away material: originals after their key points were extracted, bulky `raw/aside/` dumps, superseded notes, old transcripts | **OneDrive** `maeng-archive/<world>/<YYYY>/…` (local sync folder `~/Library/CloudStorage/OneDrive-고려대학교`) | `maeng-archive move <path>`: copy, then verify sha256, then replace the vault file with a **stub note**. The stub carries the summary, `archive: {store, path, sha256, size, archived_at}`, and keeps its links and frontmatter. |
+| **Backup** snapshots of the vault and harness state | **Google Drive** `maeng-backup/` (via Google Drive for desktop once installed), and also OneDrive | `maeng-archive backup`: timestamped zip plus a manifest of hashes, keeping the last N. Restore is a dry run by default. |
+| **Search / read** of cloud files | Google Drive | the claude.ai Google Drive connector (verified live, 2026-10-17) |
+
+- eta material is allowed (user decision). It goes under the `eta/` subfolder with `world: eta`.
+- Accounts are university-administered. The cold tier never holds the *only* copy of anything essential: archive originals keep their Obsidian stub, and backups go to both clouds.
+- Lives in `maeng-tools` (no hooks), so it works in both worlds.
+- Nothing is deleted. A vault file is replaced by its stub only after a hash-verified copy exists.
+
 ---
 
 ## 4. External review (author ≠ reviewer), tiered to the user's workflow
@@ -484,4 +498,5 @@ Sonnet implements, Opus reviews each step, and Astra reviews the PR (medium per 
 - Isolation file in every eta checkout. **Open for the user to veto.**
 - Child-task PR review: Astra medium (user).
 - Phase 2 adoptions per `MAE-216-phase2-adoption.md` (§5.9).
+- Cold storage tier: OneDrive archive + Google Drive backup/search, eta allowed (§3.5, user).
 - **Open: final approval of this revision (Q1).**
