@@ -1,0 +1,55 @@
+{
+  "verdict": "fail",
+  "summary": "Review-2 findings 1, 2, 3, 5, and 9–13 are resolved at the design-contract level under the cooperative threat model. Findings 4 and 6–8 remain partially resolved. New defects concern non-code classification, submodule snapshots, and worktree cache invalidation. Reviewed the supplied design, the local review-2 artifact, and local gh merge help; no implementation tests, writes, external actions, or skills were used.",
+  "findings": [
+    {
+      "severity": "critical",
+      "section": "§§0, 5.3 Ship-verified tree, 5.8 Evidence",
+      "claim": "A failed or incomplete verification set can still authorize shipping.",
+      "evidence": "Ship verification requires only 'some valid ok evidence'. At the same tree, failed pytest followed by successful ruff check satisfies this predicate. Without a bound plan, nothing else blocks shipping. With a plan, 'no unmet' does not require every current AC to appear in the met set. Review-2 finding 4 is therefore only partially fixed: skips are excluded, but failed and omitted checks remain bypassable through ordinary verification commands.",
+      "fix": "Define the applicable required checks and require successful evidence for each. Retain unresolved failures until the corresponding check passes or its applicability is explicitly resolved. For bound plans, require complete coverage of the current AC set, not merely an empty unmet list. Test failed-test-plus-successful-lint and omitted-AC cases."
+    },
+    {
+      "severity": "critical",
+      "section": "§§0, 5.2 G1, 5.8 G1 negatives",
+      "claim": "The ordinary GitHub contents API remains an ungated shipping route.",
+      "evidence": "G1 denies gh api merge and ref-write endpoints, but does not cover PUT or DELETE repos/<owner>/<repo>/contents/<path>. Those endpoints commit changes directly to a branch, including the default branch. Such a command contains none of the matcher keywords and is neither a wrapper nor a disguised script. The equivalent MCP file-write routes are covered, making this an inconsistent boundary.",
+      "fix": "Apply the file-write shipping policy to GitHub contents API mutations, or deny them and direct the agent to the verified git/PR workflow. Add negative tests for creating, updating, and deleting a file on both feature and default branches through gh api."
+    },
+    {
+      "severity": "critical",
+      "section": "§0 Code paths; §5.3 Ship-verified tree",
+      "claim": "Treating .txt files as non-code permits verification reuse after build or dependency changes.",
+      "evidence": "The non-code exception permits T to differ from verified T' in .txt files. requirements.txt, constraints.txt, and CMakeLists.txt can change dependencies or executable build behavior. An ordinary edit to one of these files can therefore be committed and pushed using evidence from before that edit.",
+      "fix": "Classify non-code paths conservatively by repository policy rather than blanket extensions. Treat dependency inputs, build configuration, and behavior-affecting fixtures as verification-relevant. Test that changing requirements.txt or CMakeLists.txt invalidates ship verification."
+    },
+    {
+      "severity": "critical",
+      "section": "§§0, 4 Code bundles, 5.2 G1 merge rule, 5.3",
+      "claim": "The merge gate does not establish verification of the code actually integrated, and the base match is not atomic.",
+      "evidence": "A receipt binds base/head SHAs, but no rule requires successful checks against their resulting integration tree. A tested head can therefore merge with a changed base without testing their combination. Additionally, the base can advance after the hook checks it and before GitHub merges. Local gh pr merge --help confirms that --match-head-commit constrains only the head. Removing patch-id reuse fixes one part of review-2 finding 7, but these ordinary merge paths remain.",
+      "fix": "Require verification of the proposed integration result, bound to both base and head and the selected merge strategy. Specify an enforceable way to prevent base movement through integration, or explicitly revise the promised guarantee for this environment. Reject deferred merge modes unless they preserve and revalidate the same conditions. Test both an integration-only failure and base movement between gate evaluation and merge."
+    },
+    {
+      "severity": "major",
+      "section": "§§0, 3.4, 5.2 G2",
+      "claim": "The pending journal does not close the Notion registry gap.",
+      "evidence": "G2 still gates updates only for page IDs in the registry, which is populated after readback. A successful create followed by failed readback leaves the page outside that registry. The pending journal is not consulted by the gate, and re-seeding occurs only when binding a task. An update before reconciliation can therefore publish an unreviewed payload. The documented moved-page exception likewise remains contrary to the unconditional publishing rule in §0.",
+      "fix": "Make unresolved journal entries part of G2's decision and deny affected updates until reconciliation completes. Resolve an unknown page's destination before allowing an update, failing closed when that cannot be established. Test failed readback followed by an update and a page moved into a governed database."
+    },
+    {
+      "severity": "major",
+      "section": "§0 Tree id; §5.3 Verification evidence",
+      "claim": "The proposed tree ID does not represent dirty submodule contents.",
+      "evidence": "A superproject git tree records a submodule's commit ID, not its dirty tracked or untracked files. Tests can run against a modified dependency inside a submodule while both tree_start and tree_finish retain the unchanged gitlink. The resulting evidence can certify a committed dependency state that those tests did not exercise.",
+      "fix": "Either reject verification while any relevant submodule is dirty, or record and validate recursive submodule identities and cleanliness. Add a test where a dirty submodule makes a check pass while the recorded submodule commit would fail."
+    },
+    {
+      "severity": "major",
+      "section": "§1.3 Guard cache; §5.8 Guard triggers and cache invalidation",
+      "claim": "The cache invalidation paths are incorrect for linked worktrees.",
+      "evidence": "In a linked worktree, .git is a file pointing to a git directory; .git/config is not the repository configuration file. Remote configuration normally resides in the common git directory. Consequently, the specified mtime key either cannot be read or fails to invalidate classification when the actual origin changes. This directly affects the expressly supported worktree isolation path.",
+      "fix": "Resolve git and common directories through git, and track the configuration sources actually used for classification. Define fail-closed behavior for unresolved classification inputs. Test classification invalidation from an external linked worktree after changing the shared origin."
+    }
+  ]
+}

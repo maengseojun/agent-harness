@@ -1,0 +1,27 @@
+{
+  "verdict": "fail",
+  "summary": "Review-4 findings on gh coverage, unknown classification, retirement, and the basic receipt contract are addressed in the text. The fast-forward route prevents an unverified combined merge tree, but two major inconsistencies remain. No critical defect identified within §0’s threat model.",
+  "findings": [
+    {
+      "severity": "major",
+      "section": "§§4, 5.2 G1 maeng-ship merge, 5.8 deterministic base-movement test",
+      "claim": "A non-force fast-forward push does not atomically require the reviewed base SHA.",
+      "evidence": "Consider A → B → H, with reviewed base A and reviewed head H. If the remote base advances to B before the push, pushing H succeeds because B is an ancestor of H. This contradicts the claim that GitHub rejects any base movement and the receipt requirement for exactly the reviewed base. The final tree remains verified, so this is not the previous critical unverified-tree defect.",
+      "fix": "Require an atomic expected-old-SHA condition together with the ancestry check, documenting the narrowly permitted command needed to enforce it. Test both divergent base movement and movement to an ancestor of H; both must reject under the current exact-base contract."
+    },
+    {
+      "severity": "major",
+      "section": "§1.2 Release; §5.2 denied-route guidance; §6 step 8",
+      "claim": "The prescribed release workflow still requires the merge route that revision 5 denies.",
+      "evidence": "§5.2 makes maeng-ship merge the only merge route and denies every gh pr merge mode. However, its denial guidance says “use git + gh pr merge,” while §1.2 and §6 still require merging with --match-head-commit. That option belongs to gh pr merge; the specified maeng-ship interface does not provide it. A conforming implementation cannot execute the release procedure as written.",
+      "fix": "Replace the obsolete merge commands and guidance with maeng-ship merge and its receipt requirements. Include maeng-ship explicitly in the build deliverables and exercise a successful permitted merge before release."
+    },
+    {
+      "severity": "minor",
+      "section": "§4 Receipt lifecycle; §5.8 Receipts tests",
+      "claim": "Receipt handling does not distinguish a confirmed rejection from a failed tool call whose remote mutation may have succeeded.",
+      "evidence": "A server can accept the push before the client loses its connection and returns failure. §4 leaves failed actions unconsumed, while its explicit pending case covers missing PostToolUse. A reported tool failure also can have an uncertain remote outcome, so retry eligibility cannot safely follow the tool status alone.",
+      "fix": "Persist pending before dispatch. Restore retry eligibility only after a confirmed rejection or reconciliation proving no mutation occurred; otherwise block receipt reuse until reconciliation. Test an accepted remote push followed by client failure."
+    }
+  ]
+}

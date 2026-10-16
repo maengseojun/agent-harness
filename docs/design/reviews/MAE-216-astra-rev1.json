@@ -1,0 +1,104 @@
+{
+  "verdict": "fail",
+  "summary": "The design has concrete isolation, enforcement and testability defects. Checked official documentation and local Claude Code 2.1.301 CLI help; no implementation or live smoke tests ran. Automatic approval review rejected Aside access and the Linear update under the never-approval policy; official web sources were used, and this JSON is the unsynced review artifact.",
+  "findings": [
+    {
+      "severity": "major",
+      "section": "Goal; §§1.1, 1.3, 3.3, 9",
+      "claim": "The proposed eta Obsidian workflow contradicts the prohibition on personal record flows inside eta.",
+      "evidence": "The Goal prohibits personal record flows in eta_v1, but §3.3 explicitly invokes personal obsidian-workspace from maeng-tools to create eta session records. Calling this agent-driven rather than hook-driven does not remove the conflict. Q2 also remains unresolved, and the quoted team policy covers storage outside the teamspace.",
+      "fix": "Define the permitted shared-craft exception separately from record workflows. Keep eta record writes disabled until the isolation requirement and applicable team policy explicitly permit a bounded exception; a personal Q2 choice alone cannot settle team policy."
+    },
+    {
+      "severity": "major",
+      "section": "§§1.3, 5.1, 5.7",
+      "claim": "The secondary guard prevents hook side effects but does not ensure harness isolation in other eta worktrees or clones.",
+      "evidence": "The primary plugin disable is written only to eta_v1's gitignored local settings. Another clone or worktree without that file can load maeng-harness skills and agents even when its remote triggers guard.py. A guard that exits successfully still leaves the plugin loaded. Detection based only on the session directory also misses an outside session operating on eta through an absolute path or git -C.",
+      "fix": "Define plugin-disable provisioning for every supported eta checkout/worktree and a policy for sessions crossing worlds. Test loaded skills and agents separately from hook side effects. Specify guard cache invalidation when remotes or settings change, and guard every separately registered formatter/record handler."
+    },
+    {
+      "severity": "major",
+      "section": "§§3.1, 4, 5.1, 5.5",
+      "claim": "Global task state and date-only record names can misattribute or overwrite concurrent work.",
+      "evidence": "All sessions share active.json containing only issue, plan_doc and hub. A second session can replace the task used by the first session's review, publication or recording hooks. Session-state locking does not bind this global file to a session. SESSION-<issue>-<date> and REV-<issue>-<date> also collide across multiple sessions or reviews that day.",
+      "fix": "Bind task, repository, world and source revisions to session_id. Give session/review artifacts unique identities, and specify atomic append or replacement semantics where aggregation is intentional. Add concurrent-session tests."
+    },
+    {
+      "severity": "major",
+      "section": "Principle; §§4, 5.2",
+      "claim": "The described command gate does not enforce the stated push and merge boundary.",
+      "evidence": "Only Bash gh pr merge and selected git push forms are covered. The design does not resolve destination refspecs, configured push defaults, --force-with-lease or +refspec force pushes, wrappers, gh api merges, or GitHub MCP merge operations. Ordinary branch pushes are ungated despite the Principle saying pushes stay gated.",
+      "fix": "State exactly which pushes require which prerequisite. Resolve the actual repository, remote and destination refs, cover all enabled mutation routes, and deny unsupported routes. Include negative fixtures for alternate force syntax, implicit destinations, API merges and compound commands."
+    },
+    {
+      "severity": "major",
+      "section": "§§4, 5.2",
+      "claim": "Checking a reviewed head before executing a merge does not guarantee that the reviewed head is merged.",
+      "evidence": "Another push can change the PR head between the hook's lookup and gh pr merge. The verdict schema also binds only head_sha, although the review depends on the base revision and Spec/Plan criteria, which can change without changing that head.",
+      "fix": "Bind the receipt to repository, PR, head, reviewed base, criteria revision and reviewer identity. Enforce an atomic expected-head condition at merge execution, and define when base or criteria changes invalidate the verdict."
+    },
+    {
+      "severity": "major",
+      "section": "§§3.4, 4, 5.1, 5.2",
+      "claim": "The Sol gate can authorize content that Sol never reviewed.",
+      "evidence": "It requires only a pass for the active issue. The same issue can contain multiple reports and revisions, so an old pass admits a changed body or different destination. The gate does not specify how block updates resolve to the protected database. Furthermore, §5.1 makes every gate except merge/push fail open, including Sol publication.",
+      "fix": "Bind Sol approval to the exact draft digest, destination, properties and intended operation. Invalidate it after changes, resolve page/block ancestry, and fail closed on missing or unreadable evidence. Define document-review identity without relying on a code head SHA."
+    },
+    {
+      "severity": "major",
+      "section": "§§5.1, 5.2, 5.7",
+      "claim": "The declared fail-closed merge/push behavior lacks the required host-level failure configuration.",
+      "evidence": "Python exception handling cannot cover a missing executable, startup failure or timeout. Claude Code normally continues after hook failures; supported versions require onFailure: \"block\" for host-level blocking. [Hooks reference](https://code.claude.com/docs/en/hooks#block-the-action-when-a-hook-fails)",
+      "fix": "Specify synchronous gate handlers with onFailure: \"block\", a minimum supported Claude Code version, and event-correct denial output. Test missing scripts, crashes, malformed output and timeouts through Claude Code, not only subprocess exit assertions."
+    },
+    {
+      "severity": "major",
+      "section": "§§5.3, 5.4",
+      "claim": "The verification gate is a one-time reminder, not a strict completion condition.",
+      "evidence": "After one block, §5.3 allows Stop whenever stop_hook_active is true, even if no verification occurred or more edits were made. That flag indicates continuation caused by a Stop hook, not successful verification. [Hooks reference](https://code.claude.com/docs/en/hooks#stop-input)",
+      "fix": "Keep loop prevention separate from verification status. On bounded exit, preserve an explicit unverified state that prevents completion and gated code actions. Aggregate verification and recording requirements so one continuation cannot silently discharge unrelated obligations."
+    },
+    {
+      "severity": "major",
+      "section": "§§5.3, 5.5",
+      "claim": "The evidence contract can mark failed or incomplete work as verified and misses specified edits.",
+      "evidence": "Verification is defined by command matching rather than successful completion; bare cargo and playwright invocations need not check anything. The plan command accepts text containing 'unmet' without defining a failure state. §5.3 includes NotebookEdit, but §5.5's edit tracker lists only Edit/Write. Bash-generated changes and formatter changes are not accounted for.",
+      "fix": "Record command outcome, completion time, scope and checked content revision. Represent plan results as met/unmet rather than mere command presence. Track NotebookEdit and reconcile shell/formatter mutations. Keep an authorized skip distinguishable from a passed check."
+    },
+    {
+      "severity": "major",
+      "section": "§§5.3, 5.5, 5.7",
+      "claim": "Async formatting and SessionEnd recording lack a reliable completion boundary.",
+      "evidence": "Formatting can modify files after verification or commit without invalidating recorded evidence. Current documentation says ordinary async hooks do not retain timeout enforcement and unfinished async hooks are killed at print-mode teardown. Thus 'async 60s' and the SessionEnd stub are not reliable as specified. [Hooks reference](https://code.claude.com/docs/en/hooks#configure-an-async-hook)",
+      "fix": "Serialize formatting with verification and commits, or track pending formatter jobs and invalidate evidence after their writes. Make the small deterministic SessionEnd write synchronous with an explicit supported budget, atomic persistence and readback tests."
+    },
+    {
+      "severity": "major",
+      "section": "§2",
+      "claim": "The agent tool specification does not establish valid least-privilege or read-only behavior.",
+      "evidence": "Unrestricted Bash lets researcher modify files and invoke external writes despite its read-only role. If 'all' is emitted literally as tools: all, it is not the documented tool-inheritance mechanism; omitting tools provides inheritance. [Subagent frontmatter reference](https://code.claude.com/docs/en/sub-agents#frontmatter-reference)",
+      "fix": "Specify exact frontmatter. Use an explicit implementer allowlist or intentional inheritance, and remove unrestricted Bash from researcher or constrain it through enforceable permissions. Test attempted writes as well as actual model routing."
+    },
+    {
+      "severity": "major",
+      "section": "§§2, 4",
+      "claim": "The reviewer invocation neither guarantees tool-free execution nor supplies sufficient context for every review type.",
+      "evidence": "An inline diff and criteria do not necessarily include relevant callers, unchanged validation, configuration or test evidence. Read-only sandboxing and disabling MCP servers do not themselves disable local tools or inherited instructions. The assertion that this sidesteps the entry hook is therefore unsupported. The shared code-shaped schema also leaves design/report identity undefined.",
+      "fix": "Define a self-contained review bundle with required context, provenance, revisions and test results. Specify and verify the actual reviewer configuration and permitted capabilities. Use artifact-appropriate identities and return blocked when required review inputs are missing."
+    },
+    {
+      "severity": "major",
+      "section": "§§2, 5.7, 6",
+      "claim": "The live smoke procedure cannot prove the promised hook and model coverage as written.",
+      "evidence": "The local CLI help and official reference require stream-json output for --include-hook-events. Some events do not emit hook_started, so event absence alone is insufficient. [CLI reference](https://code.claude.com/docs/en/cli-reference) The design supplies no prompts that deterministically trigger each event, negative gate case, or agent-to-transcript correlation.",
+      "fix": "Provide complete commands using --output-format stream-json --verbose, explicit scenario prompts and expected results. Assert filesystem/state effects separately. Test plugin-disabled eta sessions separately from loaded-but-guarded handlers. Correlate each namespaced agent invocation with its transcript and resolved model ID."
+    },
+    {
+      "severity": "major",
+      "section": "§§1.2, 1.4, 6, 7",
+      "claim": "Phase 4 lacks a path to test the candidate plugin before installing it from the default-branch release clone.",
+      "evidence": "The candidate is built on a branch, but step 7 installs from a clone tracking the default branch before PR review and merge. That clone need not contain the candidate. Pulling the source also does not define installed-plugin refresh; plugin updates have a separate command. [Plugin management](https://code.claude.com/docs/en/discover-plugins#update-plugins-now)",
+      "fix": "Test the candidate through an isolated staging installation or explicit local plugin loading. Require namespace completeness before retiring loose skills. After review and merge, update the release clone and installed plugins, then verify loaded versions and hashes in a fresh session."
+    }
+  ]
+}

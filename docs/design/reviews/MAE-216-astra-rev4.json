@@ -1,0 +1,41 @@
+{
+  "verdict": "fail",
+  "summary": "Review-3 findings 1–3 and 5–7 are addressed at the design-contract level. Finding 4 remains: post-merge detection does not prevent unverified integration. New defects concern ordinary GitHub CLI routes, unresolved classification, and skill retirement. Reviewed the supplied documents and local CLI help; no skills, external actions, or implementation tests were used.",
+  "findings": [
+    {
+      "severity": "critical",
+      "section": "§§0, 5.2 G1 merge rule, 5.8",
+      "claim": "The residual base race still permits unverified code to reach the destination branch.",
+      "evidence": "After G1 verifies base B and head H, the base can advance before GitHub merges. Local `gh pr merge --help` confirms that `--match-head-commit` constrains only the head. Comparing trees afterward detects the violation after shipping; a subsequent revert cannot satisfy §0's requirement. Deferred modes such as `--auto` also lack an explicit rejection or execution-time revalidation rule.",
+      "fix": "Require an atomic base-conditioned integration mechanism, or obtain an explicit §0 exception accepting post-merge detection and recovery. Reject deferred merge modes unless their eventual execution preserves the verification conditions. Add a deterministic base-movement test."
+    },
+    {
+      "severity": "critical",
+      "section": "§§0, 1.3 G3 remote targets, 5.2 G1, 5.8",
+      "claim": "Ordinary GitHub CLI commands remain uncovered shipping and cross-world routes.",
+      "evidence": "Local `gh repo sync --help` documents remote destination updates, default-branch synchronization, and `--force` hard resets. For example, `gh repo sync owner/repo --source owner/upstream --force` matches none of G1's specified routes. An eta destination supplied positionally also falls outside G3's listed remote selectors. Separately, `gh pr update-branch` performs a server-side merge or rebase without the specified verification gate. These are direct documented commands, not disguised routes.",
+      "fix": "Deny these commands or give them explicit destination resolution and equivalent verification rules. Include positional remote destinations in G3. Test default-branch synchronization, forced synchronization, eta destinations, and PR branch updates."
+    },
+    {
+      "severity": "critical",
+      "section": "§§0, 1.3 Guard, 5.1, 5.8 Guard",
+      "claim": "Unresolved classification disables shipping gates in potentially personal sessions.",
+      "evidence": "An unreadable classification input becomes `eta`, after which every handler exits successfully without evaluating G1–G3. Thus an ordinary unverified push from a personal session can be allowed precisely when classification cannot decide. `onFailure: \"block\"` does not help because the handler deliberately returns success. The proposed unresolved-classification test explicitly expects this behavior.",
+      "fix": "Preserve an `unknown` classification. Suppress personal recording and context side effects in that state, but deny mutating operations until classification succeeds. Test that unresolved classification produces neither personal record writes nor permission to ship."
+    },
+    {
+      "severity": "major",
+      "section": "§1.2 Retirement; §5.9 Skill hygiene; Phase 2 table — Reuse before building",
+      "claim": "The retirement procedure removes official skills that the adopted design depends on retaining.",
+      "evidence": "Retirement moves `~/.claude/skills/*`, which includes `~/.claude/skills/synced/`. The adoption table explicitly relies on that directory for official document, skill-creator, research, and browser skills, and slims personal skills to depend on official counterparts. No migration destination for these retained skills is specified. The rollback detects the loss but cannot complete the planned retirement.",
+      "fix": "Use an explicit retirement inventory that preserves `synced/`, or migrate its required contents to a declared retained location first. Verify both migrated personal namespaces and retained official dependencies before and after quarantine."
+    },
+    {
+      "severity": "minor",
+      "section": "§§4, 5.3, 5.8; Phase 2 table — Verification evidence bound to code",
+      "claim": "The adopted single-use review-receipt behavior has no defined contract.",
+      "evidence": "The table says the harness adopts single-use review receipts, but the verdict schema and gates specify only subject matching. They do not define which operation consumes a receipt, how consumption is recorded, or what happens after a failed or uncertain merge attempt. Phase 4 therefore lacks a determinate acceptance test for this adoption.",
+      "fix": "Define receipt consumption, retry, and reconciliation semantics with corresponding tests, or explicitly defer single-use receipts in the adoption table."
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+{"type":"object","additionalProperties":false,"required":["verdict","summary","findings"],
+ "properties":{"verdict":{"type":"string","enum":["pass","fail","blocked"]},"summary":{"type":"string"},
+  "findings":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["severity","section","claim","evidence","fix"],
+   "properties":{"severity":{"type":"string","enum":["critical","major","minor"]},"section":{"type":"string"},"claim":{"type":"string"},"evidence":{"type":"string"},"fix":{"type":"string"}}}}}}

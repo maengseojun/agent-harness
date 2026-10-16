@@ -1,0 +1,97 @@
+{
+  "verdict": "fail",
+  "summary": "Review 1 findings, in listed order: 1 resolved under the default; 2 unresolved; 3 resolved; 4 unresolved; 5 immediate head-race fix resolved; 6 partially resolved; 7 resolved for the supported host; 8 persistent-state fix resolved, but shipping enforcement remains defective; 9 unresolved; 10 partially resolved; 11 resolved; 12 resolved at the design-contract level; 13 partially resolved; 14 partially resolved. New defects include fingerprint reuse across commits, staging plugin identity, and the plugin SessionEnd timeout. Reviewed the supplied document and official documentation; no writes or implementation tests performed.",
+  "findings": [
+    {
+      "severity": "critical",
+      "section": "§§0, 1.3, 5.1, 5.8 S6",
+      "claim": "New eta checkouts can still run personal agents and record flows.",
+      "evidence": "S6 explicitly permits maeng-harness to remain loaded in an unisolated eta worktree. Exiting personal hooks does not remove its skills or agents, and it also disables enforcement against personal record writes. Additionally, the guard runs before every handler and exits for eta, leaving no specified execution path for the promised SessionStart isolation warning.",
+      "fix": "Ensure isolation before loading the session's plugins, including newly created worktrees and separately located clones. Refuse to start an incorrectly configured eta session. Define the warning path separately from handlers that must immediately exit, and test an attempted personal-agent invocation and personal-record write."
+    },
+    {
+      "severity": "critical",
+      "section": "§§1.3 layer 3, 5.2 G3",
+      "claim": "Cross-world enforcement omits remote repository mutations.",
+      "evidence": "G3 checks local file targets and Bash path arguments only. A personal session can call GitHub push_files or create_or_update_file against an endix-foundation-v1 repository without supplying any eta filesystem path. G1 does not independently reject an eta destination.",
+      "fix": "Classify destination repositories and workspaces for supported remote mutation tools as well as local paths. Reject eta mutations from personal sessions and test remote GitHub operations explicitly."
+    },
+    {
+      "severity": "critical",
+      "section": "§0 Fingerprint; §§3.1, 5.2 G1, 5.3",
+      "claim": "Verification is not bound to the code being shipped.",
+      "evidence": "Every clean checkout has the same empty changed-file fingerprint regardless of HEAD. A session can verify clean commit A, edit and commit untested code B, then recover the same fingerprint and become verified again. The gate also does not require a pushed source ref or gh pr create --head target to match the tested checkout; another branch can be shipped using this session's evidence.",
+      "fix": "Bind evidence to repository identity, an immutable code tree or commit, and criteria revision. Resolve every pushed source and PR head to that exact verified subject. Add tests for verify→edit→commit→push, branch switching, another source ref, and another repository."
+    },
+    {
+      "severity": "critical",
+      "section": "§§0, 5.3, 5.8 Verification",
+      "claim": "Skipped or incomplete checks can authorize shipping.",
+      "evidence": "Verified explicitly accepts a skip even though the same section says a skip is never a pass. It also considers only the latest evidence: failed pytest followed by successful build or lint becomes verified at the same fingerprint. With no bound plan, there is no required-check set or acceptance-criteria obligation.",
+      "fix": "Separate permission to stop from permission to ship. Require successful evidence for the applicable required checks, retain unresolved failures, and prevent a skip from satisfying code verification. Require a current plan or an explicit bounded verification policy before shipping."
+    },
+    {
+      "severity": "critical",
+      "section": "§5.3 Verification evidence",
+      "claim": "A finish-time fingerprint can certify edits that the check never tested.",
+      "evidence": "Only fingerprint_at_finish is recorded. If pytest loads version A and another process changes the code to B before pytest exits successfully, the receipt records B as verified. Likewise, a successful compound Bash call can run tests and then modify code before the PostToolUse fingerprint is taken.",
+      "fix": "Run checks against an immutable snapshot, or capture start and finish identities and reject evidence when they differ. Define handling for compound and background commands, and test concurrent edits and test-then-edit commands."
+    },
+    {
+      "severity": "critical",
+      "section": "§§0, 5.2 G1, 5.8 G1 negatives",
+      "claim": "The command matcher still leaves ungated shipping routes.",
+      "evidence": "Hidden scripts are denied only when the visible command mentions push or merge. A command such as ./release.sh can perform either operation without those words. The route table also supplies no verification rule for mcp__github__create_pull_request, despite §0 requiring verification before opening a PR. Default-branch protection requiring a PR does not enforce these missing checks.",
+      "fix": "Define and enforce the supported mutation boundary beyond command keywords. Route shipping through a controlled executor or server-enforced checks, cover MCP PR creation, and deny unsupported mutation routes. Include a script with an innocuous name in negative tests."
+    },
+    {
+      "severity": "critical",
+      "section": "§§4, 5.2 G1 merge rule",
+      "claim": "An unchanged patch-id does not justify reusing review and verification after the base changes.",
+      "evidence": "The merge rule first requires the current base to match, then explicitly waives that requirement when patch-id is unchanged. A base change to a dependency or caller can invalidate the reviewed behavior without changing the PR patch. --match-head-commit constrains the head, not the base or resulting merge tree. [GitHub CLI merge documentation](https://cli.github.com/manual/gh_pr_merge).",
+      "fix": "Invalidate the receipt when relevant base context changes and verify the resulting integration tree. Enforce that result with required server-side checks or a merge queue; do not treat patch-id equality as proof of compatibility."
+    },
+    {
+      "severity": "major",
+      "section": "§§0, 3.4, 5.2 G2",
+      "claim": "Exact-payload hashing fixes content binding, but the publish boundary remains incomplete.",
+      "evidence": "G2 deliberately permits Notion writes elsewhere and recognizes existing records only through a registry written after readback. A successful create followed by failed readback leaves a published page outside that registry, so subsequent updates are ungated. Existing or moved records have the same problem. This permits publication without the Sol review required by §0.",
+      "fix": "Define the complete publication scope and cover every mutation within it. Journal pending creates before execution, reconcile uncertain results, and resolve existing-page destinations independently of the registry. Test successful create followed by failed readback and an update attempt."
+    },
+    {
+      "severity": "major",
+      "section": "§§1.2, 1.3, 5.8 S5, 6 step 7",
+      "claim": "The staging configuration cannot satisfy S5 as written.",
+      "evidence": "Isolation disables maeng-harness@maeng, but --plugin-dir loads maeng-harness@inline. Those are distinct settings identities, so the staging command still loads the harness and its agents. The official reference specifies <name>@inline for disabling session-only plugins. [Plugin loading reference](https://code.claude.com/docs/en/plugins/loading#keep-a-session-only-plugin-from-loading).",
+      "fix": "Disable the inline identity in the isolated staging fixture and explicitly enable it only for S6. Keep separate assertions for marketplace-installed and inline loading."
+    },
+    {
+      "severity": "major",
+      "section": "§§1.2 Retiring loose skills, 6 step 9",
+      "claim": "The loose-skill retirement condition is circular.",
+      "evidence": "The document requires a fresh session with no un-namespaced duplicates before moving the loose skills away, while explicitly leaving those skills installed until that check succeeds. No mechanism suppresses the loose entries in that session. Standalone user skills remain available across projects. [Claude Code plugins overview](https://code.claude.com/docs/en/plugins).",
+      "fix": "First verify complete namespaced coverage, then reversibly quarantine the loose skills, then start another session to verify absence of duplicates. Specify rollback if the second check fails."
+    },
+    {
+      "severity": "major",
+      "section": "§§5.1, 5.5 SessionEnd, 5.8",
+      "claim": "The plugin's five-second SessionEnd timeout does not establish a five-second completion window.",
+      "evidence": "Claude Code gives SessionEnd a default 1.5-second overall budget, and plugin-provided timeout values do not raise that budget. The proposed atomic write and readback can therefore be terminated before completion despite the listed five-second timeout. [Hooks reference](https://code.claude.com/docs/en/hooks#sessionend).",
+      "fix": "Configure the documented overall SessionEnd budget outside the plugin, or complete durable recording earlier with a recovery path. Add a live test that takes longer than 1.5 seconds and verifies both the note and readback."
+    },
+    {
+      "severity": "major",
+      "section": "§§2 Verification, 5.8 S4",
+      "claim": "The model-check procedure targets the wrong transcript tool name.",
+      "evidence": "The checker is specified to correlate namespaced Task invocations. Claude Code renamed the spawning tool to Agent in v2.1.63; Task compatibility aliases in settings do not establish Task events in transcripts. A checker following this specification can find no invocations or pass vacuously. [Subagent documentation](https://code.claude.com/docs/en/sub-agents#restrict-which-subagents-can-be-spawned).",
+      "fix": "Match actual Agent calls and their namespaced subagent_type, correlate them to child transcripts, and require a nonzero expected invocation count for each agent. Define how resolved model IDs are checked against the requested model families."
+    },
+    {
+      "severity": "major",
+      "section": "§§3.1, 5.3, 5.4",
+      "claim": "Any record write can discharge the turn's obligation before the work is recorded.",
+      "evidence": "The obligation applies only when a turn had no record write. An initial Linear comment saying work is starting, or a write to an unrelated issue, therefore satisfies the check even if code changes and decisions occur afterward. The predicate does not bind the record to the task or the latest work state.",
+      "fix": "Track the last substantive change and require a subsequent successful record write associated with the bound task. Test an unrelated write and a starting-work comment followed by additional changes."
+    }
+  ]
+}

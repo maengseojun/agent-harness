@@ -1,0 +1,20 @@
+{
+  "verdict": "pass",
+  "summary": "The three review-5 findings are resolved. No critical or major defects remain under §0’s cooperative-agent threat model. Two minor gaps remain in recovery and validation.",
+  "findings": [
+    {
+      "severity": "minor",
+      "section": "§4 Receipt lifecycle; §5.8 receipt tests",
+      "claim": "Merge reconciliation lacks a completion path when the remote advances beyond the successfully pushed head before reconciliation.",
+      "evidence": "Reconciliation consumes the receipt when the remote equals head and permits retry when it equals reviewed base. After an accepted push with a lost response, a subsequent legitimate merge can leave the remote at a descendant of head; neither documented condition applies.",
+      "fix": "Define reconciliation for subsequent remote advancement using evidence that the reviewed head was integrated, retaining pending status when inconclusive. Add an accepted-push → lost-response → subsequent-advance test."
+    },
+    {
+      "severity": "minor",
+      "section": "§6 step 7; §5.8 live test S8",
+      "claim": "The build sequence omits the newly added successful-merge smoke test.",
+      "evidence": "§6 step 7 still specifies staging S1–S7, while S8 tests the accepted lease-guarded push, receipt consumption, and verified merge tree. Step 8 therefore remains the first prescribed successful exercise of that route.",
+      "fix": "Include S8 in the staging checks before the real merge in §6 step 8."
+    }
+  ]
+}
