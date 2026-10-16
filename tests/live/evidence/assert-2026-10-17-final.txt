@@ -8,12 +8,12 @@
   [PASS] [extra, design §5.3/5.5] stub still lists the open UNVERIFIED/UNRECORDED items after SessionEnd
   [PASS] state binds MAE-223 and keeps unverified (no evidence)
 == S2
-  [FAIL] no Stop block (all Stop outputs empty)
-  [FAIL] no stop-hook feedback injected
+  [PASS] no Stop block (all Stop outputs empty)
+  [PASS] no stop-hook feedback injected
   [PASS] pytest ran and passed
   [PASS] exactly one Linear save_comment on MAE-223, succeeded
-  [FAIL] maeng-verify status shows ship_verified true
-  [FAIL] state: >=1 ok evidence
+  [PASS] maeng-verify status shows ship_verified true
+  [PASS] state: >=1 ok evidence
   [PASS] state: record seq >= change seq
   [PASS] session stub written
 == S3
@@ -47,7 +47,7 @@
   [PASS] agent actions unaffected (hello.txt written, HEAD unchanged)
 == S7
   [PASS] A read-only git -C real eta_v1 status allowed and returned output
-  [FAIL] B git -C eta-classified repo commit denied by G3
+  [PASS] B git -C eta-classified repo commit denied by G3
   [PASS] C gh pr create -R endix-foundation-v1/x denied by G3
   [PASS] eta-classified repo HEAD unchanged
   [PASS] real eta_v1 git status unchanged
