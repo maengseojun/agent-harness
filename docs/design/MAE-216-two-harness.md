@@ -2,7 +2,7 @@
 id: DESIGN-MAE216
 title: Two-harness Claude Code environment (personal plugins + eta isolation)
 linear: MAE-216
-status: proposed (rev 6, after Astra reviews 1–4, Phase 2 rerun and user decisions 2026-10-17)
+status: proposed (rev 6.1, Astra pass on rev 6; after Astra reviews 1–4, Phase 2 rerun and user decisions 2026-10-17)
 author: Claude (Opus 5.5), architect
 date: 2026-10-17
 ---
@@ -249,7 +249,7 @@ What that gives:
 - A changed subject (head, base, criteria, digest) needs a new review.
 - Consumed receipts are kept and point to the resulting merge SHA or page id.
 - **`pending` is persisted before dispatch.** Retry eligibility comes back only after a **confirmed rejection** (e.g. git's "stale info" / non-fast-forward error, or a Notion error response) **or** after reconciliation proves no mutation happened. To prove that, `maeng-review reconcile` checks the remote ref == reviewed base, or that no page exists.
-- If the client failed but the remote may have changed (accepted push, lost response), the receipt stays `pending` and cannot be reused until reconcile. Reconcile marks it consumed when the remote ref == head.
+- If the client failed but the remote may have changed (accepted push, lost response), the receipt stays `pending` and cannot be reused until reconcile. Reconcile marks it consumed when the head has been integrated: either the remote ref == head, **or the head is an ancestor of a remote ref that has since advanced** (`git merge-base --is-ancestor`). If neither can be established, the receipt stays `pending`.
 
 ---
 
@@ -398,7 +398,7 @@ The Codex ledger and prepare-tool are not ported.
   - deny `gh api -X PUT repos/o/r/contents/f` (on a feature and on the default branch), GraphQL `createCommitOnBranch`, `gh pr merge` in any mode, `gh repo sync [--force]`, `gh pr update-branch`, `gh release create`;
   - `maeng-ship merge` on a BEHIND PR → deny;
   - **deterministic base-movement tests** on a local bare remote: (a) a divergent base advance, and (b) the base moved to an *ancestor of the head*. Both are rejected by the lease, and the receipt is not consumed.
-  - Accepted push followed by a client failure → receipt `pending` → reconcile marks it consumed.
+  - Accepted push followed by a client failure → receipt `pending` → reconcile marks it consumed, both when the remote stays at head and when it has advanced beyond head.
 - G3 extra: `git push https://github.com/maengseojun/eta_v1.git …` and `gh pr create -R endix-foundation-v1/x` from a personal session → deny.
 - Unknown classification: no stub or context written, and every G1/G3 mutation denied.
 - Retirement: `synced/` is still present and listed after quarantine.
@@ -458,7 +458,7 @@ Sonnet implements, Opus reviews each step, and Astra reviews the PR (medium per 
 4. Agents + model check.
 5. `maeng-review`, `maeng-verify`, `maeng-ship` (merge), `maeng-eta-isolate` + schemas.
 6. harness-run and work-records Claude editions, vault rule edits, and the §5.9 items: aside-research (after its smoke run), global CLAUDE.md, skill hygiene, graphify fixes.
-7. Staging smoke S1–S7.
+7. Staging smoke S1–S8 via `--plugin-dir`. S8 is a successful `maeng-ship merge` against a local bare remote, run before the real merge in step 8.
 8. PR → Astra → fix until pass → `maeng-ship merge` (this is also the first real exercise of the permitted merge route).
 9. Release (§1.2) → isolation → retirement sequence → re-run S5–S7 installed.
 
