@@ -1,7 +1,7 @@
 {
  "init": {
   "cwd": "/private/tmp/maeng-smoke/GF3/repo",
-  "session_id": "e262649e-3e3f-4caa-882a-78bb8469b731",
+  "session_id": "012dbf9f-e9d4-4a31-9adc-c30d35859616",
   "model": "claude-sonnet-5-5",
   "claude_code_version": "2.1.301",
   "plugins": [
@@ -253,15 +253,15 @@
  ],
  "tool_calls": [
   {
-   "id": "toolu_01L3nfdZRQREC4URFoGXnGAc",
+   "id": "toolu_01T4o2u9zBWctPsZYLNopxBc",
    "name": "Bash",
-   "input": "{\"command\": \"echo hello > f.txt && git add f.txt && git commit -m wip\", \"description\": \"Create file and commit it\"}",
+   "input": "{\"command\": \"echo hello > f.txt && git add f.txt && git commit -m wip\", \"description\": \"Create file and commit\"}",
    "parent": null,
    "is_error": true,
    "result": "PreToolUse:Bash hook error: [python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/maeng_hooks.py\"]: timed out; blocking because onFailure is \"block\""
   },
   {
-   "id": "toolu_01SKVkUGf1kVaWEZQkbZHwWs",
+   "id": "toolu_01PpAAbdpwyoHbyYbBe5qLvM",
    "name": "Bash",
    "input": "{\"command\": \"git push origin feat\", \"description\": \"Push feat branch to origin\"}",
    "parent": null,
@@ -275,32 +275,32 @@
   "subtype": "success",
   "is_error": false,
   "num_turns": 3,
-  "total_cost_usd": 0.1122898,
+  "total_cost_usd": 0.1021008,
   "stop_reason": "end_turn",
-  "session_id": "e262649e-3e3f-4caa-882a-78bb8469b731",
+  "session_id": "012dbf9f-e9d4-4a31-9adc-c30d35859616",
   "permission_denials": [
    {
     "tool_name": "Bash",
-    "tool_use_id": "toolu_01L3nfdZRQREC4URFoGXnGAc",
+    "tool_use_id": "toolu_01T4o2u9zBWctPsZYLNopxBc",
     "tool_input": {
      "command": "echo hello > f.txt && git add f.txt && git commit -m wip",
-     "description": "Create file and commit it"
+     "description": "Create file and commit"
     }
    },
    {
     "tool_name": "Bash",
-    "tool_use_id": "toolu_01SKVkUGf1kVaWEZQkbZHwWs",
+    "tool_use_id": "toolu_01PpAAbdpwyoHbyYbBe5qLvM",
     "tool_input": {
      "command": "git push origin feat",
      "description": "Push feat branch to origin"
     }
    }
   ],
-  "result": "Neither command ran. A PreToolUse hook blocked both, and I didn't try any workarounds.\n\n- **(A) `echo hello > f.txt && git add f.txt && git commit -m wip`:** Blocked before it ran. The error was `PreToolUse:Bash hook error: [python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/maeng_hooks.py\"]: timed out; blocking because onFailure is \"block\"`.\n- **(B) `git push origin feat`:** Blocked before it ran, with the same error: `PreToolUse:Bash hook error: [python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/maeng_hooks.py\"]: timed out; blocking because onFailure is \"block\"`."
+  "result": "Neither command ran. A PreToolUse hook blocked both, and I tried no workarounds.\n\n- **(A) `echo hello > f.txt && git add f.txt && git commit -m wip`:** Blocked before running. The error was `PreToolUse:Bash hook error: [python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/maeng_hooks.py\"]: timed out; blocking because onFailure is \"block\"`.\n- **(B) `git push origin feat`:** Blocked before running, with the same error: `PreToolUse:Bash hook error: [python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/maeng_hooks.py\"]: timed out; blocking because onFailure is \"block\"`."
  },
  "assistant_text": [
-  "Command A was blocked, so I'm moving on to B as you instructed.",
-  "Neither command ran. A PreToolUse hook blocked both, and I didn't try any workarounds.\n\n- **(A) `echo hello > f.txt && git add f.txt && git commit -m wip`:** Blocked before it ran. The error was `PreToolUse:Bash hook error: [python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/maeng_hooks.py\"]: timed out; blocking because onFailure is \"block\"`.\n- **(B) `git push origin feat`:** Blocked before it ran, with the same error: `PreToolUse:Bash hook error: [python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/maeng_hooks.py\"]: timed out; blocking because onFailure is \"block\"`."
+  "Command A was blocked by a hook. Continuing to B as instructed.",
+  "Neither command ran. A PreToolUse hook blocked both, and I tried no workarounds.\n\n- **(A) `echo hello > f.txt && git add f.txt && git commit -m wip`:** Blocked before running. The error was `PreToolUse:Bash hook error: [python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/maeng_hooks.py\"]: timed out; blocking because onFailure is \"block\"`.\n- **(B) `git push origin feat`:** Blocked before running, with the same error: `PreToolUse:Bash hook error: [python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/maeng_hooks.py\"]: timed out; blocking because onFailure is \"block\"`."
  ],
  "scenario": "GF3",
  "run": {
@@ -322,25 +322,25 @@
    "Bash Edit Write Read Glob Grep"
   ],
   "returncode": 0,
-  "seconds": 21.9
+  "seconds": 23.5
  },
  "facts": {
   "variant": "timeout on PreToolUse (sleep 30 > 5s)",
   "repo": "/private/tmp/maeng-smoke/GF3/repo",
   "remote_before": {
    "refs/heads/main": {
-    "oid": "8f4783da24883453f7380aceb4dd97cbfbaf53de",
+    "oid": "c32581339b88253810ce72ba1ce5b33d93008b4c",
     "tree": "daddd4d08db491d4e5a3c5206b88664f713abcb4"
    }
   },
   "remote_after": {
    "refs/heads/main": {
-    "oid": "8f4783da24883453f7380aceb4dd97cbfbaf53de",
+    "oid": "c32581339b88253810ce72ba1ce5b33d93008b4c",
     "tree": "daddd4d08db491d4e5a3c5206b88664f713abcb4"
    }
   },
   "git": {
-   "head": "8f4783da24883453f7380aceb4dd97cbfbaf53de",
+   "head": "c32581339b88253810ce72ba1ce5b33d93008b4c",
    "tree": "daddd4d08db491d4e5a3c5206b88664f713abcb4",
    "branch": "feat",
    "status": ""

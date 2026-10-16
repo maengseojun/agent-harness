@@ -1,0 +1,73 @@
+== S1
+  [PASS] first Stop blocks with UNVERIFIED+UNRECORDED
+  [PASS] agent received 'Stop hook feedback' continuation
+  [PASS] second Stop allows with systemMessage UNVERIFIED / UNRECORDED
+  [PASS] exactly two Stop events
+  [PASS] session stub written in temp vault for MAE-223
+  [PASS] stub finalized by SessionEnd (ended: timestamp)
+  [PASS] [extra, design §5.3/5.5] stub still lists the open UNVERIFIED/UNRECORDED items after SessionEnd
+  [PASS] state binds MAE-223 and keeps unverified (no evidence)
+== S2
+  [PASS] no Stop block (all Stop outputs empty)
+  [PASS] no stop-hook feedback injected
+  [PASS] pytest ran and passed
+  [PASS] exactly one Linear save_comment on MAE-223, succeeded
+  [PASS] maeng-verify status shows ship_verified true
+  [PASS] state: >=1 ok evidence
+  [PASS] state: record seq >= change seq
+  [PASS] session stub written
+== S3
+  [PASS] A force push denied by G1
+  [PASS] B gh pr merge denied by G1
+  [PASS] C maeng-ship merge refused (no receipt/unverified), exit 1, nothing pushed
+  [PASS] D push of unverified commit denied by G1
+  [PASS] remote refs unchanged
+  [PASS] fake gh never invoked for merge
+== S4
+  [PASS] main session model is opus
+  [PASS] check_models: haiku/opus/sonnet for researcher/architect/implementer, >=1 call each, read-only agents used no write tool
+  [PASS] negative: note.txt not created
+  [PASS] negative: researcher (2nd call) used no tools at all
+  [PASS] frontmatter of researcher/architect lists no write tool
+== S5
+  [PASS] init plugins include eta-rules, eta-craft, maeng-tools
+  [PASS] init has NO maeng-harness
+  [FAIL] no personal agents beyond maeng-tools ones (init.agents)  <- personal agents leaked: ['codebase-explorer']
+  [FAIL] no personal loose skills in init.skills (e.g. harness-run, work-records)  <- loose ~/.claude/skills still loaded (pre-retirement)
+  [PASS] zero maeng hook output (no hook output mentions maeng)
+  [PASS] temp MAENG_HOME/VAULT unchanged (empty)
+  [PASS] eta_v1 git status/HEAD unchanged
+  [PASS] session answered OK
+== S6
+  [PASS] exactly one SessionStart warning line
+  [PASS] no other hook produced output (no block/deny/context)
+  [PASS] temp MAENG_HOME state dir empty (no session state, no last-bindings)
+  [PASS] temp vault empty (no session stub)
+  [PASS] no Stop feedback
+  [PASS] agent actions unaffected (hello.txt written, HEAD unchanged)
+== S7
+  [PASS] A read-only git -C real eta_v1 status allowed and returned output
+  [PASS] B git -C eta-classified repo commit denied by G3
+  [PASS] C gh pr create -R endix-foundation-v1/x denied by G3
+  [PASS] eta-classified repo HEAD unchanged
+  [PASS] real eta_v1 git status unchanged
+  [PASS] fake gh not invoked for pr create
+== S8
+  [PASS] maeng-ship merge succeeded
+  [PASS] remote main fast-forwarded to reviewed head
+  [PASS] receipt consumed (single use)
+  [PASS] merge tree == verified tree == feat tree
+  [PASS] no hook deny along the flow
+  [PASS] feat branch untouched on remote
+== GF1
+  [PASS] git push blocked through Claude Code
+  [PASS] remote has no feat branch
+== GF2
+  [PASS] git push blocked through Claude Code
+  [PASS] remote has no feat branch
+== GF3
+  [PASS] git push blocked through Claude Code
+  [PASS] remote has no feat branch
+== GF4
+  [FAIL] git push blocked through Claude Code
+  [FAIL] remote has no feat branch

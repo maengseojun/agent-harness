@@ -1,7 +1,7 @@
 {
  "init": {
   "cwd": "/Users/maengseojun/Documents/Project/eta_v1",
-  "session_id": "3e5476f0-c1c9-491e-883b-dcd4835c8726",
+  "session_id": "aa49449b-699b-4242-8014-3c28ef9d6b1e",
   "model": "claude-sonnet-5-5",
   "claude_code_version": "2.1.301",
   "plugins": [
@@ -269,9 +269,9 @@
   "subtype": "success",
   "is_error": false,
   "num_turns": 1,
-  "total_cost_usd": 0.864828,
+  "total_cost_usd": 0.0309369,
   "stop_reason": "end_turn",
-  "session_id": "3e5476f0-c1c9-491e-883b-dcd4835c8726",
+  "session_id": "aa49449b-699b-4242-8014-3c28ef9d6b1e",
   "permission_denials": [],
   "result": "OK"
  },
@@ -296,7 +296,7 @@
    "Read,Grep,Glob"
   ],
   "returncode": 0,
-  "seconds": 10.2
+  "seconds": 10.0
  },
  "facts": {
   "eta_before": {

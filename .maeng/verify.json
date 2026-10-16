@@ -1,0 +1,4 @@
+{
+  "_comment": "Verification policy for this repo (design §0, §5.3). Live smoke outputs are evidence, not code.",
+  "non_code_globs": ["**/*.md", "docs/**", "**/*.{png,jpg,jpeg,gif,svg,webp}", "tests/live/evidence/**"]
+}
