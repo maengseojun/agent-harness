@@ -1,0 +1,477 @@
+#!/usr/bin/env python3
+"""maeng-archive: cold-storage archive, backup and restore for the Obsidian vault.
+
+Stdlib only (Python 3.11+). Nothing is deleted before a hash-verified copy exists.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import glob
+import hashlib
+import json
+import os
+import shutil
+import sys
+import tempfile
+import zipfile
+from pathlib import Path
+
+STORES = ("onedrive", "gdrive")
+ARCHIVE_DIR = "maeng-archive"
+BACKUP_DIR = "maeng-backup"
+EXCLUDE_DIRS = {".trash", ".cache", "__pycache__", "cache", "Cache", ".git"}
+
+
+class ArchiveError(Exception):
+    pass
+
+
+# ---------- configuration ----------
+def vault_root() -> Path:
+    return Path(os.environ.get("MAENG_VAULT") or Path.home() / "Documents" / "Obsidian Vault").expanduser()
+
+
+def maeng_home() -> Path:
+    return Path(os.environ.get("MAENG_HOME") or Path.home() / ".local" / "share" / "maeng-harness").expanduser()
+
+
+def store_root(name: str) -> Path | None:
+    if name not in STORES:
+        raise ArchiveError(f"unknown store: {name}")
+    if name == "onedrive":
+        env = os.environ.get("MAENG_ARCHIVE_ONEDRIVE")
+        if env:
+            p = Path(env).expanduser()
+            return p if p.is_dir() else None
+        base = Path.home() / "Library" / "CloudStorage"
+        default = base / "OneDrive-고려대학교"
+        if default.is_dir():
+            return default
+        found = sorted(glob.glob(str(base / "OneDrive-*")))
+        return Path(found[0]) if found else None
+    env = os.environ.get("MAENG_ARCHIVE_GDRIVE")
+    if env:
+        p = Path(env).expanduser()
+        return p if p.is_dir() else None
+    base = Path.home() / "Library" / "CloudStorage"
+    for pat in ("GoogleDrive-*/My Drive", "GoogleDrive-*/내 드라이브"):
+        found = sorted(glob.glob(str(base / pat)))
+        if found:
+            return Path(found[0])
+    return None
+
+
+# ---------- file helpers ----------
+def sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def copy_file(src: Path, dst: Path) -> None:
+    """Copy via temp file in the destination directory, fsync, then atomic rename."""
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=dst.parent, prefix=".tmp-archive-")
+    try:
+        with os.fdopen(fd, "wb") as out, open(src, "rb") as inp:
+            shutil.copyfileobj(inp, out, 1 << 20)
+            out.flush()
+            os.fsync(out.fileno())
+        os.replace(tmp, dst)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
+
+
+def write_text_atomic(path: Path, text: str) -> None:
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".tmp-stub-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
+
+
+def now() -> dt.datetime:
+    return dt.datetime.now().astimezone()
+
+
+# ---------- frontmatter ----------
+def split_frontmatter(text: str) -> tuple[list[str], str]:
+    if text.startswith("---\n"):
+        end = text.find("\n---\n", 3)
+        if end != -1:
+            return text[4:end].split("\n"), text[end + 5:]
+        if text.endswith("\n---"):
+            return text[4:-4].split("\n"), ""
+    return [], text
+
+
+def parse_stub(text: str) -> dict | None:
+    lines, _ = split_frontmatter(text)
+    status = any(l.strip() == "status: archived" for l in lines)
+    meta: dict = {}
+    in_block = False
+    for l in lines:
+        if l.startswith("archive:"):
+            in_block = True
+            continue
+        if in_block:
+            if l.startswith("  ") and ":" in l:
+                k, v = l.strip().split(":", 1)
+                v = v.strip()
+                try:
+                    v = json.loads(v)
+                except ValueError:
+                    pass
+                meta[k] = v
+            else:
+                in_block = False
+    if status and meta.get("sha256"):
+        return meta
+    return None
+
+
+def build_stub(original_text: str | None, meta: dict, world: str, rel: str) -> str:
+    fm: list[str] = []
+    if original_text is not None:
+        fm, _ = split_frontmatter(original_text)
+    fm = [l for l in fm if not l.startswith("status:")]
+    # drop any previous archive block
+    cleaned, skip = [], False
+    for l in fm:
+        if l.startswith("archive:"):
+            skip = True
+            continue
+        if skip and l.startswith("  "):
+            continue
+        skip = False
+        cleaned.append(l)
+    fm = [l for l in cleaned if l.strip() != ""] if not cleaned else cleaned
+    if world == "eta" and not any(l.startswith("world:") for l in fm):
+        fm.append("world: eta")
+    fm.append("archive:")
+    for k in ("store", "path", "sha256", "size", "archived_at"):
+        fm.append(f"  {k}: {json.dumps(meta[k], ensure_ascii=False)}")
+    fm.append("status: archived")
+    return (
+        "---\n" + "\n".join(fm) + "\n---\n\n"
+        "## Summary\n"
+        "<!-- agent: fill a 3-5 line summary of what was here and why it was archived -->\n\n"
+        f"Archived original: `{meta['store']}:{meta['path']}` (sha256 `{meta['sha256'][:12]}`)\n"
+    )
+
+
+# ---------- move ----------
+def cmd_move(rel: str, store: str, world: str, dry_run: bool) -> dict:
+    vault = vault_root()
+    src = (vault / rel)
+    if Path(rel).is_absolute() or ".." in Path(rel).parts:
+        raise ArchiveError("path must be vault-relative without '..'")
+    is_md = src.suffix.lower() == ".md"
+    stub_path = src if is_md else src.with_name(src.name + ".archived.md")
+    if is_md and src.is_file():
+        text = src.read_text(encoding="utf-8", errors="replace")
+        existing = parse_stub(text)
+        if existing:
+            return {"action": "already-archived", "stub": str(stub_path), "archive": existing}
+    if not is_md and not src.exists() and stub_path.is_file():
+        existing = parse_stub(stub_path.read_text(encoding="utf-8", errors="replace"))
+        if existing:
+            return {"action": "already-archived", "stub": str(stub_path), "archive": existing}
+    if not src.is_file():
+        raise ArchiveError(f"not a file in vault: {src}")
+    root = store_root(store)
+    if root is None:
+        raise ArchiveError(f"store '{store}' not found; nothing changed")
+    stamp = now()
+    rel_posix = Path(rel).as_posix()
+    arch_rel = f"{ARCHIVE_DIR}/{world}/{stamp.year}/{rel_posix}"
+    dest = root / arch_rel
+    src_hash = sha256_file(src)
+    size = src.stat().st_size
+    plan = {"source": str(src), "destination": str(dest), "sha256": src_hash, "size": size, "stub": str(stub_path)}
+    reuse = False
+    if dest.exists():
+        if sha256_file(dest) != src_hash:
+            raise ArchiveError(f"destination exists with different hash: {dest}")
+        reuse = True
+    if dry_run:
+        return {"action": "dry-run", "reuse_existing": reuse, **plan}
+    if not reuse:
+        copy_file(src, dest)
+    if sha256_file(dest) != src_hash:
+        try:
+            if not reuse:
+                dest.unlink()
+        finally:
+            raise ArchiveError("hash mismatch after copy; vault unchanged")
+    meta = {"store": store, "path": arch_rel, "sha256": src_hash, "size": size,
+            "archived_at": stamp.isoformat(timespec="seconds")}
+    original_text = src.read_text(encoding="utf-8", errors="replace") if is_md else None
+    stub = build_stub(original_text, meta, world, rel_posix)
+    write_text_atomic(stub_path, stub)
+    if not is_md:
+        src.unlink()
+    return {"action": "archived", "archive": meta, **plan}
+
+
+# ---------- backup ----------
+def _excluded(rel: Path) -> bool:
+    parts = rel.parts
+    if any(p in EXCLUDE_DIRS for p in parts[:-1]):
+        return True
+    name = parts[-1]
+    if name == ".DS_Store":
+        return True
+    if parts[0] == ".obsidian" and len(parts) == 2 and name.startswith("workspace") and name.endswith(".json"):
+        return True
+    return False
+
+
+def _walk(base: Path):
+    for dirpath, dirnames, filenames in os.walk(base):
+        dirnames[:] = [d for d in dirnames if d not in EXCLUDE_DIRS]
+        for fn in filenames:
+            p = Path(dirpath) / fn
+            if p.is_symlink():
+                continue
+            rel = p.relative_to(base)
+            if not _excluded(rel):
+                yield p, rel
+
+
+def build_backup_zip(zip_path: Path, stamp: str) -> dict:
+    files = []
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for label, base in (("vault", vault_root()), ("harness", maeng_home())):
+            if not base.is_dir():
+                continue
+            for p, rel in _walk(base):
+                arc = f"{label}/{rel.as_posix()}"
+                files.append({"path": arc, "sha256": sha256_file(p), "size": p.stat().st_size})
+                zf.write(p, arc)
+        manifest = {"created": stamp, "file_count": len(files), "files": files}
+        zf.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=1))
+    return manifest
+
+
+def cmd_backup(targets: list[str], keep: int, dry_run: bool) -> dict:
+    stamp = now().strftime("%Y%m%d-%H%M%S")
+    name = f"maeng-{stamp}"
+    result: dict = {"name": name, "stores": {}}
+    avail = {}
+    for t in targets:
+        root = store_root(t)
+        if root is None:
+            result["stores"][t] = {"status": "skipped", "reason": f"{t} store not found"}
+        else:
+            avail[t] = root
+    if dry_run:
+        count = sum(1 for b in (vault_root(), maeng_home()) if b.is_dir() for _ in _walk(b))
+        for t, root in avail.items():
+            result["stores"][t] = {"status": "dry-run", "would_write": str(root / BACKUP_DIR / f"{name}.zip"), "file_count": count}
+        return result
+    if not avail:
+        return result
+    with tempfile.TemporaryDirectory(prefix="maeng-backup-") as td:
+        tmp_zip = Path(td) / f"{name}.zip"
+        manifest = build_backup_zip(tmp_zip, stamp)
+        local_hash = sha256_file(tmp_zip)
+        manifest_text = json.dumps({**manifest, "zip_sha256": local_hash}, ensure_ascii=False, indent=1)
+        tmp_manifest = Path(td) / f"{name}.manifest.json"
+        tmp_manifest.write_text(manifest_text, encoding="utf-8")
+        for t, root in avail.items():
+            bdir = root / BACKUP_DIR
+            dest = bdir / f"{name}.zip"
+            try:
+                copy_file(tmp_zip, dest)
+                if sha256_file(dest) != local_hash:
+                    dest.unlink()
+                    raise ArchiveError("copied zip hash mismatch")
+                with zipfile.ZipFile(dest) as zf:
+                    bad = zf.testzip()
+                if bad:
+                    dest.unlink()
+                    raise ArchiveError(f"corrupt zip member: {bad}")
+                copy_file(tmp_manifest, bdir / f"{name}.manifest.json")
+            except (ArchiveError, OSError, zipfile.BadZipFile) as e:
+                result["stores"][t] = {"status": "failed", "reason": str(e)}
+                continue
+            pruned = _prune(bdir, keep)  # only reached after verification
+            result["stores"][t] = {"status": "ok", "zip": str(dest), "files": manifest["file_count"], "pruned": pruned}
+    return result
+
+
+def _prune(bdir: Path, keep: int) -> list[str]:
+    zips = sorted(bdir.glob("maeng-*.zip"))
+    old = zips[:-keep] if keep > 0 and len(zips) > keep else []
+    gone = []
+    for z in old:
+        z.unlink()
+        m = z.with_suffix(".manifest.json")
+        if m.exists():
+            m.unlink()
+        gone.append(z.name)
+    return gone
+
+
+# ---------- restore ----------
+def _original_of_stub(stub: Path) -> Path:
+    if stub.name.endswith(".archived.md"):
+        return stub.with_name(stub.name[: -len(".archived.md")])
+    return stub
+
+
+def cmd_restore(path: str, apply: bool, target: str | None) -> dict:
+    p = Path(path).expanduser()
+    if p.suffix == ".zip":
+        return _restore_zip(p, apply, target)
+    if not p.is_absolute() and not p.is_file():
+        p = vault_root() / p  # same vault-relative form that `move` accepts
+    if not p.is_file():
+        raise ArchiveError(f"not found: {p}")
+    meta = parse_stub(p.read_text(encoding="utf-8", errors="replace"))
+    if not meta:
+        raise ArchiveError("not an archive stub (no status: archived / archive.sha256)")
+    root = store_root(meta["store"])
+    if root is None:
+        raise ArchiveError(f"store '{meta['store']}' not found")
+    arch = root / meta["path"]
+    if not arch.is_file():
+        raise ArchiveError(f"archived file missing: {arch}")
+    if sha256_file(arch) != meta["sha256"]:
+        raise ArchiveError("archived file hash differs from stub; refusing")
+    orig = _original_of_stub(p)
+    kept = p.with_name(p.stem + ".restored.md")
+    plan = {"archive": str(arch), "restore_to": str(orig), "stub_renamed_to": str(kept)}
+    if orig != p and orig.exists():
+        raise ArchiveError(f"original path already exists: {orig}")
+    if kept.exists():
+        raise ArchiveError(f"{kept} already exists")
+    if not apply:
+        return {"action": "dry-run", **plan}
+    tmp = orig.with_name(f".tmp-restore-{orig.name}")
+    copy_file(arch, tmp)
+    if sha256_file(tmp) != meta["sha256"]:
+        tmp.unlink()
+        raise ArchiveError("hash mismatch after restore copy; nothing changed")
+    os.replace(p, kept)
+    os.replace(tmp, orig)
+    return {"action": "restored", **plan}
+
+
+def _restore_zip(z: Path, apply: bool, target: str | None) -> dict:
+    if not z.is_file():
+        raise ArchiveError(f"not found: {z}")
+    with zipfile.ZipFile(z) as zf:
+        bad = zf.testzip()
+        if bad:
+            raise ArchiveError(f"corrupt zip member: {bad}")
+        names = [n for n in zf.namelist() if not n.endswith("/") and n != "manifest.json"]
+        if not apply:
+            return {"action": "dry-run", "zip": str(z), "file_count": len(names), "sample": names[:20]}
+        if not target:
+            raise ArchiveError("--target is required with --apply")
+        tdir = Path(target).expanduser().resolve()
+        live = vault_root().resolve()
+        if tdir == live or live in tdir.parents or tdir in live.parents:
+            raise ArchiveError("target must not be, contain, or live inside the live vault")
+        for n in names:
+            dest = (tdir / n).resolve()
+            if tdir not in dest.parents:
+                raise ArchiveError(f"unsafe path in zip: {n}")
+            if dest.exists():
+                raise ArchiveError(f"would overwrite existing file: {dest}")
+        for n in names:
+            dest = tdir / n
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            with zf.open(n) as src, open(dest, "wb") as out:
+                shutil.copyfileobj(src, out)
+    return {"action": "restored", "zip": str(z), "target": str(tdir), "file_count": len(names)}
+
+
+# ---------- status ----------
+def last_backup(root: Path) -> str | None:
+    zips = sorted((root / BACKUP_DIR).glob("maeng-*.zip")) if (root / BACKUP_DIR).is_dir() else []
+    return zips[-1].name if zips else None
+
+
+def cmd_status() -> dict:
+    out = {"vault": {"path": str(vault_root()), "found": vault_root().is_dir()}, "stores": {}}
+    for s in STORES:
+        root = store_root(s)
+        if root is None:
+            out["stores"][s] = {"found": False}
+        else:
+            out["stores"][s] = {"found": True, "root": str(root),
+                                "free_bytes": shutil.disk_usage(root).free, "last_backup": last_backup(root)}
+    return out
+
+
+def print_status(st: dict) -> None:
+    print(f"vault: {st['vault']['path']} ({'found' if st['vault']['found'] else 'missing'})")
+    for s, v in st["stores"].items():
+        if not v["found"]:
+            print(f"{s}: missing")
+        else:
+            print(f"{s}: found {v['root']}  free={v['free_bytes'] / 1e9:.1f} GB  last_backup={v['last_backup'] or 'none'}")
+
+
+# ---------- CLI ----------
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(prog="archive.py", description=__doc__)
+    ap.add_argument("--json", action="store_true", help="JSON output")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("status")
+    m = sub.add_parser("move")
+    m.add_argument("path")
+    m.add_argument("--store", choices=STORES, default="onedrive")
+    m.add_argument("--world", choices=("personal", "eta"), default="personal")
+    m.add_argument("--dry-run", action="store_true")
+    b = sub.add_parser("backup")
+    b.add_argument("--to", default="onedrive,gdrive")
+    b.add_argument("--keep", type=int, default=10)
+    b.add_argument("--dry-run", action="store_true")
+    r = sub.add_parser("restore")
+    r.add_argument("path")
+    r.add_argument("--apply", action="store_true")
+    r.add_argument("--target")
+    for sp in sub.choices.values():
+        sp.add_argument("--json", action="store_true", dest="json2")
+    a = ap.parse_args(argv)
+    as_json = a.json or getattr(a, "json2", False)
+    try:
+        if a.cmd == "status":
+            res = cmd_status()
+            if not as_json:
+                print_status(res)
+                return 0
+        elif a.cmd == "move":
+            res = cmd_move(a.path, a.store, a.world, a.dry_run)
+        elif a.cmd == "backup":
+            targets = [t.strip() for t in a.to.split(",") if t.strip()]
+            for t in targets:
+                if t not in STORES:
+                    raise ArchiveError(f"unknown store: {t}")
+            res = cmd_backup(targets, a.keep, a.dry_run)
+        else:
+            res = cmd_restore(a.path, a.apply, a.target)
+    except ArchiveError as e:
+        print(json.dumps({"error": str(e)}, ensure_ascii=False) if as_json else f"error: {e}", file=sys.stderr)
+        return 1
+    print(json.dumps(res, ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -11,6 +11,8 @@ Use the vault as reusable, source-grounded knowledge, not just a directory of co
 
 Before any write read [claude-edition.md](references/claude-edition.md): the world rule (eta-world notes carry `world: eta` and live under `hubs/projects/P-ETA.md`, never promoted to personal Notion or linked from personal Linear), the folders `wiki/decisions`, `wiki/drafts`, `wiki/reviews`, `wiki/sessions` with their unique id formats, the frontmatter keys `linear`, `world`, `notion`, `commit`, `session`, 3-layer retrieval (compact index, timeline, fetch by id), and the `<private>` tag plus opt-in redaction via `scripts/private_filter.py`. Run drafts through the filter before writing.
 
+For moving old or bulky material out of the vault, see the Cold storage section in claude-edition.md and the `maeng-archive` skill.
+
 ## Select the vault and operation
 
 Read [local-vault.md](references/local-vault.md) for this user's exact vault, current native MCP route and hubs. A vault name alone is not its identity. For another user or an explicit different vault, use that exact folder and its own AGENTS/Rules; do not silently create or switch vaults.

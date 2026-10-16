@@ -48,3 +48,7 @@ Resume order: hub, latest session for the bound issue, linked decisions. Keep an
 ## Write rules
 
 New files get unique ids (above); full-note writes pass the whole prepared Markdown as `content`; read the target right before writing; read it back after. One writer for shared hub/index/log notes. Session stubs are written by the Stop hook; add decisions and results to the session note or an ADR yourself.
+
+## Cold storage
+
+Old or bulky material leaves the vault through the `maeng-archive` skill: `move` replaces a file with a hash-verified stub (fill its `## Summary`), `backup` snapshots the vault and harness state to Google Drive and OneDrive, and `restore` is a dry run by default. Stubs have `status: archived` and an `archive:` block; treat them as pointers, not content, and never edit the archive path by hand. eta material is archived with `--world eta` and keeps `world: eta`. See `../../maeng-archive/SKILL.md`.
