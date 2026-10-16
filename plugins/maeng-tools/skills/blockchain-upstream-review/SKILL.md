@@ -7,7 +7,7 @@ description: Review blockchain open-source commits, pull requests, issues, and d
 
 Turn upstream activity into a small, project-specific action list. Prefer existing
 GitHub tools, local Git, and the user's existing research and delivery workflow.
-Use harness-run when requested or when saved progress and independent review help.
+In the personal world, use harness-run when requested or when saved progress and independent review help; in an eta checkout, follow eta's rules instead.
 
 ## Establish the boundary
 

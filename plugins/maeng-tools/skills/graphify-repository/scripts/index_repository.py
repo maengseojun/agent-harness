@@ -11,11 +11,18 @@ CODE = {'.py', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.go', '.rs',
         '.java', '.c', '.h', '.cpp', '.hpp', '.rb', '.cs', '.kt', '.swift', '.lua'}
 SKIP = {'.git', '.agents', '.codex', '.aws', '.ssh', '.venv', 'node_modules',
         '__pycache__', 'vendor', 'dist', 'build'}
+# TODO(MAE-222): the pin stays at 0.9.85. Bumping to 0.9.91 is a separate task that
+# must first re-check the revision gate: new PIN_REVISION commit, vendored source,
+# lockfile, and the extract() signature. Do not edit the two constants alone.
+# See references/local-evidence.md "Version bump (not done)".
+PIN_VERSION = '0.9.85'
+PIN_REVISION = 'b4e6307bf170f27e0cb888c03f4af9308d531a42'
+CACHE_BASE = Path.home() / '.cache' / 'maeng' / 'graphify'
 WORKER = '''import json, sys, tomllib
 from pathlib import Path
 sys.path.insert(0, sys.argv[1])
 version = tomllib.loads((Path(sys.argv[1])/"pyproject.toml").read_text())["project"]["version"]
-if version != "0.9.85": raise SystemExit("Graphify version mismatch")
+if version != sys.argv[4]: raise SystemExit("Graphify version mismatch")
 from graphify.extract import extract
 spec = json.loads(Path(sys.argv[2]).read_text())
 result = extract([Path(p) for p in spec["files"]], root=Path(spec["root"]),
@@ -34,10 +41,35 @@ def git(root, *args):
     return r.stdout.strip()
 
 
+def default_cache_root(root):
+    """Persistent per-repository extraction cache, outside the repo and any --out dir."""
+    return CACHE_BASE / hashlib.sha256(str(Path(root).resolve()).encode()).hexdigest()[:16]
+
+
+def scoped_status(root, includes, excludes, ignore=()):
+    """git status limited to the indexed scope (includes minus excludes).
+
+    Changes elsewhere in the repository, and the index/cache directories
+    themselves, must not invalidate an otherwise unchanged index.
+    """
+    root = Path(root).resolve()
+    spec = [*includes, *(f':(exclude){x}' for x in excludes)]
+    out = git(root, 'status', '--porcelain', '--untracked-files=all', '--', *spec)
+    prefixes = []
+    for p in ignore:
+        try:
+            prefixes.append(Path(p).resolve().relative_to(root).as_posix() + '/')
+        except ValueError:
+            pass  # outside the repository: cannot appear in its status
+    lines = [l for l in out.split('\n') if l and not any(l[3:].startswith(x) for x in prefixes)]
+    return '\n'.join(lines)
+
+
 def can_reuse(previous, root, revision, status, hashes, includes, excludes):
     """Conservative selected-source freshness check; never semantic validation."""
-    return (previous.get('graphify_version') == '0.9.85'
-            and previous.get('graphify_revision') == 'b4e6307bf170f27e0cb888c03f4af9308d531a42'
+    return (previous.get('graphify_version') == PIN_VERSION
+            and previous.get('graphify_revision') == PIN_REVISION
+            and previous['repository'].get('status_scope') == 'in-scope'
             and Path(previous['repository']['root']).resolve() == root.resolve()
             and previous['repository']['revision'] == revision
             and previous['repository'].get('status_after', previous['repository'].get('status')) == status
@@ -79,19 +111,31 @@ def select(root, includes, excludes):
     return sorted(files), sorted(set(omitted))
 
 
-def main():
+def run_worker(python, runtime, out):
+    """Run the pinned AST extraction in an isolated interpreter (mocked in tests)."""
+    with tempfile.TemporaryDirectory(prefix='graphify-home-') as home:
+        subprocess.run([str(Path(python).absolute()), '-I', '-B', '-c', WORKER, str(Path(runtime).resolve()),
+                        str(out/'worker-input.json'), str(out/'graph.json'), PIN_VERSION],
+                       cwd=out, check=True, env={'HOME': home, 'PATH': '/usr/bin:/bin',
+                                               'PYTHONHASHSEED': '0', 'PYTHONDONTWRITEBYTECODE': '1'})
+
+
+def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     for field in ['repo', 'out', 'python', 'runtime']:
         ap.add_argument('--' + field, required=True)
     ap.add_argument('--include', action='append', required=True)
     ap.add_argument('--exclude', action='append', default=[])
     ap.add_argument('--previous', help='Prior snapshot to reuse if unchanged; otherwise rebuild into --out')
-    a = ap.parse_args()
+    ap.add_argument('--cache-root', help='Persistent extraction cache (default ~/.cache/maeng/graphify/<repo-hash>)')
+    a = ap.parse_args(argv)
     root, out = Path(a.repo).resolve(), Path(a.out).resolve()
     files, omitted = select(root, a.include, a.exclude)
     if not files: raise ValueError('scope contains no admitted code files')
     revision = git(root, 'rev-parse', 'HEAD')
-    status = git(root, 'status', '--porcelain', '--untracked-files=all')
+    cache_root = Path(a.cache_root).resolve() if a.cache_root else default_cache_root(root)
+    ignore = [out, cache_root]
+    status = scoped_status(root, a.include, a.exclude, ignore)
     hashes = {p.relative_to(root).as_posix(): digest(p) for p in files}
     previous_path = Path(a.previous).resolve() if a.previous else None
     if previous_path:
@@ -102,37 +146,29 @@ def main():
                               'resolution_context_fully_fingerprinted': False}))
             return
     out.mkdir(parents=True, exist_ok=False)
-    spec = {'root': str(root), 'files': [str(p) for p in files], 'cache': str(out)}
+    cache_root.mkdir(parents=True, exist_ok=True)
+    spec = {'root': str(root), 'files': [str(p) for p in files], 'cache': str(cache_root)}
     (out/'worker-input.json').write_text(json.dumps(spec))
-    with tempfile.TemporaryDirectory(prefix='graphify-home-') as home:
-        subprocess.run([str(Path(a.python).absolute()), '-I', '-B', '-c', WORKER, str(Path(a.runtime).resolve()),
-                        str(out/'worker-input.json'), str(out/'graph.json')],
-                       cwd=out, check=True, env={'HOME': home, 'PATH': '/usr/bin:/bin',
-                                               'PYTHONHASHSEED': '0', 'PYTHONDONTWRITEBYTECODE': '1'})
+    run_worker(a.python, a.runtime, out)
     if hashes != {p.relative_to(root).as_posix(): digest(p) for p in files}:
         raise ValueError('source changed during extraction; index is unusable')
     if revision != git(root, 'rev-parse', 'HEAD'):
         raise ValueError('repository revision changed; index is unusable')
-    if status != git(root, 'status', '--porcelain', '--untracked-files=all'):
-        # New index under the repository contributes untracked output. Source
-        # fingerprints remain authoritative; report post-run status separately.
-        status_after = git(root, 'status', '--porcelain', '--untracked-files=all')
-    else: status_after = status
+    # The index and cache directories are excluded from the scoped status, so a
+    # differing post-run status means in-scope files really changed during extraction.
+    status_after = scoped_status(root, a.include, a.exclude, ignore)
     graph = json.loads((out/'graph.json').read_text())
-    snapshot = {'schema_version': 1, 'graphify_version': '0.9.85',
-                'graphify_revision': 'b4e6307bf170f27e0cb888c03f4af9308d531a42',
-                'repository': {'root': str(root), 'revision': revision,
+    snapshot = {'schema_version': 1, 'graphify_version': PIN_VERSION,
+                'graphify_revision': PIN_REVISION,
+                'repository': {'root': str(root), 'revision': revision, 'status_scope': 'in-scope',
                                'dirty': bool(status), 'status': status, 'status_after': status_after},
                 'scope': {'include': a.include, 'exclude': a.exclude, 'omitted': omitted,
                           'extensions': sorted(CODE), 'skip_directories': sorted(SKIP),
                           'semantic_analysis': False},
                 'files': hashes, 'graph': graph,
+                'cache_root': str(cache_root),
                 'refresh': {'previous_snapshot': str(previous_path) if previous_path else None,
                             'reused': False, 'resolution_context_fully_fingerprinted': False}}
-    (out/'snapshot.json').write_text(json.dumps(snapshot, ensure_ascii=False, indent=2)+'\n')
-    # Include this index's own new files in the final status so the first reuse
-    # check does not invalidate an otherwise unchanged index inside the repo.
-    snapshot['repository']['status_after'] = git(root, 'status', '--porcelain', '--untracked-files=all')
     (out/'snapshot.json').write_text(json.dumps(snapshot, ensure_ascii=False, indent=2)+'\n')
     print(json.dumps({'snapshot': str(out/'snapshot.json'), 'files': len(files),
                       'nodes': len(graph.get('nodes', [])), 'edges': len(graph.get('edges', [])), 'reused': False}))

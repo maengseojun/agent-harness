@@ -1,45 +1,19 @@
 ---
 name: frontend-guidance
-description: Optional design guidance for creating or refining websites, landing pages and app interfaces, including requests for a specific visual style. Consider when hierarchy, typography, layout or UX needs design judgment, or the user requests a UI accessibility/compliance review; not for backend work or HTML slide decks.
+description: Use when building or refining a website, landing page or app UI and the user wants a specific visual style, a Korean-language UI, or a UI accessibility/compliance audit (웹 디자인, 랜딩페이지, 화면 다듬기, UI 감사, 접근성 점검). Adds only the user's deltas on top of the official frontend-design skill - use that one for general design craft. Not for backend work or HTML slide decks (use frontend-slides).
 ---
 
-# Frontend guidance
+# Frontend guidance (deltas only)
 
-Use this as an advisory reference, not a mandatory design workflow. The user's
-style, references, audience and existing product constraints define the result.
-Inspect those inputs before choosing advice. Make routine decisions without an
-interview; ask only when missing information materially changes the outcome.
+For general design craft (hierarchy, type, layout, motion, avoiding generic AI looks) use the official `frontend-design` skill. This skill adds only these rules:
 
-For general web design, consider the relevant Impeccable reference in
-[design references](references/design.md). Read only when it resolves a real
-design question; skip it when the request or existing system already answers it.
-Two routes are available: read relevant upstream skills/files and apply useful
-guidance, or bring in a reviewed skill folder when repeated use or its packaged
-references justify installation. The user's standing request authorizes
-task-relevant personal skill acquisition; announce the choice without asking
-again. Prefer the linked repositories first, inspect the full chosen folder,
-pin its commit and check overlap before using skill-installer. Preserve existing
-skills; use a distinct name or adapt only the missing guidance into their
-canonical source. Verify installed files against the reviewed source. If the
-current catalog has not refreshed, read the verified local SKILL.md explicitly.
-Treat acquisition separately from executing bundled code: it does not authorize
-hooks, runtime downloads, product-document writes or extra approval gates.
+- **The user's inputs win.** Requested fonts, palettes, references and aesthetics override taste-based warnings. Inspect the existing product and references first; ask only when a missing fact changes the outcome.
+- **Preserve product facts and behavior** while refining; change presentation, not content or logic.
+- **Surface decides emphasis.** An operating dashboard favors scanability; a landing page supports its message and one action.
+- **Korean UI:** run `hangul-wrap` before shipping so words do not split mid-syllable-group; do not claim a fix without its measurement.
+- **Verify the rendered result,** not the code: relevant desktop and mobile widths, keyboard focus, text overflow, reduced motion when anything moves. Report what was actually checked and what was not. Optional style advice never waives accessibility or correctness checks.
+- **HTML deck:** use `frontend-slides`; do not apply responsive page rules to a fixed slide canvas.
+- **Dithered/stippled motion landing page:** recover the archived `dither-motion-landing` guidance from the MAE-127 GitHub archive when needed; do not silently reinstall it.
+- **UI compliance audit** (former `web-design-guidelines`): only when asked or concretely needed, follow [UI audit](references/ui-audit.md). Do not stack equivalent reviews.
 
-For an explicitly dithered or stippled motion landing page, recover the archived
-`dither-motion-landing` guidance from the MAE-127 GitHub archive when needed;
-do not silently reinstall it. For an HTML deck, prefer `frontend-slides`. For a
-requested UI compliance/accessibility audit (including former `$web-design-guidelines`
-requests), read [UI audit](references/ui-audit.md). Keep the audit optional for
-ordinary design work. Do not stack equivalent reviews or overwrite installed skills.
-
-Choose hierarchy, type, spacing, color and motion to serve the requested surface.
-An operating dashboard favors scanability; a landing page supports its message
-and action. Requested fonts, palettes and aesthetics override taste-based
-anti-pattern warnings. Preserve product facts and behavior during refinement.
-
-Verify the actual rendered result at relevant desktop/mobile sizes, including
-keyboard focus, text overflow and reduced motion when movement is present.
-Use the project's narrow checks for changed code. Optional stylistic advice does
-not waive required accessibility, correctness or user acceptance conditions.
-Report the actual result and any unverified browser boundary; do not claim an
-upstream audit ran merely because its guide was read.
+Optional upstream reading (Impeccable, pinned revision, fetch only when it resolves a real question): [design references](references/design.md).

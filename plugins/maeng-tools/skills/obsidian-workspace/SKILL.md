@@ -7,6 +7,10 @@ description: Save selected materials and outputs in Obsidian, compile read evide
 
 Use the vault as reusable, source-grounded knowledge, not just a directory of copied files. Work in Korean when the user does. Preserve the existing filing structure and support projects of any subject.
 
+## Claude edition rules
+
+Before any write read [claude-edition.md](references/claude-edition.md): the world rule (eta-world notes carry `world: eta` and live under `hubs/projects/P-ETA.md`, never promoted to personal Notion or linked from personal Linear), the folders `wiki/decisions`, `wiki/drafts`, `wiki/reviews`, `wiki/sessions` with their unique id formats, the frontmatter keys `linear`, `world`, `notion`, `commit`, `session`, 3-layer retrieval (compact index, timeline, fetch by id), and the `<private>` tag plus opt-in redaction via `scripts/private_filter.py`. Run drafts through the filter before writing.
+
 ## Select the vault and operation
 
 Read [local-vault.md](references/local-vault.md) for this user's exact vault, current native MCP route and hubs. A vault name alone is not its identity. For another user or an explicit different vault, use that exact folder and its own AGENTS/Rules; do not silently create or switch vaults.
@@ -85,6 +89,6 @@ Do not delete, merge, bulk move, refresh remote sources or repair merely because
 
 Use one writer for shared wiki/index/hub/log notes. Read every target immediately before writing; compare desired and current content, preserve a filesystem byte backup and hash before substantive rewrites, and reconcile unexpected edits. A sequence of MCP writes is not atomic. After uncertain or partial results, read affected notes before retrying.
 
-Linear is the personal working record. For substantive work, follow the available work-records workflow and update/fetch the owning issue. Obsidian stores permitted evidence and reusable knowledge, while personal Notion holds approved concluded records. Vault saving does not approve Notion publication, team writes, Done, Git push, cloud Sync, schedules, hooks or model changes.
+In the personal world, Linear is the working record: for substantive work, follow the work-records workflow (maeng-harness) and update/fetch the owning issue. In the eta world, eta's Linear and rules own the work record; write only `world: eta` notes here and never touch personal Linear or Notion. Obsidian stores permitted evidence and reusable knowledge, while personal Notion holds finished outcomes published through the work-records Sol review flow. Vault saving does not publish to Notion, write to team workspaces, mark Done, push to Git, enable cloud Sync, schedules, hooks or change models. In Claude Code the agent writes Obsidian notes without asking the user (records are autonomous); the selection prompts above still apply to what to preserve, not to whether to record.
 
 Finish with actual saved paths, checks and remaining limits. Distinguish inspected sources, implemented helper behavior, cooperative model workflow and user reproduction. Never claim the upstream tools were installed or that all future chats automatically load this vault.

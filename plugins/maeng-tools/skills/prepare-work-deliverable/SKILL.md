@@ -7,8 +7,7 @@ description: Turn an agreed brief into a substantial research report, business d
 
 Use the supplied brief and accepted decisions. If absent, infer a compact working brief and clarify only consequential gaps. Match the requested language and adapt prose to the deliverable. Work is the user's default destination for these tasks; do not transfer the task automatically or refuse work in the current surface when the user chose it.
 
-Apply [work-records — Project/task workflow](../work-records/SKILL.md#projecttask-workflow)
-before execution/resumption: read task → Spec/Plan → Architecture/Rules → dependencies.
+In the personal world, apply the project/task workflow of the `maeng-harness:work-records` skill; in an eta checkout that plugin is off and eta's own rules govern the workflow. Before execution or resumption: read task → Spec/Plan → Architecture/Rules → dependencies.
 Use its criteria, lead/handoff, change and offline rules for this deliverable;
 an inferred brief does not approve draft criteria. Keep evidence current, leave
 Linear Done for user confirmation and avoid Architecture overhead for standalone tasks.
@@ -45,7 +44,7 @@ Review the draft for unsupported leaps, missing mechanisms, repetition, abrupt t
 
 ## Production and verification
 
-When the requested destination is Notion, read [notion-authoring](../notion-authoring/SKILL.md) before drafting or saving, even if the user did not name the skill. Apply its hub/detail structure, long-page navigation and native-block readback checks. Use work-records for destination authorization; formatting guidance does not authorize publication.
+When the requested destination is personal Notion, read the `maeng-harness:notion-authoring` skill before drafting or saving, even if the user did not name it (personal world only; in an eta checkout follow eta's rules for eta Docs). Apply its hub/detail structure, long-page navigation and native-block readback checks. Publication follows the work-records Sol flow; formatting guidance does not authorize publication.
 
 For design-sensitive slides or documents, inspect any supplied reference and
 extract its reusable visual rules before authoring. When the direction remains
