@@ -280,6 +280,19 @@ def sidecar_world(src: Path) -> str | None:
             w = data.get("world") if isinstance(data, dict) else None
             if isinstance(w, str):
                 return w
+    if stem.endswith("-retry"):
+        # aside-collect step 7 updates the FIRST run's sidecar (<STAMP>-<slug>-<nonce>.json), which then records the
+        # retry nonce; the retry capture is <STAMP>-<slug>-<RNONCE>-retry.md
+        prefix, _, rnonce = stem[: -len("-retry")].rpartition("-")
+        for sc in sorted(src.parent.glob(prefix + "-*.json")):
+            if sc.is_symlink():
+                continue
+            try:
+                data = json.loads(sc.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if isinstance(data, dict) and data.get("nonce") == rnonce and isinstance(data.get("world"), str):
+                return data["world"]
     return None
 
 
@@ -616,6 +629,9 @@ def cmd_restore(path: str, apply: bool, target: str | None) -> dict:
     if root is None:
         raise ArchiveError(f"store '{meta['store']}' not found")
     arch = root / meta["path"]
+    arch_root = (root / ARCHIVE_DIR).resolve()  # the stub is vault data: its path must stay inside the archive root
+    if arch_root not in arch.resolve().parents:
+        raise ArchiveError(f"stub archive.path leaves the archive root: {meta['path']}; refusing")
     if not arch.is_file():
         raise ArchiveError(f"archived file missing: {arch}")
     if sha256_file(arch) != meta["sha256"]:

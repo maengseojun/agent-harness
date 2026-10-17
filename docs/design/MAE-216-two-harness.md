@@ -11,6 +11,8 @@ date: 2026-10-17
 
 ## 0. Goal, principle, threat model, terms
 
+> **Superseded in part (2026-10-18, MAE-237, maeng-harness 0.2.0, slim gates).** The gates now block only default-branch pushes, merges outside `maeng-ship merge`, setting the MAENG_TEST_FIXTURES/GIT/GH/HOME/CACHE_DIR switches, and Edit/Write into the harness state dir. Where §0, §5.2 and §9 below describe feature-push verification, force-push denial, the gh allowlist, G2, G3 or the ban on every MAENG_* assignment, read them as history.
+
 **Goal.** Two worlds that never mix.
 - **eta world.** `~/Documents/Project/eta_v1`, its worktrees and nested repos, and any checkout the guard classifies as eta.
   - eta's harness (eta-rules + eta-craft) is in charge.

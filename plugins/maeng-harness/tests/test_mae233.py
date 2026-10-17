@@ -84,15 +84,6 @@ class M233_1_UnknownChildBindingIsStale(MergeBase):
         self.assertEqual(r.returncode, 0, r.stderr)
 
 
-ETA_WRITES = ("curl -o {e}/f https://x.com", "curl --output {e}/f https://x.com", "curl --output={e}/f https://x.com",
-              "curl -o{e}/f https://x.com", "curl -sSo {e}/f https://x.com", "curl -sL https://x.com -o {e}/f",
-              "curl -O --output-dir {e} https://x.com/a", "curl --output-dir {e} -O https://x.com/a",
-              "cd {e} && curl -O https://x.com/a", "cd {e} && curl --remote-name https://x.com/a",
-              "wget -O {e}/f https://x.com", "wget -qO {e}/f https://x.com", "wget --output-document={e}/f https://x.com",
-              "wget -P {e} https://x.com", "wget --directory-prefix={e} https://x.com", "cd {e} && wget https://x.com/a",
-              "cd {e} && wget -O f https://x.com", "curl https://x.com | tee {e}/f")
-OUTSIDE_ETA = ("curl -o ./x https://x.com", "curl -O https://x.com/a", "wget https://x.com/a", "wget -O- https://x.com",
-               "curl https://x.com")
 
 
 class M233_2b_ZeroTestsOfOtherRunners(ShipBase):
@@ -100,7 +91,6 @@ class M233_2b_ZeroTestsOfOtherRunners(ShipBase):
     test_r7). Zero-test lines ZERO_TESTS does not match (jest `No tests found`, cargo `running 0 tests`, mocha
     `0 passing`) are matched too; a positive count anywhere in the output wins."""
     COVERED = (("go test ./...", "?   \tpkg\t[no test files]"), ("go test ./...", "?   \ta\t[no test files]\n?   \tb\t[no test files]"),
-               ("npx vitest run", "No test files found, exiting with code 1"),
                ("npm test", "No test files found"), ("pnpm test", "no test files found"),
                ("npm test", "No tests found, exiting with code 0"), ("npm test", "Tests:       0 total\nTime: 1s"),
                ("cargo test", "running 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored"),

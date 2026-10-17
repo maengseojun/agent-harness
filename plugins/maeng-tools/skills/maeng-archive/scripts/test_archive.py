@@ -317,6 +317,16 @@ class SafetyTests(Base):
         r = A.cmd_move("raw/aside/run.md", "onedrive", "eta", False)
         self.assertIn("/maeng-archive/eta/", r["destination"])
 
+    def test_retry_capture_finds_the_first_runs_sidecar_by_retry_nonce(self):
+        raw = self.vault / "raw" / "aside"
+        raw.mkdir(parents=True)
+        (raw / "20261018-x-aaaa.json").write_text(json.dumps({"nonce": "bbbb", "world": "eta"}), encoding="utf-8")
+        (raw / "20261018-x-bbbb-retry.md").write_text("capture\n", encoding="utf-8")
+        with self.assertRaises(A.ArchiveError):
+            A.cmd_move("raw/aside/20261018-x-bbbb-retry.md", "onedrive", "personal", False)
+        r = A.cmd_move("raw/aside/20261018-x-bbbb-retry.md", "onedrive", "eta", False)
+        self.assertIn("/maeng-archive/eta/", r["destination"])
+
     def test_non_md_without_sidecar_still_needs_eta_dir(self):
         p = self.vault / "files" / "x.pdf"
         p.parent.mkdir()
@@ -528,6 +538,17 @@ class RestoreTests(Base):
         self.assertEqual(r["action"], "restored")
         self.assertEqual(stub.read_text(), "hello\n")
         self.assertTrue((self.vault / "n.restored.md").exists())
+
+    def test_restore_refuses_a_stub_path_outside_the_archive_root(self):
+        self.note("n.md", "hello\n")
+        A.cmd_move("n.md", "onedrive", "personal", False)
+        stub = self.vault / "n.md"
+        text = stub.read_text()
+        self.assertIn("maeng-archive/", text)
+        stub.write_text(text.replace("maeng-archive/", "maeng-archive/../elsewhere/", 1))
+        with self.assertRaises(A.ArchiveError) as cm:
+            A.cmd_restore(str(stub), True, None)
+        self.assertIn("leaves the archive root", str(cm.exception))
 
     def test_restore_keeps_preexisting_tmp_file(self):
         self.note("n.md", "hello\n")
