@@ -9,7 +9,7 @@ Commands (tier is picked from the bound issue; see the table below):
 | Child-task PR / small work | `maeng-review run --kind code --pr <N>` |
 | Parent integration | `maeng-review run --kind parent --pr <N>` |
 | Design / rules doc | `maeng-review run --kind docs --draft <path>` |
-| Research draft | `maeng-review run --kind research --draft <path>` |
+| Research draft | `maeng-review run --kind research --draft <path> --source <S- note>` (one `--source` per cited note) |
 | Notion outcome payload | `maeng-review run --kind notion --payload publish/<id>.json --destination <db-or-page-id> --op create\|update --draft wiki/drafts/DRAFT-….md` |
 | Uncertain outcome | `maeng-review reconcile` (add `--notion` for Notion journal entries) |
 
