@@ -96,19 +96,6 @@ class R9_3_MaengPrefixRule(ShipBase):
                 self.assertAllowed(cmd)
 
 
-class R9_4_UnknownWorldClosure(HarnessCase):
-    LINEAR_WRITES = ("save_issue", "save_comment", "save_document", "save_project", "save_milestone",
-                     "save_status_update", "create_attachment", "create_issue_label", "update_diff",
-                     "delete_comment", "delete_attachment", "delete_status_update")
-
-    def setUp(self):
-        super().setUp()
-        self.repo = self.make_repo()
-        self.start(self.repo)
-        (self.repo / ".claude").mkdir(exist_ok=True)
-        (self.repo / ".claude/settings.json").write_text("{ not json")
-        self.assertEqual(guard.classify(self.repo), guard.UNKNOWN)
-
 class R9_5_HarnessStateWrites(ShipBase):
     def targets(self):
         return {"receipt": receipts.receipts_dir() / "x.json", "registry": receipts._notion("registry.json"),

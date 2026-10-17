@@ -102,10 +102,6 @@ class R8_6_RunnerNarrowingForms(HarnessCase):
             self.assertIsNone(evidence.recognize(cmd), cmd)
 
 
-class R8_7_GithubMcp(ShipBase):
-    BASE = R7_E_GithubMcpAllowlist.BASE
-    call = R7_E_GithubMcpAllowlist.call
-
 class R8_9_EtaClassification(HarnessCase):
     def setUp(self):
         super().setUp()

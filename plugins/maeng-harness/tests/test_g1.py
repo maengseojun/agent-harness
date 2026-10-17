@@ -92,6 +92,27 @@ class SlimGate(ShipBase):
         self.assertAllowed(f"git push --force-with-lease=refs/heads/feat:{sha} origin {sha}:refs/heads/feat")
         self.assertAllowed("gh api -X PUT repos/o/r/contents/f -f branch=feat -f message=m -f content=x")
 
+    def test_round3_effective_config_prefixes_and_policy(self):
+        self.git(self.repo, "config", "push.default", "simple")
+        self.git(self.repo, "config", "--add", "push.default", "matching")   # git applies the last value
+        self.assertDenied("git push", "default branch")
+        self.git(self.repo, "config", "--unset-all", "push.default")
+        self.git(self.repo, "config", "remote.origin.mirror", "yes")
+        self.assertDenied("git push origin", "default branch")
+        self.git(self.repo, "config", "--unset-all", "remote.origin.mirror")
+        self.git(self.repo, "config", "remote.origin.push", "HEAD:refs/heads/main")
+        self.assertDenied("git -c remote.origin.push=refs/heads/feat push origin", "default branch")
+        self.git(self.repo, "config", "--unset-all", "remote.origin.push")
+        for cmd in ("git push origin main:", "GIT_TRACE=1 git push origin main", "env X=1 git push origin main",
+                    "/usr/bin/git push origin main", "/opt/homebrew/bin/gh pr merge 1",
+                    "gh api -X PUT repos/o/r/contents/f -f branch=refs/heads/main -f message=m -f content=x"):
+            denied, reason = self.bash_pre(self.repo, cmd)
+            self.assertTrue(denied, f"expected deny: {cmd} ({reason})")
+        self.assertTrue(self.pre(self.repo, "mcp__plugin_x_github__merge_pull_request", {"pull_number": 1})[0])
+        (self.repo / ".maeng").mkdir(exist_ok=True)
+        (self.repo / ".maeng/verify.json").write_text("{broken")
+        self.assertDenied("git push origin feat", "pushes are denied")
+
     def test_mcp_merge_is_denied_and_other_mcp_writes_allowed(self):
         for tool, tin in (("mcp__github__merge_pull_request", {"owner": "o", "repo": "r", "pull_number": 1}),
                           ("mcp__github__push_files", {"owner": "o", "repo": "r", "branch": "main"}),

@@ -24,7 +24,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__github__.*",
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__.*__(merge_pull_request|update_pull_request_branch|push_files|create_or_update_file|delete_file)",
         "hooks": [
           {
             "type": "command",

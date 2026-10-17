@@ -174,10 +174,6 @@ class R7_F_UnresolvedVariables(HarnessCase):
         self.allowed("touch ok.txt")
 
 
-class R7_H_DestructiveGh(ShipBase):
-    CMDS = ("gh pr close 1 --delete-branch", "gh pr close 1 -d", "gh issue delete 1", "gh repo delete {r} --yes",
-            "gh repo archive {r}", "gh repo rename x", "gh release delete v1", "gh release delete v1 --cleanup-tag")
-
 class R7_J_ZeroTestsAndFailedResponses(ShipBase):
     def respond(self, response, command="pytest -q"):
         tuid = "tu-" + uuid.uuid4().hex[:6]
@@ -346,16 +342,4 @@ class R7_N_NonFastForwardLease(MergeBase):
         self.git(self.repo, "remote", "set-head", "origin", "--delete")
         pinned("set-head")
 
-
-class R7_R_EtaGitMutations(HarnessCase):
-    CMDS = ("pull", "fetch", "merge feat", "rebase main", "reset --hard", "clean -fd", "checkout -- file.txt",
-            "am p.patch", "apply p.patch", "cherry-pick abc", "submodule update", "stash", "restore file.txt",
-            "switch -c x")
-
-    def setUp(self):
-        super().setUp()
-        self.repo = self.make_repo()
-        self.eta_root.mkdir()
-        (self.eta_root / "file.txt").write_text("eta")
-        self.start(self.repo)
 

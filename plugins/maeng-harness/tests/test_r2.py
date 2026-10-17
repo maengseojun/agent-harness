@@ -309,16 +309,6 @@ class R2_G_DelegatedSubjectInShipFlow(MergeBase):
         self.assertEqual((self.status(k1), self.status(k2)), ("consumed", "consumed"))
 
 
-class R2_H_PullRequestRemoteHead(ShipBase):
-    def setUp(self):
-        super().setUp()
-        self.alias_origin()
-
-    def push_unverified_commit(self):
-        (self.repo / "app.py").write_text("print('unverified')\n")
-        self.commit_all(self.repo, "unverified")
-        self.git(self.repo, "push", "-q", str(self.tmp / "repo-remote.git"), "feat")  # origin is a github URL here
-
 class R2_I_UnknownWorldNotion(HarnessCase):
     def setUp(self):
         super().setUp()

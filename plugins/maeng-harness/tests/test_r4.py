@@ -72,12 +72,6 @@ class R4_2_RunnerAllowlist(HarnessCase):
             self.assertIsNotNone(evidence.recognize(cmd), cmd)
 
 
-class R4_3_RemoteRewrites(ShipBase):
-    def fork(self):
-        fork = self.tmp / "fork.git"
-        self.git(self.tmp, "clone", "-q", "--bare", str(self.tmp / "repo-remote.git"), str(fork))
-        return fork
-
 class R4_3_ReconcileRewrites(MergeBase):
     def test_reconcile_refuses_when_push_url_is_rewritten(self):
         key = self.verdict()
@@ -91,22 +85,6 @@ class R4_3_ReconcileRewrites(MergeBase):
         self.assertIn("pending", out.stdout)
         self.assertEqual(self.status(key), "pending")
 
-
-class R4_4_NotionConfig(HarnessCase):
-    def setUp(self):
-        super().setUp()
-        self.repo = self.make_repo()
-        self.start(self.repo)
-        self.payload = {"parent": {"data_source_id": DB}, "pages": [{"properties": {"title": "x"}}]}
-
-    def call(self, parent_id):
-        return self.pre(self.repo, CREATE, {**self.payload, "parent": {"data_source_id": parent_id}})
-
-    def use_config(self, value):
-        self.env.pop("MAENG_NOTION_DBS", None)
-        os.environ.pop("MAENG_NOTION_DBS", None)
-        self.maeng_home.mkdir(parents=True, exist_ok=True)
-        (self.maeng_home / "config.json").write_text(json.dumps({"notion_databases": value}))
 
 class R4_5_RevocationRace(MergeBase):
     def revoke(self, key):

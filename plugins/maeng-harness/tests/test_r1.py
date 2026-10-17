@@ -132,9 +132,6 @@ class R1_3_RepositoryBinding(MergeBase):
         self.assertEqual({guard.normalize_repo(f) for f in forms}, {"github.com/o/r"})
 
 
-class R1_4_ConfiguredPushRefspec(ShipBase):
-    """Round 2 replaced refspec resolution with: explicit refspec only, and no remote.<r>.push at all."""
-
 class R1_5_ControlStructures(ShipBase):
     def test_structures_without_routes_and_plain_pushes_unchanged(self):
         self.verified()
@@ -184,26 +181,6 @@ class R1_8_G3(HarnessCase):
                     f"git -C {e} config --get remote.origin.url", f"cd {e} && git status"):
             self.allowed(cmd)
 
-
-class R1_9_AmbiguousNotionFailure(HarnessCase):
-    def setUp(self):
-        super().setUp()
-        self.repo = self.make_repo()
-        self.start(self.repo)
-        self.payload = {"parent": {"data_source_id": DB}, "pages": [{"properties": {"title": "Outcome"}}]}
-    sol_pass = G2Tests.sol_pass
-    call = G2Tests.call
-    post = G2Tests.post
-
-class R1_10_ReconcilePendingWithPageId(HarnessCase):
-    def setUp(self):
-        super().setUp()
-        self.repo = self.make_repo()
-        self.start(self.repo)
-        self.payload = {"parent": {"data_source_id": DB}, "pages": [{"properties": {"title": "Outcome"}}]}
-    sol_pass = G2Tests.sol_pass
-    call = G2Tests.call
-    post = G2Tests.post
 
 class R1_11_ReviewPromptAndEvidence(HarnessCase):
     def test_prompt_states_the_threat_model(self):

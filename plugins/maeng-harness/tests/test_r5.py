@@ -13,12 +13,6 @@ from .test_g2_g3 import DB, PAGE, UPDATE
 from .test_r3 import EtaDirMixin
 
 
-class R5_1_McpPullRequestDestination(ShipBase):
-    MCP = "mcp__github__create_pull_request"
-
-    def tin(self, **kw):
-        return {"owner": "o", "repo": "r", "head": "feat", "base": "main", "title": "t", **kw}
-
 class R5_2_NonExecutingRunnerValues(HarnessCase):
     def test_go_count_must_be_positive(self):
         for cmd in ("go test ./... -count=0", "go test -count 0 ./...", "go test -count=00 ./...", "go test -count=-1 ./..."):

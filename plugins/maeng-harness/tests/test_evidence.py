@@ -53,15 +53,3 @@ class EvidenceTests(ShipBase):
         self.assertIn("dirty submodule", r.stderr)
 
 
-class PlanCoverage(ShipBase):
-    def setUp(self):
-        super().setUp()
-        self.plan = self.tmp / "plan.md"
-        self.plan.write_text("# Plan\n- AC-1 does a\n- AC-2 does b\n## Verification\nAC-1: pytest\nAC-2: pytest\n")
-        r = self.cli("maeng-verify", ["bind", "MAE-9", "--plan", str(self.plan)], self.repo)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.verified()
-
-    def push_denied(self):
-        return self.bash_pre(self.repo, "git push origin feat")
-
