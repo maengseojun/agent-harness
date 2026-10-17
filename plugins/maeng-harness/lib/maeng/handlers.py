@@ -48,7 +48,7 @@ def plugin_version():
 
 
 def build_context(cwd):
-    lines = [f"maeng-harness {plugin_version()} (personal world). Gates: G1 code-ship, G2 Notion, G3 eta."]
+    lines = [f"maeng-harness {plugin_version()} (personal world). Gate: G1 (no push to the default branch, merge only via maeng-ship)."]
     sugg = (read_json(home_dir() / "last-bindings.json", {}) or {}).get(str(Path(cwd).resolve()))
     if sugg:
         lines.append(f"Suggested binding (not active): maeng-verify bind {sugg.get('issue')} --plan {sugg.get('plan_doc', '<doc>')}")
@@ -81,8 +81,8 @@ def on_session_start(payload):
             missing = True
         if not missing:
             return None
-        return context_out("SessionStart", "maeng-harness is loaded in an eta checkout whose local settings lack the "
-                           "eta enables or the maeng-harness disable. Personal hooks are inert here. Run "
+        return context_out("SessionStart", "this eta checkout's local settings lack the eta enables or the "
+                           "ETA_ONLY_HOOKS code-only setting. Run "
                            "`maeng-eta-isolate --apply` and restart this session.")
     if world == guard.UNKNOWN:
         return None

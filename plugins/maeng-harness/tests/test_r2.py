@@ -28,75 +28,6 @@ class R2_A_CanonicalShippingForms(ShipBase):
                     "maeng-ship merge 7", "maeng-ship merge 7 --remote origin", "maeng-ship --session s1 merge 7"):
             self.assertAllowed(cmd)
 
-    def test_compound_commit_then_push_is_denied(self):
-        """Round-2: `git commit -am wip && git push` verified the OLD commit but pushed the new one."""
-        self.verified()
-        self.assertDenied("git commit -am wip && git push origin feat", "canonical")
-        self.assertDenied("git add -A; git commit -m x; git push origin feat", "canonical")
-        self.assertDenied("git commit -m x\ngit push origin feat", "canonical")
-
-    def test_git_config_overrides_are_denied(self):
-        self.verified()
-        self.assertDenied(f"git -c remote.origin.pushurl={ETA_URL} push origin feat", "canonical")
-        self.assertDenied("git -c remote.origin.mirror=true push origin", "canonical")
-        self.assertDenied("git -c push.followTags=true push origin feat", "canonical")
-        self.assertDenied("git -c alias.p=push p origin feat", "canonical")
-        self.assertDenied("git --config-env=remote.origin.pushurl=X push origin feat", "canonical")
-
-    def test_wrappers_around_push_are_denied(self):
-        self.verified()
-        for cmd in ("command -- git push origin main", "env -u FOO git push origin main", "command git push origin feat",
-                    "env git push origin feat", "nohup git push origin feat", "time git push origin feat",
-                    "sudo git push origin feat", "exec git push origin feat", "xargs git push origin feat",
-                    "FOO=1 git push origin feat", "GIT_SSH_COMMAND=x git push origin feat",
-                    "bash -c 'git push origin feat'", "sh -c \"git push origin feat\"", "eval git push origin feat",
-                    "find . -exec git push origin feat \\;"):
-            self.assertDenied(cmd, "canonical")
-
-    def test_shell_syntax_around_a_canonical_command_is_denied(self):
-        self.verified()
-        for cmd in ("git push origin feat &", "git push origin feat;", "git push origin feat | cat",
-                    "git push origin feat > out.txt", "git push origin feat 2>&1", "(git push origin feat)",
-                    "{ git push origin feat; }", "git push origin $(echo feat)", "git push origin `echo feat`",
-                    "git push origin $BRANCH", "git push origin {feat,x}", "git push origin feat || true",
-                    "echo $(git push origin feat)", "if true; then git push origin feat; fi"):
-            self.assertDenied(cmd, "canonical")
-
-    def test_non_canonical_push_flags_and_refspecs_are_denied(self):
-        self.verified()
-        sha = self.head(self.repo)
-        for cmd in ("git push --dry-run origin feat", "git push --no-verify origin feat", "git push --tags origin feat",
-                    "git push -o ci.skip origin feat", "git push origin feat other", "git push origin",
-                    "git push", "git push -u", f"git push origin {sha}:feat", "git push origin feat:refs/tags/v1",
-                    "git push origin +feat", "git push origin :feat", "git push origin 'refs/heads/*:refs/heads/*'",
-                    "git push git@github.com:o/r.git feat", "git push /tmp/x feat", "git push ../x feat",
-                    "git push origin ../feat", "git push origin -- feat", "git push origin HEAD"):
-            self.assertDenied(cmd, "canonical")
-
-    def test_gh_non_canonical_forms_are_denied(self):
-        self.verified()
-        for cmd in ("gh pr create --fill", "gh pr create --head feat --title t --web", "gh pr create --head feat -a me",
-                    "gh pr create --head feat --title t extra", "gh -R o/r pr create --head feat --title t",
-                    "GH_REPO=o/r gh pr create --head feat --title t", "gh pr create --head feat --title \"$(date)\"",
-                    "gh pr create --head feat --title t && echo done", "gh pr merge 1", "gh release create v1",
-                    "gh api -X POST repos/o/r/issues/1/comments -f body=hi", "gh repo sync",
-                    "gh repo edit --default-branch dev"):
-            self.assertDenied(cmd, "canonical")
-
-    def test_maeng_ship_only_in_its_canonical_form(self):
-        for cmd in ("maeng-ship merge 7 && echo done", "FOO=1 maeng-ship merge 7", "env maeng-ship merge 7",
-                    "maeng-ship merge", "maeng-ship merge x", "maeng-ship merge 7 --force", "maeng-ship merge 7 8",
-                    "maeng-ship merge 7 --remote /tmp/x", "bash -c 'maeng-ship merge 7'"):
-            self.assertDenied(cmd, "canonical")
-
-    def test_direct_github_api_writes_are_denied_but_reads_are_not(self):
-        for cmd in ("curl -X POST https://api.github.com/repos/o/r/merges -d '{}'",
-                    "curl -XPUT https://api.github.com/repos/o/r/contents/f -d x", "curl --request DELETE https://api.github.com/x",
-                    "curl -d @f https://api.github.com/repos/o/r/git/refs", "wget --method=PUT https://api.github.com/x"):
-            self.assertDenied(cmd, "canonical")
-        self.assertAllowed("curl -s https://api.github.com/repos/o/r")
-        self.assertAllowed("curl -X POST https://example.com/hook -d x")
-
     def test_mentions_inside_data_are_not_routes(self):
         self.assertAllowed("echo git push origin main")
         self.assertAllowed("git log --grep='git push' --oneline")
@@ -110,43 +41,6 @@ class R2_B_PlainRemoteConfig(ShipBase):
         self.verified()
         self.assertAllowed("git push origin feat")
 
-    def test_pushurl_must_be_unset_or_equal_to_url(self):
-        url = self.git(self.repo, "config", "remote.origin.url").stdout.strip()
-        self.git(self.repo, "config", "remote.origin.pushurl", ETA_URL)
-        self.assertDenied("git push origin feat", "pushurl")
-        self.git(self.repo, "config", "remote.origin.pushurl", url)
-        self.assertAllowed("git push origin feat")
-        self.git(self.repo, "config", "--add", "remote.origin.pushurl", url + "2")
-        self.assertDenied("git push origin feat", "pushurl")
-
-    def test_insteadof_rewrite_to_eta_is_classified_by_the_effective_url(self):
-        url = self.git(self.repo, "config", "remote.origin.url").stdout.strip()
-        self.git(self.repo, "config", f"url.{ETA_URL}.insteadOf", url)
-        self.assertDenied("git push origin feat", "eta")
-
-    def test_multiple_urls_mirror_push_refspec_and_followtags_are_denied(self):
-        self.git(self.repo, "config", "--add", "remote.origin.url", "/tmp/another.git")
-        self.assertDenied("git push origin feat", "exactly one url")
-        self.git(self.repo, "config", "--unset-all", "remote.origin.url", "another.git")
-        self.assertAllowed("git push origin feat")
-        self.git(self.repo, "config", "remote.origin.mirror", "true")
-        self.assertDenied("git push origin feat", "mirror")
-        self.git(self.repo, "config", "remote.origin.mirror", "false")
-        self.assertAllowed("git push origin feat")
-        self.git(self.repo, "config", "remote.origin.push", "HEAD:refs/heads/feat")
-        self.assertDenied("git push origin feat", "remote.origin.push")
-        self.git(self.repo, "config", "--unset-all", "remote.origin.push")
-        self.git(self.repo, "config", "push.followTags", "true")
-        self.assertDenied("git push origin feat", "followTags")
-
-    def test_unknown_remote_default_branch_is_denied_with_fix_hint(self):
-        self.git(self.repo, "remote", "set-head", "origin", "--delete")
-        denied, reason = self.bash_pre(self.repo, "git push origin feat")
-        self.assertTrue(denied)
-        self.assertIn("git remote set-head origin --auto", reason)
-        self.git(self.repo, "remote", "set-head", "origin", "main")
-        self.assertAllowed("git push origin feat")
-
     def test_remote_default_branch_other_than_main_is_protected(self):
         self.git(self.repo, "push", "-q", "origin", "feat:develop")
         self.git(self.repo, "fetch", "-q", "origin")
@@ -154,10 +48,6 @@ class R2_B_PlainRemoteConfig(ShipBase):
         self.git(self.repo, "remote", "set-head", "origin", "develop")
         self.assertDenied("git push origin feat:develop", "default branch")
         self.assertAllowed("git push origin feat")
-
-    def test_remote_must_be_a_configured_name(self):
-        self.assertDenied("git push nosuch feat", "exactly one url")
-
 
 class R2_B_MergeRemoteConfig(MergeBase):
     def ship_denied(self, text):
@@ -213,42 +103,12 @@ class R2_C_G3Targets(HarnessCase):
         d, reason = self.bash_pre(self.repo, cmd)
         self.assertFalse(d, f"expected allow: {cmd} ({reason})")
 
-    def test_git_dir_and_work_tree_space_and_equals_forms_resolve_the_target(self):
-        e = self.e
-        for cmd in (f"git --git-dir {e}/.git --work-tree {e} commit --allow-empty -m x",
-                    f"git --git-dir={e}/.git --work-tree={e} commit --allow-empty -m x",
-                    f"git --work-tree {e} add -A", f"git --git-dir {e}/.git add -A", f"git -C {e} commit -m x",
-                    f"cd {e} && git commit -m x"):
-            self.denied(cmd, "eta")
-
-    def test_git_dir_selectors_to_an_unresolvable_target_are_denied(self):
-        self.denied("git --git-dir /nonexistent-zzz/x/.git --work-tree /nonexistent-zzz/x commit -m x")
-
     def test_read_only_git_on_eta_and_own_git_dir_stay_allowed(self):
         e = self.e
         self.allowed(f"git --git-dir {e}/.git status")
         self.allowed(f"git -C {e} log --oneline")
         self.allowed("git --git-dir .git status")
         self.allowed("git --git-dir=.git commit --allow-empty -m x")
-
-    def test_git_dir_environment_assignments_are_denied_for_any_git_command(self):
-        e = self.e
-        for cmd in (f"GIT_DIR={e}/.git git status", f"GIT_WORK_TREE={e} git commit -m x", f"env GIT_DIR={e}/.git git log",
-                    f"export GIT_DIR={e}/.git; git status", "GIT_DIR=.git git status"):
-            self.denied(cmd, "GIT_DIR")
-        self.allowed("GIT_PAGER=cat git log --oneline")
-
-    def test_gh_url_arguments_and_repo_flag_are_resolved(self):
-        eta = "https://github.com/endix-foundation-v1/x"
-        for cmd in (f"gh issue comment {eta}/issues/1 -b hi", f"gh pr comment {eta}/pull/2 -b hi",
-                    f"gh pr edit {eta}/pull/2 --title t", f"gh issue close {eta}/issues/1",
-                    "gh pr comment 1 -R endix-foundation-v1/x -b hi", "gh issue create --repo endix-foundation-v1/x -t t -b b",
-                    "gh issue comment https://github.com/maengseojun/eta_v1/issues/3 -b hi"):
-            self.denied(cmd)
-        self.allowed(f"gh issue view {eta}/issues/1")                       # read-only on eta stays allowed
-        self.allowed("gh issue comment https://github.com/o/r/issues/1 -R o/r -b hi")
-        self.allowed("gh pr comment 1 -R o/r -b hi")
-
 
 class R2_C_UnknownClassification(HarnessCase):
     def setUp(self):
@@ -258,38 +118,10 @@ class R2_C_UnknownClassification(HarnessCase):
         (self.repo / ".claude/settings.json").write_text("{ not json")      # checkout can no longer be classified
         self.assertEqual(guard.classify(self.repo), guard.UNKNOWN)
 
-    def test_every_non_read_only_bash_command_is_denied(self):
-        for cmd in ("touch marker.txt", "echo hi > marker.txt", "cp README.md copy.md", "mkdir d", "python3 -c 1",
-                    "pytest", "git commit --allow-empty -m x", "git add -A", "sed -i s/a/b/ app.py", "rm app.py"):
-            denied, reason = self.bash_pre(self.repo, cmd)
-            self.assertTrue(denied, cmd)
-            self.assertIn("cannot classify", reason)
-
     def test_read_only_commands_still_run(self):
         for cmd in ("ls", "cat app.py", "git status", "git log --oneline", "pwd", "grep hi app.py"):
             denied, reason = self.bash_pre(self.repo, cmd)
             self.assertFalse(denied, f"{cmd}: {reason}")
-
-    def test_mcp_writes_are_denied(self):
-        base = {"owner": "o", "repo": "r"}
-        for tool, tin in (("mcp__github__add_issue_comment", {**base, "issue_number": 1, "body": "x"}),
-                          ("mcp__github__create_pull_request", {**base, "head": "feat", "base": "main", "title": "t"}),
-                          ("mcp__claude_ai_Notion__notion-update-page", {"page_id": "a" * 32})):
-            denied, reason = self.pre(self.repo, tool, tin)
-            self.assertTrue(denied, tool)
-        self.assertFalse(self.pre(self.repo, "mcp__github__get_issue", {**base, "issue_number": 1})[0])
-
-    def test_effective_directory_unknown_after_cd_is_denied_while_session_is_personal(self):
-        ok = self.make_repo("ok")
-        bad = self.make_repo("bad")
-        (bad / ".claude").mkdir()
-        (bad / ".claude/settings.json").write_text("{ not json")
-        self.start(ok)
-        d, reason = self.bash_pre(ok, f"cd {bad} && touch marker.txt")
-        self.assertTrue(d)
-        self.assertIn("cannot classify", reason)
-        self.assertFalse(self.bash_pre(ok, "touch marker.txt")[0])
-
 
 class R2_D_HookInputFailsClosed(HarnessCase):
     def feed(self, text):
@@ -335,35 +167,6 @@ class R2_E_VerifyPolicy(ShipBase):
         self.assertAllowed("git push origin feat")
         self.assertIsNone(__import__("maeng.tree", fromlist=["x"]).load_policy(self.repo)["invalid"])
 
-    def test_invalid_policy_denies_shipping(self):
-        for bad in ("{ broken", "[]", "null", '"required"', '{"required": "pytest"}', '{"required": [1]}',
-                    '{"non_code_globs": {"a": 1}}', '{"protected_branches": "main"}', '{"formatter": "ruff"}', ""):
-            self.write_policy(bad)
-            self.verified()
-            denied, reason = self.bash_pre(self.repo, "git push origin feat")
-            self.assertTrue(denied, bad)
-            self.assertIn("invalid verification policy", reason, bad)
-
-    def test_unreadable_policy_denies_shipping(self):
-        self.write_policy("{}")
-        self.verified()
-        self.assertAllowed("git push origin feat")
-        path = self.repo / ".maeng/verify.json"
-        path.chmod(0)
-        self.addCleanup(path.chmod, stat.S_IRUSR | stat.S_IWUSR)
-        denied, reason = self.bash_pre(self.repo, "git push origin feat")
-        self.assertTrue(denied)
-        self.assertIn("invalid verification policy", reason)
-
-    def test_fixed_policy_ships_again(self):
-        self.write_policy("{ broken")
-        self.verified()
-        self.assertTrue(self.bash_pre(self.repo, "git push origin feat")[0])
-        self.write_policy('{"required": ["pytest"]}')
-        self.verified()
-        self.assertAllowed("git push origin feat")
-
-
 class R2_F_EvidenceIdentity(ShipBase):
     def policy(self, required):
         (self.repo / ".maeng").mkdir(exist_ok=True)
@@ -382,55 +185,6 @@ class R2_F_EvidenceIdentity(ShipBase):
         self.assertEqual(evidence.recognize("npx -y playwright test tests/e2e")["checks"][0][2],
                          "playwright test tests/e2e")
         self.assertEqual(evidence.recognize("pnpm dlx playwright test")["checks"][0][2], "playwright test")
-
-    def test_npx_help_is_not_evidence(self):
-        self.run_check(self.repo, "npx playwright test --help")
-        self.assertEqual(self.load_state()["evidence"], [])
-        self.assertTrue(self.bash_pre(self.repo, "git push origin feat")[0])
-
-    def test_working_directory_is_part_of_the_identity(self):
-        self.policy(["pytest"])
-        self.run_check(self.repo, "cd tests/unit && pytest")
-        ev = self.load_state()["evidence"][-1]
-        self.assertEqual((ev["identity"], ev["dir"]), ("pytest@tests/unit", "tests/unit"))
-        denied, reason = self.bash_pre(self.repo, "git push origin feat")
-        self.assertTrue(denied)
-        self.assertIn("required check not passed on this tree: pytest", reason)
-        self.run_check(self.repo, "pytest")
-        self.assertEqual(self.load_state()["evidence"][-1]["identity"], "pytest")
-        self.assertAllowed("git push origin feat")
-
-    def test_session_started_in_a_subdirectory_records_that_directory(self):
-        self.policy(["pytest"])
-        self.run_check(self.repo / "tests/unit", "pytest")
-        self.assertEqual(self.load_state()["evidence"][-1]["identity"], "pytest@tests/unit")
-        self.assertTrue(self.bash_pre(self.repo, "git push origin feat")[0])
-
-    def test_requirement_in_a_subdirectory_needs_that_directory(self):
-        self.policy(["cd tests/unit && pytest"])
-        self.run_check(self.repo, "pytest")
-        self.assertTrue(self.bash_pre(self.repo, "git push origin feat")[0])
-        self.run_check(self.repo, "cd tests/unit && pytest")
-        self.assertAllowed("git push origin feat")
-
-    def test_compound_requirement_needs_every_constituent(self):
-        for required in ("pytest && ruff check .", "pytest; ruff check ."):
-            self.policy([required])
-            self.run_check(self.repo, "pytest")
-            denied, reason = self.bash_pre(self.repo, "git push origin feat")
-            self.assertTrue(denied, required)
-            self.assertIn("required check not passed", reason)
-            self.run_check(self.repo, "ruff check .")
-            self.assertAllowed("git push origin feat")
-
-    def test_compound_requirement_is_met_by_one_compound_run_and_not_by_a_different_ruff(self):
-        self.policy(["pytest && ruff check ."])
-        self.run_check(self.repo, "ruff check src")
-        self.run_check(self.repo, "pytest")
-        self.assertTrue(self.bash_pre(self.repo, "git push origin feat")[0])
-        self.run_check(self.repo, "pytest && ruff check .")
-        self.assertAllowed("git push origin feat")
-
 
 class R2_G_ReviewRevocationAndDelegation(ReviewRunFixture):
     def setUp(self):
@@ -565,60 +319,6 @@ class R2_H_PullRequestRemoteHead(ShipBase):
         self.commit_all(self.repo, "unverified")
         self.git(self.repo, "push", "-q", str(self.tmp / "repo-remote.git"), "feat")  # origin is a github URL here
 
-    def test_gh_pr_create_denied_when_the_remote_head_is_not_the_verified_commit(self):
-        self.verified()
-        self.assertAllowed("gh pr create -R o/r --head feat --title t --body b")
-        self.push_unverified_commit()                      # remote head advanced to an unverified tree
-        self.assertDenied("gh pr create -R o/r --head feat --title t --body b", "not ship-verified")
-        self.assertDenied("gh pr create -R o/r --title t --body b", "not ship-verified")
-
-    def test_remote_head_advanced_by_someone_else_is_denied(self):
-        self.verified()
-        other = self.tmp / "other"
-        self.git(self.tmp, "clone", "-q", str(self.tmp / "repo-remote.git"), str(other))
-        self.git(other, "checkout", "-q", "feat")
-        (other / "evil.py").write_text("x = 1\n")
-        self.git(other, "add", "-A")
-        self.git(other, "commit", "-qm", "theirs")
-        self.git(other, "push", "-q", "origin", "feat")
-        self.assertDenied("gh pr create -R o/r --head feat --title t --body b", "not ship-verified")
-
-    def test_unpushed_local_branch_is_denied(self):
-        self.verified()
-        self.git(self.repo, "checkout", "-qb", "local-only")
-        self.assertDenied("gh pr create -R o/r --head local-only --title t --body b", "cannot establish the remote head")
-
-    def test_ls_remote_failure_is_denied(self):
-        self.verified()
-        fake = self.tmp / "dead-git"
-        fake.write_text(f"#!{sys.executable}\nimport sys\nprint('fatal: unable to access', file=sys.stderr)\nsys.exit(128)\n")
-        fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
-        self.env["MAENG_GIT"] = str(fake)
-        self.assertDenied("gh pr create -R o/r --head feat --title t --body b", "cannot establish the remote head")
-
-    def test_repo_flag_must_name_origin_repository(self):
-        self.verified()
-        denied, reason = self.bash_pre(self.repo, "gh pr create -R x/y --head feat --title t --body b")
-        self.assertTrue(denied)
-        self.assertIn("must name origin's repository", reason)
-        self.assertAllowed("gh pr create --repo o/r --head feat --title t --body b")
-
-    def test_cross_repository_head_is_denied(self):
-        self.verified()
-        self.assertDenied("gh pr create -R o/r --head someone:feat --title t --body b", "cross-repository")
-
-    def test_mcp_create_pull_request_checks_the_remote_head_too(self):
-        self.verified()
-        tin = {"owner": "o", "repo": "r", "head": "feat", "base": "main", "title": "t"}
-        self.assertFalse(self.pre(self.repo, "mcp__github__create_pull_request", tin)[0])
-        self.push_unverified_commit()
-        denied, reason = self.pre(self.repo, "mcp__github__create_pull_request", tin)
-        self.assertTrue(denied)
-        self.assertIn("not ship-verified", reason)
-        denied, _ = self.pre(self.repo, "mcp__github__create_pull_request", {**tin, "repo": "other"})
-        self.assertTrue(denied)                            # unreachable repository: cannot establish the head
-
-
 class R2_I_UnknownWorldNotion(HarnessCase):
     def setUp(self):
         super().setUp()
@@ -633,24 +333,6 @@ class R2_I_UnknownWorldNotion(HarnessCase):
         (self.repo / ".claude").mkdir(exist_ok=True)
         (self.repo / ".claude/settings.json").write_text("{ not json")
         self.assertEqual(guard.classify(self.repo), guard.UNKNOWN)
-
-    def test_notion_write_with_a_matching_receipt_is_denied_when_unknown(self):
-        key = self.sol_pass(self.payload, DB, "create")
-        self.break_classification()
-        denied, reason = self.call(CREATE, self.payload, "u1")
-        self.assertTrue(denied)
-        self.assertIn("cannot classify", reason)
-        self.assertEqual(receipts.load(key)["status"], "unconsumed")
-        self.assertEqual(receipts.read_journal(), [])
-        (self.repo / ".claude/settings.json").unlink()
-        self.assertFalse(self.call(CREATE, self.payload, "u2")[0])       # classifiable again: normal G2 path
-
-    def test_every_notion_write_tool_is_denied_when_unknown(self):
-        self.break_classification()
-        for name in ("notion-create-pages", "notion-update-page", "notion-update-data-source", "notion-move-pages",
-                     "notion-create-database", "notion-delete-pages"):
-            self.assertTrue(self.pre(self.repo, "mcp__claude_ai_Notion__" + name, {"page_id": "a" * 32})[0], name)
-        self.assertFalse(self.pre(self.repo, "mcp__claude_ai_Notion__notion-search", {"query": "x"})[0])
 
     def test_an_allowed_g2_write_is_never_left_unreserved_in_a_non_personal_world(self):
         key = self.sol_pass(self.payload, DB, "create")

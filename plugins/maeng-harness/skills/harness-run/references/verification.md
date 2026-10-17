@@ -22,7 +22,7 @@ If the session state file becomes unreadable, gates deny (the file is never repl
 
 - **Ship-verified**: every required check has ok evidence at a tree equal to the current one (differing at most in non-code paths such as docs and images); no unresolved failure; with a plan bound, the latest plan record marks every current `AC-n` met and matches the plan's current `updatedAt`.
 - **Stop-satisfied**: ship-verified, or an explicit skip.
-- A skip never makes a tree ship-verified: pushing, `gh pr create` and `maeng-ship merge` stay blocked.
+- A skip never makes a tree ship-verified: `maeng-ship merge` stays blocked.
 - Any code edit after the evidence (even a formatter) invalidates it; rerun.
 - A changed dependency or build input (`requirements*.txt`, lockfiles, `CMakeLists.txt`) invalidates earlier evidence. A dirty submodule yields no evidence.
 

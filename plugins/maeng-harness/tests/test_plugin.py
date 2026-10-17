@@ -29,7 +29,7 @@ class PluginLayout(unittest.TestCase):
         pre = self.hooks["PreToolUse"]
         self.assertEqual(len(pre), 1)
         self.assertEqual(pre[0]["hooks"][0]["onFailure"], "block")
-        self.assertEqual(pre[0]["matcher"], "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__github__.*|mcp__claude_ai_Notion__.*|mcp__linear-endix__.*")
+        self.assertEqual(pre[0]["matcher"], "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__github__.*")
         for event, g, h in self.commands():
             if event != "PreToolUse":
                 self.assertNotEqual(h.get("onFailure"), "block", event)

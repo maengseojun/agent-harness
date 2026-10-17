@@ -43,153 +43,33 @@ class ShipBase(HarnessCase):
         self.assertFalse(denied, f"expected allow: {command} ({reason})")
 
 
-class PushRoutes(ShipBase):
-    def test_unverified_feature_push_denied_then_allowed_when_verified(self):
-        self.assertDenied("git push origin feat", "not ship-verified")
-        self.verified()
-        self.assertAllowed("git push origin feat")
-        self.assertAllowed("git push -u origin feat")
-        self.assertAllowed("git push origin feat:feat")
-        self.assertAllowed("git push origin feat:refs/heads/feat")
-        sha = self.head(self.repo)
-        self.assertAllowed(f"git push origin {sha}:refs/heads/feat")
-        self.assertDenied("git push", "canonical")          # implicit remote/refspec is not a canonical form
-
-    def test_force_variants_denied_even_when_verified(self):
-        self.verified()
-        for cmd in ("git push -f origin feat", "git push --force origin feat", "git push --force-with-lease origin feat",
-                    "git push --force-with-lease=feat origin feat", "git push origin +feat", "git push origin +feat:feat",
-                    "git push -fu origin feat", "git push --force-if-includes origin feat",
-                    "git push origin feat --force", "git -C . push --force origin feat"):
-            self.assertDenied(cmd, "canonical")
-        self.assertDenied("git push -f origin feat", "force")
-
-    def test_default_branch_destinations_denied(self):
-        self.verified()
-        for cmd, why in (("git push origin main", "default branch"), ("git push origin feat:refs/heads/main", "default branch"),
-                         ("git push origin feat:main", "default branch"), ("git push origin master", "default branch"),
-                         ("git push origin HEAD:main", "HEAD is not a branch name"),
-                         ("git push origin :main", "must be a local branch name or a full commit SHA"),
-                         ("git push --delete origin main", "flag `--delete` is not allowed")):
-            self.assertDenied(cmd, why)
-
-    def test_implicit_destination_forms_are_not_canonical(self):
-        """Allowlist (was: upstream/push.default resolution): only an explicit `<remote> <refspec>` is allowed."""
-        self.verified()
-        self.git(self.repo, "branch", "--set-upstream-to=origin/main")
-        for cmd in ("git -c push.default=upstream push", "git push", "git push origin", "git push -u origin",
-                    "git push origin HEAD", "git push origin HEAD:feat"):
-            self.assertDenied(cmd, "canonical")
-        self.git(self.repo, "config", "push.default", "upstream")
-        self.assertDenied("git push", "canonical")
-        self.assertAllowed("git push origin feat")                 # explicit refspec ignores push.default
-
-    def test_implicit_current_branch_main(self):
+class SlimGate(ShipBase):
+    def test_only_default_branch_pushes_and_merges_are_denied(self):
+        for cmd in ("git push origin main", "git push origin feat:main", "git push origin +HEAD:refs/heads/master",
+                    "git push --all origin", "git -C . push origin main", "cd . && git push origin :main"):
+            self.assertDenied(cmd, "default branch")
+        self.assertDenied("gh pr merge 1 --squash", "maeng-ship merge")
         self.git(self.repo, "checkout", "-q", "main")
-        self.verified()
-        self.assertDenied("git push", "canonical")
-        self.assertDenied("git push origin HEAD", "canonical")
-        self.assertDenied("git push origin main", "default branch")
+        self.assertDenied("git push", "default branch")  # implicit destination = current branch
 
-    def test_tags_mirror_all_and_non_branch_refs(self):
-        self.verified()
-        for cmd in ("git push --tags", "git push origin --tags", "git push --follow-tags origin feat",
-                    "git push origin refs/tags/v1", "git push origin tag v1", "git push origin feat:refs/tags/v1",
-                    "git push --mirror origin", "git push --all origin", "git push origin 'refs/heads/*:refs/heads/*'",
-                    "git push origin feat:refs/notes/x"):
-            self.assertDenied(cmd, "canonical")
-        sha = self.head(self.repo)
-        self.assertDenied(f"git push origin {sha}:feat", "needs destination refs/heads/<name>")   # SHA source: full ref only
+    def test_feature_pushes_gh_env_and_eta_paths_are_allowed(self):
+        self.eta_root.mkdir()
+        for cmd in ("git push origin feat", "git push -f -u origin feat", "git push && gh pr create --fill",
+                    "gh pr comment 1 -b hi", "MAENG_REVIEW_BACKEND=claude maeng-review run --kind code --pr 1",
+                    f"E={self.eta_root}; sed -n 1p $E/README.md", f"touch {self.eta_root}/x"):
+            self.assertAllowed(cmd)
 
-    def test_wrappers_and_compound_commands(self):
-        self.verified()
-        for cmd in ("bash -c 'git push origin main'", "sh -c \"git push --force\"", "eval 'git push origin main'",
-                    "ls && git push origin main", "cd . ; git push origin main", "true || git push -f origin feat",
-                    "echo x | git push origin main", "echo $(git push origin main)", "echo `git push origin main`",
-                    "(git push origin main)", "FOO=1 git push origin main", "env X=1 git push origin main",
-                    "command git push origin main", "git push origin 'main", "bash -c \"gh pr merge 1\"",
-                    "bash -lc 'git push origin main'", "zsh -c 'gh release create v1'", "sudo sh -c 'git push -f'",
-                    "ls\ngit push origin main", "git push origin $BRANCH"):
-            self.assertDenied(cmd)
-
-    def test_benign_commands_with_push_words_stay_allowed(self):
-        self.assertAllowed("echo 'git push origin main'")
-        self.assertAllowed("bash -c 'echo hello'")
-        self.assertAllowed("git commit -m \"$(cat <<'EOF'\nfix: push bug and merge docs\nEOF\n)\"")
-        self.assertAllowed("git status && git log --oneline | head -3")
-        self.assertDenied("git push --dry-run origin main", "canonical")   # was allowed before the allowlist
-
-    def test_verify_edit_commit_push_denied(self):
-        self.verified()
-        self.assertAllowed("git push origin feat")
-        (self.repo / "app.py").write_text("print('changed')\n")
-        self.commit_all(self.repo, "edit after verify")
-        self.assertDenied("git push origin feat", "not ship-verified")
-
-    def test_docs_only_change_keeps_evidence_but_dependency_change_invalidates(self):
-        self.verified()
-        (self.repo / "README.md").write_text("# new docs\n")
-        (self.repo / "docs").mkdir()
-        (self.repo / "docs/x.md").write_text("doc")
-        self.commit_all(self.repo, "docs")
-        self.assertAllowed("git push origin feat")
-        (self.repo / "requirements.txt").write_text("pytest\nrequests\n")
-        self.commit_all(self.repo, "deps")
-        self.assertDenied("git push origin feat")
-
-    def test_cmakelists_change_invalidates(self):
-        self.verified()
-        (self.repo / "CMakeLists.txt").write_text("project(x)\n")
-        self.commit_all(self.repo, "cmake")
-        self.assertDenied("git push origin feat")
-
-    def test_branch_switch_or_other_source_ref_with_unverified_tree_denied(self):
-        self.verified()
-        self.git(self.repo, "checkout", "-qb", "other")
-        (self.repo / "app.py").write_text("print('other')\n")
-        self.commit_all(self.repo, "other change")
-        self.assertDenied("git push origin other")            # implicit/explicit other ref
-        self.assertDenied("git push origin other:feat2")
-        self.assertDenied("git push")                          # current branch other, tree unverified
-        self.git(self.repo, "checkout", "-q", "feat")
-        self.assertDenied("git push origin other")             # other source ref while on feat
-        self.assertAllowed("git push origin feat")
-
-    def test_skip_only_tree_denies_ship_but_allows_stop(self):
-        (self.repo / "app.py").write_text("print('wip')\n")
-        self.commit_all(self.repo, "wip")
-        self.hook("PostToolUse", self.repo, tool_name="Edit", tool_input={"file_path": str(self.repo / "app.py")},
-                  tool_response={})
-        r = self.cli("maeng-verify", ["skip", "no tests for this prototype"], self.repo)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertDenied("git push origin feat", "not ship-verified")
-        self.alias_origin()
-        self.assertDenied("gh pr create -R o/r --title t --body b", "not ship-verified")
-        rc, out, _ = self.hook("Stop", self.repo, stop_hook_active=False)
-        # stop-satisfied via the skip: only the (separate) record obligation remains
-        self.assertIsNotNone(out)
-        self.assertIn("UNRECORDED", out["reason"])
-        self.assertNotIn("UNVERIFIED", out["reason"])
+    def test_mcp_merge_is_denied_and_other_mcp_writes_allowed(self):
+        for tool, tin in (("mcp__github__merge_pull_request", {"owner": "o", "repo": "r", "pull_number": 1}),
+                          ("mcp__github__push_files", {"owner": "o", "repo": "r", "branch": "main"})):
+            self.assertTrue(self.pre(self.repo, tool, tin)[0], tool)
+        for tool, tin in (("mcp__github__create_pull_request", {"owner": "o", "repo": "r", "head": "feat"}),
+                          ("mcp__notion-maeng__notion-create-pages", {"parent": "db111111111111111111111111111111"}),
+                          ("mcp__linear-eta__save_issue", {"title": "x"})):
+            self.assertFalse(self.pre(self.repo, tool, tin)[0], tool)
 
 
 class GhRoutes(ShipBase):
-    def test_gh_denied_routes(self):
-        self.verified()
-        for cmd in ("gh api -X PUT repos/o/r/contents/f.txt -f message=m -f content=Zg== -f branch=feat",
-                    "gh api --method PUT repos/o/r/contents/f.txt -f branch=main",
-                    "gh api repos/o/r/contents/f.txt -X DELETE -f message=m",
-                    "gh api repos/o/r/contents/f.txt -f message=m -f content=Zg==",   # implicit POST
-                    "gh api graphql -f query='mutation { createCommitOnBranch(input:{}) { commit { oid } } }'",
-                    "gh api graphql -f query='mutation { mergePullRequest(input:{}) { clientMutationId } }'",
-                    "gh api -X PUT repos/o/r/pulls/1/merge", "gh api -XPATCH repos/o/r/git/refs/heads/main -f sha=abc",
-                    "gh api repos/o/r/merges -f base=main -f head=feat",
-                    "gh pr merge 1", "gh pr merge --auto 1", "gh pr merge 1 --squash", "gh pr merge --admin --rebase 1",
-                    "gh pr merge --merge", "gh repo sync", "gh repo sync --force", "gh repo sync o/r -b main",
-                    "gh pr update-branch 1", "gh release create v1", "gh release upload v1 f", "gh release delete v1",
-                    "gh repo edit --default-branch dev", "gh workflow run x.yml", "gh repo delete o/r --yes",
-                    "gh api -X POST repos/o/r/issues/1/comments -f body=hi"):  # allowed before the allowlist
-            self.assertDenied(cmd)
-
     def test_gh_allowed_routes(self):
         for cmd in ("gh pr comment 1 -R o/r -b hi", "gh pr edit 1 -R o/r --title t", "gh pr review 1 -R o/r --approve",
                     "gh pr ready 1 -R o/r", "gh pr close 1 -R o/r", "gh issue create -R o/r -t x -b y",
@@ -198,17 +78,6 @@ class GhRoutes(ShipBase):
                     "gh api graphql -f query='query { viewer { login } }'", "gh run list", "gh release list"):
             self.assertAllowed(cmd)
 
-    def test_pr_create_needs_verified_head(self):
-        self.alias_origin()
-        self.assertDenied("gh pr create -R o/r --title t --body b", "not ship-verified")
-        self.assertDenied("gh pr create -R o/r --head feat --title t --body b")
-        self.verified()
-        self.assertAllowed("gh pr create -R o/r --title t --body b")
-        self.assertAllowed("gh pr create -R o/r --head feat --title t --body b --draft --base main")
-        self.assertDenied("gh pr create -R o/r --head nosuchbranch --title t")
-        self.assertDenied("gh pr create -R o/r --fill", "canonical")         # --fill is not a canonical flag
-        self.assertDenied("gh pr create -R o/r --head feat --title t --web", "canonical")
-
     def test_pr_create_reminds_review_tier(self):
         self.verified()
         rc, out, _ = self.hook("PostToolUse", self.repo, tool_name="Bash", tool_input={"command": "gh pr create --fill"},
@@ -216,69 +85,8 @@ class GhRoutes(ShipBase):
         self.assertIn("maeng-review", out["hookSpecificOutput"]["additionalContext"])
 
 
-class McpRoutes(ShipBase):
-    def test_github_mcp(self):
-        base = {"owner": "o", "repo": "r"}
-        self.alias_origin()
-        self.verified()
-        for tool, tin in (("merge_pull_request", {**base, "pullNumber": 1}),
-                          ("update_pull_request_branch", {**base, "pullNumber": 1}),
-                          ("push_files", {**base, "branch": "main", "files": [], "message": "m"}),
-                          ("create_or_update_file", {**base, "branch": "main", "path": "a", "content": "b", "message": "m"}),
-                          ("push_files", {**base, "files": [], "message": "m"})):
-            denied, _ = self.pre(self.repo, "mcp__github__" + tool, tin)
-            self.assertTrue(denied, tool)
-        for tool, tin in (("add_issue_comment", {**base, "issue_number": 1, "body": "x"}),
-                          ("get_file_contents", {**base, "path": "a"}),
-                          ("create_pull_request", {**base, "head": "feat", "base": "main", "title": "t"})):
-            denied, reason = self.pre(self.repo, "mcp__github__" + tool, tin)
-            self.assertFalse(denied, f"{tool}: {reason}")
-
-    def test_push_files_and_create_or_update_file_are_always_denied(self):
-        """R1#6: contents are never tied to the verified tree, even on a verified feature branch."""
-        self.verified()
-        base = {"owner": "o", "repo": "r"}
-        for tool, tin in (("push_files", {**base, "branch": "feat", "files": [], "message": "m"}),
-                          ("create_or_update_file", {**base, "branch": "feat", "path": "a", "content": "b",
-                                                     "message": "m"})):
-            denied, reason = self.pre(self.repo, "mcp__github__" + tool, tin)
-            self.assertTrue(denied, tool)
-            self.assertIn("verified `git commit`", reason)
-
-    def test_mcp_create_pull_request_needs_a_verified_remote_head(self):
-        self.alias_origin()
-        (self.repo / "app.py").write_text("print('dirty')\n")
-        base = {"owner": "o", "repo": "r"}
-        self.git(self.repo, "checkout", "-q", "app.py")
-        denied, reason = self.pre(self.repo, "mcp__github__create_pull_request", {**base, "head": "feat", "base": "main"})
-        self.assertTrue(denied)
-        self.assertIn("not ship-verified", reason)
-
-    def test_mcp_push_files_is_denied_even_on_a_verified_tree(self):
-        self.verified()
-        denied, reason = self.pre(self.repo, "mcp__github__push_files",
-                                  {"owner": "o", "repo": "r", "branch": "feat", "files": [], "message": "m"})
-        self.assertTrue(denied)
-        self.assertIn("verified `git commit`", reason)
-
-
 class GitExecVectors(ShipBase):
     """C1: config and environment that make a read-only-looking git command run an arbitrary program."""
-
-    def test_global_config_exec_keys_denied_for_every_subcommand(self):
-        for cmd in ("git -c core.pager='git push origin main' log",
-                    "git -c core.pager=x status", "git -c CORE.Pager=x diff", "git -c core.sshCommand=x fetch origin",
-                    "git -c core.fsmonitor=x status", "git -c core.editor=x commit --amend",
-                    "git -c diff.external=x show", "git -c credential.helper=x ls-remote origin",
-                    "git -c sequence.editor=x rebase -i HEAD~1", "git -c pager.log=x log",
-                    "git -c color.ui=never -c core.hooksPath=/tmp/h log", "git -c include.path=/tmp/c log",
-                    "git -c filter.f.smudge=x status", "git -c core.pager=x",
-                    "git --config-env=core.pager=PAGER_CMD log", "git --config-env core.sshCommand=SSHC fetch"):
-            self.assertDenied(cmd, "denied in every mode")
-
-    def test_global_config_deny_names_the_key(self):
-        self.assertDenied("git -c core.pager=x log", "core.pager")
-        self.assertDenied("git --config-env=core.sshCommand=E fetch", "core.sshcommand")
 
     def test_benign_global_config_and_plain_reads_still_allowed(self):
         for cmd in ("git -c color.ui=never log", "git log", "git -c user.name=x status", "git status",
@@ -286,59 +94,10 @@ class GitExecVectors(ShipBase):
                     "git --config-env=user.name=NAME status"):
             self.assertAllowed(cmd)
 
-    def test_env_exec_vars_denied_when_running_git(self):
-        for cmd in ("GIT_PAGER=x git log", "PAGER=x git log", "env GIT_SSH_COMMAND=x git fetch",
-                    "GIT_SSH=x git ls-remote origin", "GIT_EXTERNAL_DIFF=x git diff", "GIT_EDITOR=x git commit",
-                    "GIT_SEQUENCE_EDITOR=x git rebase -i HEAD~1", "GIT_ASKPASS=x git fetch",
-                    "SSH_ASKPASS=x git fetch", "GIT_PROXY_COMMAND=x git fetch", "GIT_CONFIG_GLOBAL=/tmp/c git log",
-                    "GIT_CONFIG_SYSTEM=/tmp/c git log", "GIT_CONFIG_PARAMETERS=\"'core.pager=x'\" git log",
-                    "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.pager GIT_CONFIG_VALUE_0=x git log",
-                    "GIT_CONFIG_KEY_0=core.pager git log", "GIT_TEMPLATE_DIR=/tmp/t git init",
-                    "export GIT_PAGER=x; git log", "GIT_PAGER=x env git log"):
-            self.assertDenied(cmd, "environment of a git command")
-
-    def test_pager_set_to_nothing_or_cat_is_allowed_anything_else_denied(self):
-        for cmd in ("GIT_PAGER=cat git log --oneline", "GIT_PAGER= git log", "PAGER=cat git log", "git -c core.pager=cat log",
-                    "git -c core.pager= log", "git -c pager.log=cat log", "GIT_PAGER=cat git -c core.pager=cat diff"):
-            self.assertAllowed(cmd)
-        for cmd in ("GIT_PAGER='git push origin main' git log", "GIT_PAGER=less git log", "PAGER=less git log",
-                    "git -c core.pager=less log", "git -c core.pager='git push origin main' log",
-                    "git -c core.pager=cat -c core.pager=less log", "git --config-env=core.pager=P log",
-                    "git -c pager.log=less log"):
-            self.assertDenied(cmd, "denied in every mode")
-
     def test_env_exec_vars_stay_allowed_without_git_and_other_vars_with_git(self):
         for cmd in ("PAGER=cat ls", "GIT_PAGER=x echo hi", "LC_ALL=C git log", "env LANG=C git status",
                     "GIT_AUTHOR_NAME=x git log"):
             self.assertAllowed(cmd)
-
-    def test_clone_and_init_template_install_hooks_and_are_denied(self):
-        for cmd in ("git clone --template=/tmp/t https://github.com/o/r dest", "git clone --template /tmp/t o/r",
-                    "git init --template=/tmp/t", "git init --template /tmp/t d", "git init --temp=/tmp/t",
-                    "git -C . init --template=/tmp/t"):
-            self.assertDenied(cmd, "denied in every mode")
-        self.assertAllowed("git init newrepo")
-        self.assertAllowed("git clone https://github.com/o/r elsewhere")
-
-    def test_show_output_writes_a_file_and_is_not_read_only(self):
-        from maeng import gates
-        for args in (["--output=f"], ["--output", "f"], ["--out=f"], ["--outp=f", "HEAD"]):
-            self.assertFalse(gates.git_readonly("show", args), args)
-            self.assertFalse(gates.git_readonly("diff", args), args)
-            self.assertFalse(gates.git_readonly("log", args), args)
-        self.assertTrue(gates.git_readonly("show", ["--stat", "HEAD"]))
-
-    def test_gh_issue_develop_creates_a_remote_branch_and_is_denied_unless_listing(self):
-        for cmd in ("gh issue develop 1 -R o/r", "gh issue develop 1 -R o/r --base main -n b",
-                    "gh issue develop 1 -R o/r --checkout", "gh issue develop 1 --repo o/r --branch-repo o/x"):
-            self.assertDenied(cmd, "creates a branch on the remote")
-        self.assertAllowed("gh issue develop --list 1 -R o/r")
-        self.assertAllowed("gh issue develop -l 1 -R o/r")
-
-    def test_gh_issue_transfer_stays_an_explicit_r_scoped_write(self):
-        self.assertDenied("gh issue transfer 1 o/r2")                    # needs -R
-        self.assertAllowed("gh issue transfer 1 o/r2 -R o/other")        # an issue write like edit/close (test_r4)
-
 
 class ReadonlyPins(ShipBase):
     """C1 low: the read-only allowlists change only on purpose. Update the literal or digest when adding to them."""

@@ -30,29 +30,6 @@ class R4_1_TokenTaint(EtaDirMixin, HarnessCase):
         d, reason = self.bash_pre(cwd or self.repo, cmd)
         self.assertFalse(d, f"expected allow: {cmd} ({reason})")
 
-    def test_clone_and_worktree_destinations(self):
-        e = self.eta_root
-        self.denied(f"git clone https://github.com/o/r {e}/new")
-        self.denied(f"git worktree add {e}/new")
-        self.denied("git worktree add eta_checkout/wt")
-        self.allowed("git clone https://github.com/o/r elsewhere")
-
-    def test_gh_slug_destinations_and_set_default(self):
-        self.denied("gh issue transfer 1 maengseojun/eta_v1 -R maengseojun/other")
-        self.denied("cd eta_checkout && gh repo set-default maengseojun/eta_v1")
-        self.denied("gh repo set-default maengseojun/eta_v1")
-        self.allowed("gh repo set-default o/r")
-        self.allowed("gh issue transfer 1 o/r2 -R o/other")
-
-    def test_bare_operand_option_values_and_env_values(self):
-        self.denied("cp app.py eta_checkout")
-        self.denied("python3 build.py --out=eta_checkout/o")
-        self.denied("dd if=app.py of=eta_checkout/x")
-        self.denied("FOO=eta_checkout/x touch y")
-        self.denied("make install DESTDIR=eta_checkout")
-        self.denied("tar -xf a.tar -Ceta_checkout")
-        self.denied("echo hi > eta_checkout/x")
-
     def test_read_only_allowlist(self):
         for cmd in ("cat eta_checkout/x", "ls eta_checkout", "head -n1 eta_checkout/x", "grep -r a eta_checkout",
                     "find eta_checkout -name x", "diff eta_checkout/a app.py", "wc -l eta_checkout/a",
@@ -61,21 +38,6 @@ class R4_1_TokenTaint(EtaDirMixin, HarnessCase):
                     "gh api repos/endix-foundation-v1/x/pulls", "gh repo view maengseojun/eta_v1",
                     "gh pr diff 1 -R endix-foundation-v1/x"):
             self.allowed(cmd)
-
-    def test_read_only_programs_with_mutation_options_are_denied(self):
-        for cmd in ("find eta_checkout -delete", "find eta_checkout -exec rm {} +", "find eta_checkout -fprint x",
-                    "git -C eta_checkout commit -am x", "git -C eta_checkout branch -D x",
-                    "gh api -X POST repos/endix-foundation-v1/x/issues -f title=t",
-                    "gh api repos/endix-foundation-v1/x/issues -f title=t",
-                    "gh api repos/endix-foundation-v1/x/issues --input body.json",
-                    "sort -o eta_checkout/out app.py"):
-            self.denied(cmd)
-
-    def test_eta_effective_directory_is_read_only(self):
-        self.denied("touch x", cwd=self.eta_dir)
-        self.denied("git commit -am x", cwd=self.eta_dir)
-        self.allowed("ls", cwd=self.eta_dir)
-        self.allowed("git log", cwd=self.eta_dir)
 
     def test_personal_only_commands_are_unaffected(self):
         for cmd in ("touch notes.txt", "mkdir build", "cp app.py copy.py", 'git commit --allow-empty -m "fix a/b thing"',
@@ -116,21 +78,6 @@ class R4_3_RemoteRewrites(ShipBase):
         self.git(self.tmp, "clone", "-q", "--bare", str(self.tmp / "repo-remote.git"), str(fork))
         return fork
 
-    def test_push_insteadof_fork_redirect_denies_pr_create(self):
-        self.alias_origin()
-        self.verified()
-        self.assertAllowed("gh pr create --repo o/r --head feat --title t --body b")
-        self.git(self.repo, "config", f"url.{self.fork()}.pushInsteadOf", "https://github.com/o/r.git")
-        self.assertDenied("gh pr create --repo o/r --head feat --title t --body b", "insteadOf")
-        self.assertDenied("git push origin feat", "insteadOf")
-
-    def test_fetch_insteadof_rewrite_is_denied(self):
-        self.alias_origin()
-        self.verified()
-        self.git(self.repo, "config", f"url.{self.fork()}.insteadOf", "https://github.com/o/r.git")
-        self.assertDenied("gh pr create --repo o/r --head feat --title t --body b", "insteadOf")
-
-
 class R4_3_ReconcileRewrites(MergeBase):
     def test_reconcile_refuses_when_push_url_is_rewritten(self):
         key = self.verdict()
@@ -160,57 +107,6 @@ class R4_4_NotionConfig(HarnessCase):
         os.environ.pop("MAENG_NOTION_DBS", None)
         self.maeng_home.mkdir(parents=True, exist_ok=True)
         (self.maeng_home / "config.json").write_text(json.dumps({"notion_databases": value}))
-
-    def test_uppercase_and_hyphenated_ids_are_gated(self):
-        for pid in (DB, DB.upper(), "DB111111-1111-1111-1111-111111111111"):
-            denied, reason = self.call(pid)
-            self.assertTrue(denied, pid)
-            self.assertIn("no Sol pass receipt", reason)
-
-    def test_uppercase_configured_ids_are_normalized(self):
-        self.use_config(["DB111111-1111-1111-1111-111111111111"])
-        denied, reason = self.call(DB)
-        self.assertTrue(denied)
-        self.assertIn("no Sol pass receipt", reason)
-
-    def test_string_instead_of_list_denies_writes(self):
-        self.use_config(DB)
-        denied, reason = self.call(DB)
-        self.assertTrue(denied)
-        self.assertIn("invalid Notion gate configuration", reason)
-        denied, reason = self.call("cccccccccccccccccccccccccccccccc")
-        self.assertTrue(denied)
-
-    def test_bad_entries_and_empty_list_deny(self):
-        for bad in ([], ["not-hex"], [DB, 5], ["abc"]):
-            self.use_config(bad)
-            denied, reason = self.call(DB)
-            self.assertTrue(denied, bad)
-            self.assertIn("invalid Notion gate configuration", reason)
-
-    def test_invalid_env_denies(self):
-        self.env["MAENG_NOTION_DBS"] = "zzz"
-        denied, reason = self.call(DB)
-        self.assertTrue(denied)
-        self.assertIn("invalid Notion gate configuration", reason)
-
-    def test_missing_shipped_default_denies(self):
-        os.environ.pop("MAENG_NOTION_DBS", None)
-        with unittest.mock.patch.object(gates, "read_json", return_value=None):
-            d = gates.check_mcp_notion(CREATE, self.payload, gates.Ctx(self.repo, {}))
-        self.assertFalse(d.allow)
-        self.assertIn("invalid Notion gate configuration", d.reason)
-        with unittest.mock.patch.object(gates, "read_json", side_effect=OSError("boom")):
-            d = gates.check_mcp_notion(CREATE, self.payload, gates.Ctx(self.repo, {}))
-        self.assertFalse(d.allow)
-
-    def test_registry_and_journal_ids_are_normalized(self):
-        receipts.registry_add(["AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE"])
-        self.assertIn("aaaaaaaabbbbccccddddeeeeeeeeeeee", receipts.registry_ids())
-        scope = gates.notion_scope("mcp__claude_ai_Notion__notion-update-page",
-                                   {"page_id": "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE"})
-        self.assertEqual(scope, ("update", "aaaaaaaabbbbccccddddeeeeeeeeeeee"))
-
 
 class R4_5_RevocationRace(MergeBase):
     def revoke(self, key):

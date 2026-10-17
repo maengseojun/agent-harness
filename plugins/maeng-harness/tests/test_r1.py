@@ -54,22 +54,6 @@ class R1_1_ReservationFailsClosed(MergeBase):
         [t.join() for t in ts]
         self.assertEqual(sorted(results), ["denied"] * 5 + ["ok"])
 
-    def test_journal_failure_denies_and_releases_receipt(self):
-        from unittest import mock
-        payload = {"parent": {"data_source_id": DB}, "pages": [{"properties": {"title": "Outcome"}}]}
-        repo = self.make_repo("notion")
-        self.start(repo)
-        v = {"verdict": "pass", "reviewer": {"model": "gpt-6.1-sol", "effort": "medium"}, "findings": [],
-             "subject": {"kind": "notion", "repo": None, "pr": None, "base": None, "head": None, "criteria_rev": None,
-                         "digest": sha256(canonical(payload)), "destination": DB, "op": "create"}}
-        key = receipts.store_verdict(v)
-        with mock.patch.object(receipts, "journal_pending", side_effect=OSError("disk full")):
-            out = handlers.on_pre({"hook_event_name": "PreToolUse", "session_id": self.sid, "cwd": str(repo),
-                                   "tool_name": CREATE, "tool_input": payload, "tool_use_id": "n1"})
-        self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "deny")
-        self.assertEqual(receipts.load(key)["status"], "unconsumed")
-
-
 class R1_2_ReviewCoverage(MergeBase):
     def test_partial_receipt_does_not_authorize_whole_pr(self):
         k1 = self.verdict(files=["app.py"])
@@ -151,44 +135,7 @@ class R1_3_RepositoryBinding(MergeBase):
 class R1_4_ConfiguredPushRefspec(ShipBase):
     """Round 2 replaced refspec resolution with: explicit refspec only, and no remote.<r>.push at all."""
 
-    def test_c_override_of_remote_push_to_default_branch_denied(self):
-        self.verified()
-        self.assertDenied("git -c remote.origin.push=HEAD:refs/heads/main push origin", "canonical")
-        self.assertDenied("git -c remote.origin.push=HEAD:refs/heads/main push", "canonical")
-
-    def test_config_file_remote_push_denied(self):
-        self.verified()
-        self.git(self.repo, "config", "remote.origin.push", "HEAD:refs/heads/main")
-        self.assertDenied("git push origin", "canonical")
-        self.assertDenied("git push", "canonical")
-        self.assertDenied("git push origin feat", "remote.origin.push")      # was allowed: now any remote.push denies
-
-    def test_undeterminable_refspec_is_denied(self):
-        self.verified()
-        self.git(self.repo, "config", "remote.origin.push", "+refs/heads/*:refs/heads/*")
-        self.assertDenied("git push origin", "canonical")
-        self.assertDenied("git push origin feat", "remote.origin.push")
-        self.git(self.repo, "config", "--unset", "remote.origin.push")
-        self.git(self.repo, "config", "remote.origin.push", "refs/heads/*:refs/heads/*")
-        self.assertDenied("git push origin", "canonical")
-        self.assertDenied("GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=remote.origin.push git push origin", "canonical")
-
-    def test_benign_configured_refspec_no_longer_allows_implicit_pushes(self):
-        self.verified()
-        self.git(self.repo, "config", "remote.origin.push", "HEAD:refs/heads/feat")
-        self.assertDenied("git push origin", "canonical")
-        self.assertDenied("git -c remote.origin.push= push origin", "canonical")
-
-
 class R1_5_ControlStructures(ShipBase):
-    def test_structures_with_shipping_routes_are_denied(self):
-        self.verified()
-        for cmd in ("if true; then git push origin main; fi", "while true; do git push origin feat; done",
-                    "for i in 1; do gh pr merge 1; done", "case x in x) git push origin feat;; esac",
-                    "f() { git push origin main; }; f", "{ git push origin main; }", "( git push origin main )",
-                    "true && if true; then gh api -X POST repos/o/r/merges; fi", "if x; then git -C /tmp push; fi"):
-            self.assertDenied(cmd, "canonical")
-
     def test_structures_without_routes_and_plain_pushes_unchanged(self):
         self.verified()
         self.assertAllowed("if true; then echo hi; fi")
@@ -202,44 +149,16 @@ class R1_7_EvidenceIdentity(ShipBase):
         (self.repo / ".maeng/verify.json").write_text(json.dumps({"required": required}))
         self.commit_all(self.repo, "policy")
 
-    def test_invocations_that_run_no_checks_are_not_evidence(self):
-        for cmd in ("pytest --version", "pytest -V", "pytest --help", "pytest -h", "pytest --collect-only",
-                    "pytest --co", "cargo test --dry-run", "python3 -m pytest --version"):
-            self.assertIsNone(evidence.recognize(cmd), cmd)
-            self.run_check(self.repo, cmd)
-        self.assertEqual(self.load_state()["evidence"], [])
-        self.assertTrue(self.bash_pre(self.repo, "git push origin feat")[0])
-
     def test_identity_normalizes_whitespace_and_verbosity_only(self):
         ident = lambda c: evidence.recognize(c)["checks"][0][2]
         self.assertEqual(ident("pytest   -q "), "pytest")
         self.assertEqual(ident("python3 -m pytest -vv tests/unit"), "pytest tests/unit")
         self.assertEqual(ident("uv run pytest  -k  foo"), "pytest -k foo")
 
-    def test_unit_subset_does_not_satisfy_full_suite_requirement(self):
-        self.policy(["pytest"])
-        self.run_check(self.repo, "pytest tests/unit")
-        denied, reason = self.bash_pre(self.repo, "git push origin feat")
-        self.assertTrue(denied)
-        self.assertIn("required check not passed", reason)
-        self.run_check(self.repo, "pytest")                              # bare pytest = the full suite
-        self.assertFalse(self.bash_pre(self.repo, "git push origin feat")[0])
-
     def test_glob_requirement_accepts_matching_identity(self):
         self.policy(["pytest tests/*"])
         self.run_check(self.repo, "pytest tests/unit")
         self.assertFalse(self.bash_pre(self.repo, "git push origin feat")[0])
-
-    def test_subset_pass_does_not_clear_full_failure(self):
-        self.policy(["pytest tests/unit"])
-        self.run_check(self.repo, "pytest", ok=False)
-        self.run_check(self.repo, "pytest tests/unit")
-        denied, reason = self.bash_pre(self.repo, "git push origin feat")
-        self.assertTrue(denied)
-        self.assertIn("unresolved failure: pytest", reason)
-        self.run_check(self.repo, "pytest")                              # the same identity passes later
-        self.assertFalse(self.bash_pre(self.repo, "git push origin feat")[0])
-
 
 class R1_8_G3(HarnessCase):
     def setUp(self):
@@ -256,28 +175,6 @@ class R1_8_G3(HarnessCase):
     def allowed(self, cmd):
         d, reason = self.bash_pre(self.repo, cmd)
         self.assertFalse(d, f"expected allow: {cmd} ({reason})")
-
-    def test_relative_redirects_resolve_against_effective_directory(self):
-        e = self.eta_root
-        for cmd in (f"cd {e} && printf x > file.txt", f"cd {e} && echo x >> new.txt", f"cd {e} && echo x 2> err.txt",
-                    f"cd {e} && echo x &> all.txt", f"cd {e}; echo x | tee out.txt", f"echo x | tee {e}/out.txt",
-                    f"cd {e} && cat file.txt > ../eta_v1/y"):
-            self.denied(cmd)
-        self.allowed("echo x > out.txt")
-        self.allowed(f"cd {e} && ls 2>&1")
-        self.allowed(f"ls {e} > /dev/null")
-
-    def test_read_only_programs_with_mutation_options_are_mutating(self):
-        e = self.eta_root
-        for cmd in (f"find {e} -type f -delete", f"find {e} -exec rm {{}} ;", f"find {e} -execdir touch x ;",
-                    f"find {e} -fprint {e}/o", f"sort -o {e}/file.txt in.txt", f"sort --output={e}/file.txt in.txt",
-                    f"sed -i s/a/b/ {e}/file.txt", f"cd {e} && sed -i s/a/b/ file.txt", f"echo a | xargs rm {e}/file.txt",
-                    f"cd {e} && xargs touch", f"cp a {e}/a", f"mv a {e}/a", f"rm {e}/file.txt", f"touch {e}/t",
-                    f"mkdir {e}/d", f"ln -s a {e}/l", f"chmod 600 {e}/file.txt", f"chown me {e}/file.txt",
-                    f"truncate -s 0 {e}/file.txt", f"dd if=/dev/zero of={e}/file.txt", f"awk -i inplace 1 {e}/file.txt",
-                    f"git -C {e} diff --output={e}/o", f"git -C {e} branch newbranch", f"git -C {e} config user.name x",
-                    f"git -C {e} remote add x y", f"git -C {e} stash"):
-            self.denied(cmd)
 
     def test_plain_reads_and_git_read_allowlist_still_allowed(self):
         e = self.eta_root
@@ -298,17 +195,6 @@ class R1_9_AmbiguousNotionFailure(HarnessCase):
     call = G2Tests.call
     post = G2Tests.post
 
-    def test_ambiguous_failures_keep_receipt_and_journal_pending(self):
-        for n, err in enumerate(("timeout", "connection reset by peer", "Notion MCP error: something odd")):
-            key = self.sol_pass(self.payload, DB, "create")
-            self.assertFalse(self.call(CREATE, self.payload, f"a{n}")[0])
-            self.post(CREATE, self.payload, f"a{n}", error=err)
-            self.assertEqual(receipts.load(key)["status"], "pending", err)
-            self.assertEqual(receipts.read_journal()[-1]["status"], "pending", err)
-            self.assertTrue(self.call(CREATE, self.payload, f"b{n}")[0])        # blocked until reconcile
-            self.cli("maeng-review", ["reconcile", "--notion", receipts.read_journal()[-1]["id"], "--absent"], self.repo)
-            self.assertEqual(receipts.load(key)["status"], "unconsumed")
-
     def test_confirmed_rejections_release_the_receipt(self):
         for n, err in enumerate(("validation_error: bad property", "object_not_found", "unauthorized",
                                  "restricted_resource", "invalid_request_url")):
@@ -327,27 +213,6 @@ class R1_10_ReconcilePendingWithPageId(HarnessCase):
     sol_pass = G2Tests.sol_pass
     call = G2Tests.call
     post = G2Tests.post
-
-    def test_pending_entry_resolves_as_success_with_confirmed_page_id(self):
-        key = self.sol_pass(self.payload, DB, "create")
-        self.call(CREATE, self.payload, "t1")
-        self.post(CREATE, self.payload, "t1", error="timeout")             # landed, but the post hook never saw it
-        entry = receipts.read_journal()[0]
-        self.assertEqual(entry["status"], "pending")
-        out = self.cli("maeng-review", ["reconcile", "--notion", entry["id"], "--page-id", PAGE], self.repo)
-        self.assertEqual(out.returncode, 0, out.stderr)
-        self.assertIn("reconciled", out.stdout)
-        self.assertEqual(receipts.load(key)["status"], "consumed")
-        self.assertIn(PAGE.replace("-", ""), receipts.registry_ids())
-        self.assertEqual(receipts.unresolved_entries(), [])
-
-    def test_a_plain_fetch_does_not_resolve_a_pending_entry(self):
-        key = self.sol_pass(self.payload, DB, "create")
-        self.call(CREATE, self.payload, "t1")
-        self.post(CREATE, self.payload, "t1", error="timeout")
-        self.post(FETCH, {"id": PAGE}, "t2", response={"title": "Outcome"})
-        self.assertEqual(receipts.load(key)["status"], "pending")
-
 
 class R1_11_ReviewPromptAndEvidence(HarnessCase):
     def test_prompt_states_the_threat_model(self):

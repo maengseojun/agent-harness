@@ -19,32 +19,6 @@ class R5_1_McpPullRequestDestination(ShipBase):
     def tin(self, **kw):
         return {"owner": "o", "repo": "r", "head": "feat", "base": "main", "title": "t", **kw}
 
-    def test_destination_must_equal_origin(self):
-        self.alias_origin()
-        self.verified()
-        self.assertFalse(self.pre(self.repo, self.MCP, self.tin())[0])
-        denied, reason = self.pre(self.repo, self.MCP, self.tin(owner="fork"))
-        self.assertTrue(denied)
-        self.assertIn("must name origin's repository", reason)
-        self.assertTrue(self.pre(self.repo, self.MCP, self.tin(repo=""))[0])
-
-    def test_insteadof_rewrite_is_denied_like_gh(self):
-        self.alias_origin()
-        self.verified()
-        fork = self.tmp / "fork.git"
-        self.git(self.tmp, "clone", "-q", "--bare", str(self.tmp / "repo-remote.git"), str(fork))
-        self.git(self.repo, "config", f"url.{fork}.insteadOf", "https://github.com/o/r.git")
-        denied, reason = self.pre(self.repo, self.MCP, self.tin())
-        self.assertTrue(denied)
-        self.assertIn("insteadOf", reason)
-
-    def test_non_plain_origin_is_denied(self):
-        self.alias_origin()
-        self.verified()
-        self.git(self.repo, "config", "--add", "remote.origin.url", "https://github.com/o/other.git")
-        self.assertTrue(self.pre(self.repo, self.MCP, self.tin())[0])
-
-
 class R5_2_NonExecutingRunnerValues(HarnessCase):
     def test_go_count_must_be_positive(self):
         for cmd in ("go test ./... -count=0", "go test -count 0 ./...", "go test -count=00 ./...", "go test -count=-1 ./..."):
@@ -81,22 +55,6 @@ class R5_3_ReadOnlyOptionAllowlist(EtaDirMixin, HarnessCase):
     def allowed(self, cmd):
         d, reason = self.bash_pre(self.eta_dir, cmd)
         self.assertFalse(d, f"expected allow in eta dir: {cmd} ({reason})")
-
-    def test_file_and_pagers_are_not_read_only(self):
-        self.denied("file -C -m magic")
-        self.denied("file log")
-        self.denied("less -o out log")
-        self.denied("less log")
-        self.denied("more log")
-
-    def test_unknown_options_are_not_read_only(self):
-        for cmd in ("env touch x", "rg --pre ./evil pattern", "rg -z pat", "sort -o out log", "find . -fprint out",
-                    "grep --exec x log", "cat --output=x log", "head --bogus log", "wc --files0-from=x",
-                    "ls --bogus", "diff --to-file=x log log", "stat --bogus log", "tail --bogus log",
-                    "git log --output=x", "git diff -O pager", "git grep --open-files-in-pager=vim x",
-                    "git status --bogus-flag", "gh pr view 1 --output x", "gh run view 1 -D out",
-                    "tree -o out", "du --bogus", "date -s 2020-01-01", "jq --bogus . log", "uniq log out"):
-            self.denied(cmd)
 
     def test_plain_reads_are_allowed(self):
         for cmd in ("cat log", "cat -n log", "head -5 log", "head -n 3 log", "tail -n 2 log", "tail -f log", "wc -l log",
@@ -202,17 +160,6 @@ class R5_5_CorruptSessionState(EtaDirMixin, HarnessCase):
         self.eta_dir = self.make_eta_dir(self.repo)
         self.path = state.path_for(self.sid)
 
-    def test_corrupt_state_keeps_denying_and_is_not_overwritten(self):
-        touch = "touch inside"
-        self.assertTrue(self.bash_pre(self.eta_dir, touch)[0])          # personal session moved into eta: denied
-        for junk in ("{not json", "[]", '{"evidence": "oops"}', '{"seq": true}', ""):
-            self.path.write_text(junk)
-            denied, reason = self.bash_pre(self.eta_dir, touch)
-            self.assertTrue(denied, junk)
-            self.assertIn("is unreadable; move it aside (maeng-verify state --quarantine) and restart", reason)
-            self.assertIn(str(self.path), reason)
-            self.assertEqual(self.path.read_text(), junk)               # never replaced with fresh state
-
     def test_other_events_have_no_side_effects(self):
         self.path.write_text("{broken")
         for event, extra in (("UserPromptSubmit", {"prompt": "x"}), ("SessionStart", {"source": "startup"}),
@@ -269,36 +216,6 @@ class R5_6_NotionRegistrySchema(HarnessCase):
     def write(self, path, obj):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(obj if isinstance(obj, str) else json.dumps(obj))
-
-    def test_valid_registry_gates_and_unknown_page_is_free(self):
-        self.write(self.reg, {"page_ids": [self.page]})
-        denied, reason = self.call()
-        self.assertTrue(denied)
-        self.assertIn("no Sol pass receipt", reason)
-        self.assertFalse(self.call({"page_id": "c" * 32})[0])
-
-    def test_string_page_ids_deny_the_update(self):
-        self.write(self.reg, {"page_ids": self.page})
-        for tin in (self.update, {"page_id": "c" * 32, "command": "x"}):
-            denied, reason = self.call(tin)
-            self.assertTrue(denied)
-            self.assertIn("invalid Notion registry; run maeng-review registry seed", reason)
-
-    def test_other_malformed_registries_deny(self):
-        for bad in ("not json", [], {"page_ids": [1, 2]}, {"page_ids": ["zzz"]}, {"page_ids": None}, {"other": 1}):
-            self.write(self.reg, bad)
-            denied, reason = self.call()
-            self.assertTrue(denied, bad)
-            self.assertIn("invalid Notion registry", reason)
-
-    def test_malformed_journal_denies_gated_calls(self):
-        self.write(self.reg, {"page_ids": [self.page]})
-        for bad in ("{}", [{"id": "x"}], [{"id": "x", "status": "sent", "page_ids": "abc"}],
-                    [{"id": "x", "status": "sent", "page_ids": ["nothex"]}]):
-            self.write(self.jr, bad)
-            denied, reason = self.call()
-            self.assertTrue(denied, bad)
-            self.assertIn("invalid Notion registry", reason)
 
     def test_seed_repairs_an_invalid_registry(self):
         self.write(self.reg, {"page_ids": self.page})

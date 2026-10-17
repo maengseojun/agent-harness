@@ -47,14 +47,16 @@ def merge_plan(target, tracked_git):
         data = json.loads(path.read_text()) if path.exists() else {}
         if not isinstance(data, dict):
             raise ValueError("not an object")
-        plugins = data.setdefault("enabledPlugins", {})
-        if not isinstance(plugins, dict):
-            raise ValueError("enabledPlugins is not an object")
+        plugins, env = data.setdefault("enabledPlugins", {}), data.setdefault("env", {})
+        if not isinstance(plugins, dict) or not isinstance(env, dict):
+            raise ValueError("enabledPlugins or env is not an object")
     except ValueError as exc:
         return "refuse", f"cannot merge into {REL}: {exc}", None, []
     changes = {k: v for k, v in guard.DESIRED_PLUGINS.items() if plugins.get(k) is not v}
-    for k, v in changes.items():
-        plugins[k] = v
+    plugins.update(changes)
+    env_changes = {k: v for k, v in guard.DESIRED_ENV.items() if env.get(k) != v}
+    env.update(env_changes)
+    changes = {**changes, **{f"env.{k}": v for k, v in env_changes.items()}}
     return ("write" if changes else "ok"), "", data, changes
 
 

@@ -493,7 +493,8 @@ class EtaIsolate(HarnessCase):
         self.assertNotIn(str(nm), t)
         data = json.loads((self.eta_root / ".claude/settings.local.json").read_text())
         self.assertEqual(data["permissions"], {"allow": ["Bash(ls)"]})          # existing keys preserved
-        self.assertEqual(data["enabledPlugins"], {"maeng-harness@maeng": False, "linear@synced": False,
+        self.assertEqual(data["env"], guard.DESIRED_ENV)
+        self.assertEqual(data["enabledPlugins"], {"maeng-harness@maeng": True, "linear@synced": False,
                                                   "commit-commands@claude-plugins-official": False,
                                                   "eta-rules@eta": True, "eta-craft@eta": True})
         for checkout in (self.eta_root, self.wt, sub):

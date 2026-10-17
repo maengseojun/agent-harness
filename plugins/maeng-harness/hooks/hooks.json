@@ -24,7 +24,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__github__.*|mcp__claude_ai_Notion__.*|mcp__linear-endix__.*",
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__github__.*",
         "hooks": [
           {
             "type": "command",

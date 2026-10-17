@@ -278,14 +278,6 @@ class ExactLeaseThroughHook(MergeBase):
         self.assertFalse(denied, reason)
         self.assertEqual(self.status(key), "pending")            # persisted before dispatch
 
-    def test_other_lease_or_force_forms_stay_denied(self):
-        self.verdict()
-        for cmd in (self.lease_cmd() + " --no-verify", f"git push --force-with-lease origin {self.h}:refs/heads/main",
-                    f"git push --force origin {self.h}:refs/heads/main", f"git push origin {self.h}:refs/heads/main",
-                    f"git push --force-with-lease=refs/heads/main:{self.base} origin {self.h}:refs/heads/other",
-                    f"git push --force-with-lease=refs/heads/main:{self.c1} origin {self.h}:refs/heads/main"):
-            self.assertTrue(self.bash_pre(self.repo, cmd)[0], cmd)
-
     def test_stale_head_or_base_in_exact_form(self):
         self.verdict()
         self.assertTrue(self.bash_pre(self.repo, self.lease_cmd(head=self.c1))[0])

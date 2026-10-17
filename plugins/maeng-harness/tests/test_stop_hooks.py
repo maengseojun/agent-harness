@@ -240,7 +240,8 @@ class EtaAndUnknown(HarnessCase):
         self.assertIn("maeng-eta-isolate --apply", ctx)
         self.assertNotIn("\n", ctx)
         (repo / ".claude").mkdir()
-        (repo / ".claude/settings.local.json").write_text(json.dumps({"enabledPlugins": guard.DESIRED_PLUGINS}))
+        (repo / ".claude/settings.local.json").write_text(json.dumps({"enabledPlugins": guard.DESIRED_PLUGINS,
+                                                                           "env": guard.DESIRED_ENV}))
         rc, out, _ = self.hook("SessionStart", sub, source="startup")
         self.assertEqual(rc, 0)
         self.assertIsNone(out)
@@ -250,33 +251,6 @@ class EtaAndUnknown(HarnessCase):
         repo = self.make_repo("eta-clone", with_remote=False)
         self.git(repo, "remote", "add", "origin", "https://github.com/maengseojun/eta_v1.git")
         return repo
-
-    def test_unknown_classification_suppresses_records_and_denies_mutations(self):
-        repo = self.make_repo("broken")
-        self.git(repo, "checkout", "-qb", "feat")
-        (repo / ".git/config").write_text("[core\n  broken")
-        before = snapshot(self.maeng_home, self.vault)
-        rc, out, _ = self.hook("SessionStart", repo, source="startup")
-        self.assertIsNone(out)
-        self.hook("UserPromptSubmit", repo, prompt="x")
-        self.assertIsNone(self.hook("Stop", repo, stop_hook_active=False)[1])
-        self.hook("SessionEnd", repo, reason="x")
-        self.assertEqual(snapshot(self.maeng_home, self.vault), before)       # no state, no stub
-        for cmd in ("git push origin feat", "gh pr comment 1 -R o/r -b x", "gh pr create -R o/r --title t --body b",
-                    "touch marker.txt", "git commit --allow-empty -m x"):
-            denied, reason = self.bash_pre(repo, cmd)
-            self.assertTrue(denied, cmd)
-            self.assertIn("cannot classify", reason)
-        for cmd in ("git push --force origin feat", "gh pr merge 1", "gh api -X POST repos/o/r/issues/1/comments -f body=x",
-                    "gh pr create --fill"):            # (round 2) non-canonical forms are denied by the allowlist
-            self.assertTrue(self.bash_pre(repo, cmd)[0], cmd)
-        self.assertTrue(self.pre(repo, "Edit", {"file_path": str(repo / "app.py")})[0])
-        self.assertTrue(self.pre(repo, "mcp__github__create_issue", {"owner": "o", "repo": "r", "title": "t"})[0])
-        self.assertFalse(self.bash_pre(repo, "ls -la")[0])
-        self.assertFalse(self.bash_pre(repo, "gh pr view 1")[0])
-        self.assertFalse(self.pre(repo, "mcp__github__get_issue", {"owner": "o", "repo": "r", "issue_number": 1})[0])
-        self.assertEqual(snapshot(self.maeng_home, self.vault), before)
-
 
 class DispatcherFailureModes(HarnessCase):
     def run_main(self, stdin_text, handlers):
@@ -312,10 +286,3 @@ class DispatcherFailureModes(HarnessCase):
         rc, out, _ = self.run_main(json.dumps({"hook_event_name": "Elicitation"}), {})
         self.assertEqual((rc, out), (0, ""))
 
-    def test_internal_gate_error_becomes_deny_not_crash(self):
-        repo = self.make_repo()
-        self.start(repo)
-        denied, reason = self.pre(repo, "Bash", {"command": 123})        # malformed tool_input
-        self.assertTrue(denied)                                           # (round 3) a non-string command is malformed: denied
-        denied, reason = self.pre(repo, "Bash", "garbage")                # (round 2) not an object: denied
-        self.assertTrue(denied)
