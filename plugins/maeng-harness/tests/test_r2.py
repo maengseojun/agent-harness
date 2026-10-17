@@ -349,14 +349,13 @@ class R2_I_UnknownWorldNotion(HarnessCase):
 
 
 class R2_J_ReviewerPrompt(HarnessCase):
-    def test_prompt_states_the_allowlist_design(self):
+    def test_prompt_states_the_slim_gate_design(self):
         import importlib.machinery
         import importlib.util
         loader = importlib.machinery.SourceFileLoader("maeng_review_mod2", str(BIN / "maeng-review"))
         spec = importlib.util.spec_from_loader("maeng_review_mod2", loader)
         mod = importlib.util.module_from_spec(spec)
         loader.exec_module(mod)
-        for needle in ("ALLOWLIST of canonical forms", "denied by design", "allowlist is closed", "canonical form",
-                       "git push [-u] <remote>", "gh pr create", "maeng-ship merge <N>", "files_delegated",
+        for needle in ("SLIM by design", "MAENG_TEST_FIXTURES", "maeng-ship merge <N>", "files_delegated",
                        "tool_reference", "needs-external-check", "--tool-ref", "tool_reference is null"):
             self.assertIn(needle, mod.PROMPT)

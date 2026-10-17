@@ -199,6 +199,7 @@ SETTINGS_REL = ".claude/settings.local.json"
 ISOLATION_KEYS = ("linear@synced", "commit-commands@claude-plugins-official")
 # The personal harness stays on in eta checkouts (it sits above eta); eta-rules runs only its code hooks there,
 # so personal Slack/Notion/Linear work is never gated by eta (H1/H3/H4/H13/H14/H15 off on this machine).
+# maeng's own PreToolUse gate stays inert there (handlers.on_pre); eta's H2/H5 govern pushes.
 DESIRED_PLUGINS = {**{k: False for k in ISOLATION_KEYS}, "maeng-harness@maeng": True, **{k: True for k in ETA_PLUGINS}}
 DESIRED_ENV = {"ETA_ONLY_HOOKS": "H2,H5,H6,H7,H8,H9,H10,H11,H12,H16,H17"}
 

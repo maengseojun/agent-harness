@@ -139,17 +139,6 @@ class R8_10_NotionCreatePagesParents(HarnessCase):
             self.assertFalse(self.pre(self.repo, NOTION + "notion-create-pages",
                                       {"parent": parent, "pages": pages})[0], parent)
 
-    def test_a_receipt_for_the_exact_payload_passes_for_database_id(self):
-        payload = {"parent": {"type": "database_id", "database_id": DB}, "pages": [{"properties": {"title": "x"}}]}
-        v = {"verdict": "pass", "reviewer": {"model": "gpt-6.1-sol", "effort": "medium"}, "findings": [],
-             "subject": {"kind": "notion", "repo": None, "pr": None, "base": None, "head": None, "criteria_rev": None,
-                         "digest": sha256(canonical(payload)), "destination": DB, "op": "create"}}
-        f = self.tmp / f"v-{uuid.uuid4().hex[:6]}.json"
-        f.write_text(json.dumps(v))
-        self.assertEqual(self.cli("maeng-review", ["store", str(f)], self.repo).returncode, 0)
-        self.assertFalse(self.pre(self.repo, NOTION + "notion-create-pages", payload)[0])
-
-
 class R8_DeclaredProseChecks(unittest.TestCase):
     """A Plan check with no runner in it is prose: shell punctuation in it must not split it into parts that no single
     declaration can satisfy; a runner constituent still needs runner evidence."""

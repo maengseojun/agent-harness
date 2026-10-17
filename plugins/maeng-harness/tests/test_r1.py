@@ -195,15 +195,6 @@ class R1_9_AmbiguousNotionFailure(HarnessCase):
     call = G2Tests.call
     post = G2Tests.post
 
-    def test_confirmed_rejections_release_the_receipt(self):
-        for n, err in enumerate(("validation_error: bad property", "object_not_found", "unauthorized",
-                                 "restricted_resource", "invalid_request_url")):
-            key = self.sol_pass(self.payload, DB, "create")
-            self.assertFalse(self.call(CREATE, self.payload, f"c{n}")[0])
-            self.post(CREATE, self.payload, f"c{n}", error=err)
-            self.assertEqual(receipts.load(key)["status"], "unconsumed", err)
-
-
 class R1_10_ReconcilePendingWithPageId(HarnessCase):
     def setUp(self):
         super().setUp()

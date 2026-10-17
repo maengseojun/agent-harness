@@ -33,33 +33,28 @@ convenience shortcuts, not a security boundary; a deliberately disguised route (
 innocuous name that pushes) is out of scope and is not a finding. Judge against that model: every KNOWN,
 non-disguised route must still be gated, and every gate must fail closed when it cannot decide. Report a gap in
 a known route or a gate that fails open; do not report out-of-scope disguised bypasses.
-Shipping and cross-world gating is an ALLOWLIST of canonical forms, by design: a Bash command that mentions a
-shipping route is allowed only as one plain single command in one of these forms: `git push [-u] <remote>
-<branch>`, `git push [-u] <remote> <local-branch>:<name|refs/heads/name>`, `git push [-u] <remote>
-<full-commit-sha>:refs/heads/<name>` (a SHA source REQUIRES the refs/heads/ destination; `<sha>:<name>` is denied), maeng-ship's exact lease push
-(`git push --force-with-lease=refs/heads/<base>:<sha> <remote> <sha>:refs/heads/<base>`), `gh pr create --repo|-R <owner/repo>` (the
-repo must equal origin) with only --base/--head/--title/--body/--body-file/--draft/--repo, `maeng-ship merge <N>`,
-read-only gh commands, and gh pr/issue writes (comment/edit/review/ready/close, issue *) that carry an explicit
-`-R <owner/repo>` (never eta). gh checkout/clone/download commands are local writes gated by the effective directory.
-Cross-world gate G3 is TOKEN TAINT with a read-only allowlist: in a personal session every token of every Bash
-segment (option values, key=value values, redirect targets, bare operands, owner/repo slugs, github.com URLs) is
-resolved against the segment's effective directory (tracking cd) and against the eta repository classification;
-a segment with any eta-tainted token, or running in an eta/unknown directory, is denied unless its program is on a
-small read-only allowlist used without mutation options. Verify that allowlist is closed (no mutating option or
-subcommand slips through). Verification evidence is a RUNNER INVOCATION ALLOWLIST: a command counts as evidence
+Gating is SLIM by design (user decision 2026-10-18, MAE-237): the PreToolUse gate blocks only (1) a push whose
+destination is the default branch (main/master/trunk, the remote's HEAD, policy protected_branches, --all/--mirror,
+implicit destinations resolved through upstream/push config), (2) every known merge route other than
+`maeng-ship merge <N>` (gh pr merge/update-branch, gh api merge/ref-write endpoints and merge mutations, git/gh
+aliases expanding to these, GitHub MCP merge/update-branch and file writes to the default branch), (3) Bash setting
+the harness test/override switches (MAENG_TEST_FIXTURES, MAENG_GIT, MAENG_GH, MAENG_HOME, MAENG_CACHE_DIR), and
+(4) Edit/Write into the harness state directory. An unparseable command is denied only when its raw text mentions
+a ship route. Everything else (feature-branch pushes incl. force, gh writes, Notion/Linear/Slack, eta paths,
+compound commands, other MAENG_* prefixes such as MAENG_REVIEW_BACKEND) is allowed by design and is not a finding.
+In eta checkouts maeng's PreToolUse gate is inert; eta-rules' code hooks (ETA_ONLY_HOOKS) govern pushes there.
+Verify that each of (1)-(4) is fully checked and that maeng-ship's lease merge still needs a review-run receipt and a
+ship-verified head. Verification evidence is a RUNNER INVOCATION ALLOWLIST: a command counts as evidence
 only when it matches a canonical runner form with allowlisted flags (pytest, unittest, npm/pnpm/yarn scripts, forge,
 cargo, go test, make targets, ruff check, mypy, tsc, claude plugin validate, playwright test); any other flag
-(dry-run, list, collect-only, ...) makes it no evidence. Verify that these lists are closed. Further by design: an unparseable command is denied; a token with an unresolved $VAR/`${}`/backtick, or a `cd` into one, makes non-read-only segments undecidable and denied; git aliases are denied; `gh api graphql` is allowed only as an inspectable literal `-f query=` without mutation; the GitHub MCP surface is an allowlist (unknown tools denied); only `maeng-review run` receipts (reviewer.provenance=review-run) authorize anything. Everything else (compound commands, wrappers, env assignments, `git -c/-C/--git-dir`, substitutions,
-redirects, other flags) is denied by design, so do NOT enumerate disguised or non-canonical variants as findings.
-Instead verify that the allowlist is closed (no route reaches the shell without passing it) and that each
-canonical form is fully checked (remote configuration, default branch, verified tree/remote head, receipts,
-repository binding, eta isolation).
+(dry-run, list, collect-only, ...) makes it no evidence. Verify that these lists are closed. Only `maeng-review run`
+receipts (reviewer.provenance=review-run) authorize anything.
 Files listed as delegated (files_delegated / scope.delegated_files) are OUT of this review's scope but are NOT
 covered by it: they still need their own passing review. Files listed as excluded are exempt.
 tool_reference is null unless the bundle was built with --tool-ref; when present it holds the --version and help
 output of the git and gh installed where the bundle was built (collected before the review, not fetched by you).
 Judge option and subcommand semantics against it, not against memory; an option or subcommand it shows that the
-allowlist does not handle is a finding. When tool_reference is null, or a judgment depends on tool behavior it does
+gate does not handle for a gated route is a finding. When tool_reference is null, or a judgment depends on tool behavior it does
 not show (listed as unavailable, or not covered by help text), do not guess:
 report a finding with severity medium titled "needs-external-check: <what must be checked>".
 Start from the assumption that the change is wrong; try to falsify it against the acceptance criteria (AC-n).

@@ -50,14 +50,6 @@ class R3_4_NotionRevocation(G2Tests):
         self.assertEqual(receipts.revoke_passes(subject, "fail"), [])
         self.assertEqual(receipts.load(key).get("revoked"), None)
 
-    def test_a_later_pass_supersedes_the_revocation(self):
-        key = self.sol_pass(self.payload, DB, "create")
-        subject = {"kind": "notion", "digest": sha256(canonical(self.payload)), "destination": DB, "op": "create"}
-        receipts.revoke_passes(subject, "blocked")
-        self.assertEqual(self.sol_pass(self.payload, DB, "create"), key)
-        self.assertFalse(self.call(CREATE, self.payload, "u2")[0])
-
-
 class R3_5_LauncherEvidence(HarnessCase):
     def rec(self, cmd):
         return evidence.recognize(cmd)

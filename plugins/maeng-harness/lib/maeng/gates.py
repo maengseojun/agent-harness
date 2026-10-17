@@ -1,6 +1,7 @@
 """PreToolUse gates. Only the irreversible ship steps are blocked: a push to the default branch and a merge
 that skips `maeng-ship merge` (review receipt). Everything else (gh, Notion, Linear, eta paths, env) is allowed."""
 import os
+import re
 from pathlib import Path
 
 from . import canon, ghcmd, guard, readonly, receipts, remotecfg
@@ -83,8 +84,14 @@ def check_edit(tool_name, tool_input, ctx):
 PUSH_VALUE_OPTS = {"--repo", "-o", "--push-option", "--receive-pack", "--exec"}
 
 
+def _config(cwd, key):
+    rc, out, _ = git(cwd, "config", "--get-all", key)
+    return out.split() if rc == 0 else []
+
+
 def push_targets(args, cwd):
-    """-> (remote, [destination branch names]) of `git push <args>`; ['*'] for --all/--mirror."""
+    """-> (remote, [destination branch names]) of `git push <args>`; ['*'] for --all/--mirror, [''] when an
+    implicit destination cannot be determined (detached HEAD, unknown directory)."""
     pos, skip, every = [], False, False
     for a in args:
         if skip:
@@ -95,12 +102,14 @@ def push_targets(args, cwd):
             every = True
         elif not a.startswith("-"):
             pos.append(a)
-    remote, specs = (pos[0], pos[1:]) if pos else ("", [])
     current = git_out(cwd, "symbolic-ref", "--short", "-q", "HEAD") or ""
+    remote, specs = (pos[0], pos[1:]) if pos else \
+        ((_config(cwd, f"branch.{current}.pushRemote") or _config(cwd, f"branch.{current}.remote") or ["origin"])[0], [])
     if every:
         return remote, ["*"]
-    if not specs:
-        return remote, [current]
+    if not specs:  # implicit: the current branch, its upstream, and any configured remote.<r>.push refspecs
+        upstream = [m.removeprefix("refs/heads/") for m in _config(cwd, f"branch.{current}.merge")]
+        specs = [current, *upstream, *_config(cwd, f"remote.{remote}.push")]
     out = []
     for s in specs:
         dst = s.lstrip("+").rpartition(":")[2] or s.lstrip("+")
@@ -117,6 +126,8 @@ def check_push(toks, cwd, ctx):
     remote, dsts = push_targets(args, cwd)
     policy = treelib.load_policy(treelib.toplevel(cwd) or cwd)
     for dst in dsts:
+        if not dst:
+            return deny("maeng G1: cannot tell where this push goes (no current branch); name the remote and branch.")
         if dst == "*" or is_default_branch(dst, cwd, remote, policy):
             return deny(f"maeng G1: pushing to the default branch (`{dst}`) is denied; push a feature branch and "
                         f"{MERGE_HINT}")
@@ -150,26 +161,64 @@ def check_merge_push(lease, cwd, ctx):
 
 # ---- Bash ----------------------------------------------------------------
 
+# Test switches and binary/state overrides retarget maeng-ship's own checks (fixture receipts, fake git/gh); other
+# MAENG_* prefixes (MAENG_REVIEW_BACKEND, ...) stay allowed.
+# shortcut: a text match, not a shell parse; catches assignment/export/unset/env -u, not quoting tricks.
+SWITCHES = r"MAENG_(?:TEST_FIXTURES|GIT|GH|HOME|CACHE_DIR)\b"
+SWITCH_SET = re.compile(rf"\b{SWITCHES}\+?=|\b(?:export|unset|declare|typeset|readonly|local|read|env)\b[^;&|\n]*\b{SWITCHES}")
+SHIP_TEXT = re.compile(r"\bgit\b.*\bpush\b|\bgh\b.*\b(?:pr|api|alias)\b|--force-with-lease|maeng-ship", re.S)
+GH_API_MERGE = re.compile(r"/pulls/\d+/(?:merge|update-branch)\b|/merges\b|/git/refs\b")
+GH_GRAPHQL_MERGE = re.compile(r"mergePullRequest|updatePullRequestBranch|mergeBranch|updateRefs?\b|createRef\b|"
+                              r"enablePullRequestAutoMerge", re.I)
+
+
+def check_gh(toks):
+    info = ghcmd.parse_gh(toks)
+    pos = info["pos"]
+    if pos[:2] in (["pr", "merge"], ["pr", "update-branch"]):
+        return deny(f"maeng G1: `gh {' '.join(pos[:2])}` is denied; {MERGE_HINT}")
+    if pos[:1] and pos[0] in ghcmd.gh_aliases():
+        return deny(f"maeng G1: `gh {pos[0]}` is a gh alias, which can hide a merge; run the underlying command.")
+    if pos[:1] == ["api"]:
+        text = " ".join(toks)
+        writes = info["method"] not in (None, "GET") or info["fields"] or info["input"]
+        if (writes and GH_API_MERGE.search(text)) or GH_GRAPHQL_MERGE.search(text):
+            return deny(f"maeng G1: this `gh api` call merges or moves a branch ref; {MERGE_HINT}")
+    return Decision()
+
+
+def check_git(toks, cwd, ctx):
+    sub, _, dirs, cfg = _parse_git_globals(toks)
+    for kind, d in dirs:  # git applies -C cumulatively
+        if kind == "C":
+            cwd = _abs(d, cwd)
+    alias = [v for k, vals in cfg.items() if k == f"alias.{sub}" for v in vals] or (_config(cwd, f"alias.{sub}") if sub else [])
+    if any(re.search(r"\bpush\b|\bmerge\b", a) for a in alias):
+        return deny(f"maeng G1: `git {sub}` is an alias that pushes or merges; run the underlying command.")
+    return check_push(toks, cwd, ctx) if sub == "push" else Decision()
+
+
 def check_bash(command, ctx):
+    if SWITCH_SET.search(command):
+        return deny("maeng G1: setting MAENG_TEST_FIXTURES / MAENG_GIT / MAENG_GH / MAENG_HOME / MAENG_CACHE_DIR from "
+                    "Bash is denied; they switch maeng-ship to test fixtures or fake binaries.")
     try:
         segs = split_segments(command.rstrip())
     except ParseError:
-        return Decision()  # shortcut: an unparseable command is not inspected; the hook catches mistakes, not attacks
+        if SHIP_TEXT.search(command):
+            return deny("maeng G1: cannot parse this command and it mentions a push or merge; run that step as a "
+                        "simpler command.")
+        return Decision()
     cwd, effects = ctx.cwd, []
     for seg in segs:
         prog, toks = program(seg.tokens)
         if prog in ("cd", "pushd") and len(toks) > 1:
             cwd = _abs(os.path.expandvars(toks[1]), cwd)
-        elif prog == "git":
-            sub, _, dirs, _ = _parse_git_globals(toks)
-            run_cwd = next((_abs(d, cwd) for kind, d in dirs if kind == "C"), cwd)
-            if sub == "push":
-                d = check_push(toks, run_cwd, ctx)
-                if not d.allow:
-                    return d
-                effects += d.effects
-        elif prog == "gh" and ghcmd.parse_gh(toks)["pos"][:2] == ["pr", "merge"]:
-            return deny(f"maeng G1: `gh pr merge` is denied; {MERGE_HINT}")
+        elif prog in ("git", "gh"):
+            d = check_git(toks, cwd, ctx) if prog == "git" else check_gh(toks)
+            if not d.allow:
+                return d
+            effects += d.effects
     return Decision(True, "", effects)
 
 
@@ -179,8 +228,11 @@ def check_mcp_github(tool, tool_input, ctx):
     name = tool.split("__", 2)[-1]
     if name in ("merge_pull_request", "update_pull_request_branch"):
         return deny(f"maeng G1: {name} is denied; {MERGE_HINT}")
-    if name in ("push_files", "create_or_update_file") and str(tool_input.get("branch", "")) in DEFAULT_BRANCHES:
-        return deny(f"maeng G1: {name} to the default branch is denied; write to a feature branch.")
+    if name in ("push_files", "create_or_update_file", "delete_file"):
+        branch = str(tool_input.get("branch") or "").removeprefix("refs/heads/")
+        if not branch or branch in DEFAULT_BRANCHES or branch == remotecfg.default_head(ctx.cwd, "origin"):
+            return deny(f"maeng G1: {name} to the default branch (or with no branch) is denied; write to a feature "
+                        f"branch.")
     return Decision()
 
 

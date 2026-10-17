@@ -59,9 +59,29 @@ class SlimGate(ShipBase):
                     f"E={self.eta_root}; sed -n 1p $E/README.md", f"touch {self.eta_root}/x"):
             self.assertAllowed(cmd)
 
+    def test_other_merge_routes_switches_and_hidden_pushes_are_denied(self):
+        for cmd in ("gh pr update-branch 1", "gh api -X PUT repos/o/r/pulls/1/merge",
+                    "gh api repos/o/r/merges -f base=main -f head=feat",
+                    "gh api graphql -f query='mutation { mergePullRequest(input: {}) { clientMutationId } }'",
+                    "MAENG_TEST_FIXTURES=1 maeng-ship merge 7", "export MAENG_GIT=/tmp/fake",
+                    "env MAENG_HOME=/tmp/x maeng-ship merge 7", "git -c alias.p=push p origin main",
+                    "git commit -m \"$(cat <<\\EOF\nx\nEOF\n)\" && git push origin main"):
+            denied, reason = self.bash_pre(self.repo, cmd)
+            self.assertTrue(denied, f"expected deny: {cmd} ({reason})")
+        self.git(self.repo, "config", "alias.pm", "push origin main")
+        self.assertDenied("git pm", "alias")
+        self.git(self.repo, "checkout", "-qb", "fromMain")
+        self.git(self.repo, "config", "branch.fromMain.merge", "refs/heads/main")
+        self.assertDenied("git push", "default branch")  # implicit destination = upstream main
+        self.git(self.repo, "checkout", "-q", "--detach")
+        self.assertDenied("git push", "cannot tell")
+        self.assertAllowed("gh api repos/o/r/pulls/1")
+
     def test_mcp_merge_is_denied_and_other_mcp_writes_allowed(self):
         for tool, tin in (("mcp__github__merge_pull_request", {"owner": "o", "repo": "r", "pull_number": 1}),
-                          ("mcp__github__push_files", {"owner": "o", "repo": "r", "branch": "main"})):
+                          ("mcp__github__push_files", {"owner": "o", "repo": "r", "branch": "main"}),
+                          ("mcp__github__create_or_update_file", {"owner": "o", "repo": "r", "path": "a"}),
+                          ("mcp__github__delete_file", {"owner": "o", "repo": "r", "branch": "refs/heads/main"})):
             self.assertTrue(self.pre(self.repo, tool, tin)[0], tool)
         for tool, tin in (("mcp__github__create_pull_request", {"owner": "o", "repo": "r", "head": "feat"}),
                           ("mcp__notion-maeng__notion-create-pages", {"parent": "db111111111111111111111111111111"}),

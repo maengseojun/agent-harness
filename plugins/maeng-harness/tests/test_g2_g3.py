@@ -41,13 +41,6 @@ class G2Tests(HarnessCase):
         self.assertFalse(self.call(CREATE, other, "t1")[0])
         self.assertFalse(self.pre(self.repo, "mcp__claude_ai_Notion__notion-search", {"query": "x"})[0])
 
-    def test_rejected_create_allows_retry(self):
-        key = self.sol_pass(self.payload, DB, "create")
-        self.call(CREATE, self.payload, "t1")
-        self.post(CREATE, self.payload, "t1", error="Notion API error: validation_error")
-        self.assertEqual(receipts.load(key)["status"], "unconsumed")
-        self.assertFalse(self.call(CREATE, self.payload, "t2")[0])
-
 class G3Tests(HarnessCase):
     def setUp(self):
         super().setUp()
