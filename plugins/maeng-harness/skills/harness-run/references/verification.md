@@ -18,6 +18,20 @@ If the session state file becomes unreadable, gates deny (the file is never repl
 2. Else the repo policy `.maeng/verify.json` `required`.
 3. Else at least one recognized test runner.
 
+## Verification tiers (scale the checks to the risk)
+
+Write the tier into the Plan (`Verification tier:` line, see spec-plan.md) and name only the ship check in `Verification`. Checks you run while working are feedback, not evidence; the gate reads only the ship check at the final tree.
+
+| Change | While working (after each edit) | Ship check (Plan `Verification`, once at the final tree) |
+|---|---|---|
+| **Docs only**: every changed path matches `non_code_globs` | nothing | nothing new: evidence at the last code tree still holds, because non-code paths never invalidate it. With no earlier evidence, run the default check once (a `maeng-verify ran` declaration counts only for a Plan `Verification` line with that literal text) |
+| **Code** | the affected tests only (a repo's impact selector, e.g. `python3 plugins/maeng-harness/tests/impact.py run`, or the test files that cover what changed) | the full suite once |
+| **Gate code**: anything a gate decision runs through (lib/maeng, hooks/, bin/ here) | the affected tests | the full suite once (it includes the real-process boundary tests); also before merge, the suite with `HARNESS_TEST_PROCESS=1` when the hook or CLI entry points changed |
+
+- Review rounds: fix findings with the affected tests, then run the ship check once before asking for the next review (the receipt binds the exact head anyway). Do not re-run the full suite for each finding.
+- A lightened check is a Plan change: update the Spec and the Plan together, and say what was not re-run.
+- Evidence matches the Plan's check text literally: a Plan naming `python3 -m pytest -q -n auto plugins/maeng-harness/tests` (parallel, needs `requirements-dev.txt`) is not satisfied by a serial run, and the other way round. Name the form you will run. Without a bound Plan, only an unfiltered runner command counts (a test path operand makes it filtered).
+
 ## States
 
 - **Ship-verified**: every required check has ok evidence at a tree equal to the current one (differing at most in non-code paths such as docs and images); no unresolved failure; with a plan bound, the latest plan record marks every current `AC-n` met and matches the plan's current `updatedAt`.

@@ -138,6 +138,13 @@ class RecordObligation(StopBase):
         self.record(issue="MAE-220")
         self.assertFalse(self.blocked_for_record())
 
+    def test_personal_linear_server_write_counts(self):
+        # MAE-233 H3: the user's Linear server is `linear-maeng`; its writes were not seen, so UNRECORDED repeated
+        self.record(tool="mcp__linear-eta__save_comment")
+        self.assertTrue(self.blocked_for_record())
+        self.record(tool="mcp__linear-maeng__save_comment")
+        self.assertFalse(self.blocked_for_record())
+
     def test_obsidian_note_with_linear_frontmatter_counts(self):
         self.record(tool=OBSIDIAN_WRITE, path="wiki/sessions/y.md", content="---\nid: y\nlinear: [MAE-220]\n---\nbody")
         self.assertFalse(self.blocked_for_record())

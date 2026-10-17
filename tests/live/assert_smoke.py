@@ -223,15 +223,24 @@ CHECKS = {"S1": s1, "S2": s2, "S3": s3, "S4": s4, "S5": s5, "S6": s6, "S7": s7, 
           "GF1": gf_factory(True), "GF2": gf_factory(True), "GF3": gf_factory(True), "GF4": gf_factory(True)}
 
 
+def expected_run(run, sid):
+    """Run id that last produced `sid` (run.json `by_scenario`; older files: the single run if it listed `sid`)."""
+    by = run.get("by_scenario")
+    if by is not None:
+        return (by.get(sid) or {}).get("run_id")
+    return run.get("run_id") if sid in run.get("scenarios", []) else None
+
+
 def main(ids):
     results, bad = {}, 0
     run = json.loads((EV / "run.json").read_text()) if (EV / "run.json").exists() else {}
     for sid in ids:
         try:
             S = load(sid)
-            if not run or S.get("run_id") != run.get("run_id"):
-                rows = [("evidence is from the current run (run.json run_id matches)",
-                         f"stale or unmatched evidence: summary run_id={S.get('run_id')} run.json={run.get('run_id')}")]
+            want = expected_run(run, sid)
+            if not want or S.get("run_id") != want:
+                rows = [("evidence is from the run that last ran this scenario (run.json run_id matches)",
+                         f"stale or unmatched evidence: summary run_id={S.get('run_id')} run.json={want}")]
             elif S.get("error"):
                 rows = [("scenario ran without crashing", S["error"].strip().splitlines()[-1])]
             else:

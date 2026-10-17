@@ -6,5 +6,72 @@
   "S6",
   "S7"
  ],
- "crashed": []
+ "crashed": [],
+ "by_scenario": {
+  "S1": {
+   "run_id": "e26442585a414eb9a8c631d5582664ec",
+   "finished_at": "2026-10-17T18:24:30+0900",
+   "mode": "worktree"
+  },
+  "S2": {
+   "run_id": "e26442585a414eb9a8c631d5582664ec",
+   "finished_at": "2026-10-17T18:24:30+0900",
+   "mode": "worktree"
+  },
+  "S3": {
+   "run_id": "e26442585a414eb9a8c631d5582664ec",
+   "finished_at": "2026-10-17T18:24:30+0900",
+   "mode": "worktree"
+  },
+  "S4": {
+   "run_id": "e26442585a414eb9a8c631d5582664ec",
+   "finished_at": "2026-10-17T18:24:30+0900",
+   "mode": "worktree"
+  },
+  "S5": {
+   "run_id": "f94fdd070f164f27bc3d8febf3ca0cce",
+   "finished_at": "2026-10-17T18:51:34+0900",
+   "mode": "installed"
+  },
+  "S6": {
+   "run_id": "f94fdd070f164f27bc3d8febf3ca0cce",
+   "finished_at": "2026-10-17T18:51:34+0900",
+   "mode": "installed"
+  },
+  "S7": {
+   "run_id": "f94fdd070f164f27bc3d8febf3ca0cce",
+   "finished_at": "2026-10-17T18:51:34+0900",
+   "mode": "installed"
+  },
+  "S8": {
+   "run_id": "e26442585a414eb9a8c631d5582664ec",
+   "finished_at": "2026-10-17T18:24:30+0900",
+   "mode": "worktree"
+  },
+  "S9": {
+   "run_id": "e26442585a414eb9a8c631d5582664ec",
+   "finished_at": "2026-10-17T18:24:30+0900",
+   "mode": "worktree"
+  },
+  "GF1": {
+   "run_id": "e26442585a414eb9a8c631d5582664ec",
+   "finished_at": "2026-10-17T18:24:30+0900",
+   "mode": "worktree"
+  },
+  "GF2": {
+   "run_id": "e26442585a414eb9a8c631d5582664ec",
+   "finished_at": "2026-10-17T18:24:30+0900",
+   "mode": "worktree"
+  },
+  "GF3": {
+   "run_id": "e26442585a414eb9a8c631d5582664ec",
+   "finished_at": "2026-10-17T18:24:30+0900",
+   "mode": "worktree"
+  },
+  "GF4": {
+   "run_id": "e26442585a414eb9a8c631d5582664ec",
+   "finished_at": "2026-10-17T18:24:30+0900",
+   "mode": "worktree"
+  }
+ }
 }

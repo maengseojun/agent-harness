@@ -176,6 +176,44 @@ class PrivateFilter(unittest.TestCase):
             self.assertIn('refusing to overwrite', r.stderr)
             self.assertEqual(Path(out).read_text(), first)
 
+    def test_retry_sidecar_describes_final_run(self):
+        import json, os, tempfile
+        with tempfile.TemporaryDirectory() as d:
+            sc = os.path.join(d, 'run.json')
+            Path(sc).write_text(json.dumps({'prompt': 'p', 'nonce': OTHER, 'exit_code': 0,
+                                            'parse_status': 'no_final_answer', 'private_spans_removed': 1}))
+            src, out = os.path.join(d, 'o.txt'), os.path.join(d, 'raw-retry.md')
+            Path(src).write_text(final(ITEM2))
+            with quiet():
+                rc = pa.main([src, '--nonce', NONCE, '--exit-code', '0', '--clean', out,
+                              '--sidecar', sc, '--world', 'eta'])
+            self.assertEqual(rc, 0)
+            data = json.loads(Path(sc).read_text())
+            self.assertEqual((data['nonce'], data['parse_status'], data['world']), (NONCE, 'ok', 'eta'))
+            self.assertEqual(data['prompt'], 'p')
+            self.assertEqual(data['first_run']['nonce'], OTHER)
+            self.assertEqual(data['first_run']['parse_status'], 'no_final_answer')
+
+    def test_delete_scratch_removes_only_run_files(self):
+        import os, tempfile
+        with tempfile.TemporaryDirectory() as d:
+            stem = os.path.join(d, f'20261017-100000-{NONCE}')
+            src, err, other = stem + '.out.txt', stem + '.err.txt', os.path.join(d, 'keep.out.txt')
+            for p in (src, err, other):
+                Path(p).write_text(final(ITEM2))
+            out = os.path.join(d, 'raw.md')
+            with quiet():
+                self.assertEqual(pa.main([src, '--nonce', NONCE, '--exit-code', '0', '--clean', out,
+                                          '--delete-scratch']), 0)
+            self.assertFalse(os.path.exists(src))
+            self.assertFalse(os.path.exists(err))
+            self.assertTrue(os.path.exists(out))
+            self.assertTrue(os.path.exists(other))
+            # a file not named for this run's nonce is never deleted
+            with quiet():
+                pa.main([other, '--nonce', NONCE, '--exit-code', '0', '--delete-scratch'])
+            self.assertTrue(os.path.exists(other))
+
     def test_refuses_without_filter(self):
         import os, tempfile
         orig = pa.FILTER_PATH

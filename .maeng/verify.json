@@ -1,4 +1,35 @@
 {
   "_comment": "Verification policy for this repo (design §0, §5.3). Live smoke outputs are evidence, not code.",
-  "non_code_globs": ["**/*.md", "docs/**", "**/*.{png,jpg,jpeg,gif,svg,webp}", "tests/live/evidence/**"]
+  "non_code_globs": [
+    "**/*.md",
+    "docs/**",
+    "**/*.{png,jpg,jpeg,gif,svg,webp}",
+    "tests/live/evidence/**"
+  ],
+  "_tiers": {
+    "_comment": "Read by agents writing Plans (verification.md 'Verification tiers'); the gate reads only non_code_globs/required/protected_branches/formatter.",
+    "docs-only": {
+      "when": "every changed path matches non_code_globs",
+      "while_working": [],
+      "ship": []
+    },
+    "code": {
+      "while_working": [
+        "python3 plugins/maeng-harness/tests/impact.py run"
+      ],
+      "ship": [
+        "python3 -m pytest -q -n auto plugins/maeng-harness/tests"
+      ]
+    },
+    "gate-code": {
+      "when": "plugins/maeng-harness/{lib,hooks,bin}/** changed",
+      "while_working": [
+        "python3 plugins/maeng-harness/tests/impact.py run"
+      ],
+      "ship": [
+        "python3 -m pytest -q -n auto plugins/maeng-harness/tests"
+      ],
+      "before_merge_if_entry_points_changed": "HARNESS_TEST_PROCESS=1 full suite"
+    }
+  }
 }

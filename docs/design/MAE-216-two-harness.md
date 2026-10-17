@@ -263,6 +263,12 @@ What that gives:
 
 **Verdict.** `{verdict, subject{kind, repo, pr, base, head, criteria_rev, digest, destination, op}, reviewer{model, effort}, findings[]}`. It is stored per subject. The agent routes it to a Linear comment and `wiki/reviews/`.
 
+**Receipt coverage (D-3, as built in `receipts.find_code`).** A merge push is allowed when pass receipts for the exact repo, base, head and destination together cover every file changed between base and head. A file is covered if it is in `files_reviewed` of any pass receipt (kind `code` or `parent`), or in `files_excluded` of a `parent` receipt (minus its `files_delegated`). Consequences:
+- The code does not require a receipt of kind `parent` for a parent merge. Child-tier (kind `code`) receipts whose `base`/`head` equal the merged range can authorize it alone; the parent-integration review (Astra high) is a workflow rule in harness-run, not something the merge gate enforces.
+- A receipt reviewed under a child issue (`subject.parent` == the bound issue) stays valid when its `criteria_rev` still equals that child's own current binding rev, even though the parent's rev differs. If the child's criteria changed since the review, the receipt is stale ("stale child receipt").
+- Every receipt used is reserved and consumed together; the diff digest of `files_reviewed` must match what is shipped.
+- Residual risk: a parent merge whose combined diff equals a single child's reviewed range is shipped with no cross-child integration review. Run the parent review (`--kind parent`) when children meet; the gate will not force it.
+
 **Receipt lifecycle** (single-use):
 - A `pass` receipt is **consumed** only when PostToolUse confirms that the gated action succeeded: the merge push was accepted, or the Notion create/update was read back.
 - A failed or rejected action leaves the receipt unconsumed, so the same subject can retry.
@@ -399,7 +405,7 @@ Shipping stays blocked by G1 until a tree is ship-verified.
 6. **`maeng-verify bind`** for each task.
 7. The **implementer** (Sonnet) builds each child, then verifies (§5.3) and records (§5.4). The architect reviews falsify-first, like the gsd-core verifier: it starts from "goal not achieved".
 8. **Review tier** (§4): child PR → Sol xhigh; parent integration → Astra high; small work → Sol high; Claude fallback (Opus; Fable medium for parent integration) only after 3 failed codex runs.
-9. **Merge** with a matching receipt.
+9. **Merge** with matching receipts through `maeng-ship merge` (D-3). The parent merge needs no parent-kind review: pass receipts of the children's own PR reviews can cover it (see §4, "Receipt coverage").
 10. **Outcome:** Obsidian ADR/session, then a Notion record via Sol medium, then the link to the user.
 
 The Codex ledger and prepare-tool are not ported.
@@ -517,6 +523,7 @@ Sonnet implements, Opus reviews each step, and Codex reviews the PR (Sol xhigh p
 - Entry gate retired.
 - Isolation file in every eta checkout. **Open for the user to veto.**
 - Child-task PR review: Sol xhigh (user, 2026-10-17).
+- D-3 (as built, recorded 2026-10-17 in MAE-233): merges go only through `maeng-ship merge` (lease-guarded fast-forward), and the merge gate (`receipts.find_code`) accepts child-tier receipts, including child-issue receipts valid under the child's own criteria rev, as sufficient coverage for a parent merge. It requires file coverage, not a parent-kind review (§4). Parent integration review stays a harness-run workflow rule.
 - Review backend: Codex first; Claude fallback after 3 failed codex runs, Fable medium only for parent integration (user, 2026-10-17).
 - PR #38 reviews run with `MAENG_REVIEW_BACKEND=claude` on the user's request ("일단 claude로 해줘", 2026-10-17; Codex quota nearly used up): parent integration Fable medium, child PR Opus medium. The variable is set in the review job's environment, not through the agent's Bash tool: the harness denies every `MAENG_*` assignment, export, unset and `env` form there (round-9 fix).
 - Merge criterion changed (user, 2026-10-17, during PR #38 round 10): a merge needs pass verdicts with no critical/high findings; medium and low findings are handled after the merge in a follow-up issue (MAE-227). PR #38 merged at `c3eede5` under this rule.

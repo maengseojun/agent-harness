@@ -17,6 +17,8 @@ EDIT_TOOLS = ("Edit", "Write", "NotebookEdit", "MultiEdit")
 UUID = re.compile(r"[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}")
 REJECTED = re.compile(r"stale info|non-fast-forward|\[rejected\]|\[remote rejected\]|rejected", re.I)
 COMMIT_SUBS = {"commit", "merge", "rebase", "am", "cherry-pick", "revert", "pull"}
+# Linear servers whose writes count as a personal record (`linear-maeng` is the user's own workspace server)
+PERSONAL_LINEAR = ("mcp__claude_ai_Linear__", "mcp__linear__", "mcp__linear-maeng__")
 
 
 def warn(msg):
@@ -202,7 +204,7 @@ def _flatten(obj):
 def is_record_write(tool, tin, tresp, issue):
     """Does this successful tool call write a Linear/Obsidian record (for the bound issue)?"""
     name = tool.split("__")[-1]
-    linear = tool.startswith(("mcp__claude_ai_Linear__", "mcp__linear__")) and name.startswith(("save_", "create_", "update_"))
+    linear = tool.startswith(PERSONAL_LINEAR) and name.startswith(("save_", "create_", "update_"))
     obsidian = tool.startswith("mcp__obsidian_vault__") and name in ("write_note", "patch_note", "update_frontmatter")
     vault_file = False
     if tool in EDIT_TOOLS:

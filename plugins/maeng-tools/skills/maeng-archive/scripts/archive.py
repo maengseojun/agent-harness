@@ -258,6 +258,31 @@ def ensure_inside_vault(vault: Path, path: Path, must_exist: bool = True) -> Pat
 
 
 # ---------- move ----------
+def _before_replace(src: Path) -> None:
+    """Hook point between the verified copy and replacing the source (tests simulate a racing edit here)."""
+
+
+def sidecar_world(src: Path) -> str | None:
+    """`world` from the aside-collect JSON sidecar of a capture (<name>.json next to <name>.md, or the
+    sidecar file itself). None when there is no readable sidecar or it has no string `world`."""
+    stem = src.stem
+    names = [src.name] if src.suffix.lower() == ".json" else []
+    names += [stem + ".json"]
+    if stem.endswith("-retry"):
+        names.append(stem[: -len("-retry")] + ".json")
+    for n in names:
+        sc = src.with_name(n)
+        if sc.is_file() and not sc.is_symlink():
+            try:
+                data = json.loads(sc.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            w = data.get("world") if isinstance(data, dict) else None
+            if isinstance(w, str):
+                return w
+    return None
+
+
 def cmd_move(rel: str, store: str, world: str, dry_run: bool) -> dict:
     if Path(rel).is_absolute() or ".." in Path(rel).parts:
         raise ArchiveError("path must be vault-relative without '..'")
@@ -267,12 +292,17 @@ def cmd_move(rel: str, store: str, world: str, dry_run: bool) -> dict:
         "frontmatter) needs --world eta, everything else needs --world personal. Nothing changed")
     if in_eta and world != "eta":
         raise ArchiveError(mismatch)
-    if world == "eta" and not in_eta and Path(rel).suffix.lower() != ".md":
-        raise ArchiveError(mismatch)
     vault = resolved_vault()
     src = vault / rel
     ensure_inside_vault(vault, src, must_exist=False)
     is_md = src.suffix.lower() == ".md"
+    if not is_md:
+        # Non-markdown eta material is recognised by the folder or by the aside sidecar's `world`.
+        sc_world = sidecar_world(src) if not in_eta else None
+        if sc_world is not None and sc_world != world:
+            raise ArchiveError(f"world mismatch: {rel} has sidecar world: {sc_world} but --world {world}. Nothing changed")
+        if world == "eta" and not in_eta and sc_world != "eta":
+            raise ArchiveError(mismatch)
     stub_path = src if is_md else src.with_name(src.name + ".archived.md")
     if is_md and src.is_file():
         text = src.read_text(encoding="utf-8", errors="replace")
@@ -289,6 +319,8 @@ def cmd_move(rel: str, store: str, world: str, dry_run: bool) -> dict:
     if is_md:
         fm_world = [l.partition(":")[2].strip().strip("'\"") for l in
                     split_frontmatter(src.read_text(encoding="utf-8", errors="replace"))[0] if l.startswith("world:")]
+        if not fm_world and not in_eta:  # aside raw captures carry the world only in their JSON sidecar
+            fm_world = [w for w in [sidecar_world(src)] if w]
         if world == "eta" and not in_eta and fm_world[:1] != ["eta"]:
             raise ArchiveError(mismatch)
         if fm_world and fm_world[0] != world:
@@ -314,6 +346,12 @@ def cmd_move(rel: str, store: str, world: str, dry_run: bool) -> dict:
         # Verify its archived copy, remove only the binary, leave the stub byte-identical.
         prior_root = store_root(str(prior.get("store", "")))
         prior_copy = prior_root / str(prior.get("path", "")) if prior_root is not None else None
+        if prior_copy is not None:  # the stub is vault data: its path must stay inside the archive root
+            arch_root = (prior_root / ARCHIVE_DIR).resolve()
+            real = prior_copy.resolve()
+            if real != arch_root and arch_root not in real.parents:
+                raise ArchiveError(
+                    f"existing stub {stub_path.name} archive.path leaves the archive root; nothing changed")
         if prior_copy is None or not prior_copy.is_file() or sha256_file(prior_copy) != src_hash:
             raise ArchiveError(
                 f"existing stub {stub_path.name} has no verified archive copy with the same sha256; "
@@ -343,7 +381,13 @@ def cmd_move(rel: str, store: str, world: str, dry_run: bool) -> dict:
     meta = {"store": store, "path": arch_rel, "sha256": src_hash, "size": size,
             "archived_at": stamp.isoformat(timespec="seconds"),
             "original": rel_posix, "stub_kind": "inplace" if is_md else "sibling"}
-    original_text = src.read_text(encoding="utf-8", errors="replace") if is_md else None
+    _before_replace(src)
+    original_bytes = src.read_bytes()
+    if hashlib.sha256(original_bytes).hexdigest() != src_hash:
+        if not reuse:
+            dest.unlink()
+        raise ArchiveError(f"{rel} changed during the move (edit after copy); original left untouched, nothing archived")
+    original_text = original_bytes.decode("utf-8", errors="replace") if is_md else None
     stub = build_stub(original_text, meta, world, rel_posix)
     write_text_atomic(stub_path, stub)
     if not is_md:

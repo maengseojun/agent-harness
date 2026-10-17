@@ -15,8 +15,10 @@ current and close the Linear issue yourself (Done) once AC are met, review passe
 Select additional skills only for a concrete need. Prefer available repository tools, APIs, and connectors for structured work; use computer interaction when the UI itself matters or other interfaces do not cover the task. Do not install tools, introduce orchestration, or delegate simply because they are available.
 
 For web UI creation or refinement requiring design judgment, consider the available
-`frontend-guidance` advisory skill. A requested dithered motion style belongs to
-`dither-motion-landing`; an HTML deck belongs to `frontend-slides`. The user's
+`frontend-guidance` advisory skill. A requested dithered motion style also goes
+through `frontend-guidance`, which recovers the archived `dither-motion-landing`
+guidance from the MAE-127 archive (it is not an installed skill); an HTML deck
+belongs to `frontend-slides`. The user's
 design requirements outrank optional aesthetic advice. Skip guidance already
 covered by the brief or existing implementation.
 

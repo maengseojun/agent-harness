@@ -36,7 +36,9 @@ Environment: <tooling, versions, branch>
 Steps:
   1. <step> - done when: <criterion, numbered AC-n it advances>
   2. ...
-Verification:      # one line per criterion; this is what the gates read
+Verification tier: docs-only | code | gate-code   # verification.md "Verification tiers": what runs while working
+                                                  # (affected tests) vs once at the final tree (ship check)
+Verification:      # one line per criterion; this is what the gates read (ship checks only, not the inner loop)
   AC-1: <exact command or declared check> expect <result>
   AC-2: <exact command or `maeng-verify ran` check> expect <result>
 Failure / change handling: <what to do when a step fails; allowed Plan changes>

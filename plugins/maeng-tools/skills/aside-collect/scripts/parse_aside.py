@@ -8,6 +8,9 @@ or follows anything found in the text (collected content is data).
 Usage:
   parse_aside.py RAW_FILE|- --nonce HEX --exit-code N            # JSON to stdout
   parse_aside.py RAW_FILE --nonce HEX --exit-code N --clean OUT  # also write ANSI-stripped, private-filtered text
+  ... --sidecar JSON [--world personal|eta]   # merge THIS run's nonce/exit_code/parse_status/private_spans_removed
+                                              # into the sidecar (a retry's call makes it describe the final run)
+  ... --delete-scratch   # after parsing, delete RAW_FILE (<STAMP>-<nonce>.out.txt) and its .err.txt sibling
 """
 from pathlib import Path
 import argparse
@@ -161,12 +164,48 @@ def parse(raw, nonce, exit_code):
             'private_spans_removed': removed}, text
 
 
+def update_sidecar(path, nonce, exit_code, result, world=None):
+    """Make the sidecar describe THIS run. If it described a different run (the failed first
+    attempt), keep that attempt under `first_run` and overwrite the run fields."""
+    data = {}
+    if os.path.exists(path):
+        with open(path, encoding='utf-8') as fh:
+            data = json.load(fh)
+    if data.get('nonce') and data['nonce'] != nonce:
+        data.setdefault('first_run', {k: data.get(k) for k in ('nonce', 'exit_code', 'parse_status')})
+    data.update(nonce=nonce, exit_code=exit_code, parse_status=result['parse_status'],
+                private_spans_removed=result['private_spans_removed'])
+    if world:
+        data['world'] = world
+    tmp = f'{path}.tmp-{os.getpid()}'
+    with open(tmp, 'w', encoding='utf-8') as fh:
+        json.dump(data, fh, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
+
+
+def delete_scratch(raw_path, nonce):
+    """Delete the unfiltered scratch capture (and its .err.txt sibling) of this run. Only regular,
+    non-symlink files named `<...><nonce>.out.txt` / `.err.txt`, the shape the skill creates."""
+    base = os.path.basename(raw_path)
+    if not base.endswith('.out.txt') or nonce not in base:
+        return []
+    gone = []
+    for p in (raw_path, raw_path[:-len('.out.txt')] + '.err.txt'):
+        if os.path.isfile(p) and not os.path.islink(p):
+            os.unlink(p)
+            gone.append(p)
+    return gone
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('raw', help='raw aside stdout file, or - for stdin')
     ap.add_argument('--clean', help='also write the ANSI-stripped, private-filtered text here')
     ap.add_argument('--nonce', required=True, help='per-run hex nonce used in the FINAL markers')
     ap.add_argument('--exit-code', type=int, required=True, help='exit code of `aside exec`')
+    ap.add_argument('--sidecar', help='JSON sidecar to update with this run\'s result')
+    ap.add_argument('--world', choices=('personal', 'eta'), help='write `world` into the sidecar')
+    ap.add_argument('--delete-scratch', action='store_true', help='delete the unfiltered scratch capture after parsing')
     a = ap.parse_args(argv)
     if not re.fullmatch(r'[0-9a-f]{8,64}', a.nonce):
         ap.error('--nonce must be 8-64 lowercase hex characters')
@@ -184,6 +223,10 @@ def main(argv=None):
             return 2
         with fh:
             fh.write(clean)
+    if a.sidecar:
+        update_sidecar(a.sidecar, a.nonce, a.exit_code, result, a.world)
+    if a.delete_scratch and a.raw != '-':
+        delete_scratch(a.raw, a.nonce)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result['parse_status'] not in ('parse_failed', 'no_final_answer', 'aside_failed') else 2
 

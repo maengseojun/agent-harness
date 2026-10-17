@@ -255,6 +255,76 @@ class SafetyTests(Base):
         self.assertEqual(stub.read_bytes(), before)
         self.assertFalse(p.exists())
 
+    def test_binary_retry_rejects_stub_path_outside_archive_root(self):
+        p = self.vault / "files" / "x.pdf"
+        p.parent.mkdir()
+        p.write_bytes(b"pdf-bytes")
+        outside = self.od / "elsewhere.bin"  # inside the store, outside maeng-archive/
+        outside.write_bytes(b"pdf-bytes")
+        meta = {"store": "onedrive", "path": "elsewhere.bin", "sha256": A.sha256_file(p),
+                "size": 9, "archived_at": "2026-01-01T00:00:00+00:00"}
+        stub = self.vault / "files" / "x.pdf.archived.md"
+        stub.write_text(A.build_stub(None, meta, "personal", "files/x.pdf"), encoding="utf-8")
+        for bad in ("elsewhere.bin", "maeng-archive/../elsewhere.bin"):
+            meta["path"] = bad
+            stub.write_text(A.build_stub(None, meta, "personal", "files/x.pdf"), encoding="utf-8")
+            with self.assertRaises(A.ArchiveError) as cm:
+                A.cmd_move("files/x.pdf", "onedrive", "personal", False)
+            self.assertIn("archive root", str(cm.exception))
+            self.assertTrue(p.exists())
+
+    def test_md_edit_between_copy_and_stub_aborts(self):
+        p = self.note("n.md", "original\n")
+
+        def edit(src):
+            src.write_text("original\nedited later\n", encoding="utf-8")
+
+        with mock.patch.object(A, "_before_replace", edit):
+            with self.assertRaises(A.ArchiveError) as cm:
+                A.cmd_move("n.md", "onedrive", "personal", False)
+        self.assertIn("changed during the move", str(cm.exception))
+        self.assertEqual(p.read_text(), "original\nedited later\n")
+        self.assertIsNone(A.parse_stub(p.read_text()))
+
+    def test_binary_edit_between_copy_and_unlink_aborts(self):
+        p = self.vault / "files" / "x.pdf"
+        p.parent.mkdir()
+        p.write_bytes(b"pdf-bytes")
+        with mock.patch.object(A, "_before_replace", lambda src: src.write_bytes(b"pdf-bytes2")):
+            with self.assertRaises(A.ArchiveError):
+                A.cmd_move("files/x.pdf", "onedrive", "personal", False)
+        self.assertEqual(p.read_bytes(), b"pdf-bytes2")
+        self.assertFalse((self.vault / "files" / "x.pdf.archived.md").exists())
+
+    def test_non_md_eta_capture_recognised_by_sidecar_world(self):
+        raw = self.vault / "raw" / "aside"
+        raw.mkdir(parents=True)
+        (raw / "run.json").write_text(json.dumps({"nonce": "ab", "world": "eta"}), encoding="utf-8")
+        (raw / "run.md").write_text("capture\n", encoding="utf-8")
+        with self.assertRaises(A.ArchiveError):  # sidecar says eta: --world personal is a mismatch
+            A.cmd_move("raw/aside/run.json", "onedrive", "personal", False)
+        r = A.cmd_move("raw/aside/run.json", "onedrive", "eta", False)
+        self.assertIn("/maeng-archive/eta/", r["destination"])
+        self.assertFalse((raw / "run.json").exists())
+
+    def test_md_capture_without_frontmatter_uses_sidecar_world(self):
+        raw = self.vault / "raw" / "aside"
+        raw.mkdir(parents=True)
+        (raw / "run.json").write_text(json.dumps({"nonce": "ab", "world": "eta"}), encoding="utf-8")
+        (raw / "run.md").write_text("capture\n", encoding="utf-8")
+        with self.assertRaises(A.ArchiveError):
+            A.cmd_move("raw/aside/run.md", "onedrive", "personal", False)
+        r = A.cmd_move("raw/aside/run.md", "onedrive", "eta", False)
+        self.assertIn("/maeng-archive/eta/", r["destination"])
+
+    def test_non_md_without_sidecar_still_needs_eta_dir(self):
+        p = self.vault / "files" / "x.pdf"
+        p.parent.mkdir()
+        p.write_bytes(b"pdf-bytes")
+        with self.assertRaises(A.ArchiveError):
+            A.cmd_move("files/x.pdf", "onedrive", "eta", False)
+        self.assertTrue(p.exists())
+
     def test_binary_retry_aborts_when_archive_copy_missing_or_different(self):
         p = self.vault / "files" / "x.pdf"
         p.parent.mkdir()

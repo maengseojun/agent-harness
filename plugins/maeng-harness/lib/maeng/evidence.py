@@ -30,8 +30,10 @@ UNSAFE_ENV = re.compile(r"ADDOPTS|FLAGS|OVERRIDES|_OPTIONS$|^(?:PATH|PYTHON\w*|L
 
 # Output that shows no test ran: such a run is not evidence even when it exits 0. A positive marker (some tests ran,
 # e.g. `go test ./...` printing `[no test files]` for one package) wins.
-ZERO_TESTS = re.compile(r"\bRan 0 tests?\b|collected 0 items|\bno tests ran\b|\bno test files\b", re.I)
-RAN_SOME = re.compile(r"\bRan [1-9]\d* tests?\b|collected [1-9]\d* items?|\b[1-9]\d* passed\b|^ok\s", re.I | re.M)
+ZERO_TESTS = re.compile(r"\bRan 0 tests?\b|collected 0 items|\bno tests ran\b|\bno test files\b|\bno tests found\b"
+                        r"|^\s*Tests:\s+0 total\b|\brunning 0 tests?\b|(?<![\d.])0 passing\b", re.I | re.M)
+RAN_SOME = re.compile(r"\bRan [1-9]\d* tests?\b|collected [1-9]\d* items?|\b[1-9]\d* passed\b|\b[1-9]\d* passing\b"
+                      r"|\brunning [1-9]\d* tests?\b|^ok\s", re.I | re.M)
 
 # Narrowing flags that are never evidence at all (the run can silently skip tests); selectors that merely filter
 # (pytest -k/-m, forge --match-*/--no-match-*, go -run) stay allowed but are never default-mode evidence.

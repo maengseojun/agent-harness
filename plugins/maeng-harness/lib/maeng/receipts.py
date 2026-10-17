@@ -201,7 +201,8 @@ def find_code(cwd, repo, base, head, ref, criteria_rev, files=None, issue=None):
             continue
         if (s.get("criteria_rev") or None) != (criteria_rev or None):
             if issue and s.get("parent") == issue and s.get("issue"):
-                if (s.get("criteria_rev") or None) != (child_binding_rev(s["issue"]) or None):
+                cur = child_binding_rev(s["issue"])  # unknown child (None) is stale, never "None == None"
+                if cur is None or (s.get("criteria_rev") or None) != cur:
                     child_stale = True
                     continue
             else:

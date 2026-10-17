@@ -4,3 +4,10 @@ artifacts/
 .harness/
 __pycache__/
 publish/
+.venv/
+.coverage
+.coverage.*
+htmlcov/
+mutants/
+.mutmut-cache
+.impact/

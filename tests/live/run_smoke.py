@@ -134,7 +134,7 @@ class Scn:
         cmd = ["claude", "-p", prompt, "--output-format", "stream-json", "--verbose", "--include-hook-events",
                "--model", model]
         # MAENG_SMOKE_INSTALLED=1: run against the user-scope release install instead of the worktree (post-release)
-        for p in (() if os.environ.get("MAENG_SMOKE_INSTALLED") == "1" else plugins):
+        for p in (() if INSTALLED else plugins):
             cmd += ["--plugin-dir", str(p)]
         if allowed:
             cmd += ["--allowedTools", allowed]
@@ -456,6 +456,8 @@ GF_VARIANTS = {
 
 
 def gf(gid):
+    if INSTALLED:  # the broken plugin copy is passed by --plugin-dir, which installed mode drops: it would pass vacuously
+        raise RuntimeError(f"{gid} needs --plugin-dir (a broken plugin copy); it cannot run with MAENG_SMOKE_INSTALLED=1")
     s = Scn(gid)
     desc, body = GF_VARIANTS[gid]
     plug = s.dir / "harness-broken"
@@ -481,6 +483,24 @@ ALL = {"S1": s1, "S2": s2, "S3": s3, "S4": s4, "S5": s5, "S6": s6, "S7": s7, "S8
        **{g: (lambda g=g: gf(g)) for g in GF_VARIANTS}}
 
 RUN_ID = uuid.uuid4().hex
+INSTALLED = os.environ.get("MAENG_SMOKE_INSTALLED") == "1"
+
+
+def record_run(names, errors):
+    """run.json: the latest run, plus `by_scenario` (scenario -> the run that last produced its summary), so a partial
+    run (e.g. installed S5-S7) updates only its own scenarios instead of making the others look stale."""
+    path = EVIDENCE / "run.json"
+    try:
+        prev = json.loads(path.read_text())
+    except (OSError, ValueError):
+        prev = {}
+    by = prev.get("by_scenario") or {s: {"run_id": prev.get("run_id"), "finished_at": prev.get("finished_at")}
+                                      for s in prev.get("scenarios", [])}
+    done = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+    for name in names:
+        by[name] = {"run_id": RUN_ID, "finished_at": done, "mode": "installed" if INSTALLED else "worktree"}
+    path.write_text(json.dumps({"run_id": RUN_ID, "finished_at": done, "scenarios": names, "crashed": sorted(errors),
+                                "by_scenario": by}, indent=1) + "\n")
 
 if __name__ == "__main__":
     SCRATCH.mkdir(parents=True, exist_ok=True)
@@ -495,7 +515,5 @@ if __name__ == "__main__":
             (EVIDENCE / f"{name}.summary.json").write_text(json.dumps(
                 {"scenario": name, "run_id": RUN_ID, "error": errors[name]}, indent=1) + "\n")
             print(f"[{name}] CRASHED: {errors[name].strip().splitlines()[-1]}", flush=True)
-    (EVIDENCE / "run.json").write_text(json.dumps(
-        {"run_id": RUN_ID, "finished_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "scenarios": names,
-         "crashed": sorted(errors)}, indent=1) + "\n")
+    record_run(names, errors)
     sys.exit(1 if errors else 0)
