@@ -42,6 +42,9 @@ def subject_key(subject):
                                          "files_reviewed", "files_excluded")}
     if subject.get("files_delegated"):
         core["files_delegated"] = subject["files_delegated"]
+    for k in ("issue", "parent"):
+        if subject.get(k):
+            core[k] = subject[k]
     return "code-" + sha256(canonical(core))[:24]
 
 
@@ -158,12 +161,22 @@ def diff_digest(cwd, base, head, files):
     return sha256(out.strip()) if rc == 0 else None
 
 
-def find_code(cwd, repo, base, head, ref, criteria_rev, files=None):
+def child_binding_rev(issue):
+    """The current criteria rev `maeng-verify bind` last recorded for `issue` (None when unknown)."""
+    try:
+        return ((read_json(home_dir() / "bindings.json", {}) or {}).get(issue) or {}).get("plan_updated_at")
+    except ValueError:
+        return None
+
+
+def find_code(cwd, repo, base, head, ref, criteria_rev, files=None, issue=None):
     """Pass receipts that together cover every file changed between base and head for this exact
     repo/base/head/criteria. A file is covered when it is in `files_reviewed` of a pass receipt, or in
     `files_excluded` of a pass receipt of kind `parent` (the parent reviewer accepted the exclusion).
+    A receipt reviewed under a child issue (subject.parent == `issue`) also counts when its criteria_rev still
+    equals that child's own current binding rev.
     -> (list of records | None, problem). Every returned record must be consumed together."""
-    unreadable = stale = failed = revoked = fixture = False
+    unreadable = stale = child_stale = failed = revoked = fixture = False
     seen_status = None
     cands = []
     for _, rec in _scan("code-"):
@@ -187,8 +200,13 @@ def find_code(cwd, repo, base, head, ref, criteria_rev, files=None):
             revoked = True
             continue
         if (s.get("criteria_rev") or None) != (criteria_rev or None):
-            stale = True
-            continue
+            if issue and s.get("parent") == issue and s.get("issue"):
+                if (s.get("criteria_rev") or None) != (child_binding_rev(s["issue"]) or None):
+                    child_stale = True
+                    continue
+            else:
+                stale = True
+                continue
         if rec["status"] != UNCONSUMED:
             seen_status = rec["status"]
             continue
@@ -198,6 +216,8 @@ def find_code(cwd, repo, base, head, ref, criteria_rev, files=None):
     if not cands:
         if revoked:
             return None, "review was revoked by a later fail/blocked verdict for this head"
+        if child_stale:
+            return None, "stale child receipt: the child issue's criteria changed since the review"
         if stale:
             return None, "review is stale: criteria updatedAt changed since review"
         if fixture:

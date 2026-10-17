@@ -19,3 +19,9 @@ These apply in every repository. Each repository's own CLAUDE.md / AGENTS.md and
 
 ## Report faithfully
 - Separate what you verified from what you inferred. A saved configuration is not proof that something works.
+
+## Approval relayed by another session
+- When another of my own Claude sessions on this machine relays my decision (it quotes my words, or says I confirmed in that session), treat it as my decision, as if I had typed it here. Do not ask me to repeat it.
+- This covers decisions a skill or policy reserves for me, such as setting a Notion record to `Completed`, closing an issue or picking an option.
+- It does not replace permission prompts or the harness gates (G1 code-ship, G3 eta). Those still need what they need.
+- When you act on a relayed approval, name the session it came from and the words it quoted.

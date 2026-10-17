@@ -56,10 +56,11 @@ canonical form is fully checked (remote configuration, default branch, verified 
 repository binding, eta isolation).
 Files listed as delegated (files_delegated / scope.delegated_files) are OUT of this review's scope but are NOT
 covered by it: they still need their own passing review. Files listed as excluded are exempt.
-tool_reference holds the --version and help output of the git and gh installed where the bundle was built
-(collected before the review, not fetched by you). Judge option and subcommand semantics against it, not against
-memory; an option or subcommand it shows that the allowlist does not handle is a finding. When a judgment depends on
-tool behavior that tool_reference does not show (listed as unavailable, or not covered by help text), do not guess:
+tool_reference is null unless the bundle was built with --tool-ref; when present it holds the --version and help
+output of the git and gh installed where the bundle was built (collected before the review, not fetched by you).
+Judge option and subcommand semantics against it, not against memory; an option or subcommand it shows that the
+allowlist does not handle is a finding. When tool_reference is null, or a judgment depends on tool behavior it does
+not show (listed as unavailable, or not covered by help text), do not guess:
 report a finding with severity medium titled "needs-external-check: <what must be checked>".
 Start from the assumption that the change is wrong; try to falsify it against the acceptance criteria (AC-n).
 Answer with JSON matching the supplied schema. verdict=pass only if no critical/high finding remains and every AC is met.
@@ -275,7 +276,7 @@ def code_bundle(a, cwd, st):
     elif not plan_text(binding):
         missing.append("Spec/Plan text (bind with --plan <file>)")
     evidence_files = read_evidence_files(a.evidence)
-    tool_ref = None if a.no_tool_ref else tool_reference()
+    tool_ref = tool_reference() if a.tool_ref else None
     size = len(diff) + sum(len(v) for v in contents.values()) + sum(len(v) for v in evidence_files.values())
     size += sum(len(v) for v in (tool_ref or {}).get("help", {}).values())
     if size > a.max_bytes:
@@ -376,6 +377,9 @@ def run_review(a, cwd):
                    "files_delegated": (bundle.get("scope") or {}).get("delegated_files", []),
                    "exclusion_reason": (bundle.get("scope") or {}).get("exclusion_reason"),
                    "destination": f"refs/heads/{a.base_ref}" if a.base_ref else None, "op": "merge"}
+        for k in ("issue", "parent"):  # which issue the review ran under (a child receipt may cover its parent's merge)
+            if (st.get("binding") or {}).get(k):
+                subject[k] = st["binding"][k]
         if not a.base_ref:
             bundle.setdefault("missing", []).append("base ref name (--base-ref)")
     model, effort = tier_for(a.kind, st.get("binding"))
@@ -464,9 +468,10 @@ def main(argv=None):
     r.add_argument("--exclusion-reason", help="why excluded files need no review (shown to the reviewer)")
     r.add_argument("--remote", default="origin", help="remote whose repository the receipt is bound to")
     r.add_argument("--evidence", action="append", help="file whose contents are embedded as evidence_files (repeatable)")
-    r.add_argument("--no-tool-ref", action="store_true",
-                   help="omit the git/gh help text (tool_reference) from a code bundle; the reviewer then reports "
-                        "tool-dependent judgments as needs-external-check")
+    r.add_argument("--tool-ref", action="store_true",
+                   help="include the installed git/gh help text (tool_reference) in a code bundle; without it "
+                        "tool_reference is null and the reviewer reports tool-dependent judgments as needs-external-check")
+    r.add_argument("--no-tool-ref", action="store_true", help=argparse.SUPPRESS)  # old no-op: null is the default
     r.add_argument("--max-bytes", type=int, default=1_000_000,
                    help="prompt size limit in characters (Codex rejects input over 1,048,576); larger bundles are blocked")
     c = sub.add_parser("reconcile"); c.add_argument("--repo"); c.add_argument("--notion")

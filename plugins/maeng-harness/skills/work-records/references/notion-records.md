@@ -12,7 +12,7 @@ Locators to verify before use, not proof of current content. Personal Notion onl
 
 Search by stable `Task ID` before creating; reuse that page on retry. Multiple matches are a reconciliation conflict. Notion search-before-create is not an atomic uniqueness constraint.
 
-Properties: `Task ID` (text, unique within the hub: project/context plus a stable run id), `Linear Issue` (URL), `Session` (Claude session id or note link; the old `Codex Task` field is historical), `GitHub Revision` (URL), plus `Evidence`, `Knowledge`, `Outcome`, `Date`, `Status` (`Proposed`, `In progress`, `Completed`; only the user sets `Completed`).
+Properties: `Task ID` (text, unique within the hub: project/context plus a stable run id), `Linear Issue` (URL), `Session` (Claude session id or note link; the old `Codex Task` field is historical), `GitHub Revision` (URL), plus `Evidence`, `Knowledge`, `Outcome`, `Date`, `Status` (`Proposed`, `In progress`, `Completed`; only the user sets `Completed`, in person or relayed by another of their sessions per the global rule).
 
 Body: objective and requirements; decisions, reasons and the Knowledge page affected; actual result and immutable evidence links; checks and review verdict; limits, remaining work, next action; Middleman decisions when present.
 

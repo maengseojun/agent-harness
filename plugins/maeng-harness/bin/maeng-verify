@@ -39,6 +39,13 @@ def cmd_bind(a, cwd):
         sugg = {}
     sugg[os.path.realpath(cwd)] = {"issue": a.issue, "plan_doc": a.plan}
     atomic_write(sugg_path, json.dumps(sugg, indent=1))
+    reg_path = home_dir() / "bindings.json"  # issue -> current criteria rev, so a parent merge can tell a child's plan changed
+    try:
+        reg = read_json(reg_path, {}) or {}
+    except ValueError:
+        reg = {}
+    reg[a.issue] = {"parent": a.parent, "plan_updated_at": binding.get("plan_updated_at")}
+    atomic_write(reg_path, json.dumps(reg, indent=1))
     print(f"bound {a.issue}; criteria={binding['criteria']} checks={binding['checks']}")
 
 

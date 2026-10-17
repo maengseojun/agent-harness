@@ -67,6 +67,16 @@ class EvidenceTests(ShipBase):
         self.run_check(self.repo, "pytest -q", ok=True)     # same check passes later at the same tree
         self.assertFalse(self.bash_pre(self.repo, "git push origin feat")[0])
 
+    def test_check_only_runners_do_not_ship_verify_in_default_mode(self):
+        for cmd in ("ruff check .", "mypy src", "tsc --noEmit", "npm run build", "claude plugin validate plugins/x"):
+            self.run_check(self.repo, cmd, ok=True)
+        self.assertTrue(all(e["ok"] for e in self.state_evidence()))
+        denied, reason = self.bash_pre(self.repo, "git push origin feat")
+        self.assertTrue(denied)
+        self.assertIn("no passing test-runner evidence", reason)
+        self.run_check(self.repo, "pytest -q", ok=True)
+        self.assertFalse(self.bash_pre(self.repo, "git push origin feat")[0])
+
     def test_later_failure_after_pass_is_unresolved(self):
         self.verified()
         self.run_check(self.repo, "pytest -q", ok=False)

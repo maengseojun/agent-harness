@@ -46,7 +46,7 @@ Judge from the purpose, Linear history, artifacts and checks. A completed indepe
 7. **Backlinks.** Write the canonical Notion URL into the original Linear issue (output/description) and the link into the Notion project index; set `notion` in the draft's frontmatter and move the draft status to `published`. Read both destinations back. Outcome records are not final until both backlinks are verified.
 8. **Tell the user the link only**, plus one line on limits if any.
 
-The same Sol flow covers a policy page and a factual refresh of an already saved personal outcome (fetch current page, build the exact update payload, review, publish, read back). `Status: Completed` on a Notion record is the user's call; propose it, do not set it.
+The same Sol flow covers a policy page and a factual refresh of an already saved personal outcome (fetch current page, build the exact update payload, review, publish, read back). `Status: Completed` on a Notion record is the user's call (typed by the user, or relayed by another of their sessions per the global "Approval relayed by another session" rule); otherwise propose it, do not set it.
 
 If a review cannot pass after a good-faith fix loop, leave the draft in the vault, comment the blocker on the Linear issue and report it. Do not publish unreviewed.
 

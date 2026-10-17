@@ -40,7 +40,7 @@ class MergeBase(HarnessCase):
         return hashlib.sha256(out.strip().encode()).hexdigest()
 
     def verdict(self, base=None, head=None, criteria_rev=None, verdict="pass", kind="code", files=None,
-                excluded=None, repo="__remote__", pr=7, digest=None):
+                excluded=None, repo="__remote__", pr=7, digest=None, issue=None, parent=None):
         base, head = base or self.base, head or self.h
         files = self.changed(base, head) if files is None else files
         repo = str(self.remote.resolve()) if repo == "__remote__" else repo
@@ -49,6 +49,10 @@ class MergeBase(HarnessCase):
                          "criteria_rev": criteria_rev, "digest": digest or self.digest(base, head, files),
                          "destination": "refs/heads/main", "op": "merge", "files_reviewed": files,
                          "files_excluded": excluded or [], "exclusion_reason": "x" if excluded else None}}
+        if issue:
+            v["subject"]["issue"] = issue
+        if parent:
+            v["subject"]["parent"] = parent
         f = self.tmp / "verdict.json"
         f.write_text(json.dumps(v))
         r = self.cli("maeng-review", ["store", str(f)], self.repo)
@@ -170,6 +174,49 @@ class MaengShipMerge(MergeBase):
         self.assertEqual(self.remote_main(), self.base)
         self.verdict(criteria_rev="2026-10-17T10:00")
         self.assertEqual(self.ship().returncode, 0)
+
+    def bind(self, issue, rev, parent=None):
+        plan = self.tmp / "plan.md"
+        plan.write_text("AC-1 x\n## Verification\nAC-1: pytest\n")
+        args = ["bind", issue, "--plan", str(plan), "--plan-updated", rev] + (["--parent", parent] if parent else [])
+        self.assertEqual(self.cli("maeng-verify", args, self.repo).returncode, 0)
+        self.cli("maeng-verify", ["plan", "--met", "AC-1"], self.repo)
+
+    def test_child_receipt_covers_parent_merge(self):
+        self.bind("MAE-222", "2026-10-16T10:00", parent="MAE-216")
+        self.verdict(criteria_rev="2026-10-16T10:00", issue="MAE-222", parent="MAE-216")
+        self.bind("MAE-216", "2026-10-17T10:00")
+        r = self.ship()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.remote_main(), self.h)
+
+    def test_non_child_receipt_with_other_criteria_is_stale(self):
+        self.bind("MAE-300", "2026-10-16T10:00", parent="MAE-999")
+        self.verdict(criteria_rev="2026-10-16T10:00", issue="MAE-300", parent="MAE-999")
+        self.bind("MAE-216", "2026-10-17T10:00")
+        r = self.ship()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("stale", r.stderr)
+        self.assertNotIn("stale child receipt", r.stderr)
+        self.assertEqual(self.remote_main(), self.base)
+
+    def test_receipt_without_issue_fields_is_stale(self):
+        self.verdict(criteria_rev="2026-10-16T10:00")
+        self.bind("MAE-216", "2026-10-17T10:00")
+        r = self.ship()
+        self.assertIn("stale", r.stderr)
+        self.assertNotIn("stale child receipt", r.stderr)
+        self.assertEqual(self.remote_main(), self.base)
+
+    def test_child_receipt_with_changed_child_criteria_is_denied(self):
+        self.bind("MAE-222", "2026-10-16T10:00", parent="MAE-216")
+        self.verdict(criteria_rev="2026-10-16T10:00", issue="MAE-222", parent="MAE-216")
+        self.bind("MAE-222", "2026-10-16T12:00", parent="MAE-216")   # child plan changed after the review
+        self.bind("MAE-216", "2026-10-17T10:00")
+        r = self.ship()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("stale child receipt", r.stderr)
+        self.assertEqual(self.remote_main(), self.base)
 
     def test_lost_response_then_reconcile_remote_at_head(self):
         key = self.verdict()

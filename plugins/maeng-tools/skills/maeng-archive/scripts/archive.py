@@ -262,10 +262,13 @@ def cmd_move(rel: str, store: str, world: str, dry_run: bool) -> dict:
     if Path(rel).is_absolute() or ".." in Path(rel).parts:
         raise ArchiveError("path must be vault-relative without '..'")
     in_eta = Path(rel).parts[:1] == ("eta",)
-    if (world == "eta") != in_eta:
-        raise ArchiveError(
-            f"world/path mismatch: --world {world} with {rel}; eta material lives under eta/ and needs "
-            "--world eta, everything else needs --world personal. Nothing changed")
+    mismatch = (
+        f"world/path mismatch: --world {world} with {rel}; eta material (under eta/ or with world: eta "
+        "frontmatter) needs --world eta, everything else needs --world personal. Nothing changed")
+    if in_eta and world != "eta":
+        raise ArchiveError(mismatch)
+    if world == "eta" and not in_eta and Path(rel).suffix.lower() != ".md":
+        raise ArchiveError(mismatch)
     vault = resolved_vault()
     src = vault / rel
     ensure_inside_vault(vault, src, must_exist=False)
@@ -286,6 +289,8 @@ def cmd_move(rel: str, store: str, world: str, dry_run: bool) -> dict:
     if is_md:
         fm_world = [l.partition(":")[2].strip().strip("'\"") for l in
                     split_frontmatter(src.read_text(encoding="utf-8", errors="replace"))[0] if l.startswith("world:")]
+        if world == "eta" and not in_eta and fm_world[:1] != ["eta"]:
+            raise ArchiveError(mismatch)
         if fm_world and fm_world[0] != world:
             raise ArchiveError(f"world mismatch: {rel} has world: {fm_world[0]} but --world {world}. Nothing changed")
     if _has_private(src):

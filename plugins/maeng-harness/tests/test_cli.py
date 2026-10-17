@@ -175,8 +175,14 @@ class ReviewRun(ReviewRunFixture):
         # A verified head must have at least one evidence tree with no relevant difference.
         self.assertTrue(any(b["relevant_differences"] == [] for b in bundle["evidence_binding"]))
 
-    def test_bundle_carries_installed_tool_reference(self):
+    def test_tool_reference_is_null_by_default(self):
         r = self.review()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        sent = self.stdin_log.read_text()
+        self.assertIsNone(json.loads(sent[sent.index("\n{") + 1:])["tool_reference"])
+
+    def test_bundle_carries_installed_tool_reference_with_flag(self):
+        r = self.review("--tool-ref")
         self.assertEqual(r.returncode, 0, r.stderr)
         sent = self.stdin_log.read_text()
         ref = json.loads(sent[sent.index("\n{") + 1:])["tool_reference"]
@@ -186,7 +192,7 @@ class ReviewRun(ReviewRunFixture):
         accounted = set(ref["help"]) | {u.partition(":")[0] for u in ref["unavailable"]}
         self.assertEqual(accounted, every)  # each command is either documented or reported unavailable
 
-    def test_no_tool_ref_omits_it(self):
+    def test_old_no_tool_ref_flag_is_accepted_and_yields_null(self):
         r = self.review("--no-tool-ref")
         self.assertEqual(r.returncode, 0, r.stderr)
         sent = self.stdin_log.read_text()
@@ -598,3 +604,60 @@ class DraftReview(ReviewRunFixture):
         r, _, stdin_log = self.draft_review("docs", "--draft", str(doc))
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("Rule: every push is gated.", stdin_log.read_text())
+
+
+class SkillCitationsExist(HarnessCase):
+    """Every `maeng-verify|maeng-review <sub>` and --flag a skill cites must exist in that CLI's argparse."""
+
+    @staticmethod
+    def _parsers(name):
+        import argparse
+        mod = load_bin(name)
+        captured = {}
+        orig = argparse.ArgumentParser.parse_args
+
+        def grab(self, *a, **k):
+            captured["p"] = self
+            raise SystemExit(0)
+        argparse.ArgumentParser.parse_args = grab
+        try:
+            try:
+                mod.main([])
+            except SystemExit:
+                pass
+        finally:
+            argparse.ArgumentParser.parse_args = orig
+        top = captured["p"]
+        subs = {}
+        for act in top._actions:
+            if isinstance(act, argparse._SubParsersAction):
+                for n, sp in act.choices.items():
+                    subs[n] = {o for a in sp._actions for o in a.option_strings}
+        return subs, {o for a in top._actions for o in a.option_strings}
+
+    def test_cited_subcommands_and_flags_exist(self):
+        import re
+        skills = Path(__file__).resolve().parents[1] / "skills"
+        files = sorted(skills.rglob("*.md"))
+        self.assertTrue(files)
+        missing = []
+        for name in ("maeng-verify", "maeng-review"):
+            subs, top = self._parsers(name)
+            self.assertTrue(subs, name)
+            pat = re.compile(re.escape(name) + r"((?:\s+[^\s`|;&)]+)*)")
+            for f in files:
+                for line in f.read_text().splitlines():
+                    for m in pat.finditer(line):
+                        toks = m.group(1).split()
+                        sub = next((t for t in toks if not t.startswith("-")), None)
+                        if sub is None or not re.fullmatch(r"[a-z][a-z-]*", sub):
+                            continue
+                        if sub not in subs:
+                            missing.append(f"{f.name}: {name} {sub}")
+                            continue
+                        for t in toks:
+                            if t.startswith("--") and re.fullmatch(r"--[a-z][a-z-]*", t.split("=")[0]):
+                                flag = t.split("=")[0]
+                                if flag not in subs[sub] | top | {"--help"}:
+                                    missing.append(f"{f.name}: {name} {sub} {flag}")
+        self.assertEqual(missing, [])

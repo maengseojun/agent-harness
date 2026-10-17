@@ -260,3 +260,127 @@ class McpRoutes(ShipBase):
                                   {"owner": "o", "repo": "r", "branch": "feat", "files": [], "message": "m"})
         self.assertTrue(denied)
         self.assertIn("verified `git commit`", reason)
+
+
+class GitExecVectors(ShipBase):
+    """C1: config and environment that make a read-only-looking git command run an arbitrary program."""
+
+    def test_global_config_exec_keys_denied_for_every_subcommand(self):
+        for cmd in ("git -c core.pager='git push origin main' log",
+                    "git -c core.pager=x status", "git -c CORE.Pager=x diff", "git -c core.sshCommand=x fetch origin",
+                    "git -c core.fsmonitor=x status", "git -c core.editor=x commit --amend",
+                    "git -c diff.external=x show", "git -c credential.helper=x ls-remote origin",
+                    "git -c sequence.editor=x rebase -i HEAD~1", "git -c pager.log=x log",
+                    "git -c color.ui=never -c core.hooksPath=/tmp/h log", "git -c include.path=/tmp/c log",
+                    "git -c filter.f.smudge=x status", "git -c core.pager=x",
+                    "git --config-env=core.pager=PAGER_CMD log", "git --config-env core.sshCommand=SSHC fetch"):
+            self.assertDenied(cmd, "denied in every mode")
+
+    def test_global_config_deny_names_the_key(self):
+        self.assertDenied("git -c core.pager=x log", "core.pager")
+        self.assertDenied("git --config-env=core.sshCommand=E fetch", "core.sshcommand")
+
+    def test_benign_global_config_and_plain_reads_still_allowed(self):
+        for cmd in ("git -c color.ui=never log", "git log", "git -c user.name=x status", "git status",
+                    "git -c core.quotepath=false diff", "git -c color.ui=never -c user.email=a@b log",
+                    "git --config-env=user.name=NAME status"):
+            self.assertAllowed(cmd)
+
+    def test_env_exec_vars_denied_when_running_git(self):
+        for cmd in ("GIT_PAGER=x git log", "PAGER=x git log", "env GIT_SSH_COMMAND=x git fetch",
+                    "GIT_SSH=x git ls-remote origin", "GIT_EXTERNAL_DIFF=x git diff", "GIT_EDITOR=x git commit",
+                    "GIT_SEQUENCE_EDITOR=x git rebase -i HEAD~1", "GIT_ASKPASS=x git fetch",
+                    "SSH_ASKPASS=x git fetch", "GIT_PROXY_COMMAND=x git fetch", "GIT_CONFIG_GLOBAL=/tmp/c git log",
+                    "GIT_CONFIG_SYSTEM=/tmp/c git log", "GIT_CONFIG_PARAMETERS=\"'core.pager=x'\" git log",
+                    "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.pager GIT_CONFIG_VALUE_0=x git log",
+                    "GIT_CONFIG_KEY_0=core.pager git log", "GIT_TEMPLATE_DIR=/tmp/t git init",
+                    "export GIT_PAGER=x; git log", "GIT_PAGER=x env git log"):
+            self.assertDenied(cmd, "environment of a git command")
+
+    def test_pager_set_to_nothing_or_cat_is_allowed_anything_else_denied(self):
+        for cmd in ("GIT_PAGER=cat git log --oneline", "GIT_PAGER= git log", "PAGER=cat git log", "git -c core.pager=cat log",
+                    "git -c core.pager= log", "git -c pager.log=cat log", "GIT_PAGER=cat git -c core.pager=cat diff"):
+            self.assertAllowed(cmd)
+        for cmd in ("GIT_PAGER='git push origin main' git log", "GIT_PAGER=less git log", "PAGER=less git log",
+                    "git -c core.pager=less log", "git -c core.pager='git push origin main' log",
+                    "git -c core.pager=cat -c core.pager=less log", "git --config-env=core.pager=P log",
+                    "git -c pager.log=less log"):
+            self.assertDenied(cmd, "denied in every mode")
+
+    def test_env_exec_vars_stay_allowed_without_git_and_other_vars_with_git(self):
+        for cmd in ("PAGER=cat ls", "GIT_PAGER=x echo hi", "LC_ALL=C git log", "env LANG=C git status",
+                    "GIT_AUTHOR_NAME=x git log"):
+            self.assertAllowed(cmd)
+
+    def test_clone_and_init_template_install_hooks_and_are_denied(self):
+        for cmd in ("git clone --template=/tmp/t https://github.com/o/r dest", "git clone --template /tmp/t o/r",
+                    "git init --template=/tmp/t", "git init --template /tmp/t d", "git init --temp=/tmp/t",
+                    "git -C . init --template=/tmp/t"):
+            self.assertDenied(cmd, "denied in every mode")
+        self.assertAllowed("git init newrepo")
+        self.assertAllowed("git clone https://github.com/o/r elsewhere")
+
+    def test_show_output_writes_a_file_and_is_not_read_only(self):
+        from maeng import gates
+        for args in (["--output=f"], ["--output", "f"], ["--out=f"], ["--outp=f", "HEAD"]):
+            self.assertFalse(gates.git_readonly("show", args), args)
+            self.assertFalse(gates.git_readonly("diff", args), args)
+            self.assertFalse(gates.git_readonly("log", args), args)
+        self.assertTrue(gates.git_readonly("show", ["--stat", "HEAD"]))
+
+    def test_gh_issue_develop_creates_a_remote_branch_and_is_denied_unless_listing(self):
+        for cmd in ("gh issue develop 1 -R o/r", "gh issue develop 1 -R o/r --base main -n b",
+                    "gh issue develop 1 -R o/r --checkout", "gh issue develop 1 --repo o/r --branch-repo o/x"):
+            self.assertDenied(cmd, "creates a branch on the remote")
+        self.assertAllowed("gh issue develop --list 1 -R o/r")
+        self.assertAllowed("gh issue develop -l 1 -R o/r")
+
+    def test_gh_issue_transfer_stays_an_explicit_r_scoped_write(self):
+        self.assertDenied("gh issue transfer 1 o/r2")                    # needs -R
+        self.assertAllowed("gh issue transfer 1 o/r2 -R o/other")        # an issue write like edit/close (test_r4)
+
+
+class ReadonlyPins(ShipBase):
+    """C1 low: the read-only allowlists change only on purpose. Update the literal or digest when adding to them."""
+
+    @staticmethod
+    def digest(obj):
+        import hashlib
+
+        def norm(o):
+            if isinstance(o, dict):
+                return sorted((k, norm(v)) for k, v in o.items())
+            if isinstance(o, (set, frozenset)):
+                return sorted(o)
+            return o
+        return hashlib.sha256(repr(norm(obj)).encode()).hexdigest()
+
+    def test_readonly_git_subcommands_pinned(self):
+        from maeng import gates
+        self.assertEqual(gates.READONLY_GIT, {"status", "log", "diff", "show", "rev-parse", "ls-files", "ls-tree",
+                                              "cat-file", "blame", "describe", "grep", "shortlog", "rev-list",
+                                              "name-rev", "merge-base", "ls-remote", "check-ignore"})
+
+    def test_readonly_programs_pinned(self):
+        from maeng import readonly
+        self.assertEqual(readonly.PROGS, {"[", "basename", "cat", "cd", "cut", "date", "df", "diff", "dirname", "du",
+                                          "echo", "env", "false", "find", "grep", "head", "jq", "ls", "md5", "popd",
+                                          "printf", "pushd", "pwd", "readlink", "realpath", "rg", "sha256sum",
+                                          "shasum", "sort", "stat", "tail", "test", "tr", "tree", "true", "uniq",
+                                          "wc", "which"})
+        self.assertEqual(readonly.FREE, {"test", "[", "cd", "pushd", "popd"})
+
+    def test_readonly_option_sets_pinned(self):
+        from maeng import readonly
+        pins = {
+            "SPECS": "76bc9e80e77f62d3051fa9c0c6381bbd96a28a4ea3a6242cf204db2a62868a0f",
+            "GIT_SHORT": "722b60fd1d8ad2bc15b3569cdd1dbc325f28450bdfbf91cb08c85d7a006c6484",
+            "GIT_LONG": "a1de8d4222af4fb229e8dd96e0ca795ee1cec751fa7881822a4c91fb58448dde",
+            "GIT_LONG_VALUE": "3cc1db592c764e9efb08bd80a381ba279ab89e748ae34b9659c20377c933dfa4",
+            "GH_READ_FLAGS": "e30a6dce1e18703394a2a130a8d8e627303ba5e22bda89ab558231fef11e3a30",
+            "FIND_FLAG": "993f56542f72f377785fcfe6a14c98c57ac01b7d4587c208178fad28ad28e311",
+            "FIND_PRIMARY_BOOL": "f60c0c528b43ba46fd6e441a852c520a4549e77008dd4e2437cc6523f1de16ab",
+            "FIND_PRIMARY_VALUE": "ea495fa822264b55a44f715e36b43dcf32a465cee01c75739ca92cea9a4f9963",
+        }
+        for name, want in pins.items():
+            self.assertEqual(self.digest(getattr(readonly, name)), want, f"readonly.{name} changed")

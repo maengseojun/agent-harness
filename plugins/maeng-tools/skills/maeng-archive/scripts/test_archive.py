@@ -130,6 +130,13 @@ class MoveTests(Base):
             A.cmd_move("raw/w.md", "onedrive", "personal", False)
         self.assertEqual(list(self.od.rglob("*")), [])
 
+    def test_frontmatter_eta_outside_eta_dir_needs_world_eta(self):
+        self.note("raw/w.md", "---\nworld: eta\n---\nbody\n")
+        with self.assertRaisesRegex(A.ArchiveError, "world mismatch"):
+            A.cmd_move("raw/w.md", "onedrive", "personal", False)
+        r = A.cmd_move("raw/w.md", "onedrive", "eta", False)
+        self.assertIn("/maeng-archive/eta/", r["destination"])
+
     def test_world_mismatch_cli_exit_nonzero(self):
         self.note("eta/n.md", "hello\n")
         with mock.patch("sys.stdout"), mock.patch("sys.stderr"):

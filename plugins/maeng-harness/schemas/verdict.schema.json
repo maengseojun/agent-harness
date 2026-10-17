@@ -23,7 +23,9 @@
         "files_reviewed": {"type": "array", "items": {"type": "string"}},
         "files_excluded": {"type": "array", "items": {"type": "string"}},
         "files_delegated": {"type": "array", "items": {"type": "string"}},
-        "exclusion_reason": {"type": ["string", "null"]}
+        "exclusion_reason": {"type": ["string", "null"]},
+        "issue": {"type": ["string", "null"]},
+        "parent": {"type": ["string", "null"]}
       }
     },
     "reviewer": {

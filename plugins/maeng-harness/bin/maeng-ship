@@ -58,7 +58,7 @@ def merge(a, cwd):
     if not ok:
         die("head tree is not ship-verified: " + "; ".join(reasons))
     rev = (st.get("binding") or {}).get("plan_updated_at")
-    recs, problem = receipts.find_code(cwd, repo, base, head, ref, rev)
+    recs, problem = receipts.find_code(cwd, repo, base, head, ref, rev, issue=(st.get("binding") or {}).get("issue"))
     if not recs:
         die("merge denied: " + problem)
     for rec in recs:

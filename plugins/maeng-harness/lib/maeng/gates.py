@@ -207,10 +207,16 @@ def check_bash(command, ctx):
         form, why = canon.canonical_command(command, segs)
         if not form:
             return deny(canon.message(why))
-    if any(os.path.basename(t) == "git" for s in segs for t in s.tokens) and \
-            any(GIT_RETARGET.match(t) for s in segs for t in s.tokens):
+    runs_git = any(os.path.basename(t) == "git" for s in segs for t in s.tokens)
+    if runs_git and any(GIT_RETARGET.match(t) for s in segs for t in s.tokens):
         return deny("maeng G3: GIT_DIR/GIT_WORK_TREE retarget git and cannot be checked; run git without them "
                     "(use `git -C <dir>` for another checkout).")
+    env = next((t for s in segs for t in s.tokens if GIT_EXEC_ENV.match(t) and not GIT_PAGER_ENV.match(t)),
+               None) if runs_git else None
+    if env:
+        return deny(f"maeng G1: `{env.partition('=')[0]}` in the environment of a git command makes git run an "
+                    f"arbitrary command, which the gate cannot inspect (it can ship or publish); denied in "
+                    f"every mode. Run the command directly instead.")
     cwd, effects = ctx.cwd, []
     for seg in segs:
         d, cwd = check_segment(seg, cwd, ctx)
@@ -281,7 +287,8 @@ GIT_EXEC_OPTIONS = {
     "grep": ({"--open-files-in-pager"}, "O", "eABCmf"),
     "fetch": ({"--upload-pack"}, "", ""),
     "pull": ({"--upload-pack"}, "", ""),
-    "clone": ({"--upload-pack"}, "u", "obcj"),
+    "clone": ({"--upload-pack", "--template"}, "u", "obcj"),
+    "init": ({"--template"}, "", ""),
     "ls-remote": ({"--upload-pack"}, "", ""),
     "archive": ({"--exec"}, "", "o"),
     "send-email": ({"--to-cmd", "--cc-cmd", "--header-cmd", "--sendmail-cmd", "--smtp-server"}, "", ""),
@@ -297,6 +304,16 @@ GIT_EXEC_CONFIG = re.compile(
     r"(?:command|textconv|cmd|driver|clean|smudge|process)|credential\.(?:.+\.)?helper|gpg\.(?:.+\.)?program|"
     r"pager\..+|alias\..+|remote\..+\.(?:uploadpack|receivepack)|uploadpack\.packobjectshook|protocol\..*allow|"
     r"include\.path|includeif\..+|init\.templatedir)$", re.I)
+# Environment variables git (or the ssh/askpass/editor/pager it spawns) runs as a program or reads config from. A
+# command that runs git with one set (`GIT_PAGER=x git log`, `env GIT_SSH_COMMAND=x git fetch`, an earlier
+# `export`) is denied: the value is opaque to the gate exactly like the config keys above.
+GIT_EXEC_ENV = re.compile(
+    r"^(?:GIT_SSH_COMMAND|GIT_SSH|GIT_EXTERNAL_DIFF|GIT_EDITOR|GIT_SEQUENCE_EDITOR|GIT_PAGER|PAGER|GIT_ASKPASS|"
+    r"SSH_ASKPASS|GIT_PROXY_COMMAND|GIT_CONFIG_GLOBAL|GIT_CONFIG_SYSTEM|GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT|"
+    r"GIT_CONFIG_KEY_\d+|GIT_CONFIG_VALUE_\d+|GIT_TEMPLATE_DIR|GIT_EXEC_PATH)=")
+# Pager settings are routinely set to nothing or `cat` (no pager); only those values are harmless.
+GIT_PAGER_KEY = re.compile(r"^(?:core\.pager|pager\..+)$", re.I)
+GIT_PAGER_ENV = re.compile(r"^(?:GIT_PAGER|PAGER)=(?:cat)?$")
 GIT_CONFIG_READS = {"--get", "--get-all", "--get-regexp", "--get-urlmatch", "--list", "-l", "--unset", "--unset-all",
                     "get", "list", "unset", "--show-origin", "--show-scope", "--name-only", "--null", "-z"}
 
@@ -567,6 +584,12 @@ def check_git(toks, cwd, ctx):
             blocked = g3_path(probe, cwd, ctx, f"git {'-C' if kind == 'C' else '--' + kind}")
             if blocked:
                 return blocked
+    exec_key = next((k for k, vals in cfg.items() if not k.startswith("alias.") and GIT_EXEC_CONFIG.match(k)
+                     and not (GIT_PAGER_KEY.match(k) and all(v in ("", "cat") for v in vals))), None)
+    if exec_key:  # every subcommand, read-only ones included (`git -c core.pager=<cmd> log` runs <cmd>)
+        return deny(f"maeng G1: `git -c {exec_key}` (git runs its value as a command) runs an arbitrary command, "
+                    f"which the gate cannot inspect (it can ship or publish); denied in every mode. Run the "
+                    f"command directly instead.")
     if sub is None:
         return Decision()
     if any(k.startswith("alias.") for k in cfg) or git_alias(cwd, sub):
@@ -631,7 +654,8 @@ def check_merge_push(lease, cwd, ctx):
     if err:
         return deny(err)
     repo = guard.normalize_repo(url)
-    recs, problem = receipts.find_code(cwd, repo, lease["base"], lease["head"], lease["ref"], rev)
+    recs, problem = receipts.find_code(cwd, repo, lease["base"], lease["head"], lease["ref"], rev,
+                                      issue=(ctx.state.get("binding") or {}).get("issue"))
     if not recs:
         return deny(f"maeng G1: merge push denied: {problem}. Use `maeng-review` then `maeng-ship merge <PR>`.")
     if git(cwd, "merge-base", "--is-ancestor", lease["base"], lease["head"])[0] != 0:
@@ -718,6 +742,9 @@ def check_gh(toks, cwd, ctx):
         return deny(UNKNOWN_REASON)
     if kind == "deny":
         return deny(canon.message(reason))
+    if info["pos"][:2] == ["issue", "develop"] and not (info["flags"].get("--list") or info["flags"].get("-l")):
+        return deny(canon.message("`gh issue develop` creates a branch on the remote (a route that skips the "
+                                  "branch-ship gate); only `gh issue develop --list` is allowed."))
     if kind == "local":  # reads from the remote but writes files locally: G3 on every local destination
         blocked = _cwd_gate(cwd, ctx, "gh " + " ".join(info["pos"][:2]), True)
         if blocked:
