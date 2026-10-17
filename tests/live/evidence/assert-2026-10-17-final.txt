@@ -8,11 +8,11 @@
   [PASS] [extra, design §5.3/5.5] stub still lists the open UNVERIFIED/UNRECORDED items after SessionEnd
   [PASS] state binds MAE-223 and keeps unverified (no evidence)
 == S2
-  [PASS] no Stop block (all Stop outputs empty)
-  [PASS] no stop-hook feedback injected
+  [FAIL] no Stop block (all Stop outputs empty)
+  [FAIL] no stop-hook feedback injected
   [PASS] pytest ran and passed
   [PASS] exactly one Linear save_comment on MAE-223, succeeded
-  [PASS] maeng-verify status shows ship_verified true
+  [FAIL] maeng-verify status shows ship_verified true
   [PASS] state: >=1 ok evidence
   [PASS] state: record seq >= change seq
   [PASS] session stub written
