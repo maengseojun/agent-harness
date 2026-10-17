@@ -22,7 +22,7 @@ Records are autonomous, code is strict: write Linear and Obsidian without asking
 
 Scale it down for small work: a small task can skip the interview and tree but keeps Spec/Plan-lite (a goal, 1-3 `AC-n`, a Verification line), verification, review and recording.
 
-1. **Interview** only for what changes architecture or workflow and cannot be read from the repo or issue. Settled decisions are not reopened. Detail: [workflow.md](references/workflow.md).
+1. **Interview** only for what changes architecture or workflow and cannot be read from the repo or issue. Settled decisions are not reopened. Detail: [workflow.md](references/workflow.md). When the work starts from a new product or AI-system idea, run the `maeng-tools:ai-loop-design` checklist here and carry its design note into the parent Spec.
 2. **Mandatory rules.** Write down the constraints that bind every task (repo rules, environment, forbidden changes) in the parent Spec.
 3. **Middleman first.** A code-level question the existing pages and code do not answer becomes a Middleman issue, answered before the tree is split. See [middleman](../work-records/references/middleman.md).
 4. **Task tree.** Parent issue, then child issues as fine-grained as is useful, each with one owner (Owns) and explicit dependencies (`blocks`/`blockedBy`).
