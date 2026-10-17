@@ -47,7 +47,8 @@ Children: MAE-218 to MAE-225.
 - AC-5: check_models S4
 - AC-6: staging S5 plugin-controlled checks
 
-AC-1 to AC-3 are runner invocations recorded with `maeng-verify exec -- <command>` (real executions, tree-bound). AC-4 to AC-6 are declared checks for the custom live runner (`tests/live/run_smoke.py`, `tests/live/assert_smoke.py`); their full assertion output is attached as evidence.
+## Evidence notes
+The checks for the first three criteria are runner invocations recorded with `maeng-verify exec -- <command>` (real executions, tree-bound). The live-staging criteria are declared checks for the custom live runner (`tests/live/run_smoke.py`, `tests/live/assert_smoke.py`); their full assertion output is attached as evidence.
 
 **Known and dispositioned outside this PR:**
 - S5 user-level agent and loose skills → retirement at release (MAE-224).

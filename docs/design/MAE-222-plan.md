@@ -23,4 +23,5 @@ date: 2026-10-17
 - AC-6: python3 -m unittest discover -s plugins/maeng-tools/skills/maeng-archive/scripts -t plugins/maeng-tools/skills/maeng-archive/scripts && python3 -m unittest discover -s plugins/maeng-tools/skills/aside-collect/scripts -t plugins/maeng-tools/skills/aside-collect/scripts && python3 -m unittest discover -s plugins/maeng-tools/skills/graphify-repository/scripts -t plugins/maeng-tools/skills/graphify-repository/scripts && python3 -m unittest discover -s plugins/maeng-tools/skills/obsidian-workspace/scripts -t plugins/maeng-tools/skills/obsidian-workspace/scripts -p test_private_filter.py
 - AC-3: skill line counts
 
-AC-6 is recorded with `maeng-verify exec` (real runner executions). AC-3 is a declared check; the line counts are attached as evidence.
+## Evidence notes
+The test-suite criterion is recorded with `maeng-verify exec` (real runner executions). The line-count criterion is a declared check; the line counts are attached as evidence.
