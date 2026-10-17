@@ -85,6 +85,7 @@ def _under(path, root):
 def _nearest_dir(path):
     p = Path(path).expanduser()
     p = p if p.is_absolute() else Path.cwd() / p
+    p = Path(os.path.realpath(p))  # follow symlinks (also dangling ones) before classifying
     while not p.exists():
         if p.parent == p:
             return None

@@ -12,7 +12,7 @@ CODE = {'.py', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.go', '.rs',
 SKIP = {'.git', '.agents', '.codex', '.aws', '.ssh', '.venv', 'node_modules',
         '__pycache__', 'vendor', 'dist', 'build'}
 # TODO(MAE-222): the pin stays at 0.9.85. Bumping to 0.9.91 is a separate task that
-# must first re-check the revision gate: new PIN_REVISION commit, vendored source,
+# must first re-check the revision gate: new PIN_REVISION commit, reviewed external runtime checkout,
 # lockfile, and the extract() signature. Do not edit the two constants alone.
 # See references/local-evidence.md "Version bump (not done)".
 PIN_VERSION = '0.9.85'

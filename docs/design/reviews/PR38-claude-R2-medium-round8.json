@@ -1,0 +1,41 @@
+{
+  "verdict": "pass",
+  "receipt": "code-62f395df02b03f40b855d135",
+  "findings": [
+    {
+      "severity": "low",
+      "title": "Plan Verification section names checks only for AC-3 and AC-6",
+      "body": "spec-plan.md and verification.md say every AC-n needs a Verification line, otherwise the gate cannot decide 'met'. The bound Plan lists checks only for AC-6 (unittest) and AC-3 (line counts); AC-1, AC-2, AC-4 and AC-5 rest solely on the author's `maeng-verify plan --met` record. AC-1, AC-4 and AC-5 are satisfied by inspecting the attached docs (smoke doc with nonce run; 21-line world-neutral template; matching readback hashes). AC-2 ('both Aside skills trigger on their own wording') has no check at all and is accepted here only by reading the two descriptions. Add declared-check lines (`maeng-verify ran`) for AC-1/4/5 and at least a documented trigger probe for AC-2 so the Plan matches its own template.",
+      "file": "docs/design/MAE-222-plan.md",
+      "line": null
+    },
+    {
+      "severity": "low",
+      "title": "aside-collect pipeline commands use unresolved shell variables and redirects that G3 may deny in a personal session",
+      "body": "Step 3 instructs `aside exec --effort low \"<prompt>\" < /dev/null > \"$TMP/out.txt\" 2> \"$TMP/err.txt\"` and step 2 uses `NONCE=$(openssl rand -hex 8)`. Per the stated design, a non-read-only segment carrying an unresolved `$VAR` token is undecidable and denied by the cross-world gate; `aside` is not on the read-only allowlist. If the hook behaves as described, the skill's own run recipe is denied and the agent will improvise. Either state the literal-path form the gate accepts (fixed temp directory under the vault's raw/aside, nonce written to a file and read back) or verify with a staging case that this exact invocation passes and note that in the skill.",
+      "file": "plugins/maeng-tools/skills/aside-collect/SKILL.md",
+      "line": 26
+    },
+    {
+      "severity": "low",
+      "title": "TODO comment still says 'vendored source' after docs were changed to say nothing is vendored",
+      "body": "The round-7 fix made local-evidence.md state the Graphify source is NOT vendored, but the TODO in index_repository.py still lists 'vendored source' as part of the version-bump gate. Reword to 'reviewed external runtime checkout' so the next bump does not look for a vendor/ directory that does not exist.",
+      "file": "plugins/maeng-tools/skills/graphify-repository/scripts/index_repository.py",
+      "line": 14
+    },
+    {
+      "severity": "low",
+      "title": "Review tier names in harness-run and aside-research assume the Codex backend",
+      "body": "harness-run step 10 and aside-research step 6 name reviewers as 'Astra medium / Sol xhigh' with no mention that the default backend is now Claude (`claude-fable-5-1`) and that Astra/Sol apply only when `MAENG_REVIEW_BACKEND=codex`. review-and-ship.md explains this, but the entry-point SKILL.md does not, so an agent reading only harness-run will expect a Codex reviewer. Add one clause pointing to the backend rule or rename the tiers by effort level.",
+      "file": "plugins/maeng-harness/skills/harness-run/SKILL.md",
+      "line": 31
+    },
+    {
+      "severity": "low",
+      "title": "Test output noise: argparse usage dump and unclosed-file ResourceWarnings in test_parse_aside.py",
+      "body": "`test_cli_requires_nonce_and_exit_code` calls `pa.main(['-'])`, which prints a full argparse usage/error block to stderr under the `python3 -m unittest` prog name, and several tests use bare `open(...).write/read` producing ResourceWarnings (visible in the attached evidence log). Wrap the SystemExit test with `contextlib.redirect_stderr` and use `with open(...)` so a real failure is not buried in noise.",
+      "file": "plugins/maeng-tools/skills/aside-collect/scripts/test_parse_aside.py",
+      "line": 118
+    }
+  ]
+}

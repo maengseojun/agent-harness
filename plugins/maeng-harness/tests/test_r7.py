@@ -248,8 +248,9 @@ class R7_G_GitAliases(ShipBase):
         self.assertAllowed("git push origin feat")
         self.assertAllowed("git status")
 
-    def test_unknown_subcommand_without_alias_is_not_blocked_by_the_alias_check(self):
-        self.assertAllowed("git frobnicate")
+    def test_unknown_subcommand_without_alias_fails_closed(self):
+        """Round 8: an unknown subcommand is denied (it may be an external command that pushes)."""
+        self.assertDenied("git frobnicate", "unknown git subcommand")
 
 
 class R7_H_DestructiveGh(ShipBase):
@@ -471,26 +472,32 @@ class R7_N_NonFastForwardLease(MergeBase):
         self.verdict()
         cmd = self.lease_cmd(self.base, self.h)
         self.assertFalse(self.bash_pre(self.repo, cmd)[0])
+
+        def pinned(text):
+            denied, reason = self.bash_pre(self.repo, cmd)
+            self.assertTrue(denied, f"expected deny ({text}): {reason}")
+            self.assertIn(text, reason)
+
         self.git(self.repo, "config", "remote.origin.pushurl", "git@github.com:endix-foundation-v1/web.git")
-        self.assertIn("pushurl", self.bash_pre(self.repo, cmd)[1])
+        pinned("pushurl")
         self.git(self.repo, "config", "--unset-all", "remote.origin.pushurl")
         self.git(self.repo, "config", "remote.origin.mirror", "true")
-        self.assertIn("mirror", self.bash_pre(self.repo, cmd)[1])
+        pinned("mirror")
         self.git(self.repo, "config", "remote.origin.mirror", "false")
         self.git(self.repo, "config", "push.followTags", "true")
-        self.assertIn("followTags", self.bash_pre(self.repo, cmd)[1])
+        pinned("followTags")
         self.git(self.repo, "config", "--unset-all", "push.followTags")
         self.git(self.repo, "config", "push.recurseSubmodules", "on-demand")
-        self.assertIn("recurseSubmodules", self.bash_pre(self.repo, cmd)[1])
+        pinned("recurseSubmodules")
         self.git(self.repo, "config", "--unset-all", "push.recurseSubmodules")
         url = self.git(self.repo, "config", "remote.origin.url").stdout.strip()
         fork = self.tmp / "fork.git"
         self.git(self.tmp, "clone", "-q", "--bare", str(self.remote), str(fork))
         self.git(self.repo, "config", f"url.{fork}.pushInsteadOf", url)
-        self.assertIn("insteadOf", self.bash_pre(self.repo, cmd)[1])
+        pinned("insteadOf")
         self.git(self.repo, "config", "--unset-all", f"url.{fork}.pushInsteadOf")
         self.git(self.repo, "remote", "set-head", "origin", "--delete")
-        self.assertIn("set-head", self.bash_pre(self.repo, cmd)[1])
+        pinned("set-head")
 
 
 class R7_R_EtaGitMutations(HarnessCase):

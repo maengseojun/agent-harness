@@ -35,4 +35,4 @@ Order: bound issue state, then Spec/Plan (`updatedAt` must match what the bindin
 
 ## Small work
 
-No tree needed: one issue, a three-line Plan (goal, `AC-n`, Verification), the implementer or you directly, verify, Sol xhigh review before any PR, record. Trivial edits (typos, config tweaks) need no issue.
+No tree needed: one issue, a three-line Plan (goal, `AC-n`, Verification), the implementer or you directly, verify, Sol high review before any PR, record. Trivial edits (typos, config tweaks) need no issue.

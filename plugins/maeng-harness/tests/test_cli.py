@@ -25,11 +25,20 @@ class ReviewConfig(HarnessCase):
         rv = load_bin("maeng-review")
         child = {"parent": "MAE-216", "criteria": ["AC-1"]}
         self.assertEqual(rv.tier_for("code", child), ("gpt-6-astra", "medium"))
-        self.assertEqual(rv.tier_for("code", {"criteria": ["AC-1"]}), ("gpt-6.1-sol", "xhigh"))
-        self.assertEqual(rv.tier_for("code", None), ("gpt-6.1-sol", "xhigh"))
-        self.assertEqual(rv.tier_for("parent", child), ("gpt-6-astra", "xhigh"))
-        self.assertEqual(rv.tier_for("docs", None), ("gpt-6-astra", "high"))
+        self.assertEqual(rv.tier_for("code", {"criteria": ["AC-1"]}), ("gpt-6.1-sol", "high"))
+        self.assertEqual(rv.tier_for("code", None), ("gpt-6.1-sol", "high"))
+        self.assertEqual(rv.tier_for("parent", child), ("gpt-6-astra", "high"))
+        self.assertEqual(rv.tier_for("docs", None), ("gpt-6-astra", "medium"))
         self.assertEqual(rv.tier_for("notion", None), ("gpt-6.1-sol", "medium"))
+
+    def test_fallback_tier_is_fable_medium_for_parent_and_opus_otherwise(self):
+        rv = load_bin("maeng-review")
+        child = {"parent": "MAE-216", "criteria": ["AC-1"]}
+        self.assertEqual(rv.fallback_tier("parent", child), ("claude-fable-5-1", "medium"))
+        self.assertEqual(rv.fallback_tier("code", child), ("claude-opus-5-5", "medium"))
+        self.assertEqual(rv.fallback_tier("code", None), ("claude-opus-5-5", "high"))
+        self.assertEqual(rv.fallback_tier("docs", None), ("claude-opus-5-5", "high"))
+        self.assertEqual(rv.fallback_tier("notion", None), ("claude-opus-5-5", "medium"))
 
     def test_feature_names_come_from_codex_features_list(self):
         rv = load_bin("maeng-review")
@@ -199,17 +208,17 @@ class ReviewRun(ReviewRunFixture):
 
 
 class ClaudeBackend(ReviewRunFixture):
-    """D-9: the default reviewer is an isolated headless `claude -p` (different model from the authors)."""
+    """D-9: codex first; an isolated headless `claude -p` is the fallback (or MAENG_REVIEW_BACKEND=claude)."""
 
-    def fake_claude(self, verdict="pass", model="claude-fable-5-1", is_error=False, structured=True):
+    def fake_claude(self, verdict="pass", model="claude-opus-5-5", is_error=False, structured=True):
         log, stdin_log = self.tmp / "claude-argv.json", self.tmp / "claude-stdin.txt"
         fake = self.tmp / "fake-claude"
         fake.write_text(
             f"#!{sys.executable}\nimport json, sys\n"
             f"open({str(log)!r}, 'w').write(json.dumps(sys.argv[1:]))\n"
             f"open({str(stdin_log)!r}, 'w').write(sys.stdin.read())\n"
-            f"models = {([model] if isinstance(model, str) else list(model))!r}\n"
-            f"out = {{'is_error': {is_error!r}, 'modelUsage': {{m: {{}} for m in models}}}}\n"
+            f"usage = {({model: {'outputTokens': 100}} if isinstance(model, str) else model)!r}\n"
+            f"out = {{'is_error': {is_error!r}, 'modelUsage': usage}}\n"
             f"if {structured!r}:\n    out['structured_output'] = {{'verdict': {verdict!r}, 'findings': []}}\n"
             f"print(json.dumps(out))\n")
         fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
@@ -230,34 +239,55 @@ class ClaudeBackend(ReviewRunFixture):
             i = argv.index(pair[0])
             self.assertEqual(argv[i:i + 2], pair)
         self.assertIn("--strict-mcp-config", argv)
-        self.assertEqual(argv[argv.index("--model") + 1], "claude-fable-5-1")
+        self.assertEqual(argv[argv.index("--model") + 1], "claude-opus-5-5")
         self.assertEqual(argv[argv.index("--effort") + 1], "medium")  # child-task tier
         self.assertIn("--json-schema", argv)
         self.assertIn("AC-1 feature works", stdin_log.read_text())
         receipt_files = list(receipts.receipts_dir().glob("*.json"))
         self.assertTrue(receipt_files)
         rec = json.loads(receipt_files[0].read_text())
-        self.assertEqual(rec["verdict"]["reviewer"]["model"], "claude-fable-5-1")  # never labelled Astra
+        self.assertEqual(rec["verdict"]["reviewer"]["model"], "claude-opus-5-5")  # never labelled Astra
 
     def test_claude_reviewer_on_wrong_model_is_rejected(self):
         fake, _, _ = self.fake_claude(model="claude-haiku-4-5")
         r = self.run_claude_review(fake)
         self.assertNotEqual(r.returncode, 0)
-        self.assertIn("not the requested", r.stderr)
+        self.assertIn("not the primary", r.stderr)
 
-    def test_default_backend_is_claude_when_the_variable_is_unset(self):
-        """D-9: with MAENG_REVIEW_BACKEND absent, maeng-review runs the Claude backend, not codex."""
+    def test_default_backend_is_codex_when_the_variable_is_unset(self):
+        """Codex always comes first: with MAENG_REVIEW_BACKEND absent, claude does not run."""
         fake, log, _ = self.fake_claude()
         self.env.pop("MAENG_REVIEW_BACKEND")
         r = self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
                                       "--base-ref", "main"], self.repo,
                      extra_env={"MAENG_CLAUDE": str(fake), "MAENG_CODEX": str(self.codex)})
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertTrue(log.exists())
-        self.assertFalse(self.log.exists(), "codex must not run by default")
+        self.assertTrue(self.log.exists())
+        self.assertFalse(log.exists(), "claude must not run while codex works")
         rec = receipts.load(json.loads(r.stdout)["receipt"])
-        self.assertEqual(rec["verdict"]["reviewer"]["model"], "claude-fable-5-1")
-        self.assertEqual(rec["verdict"]["reviewer"]["provenance"], "review-run")
+        self.assertEqual(rec["verdict"]["reviewer"]["model"], "gpt-6-astra")
+        self.assertNotIn("fallback_from", rec["verdict"]["reviewer"])
+
+    def test_codex_failing_three_times_falls_back_to_claude(self):
+        fake, log, _ = self.fake_claude()
+        count = self.tmp / "codex-count"
+        dead = self.tmp / "dead-codex"
+        dead.write_text(
+            f"#!{sys.executable}\nimport sys\n"
+            f"if sys.argv[1:3] == ['features', 'list']:\n    sys.exit(0)\n"
+            f"open({str(count)!r}, 'a').write('x')\n"
+            f"print('usage limit reached', file=sys.stderr)\nsys.exit(1)\n")
+        dead.chmod(dead.stat().st_mode | stat.S_IEXEC)
+        self.env.pop("MAENG_REVIEW_BACKEND")
+        r = self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
+                                      "--base-ref", "main"], self.repo,
+                     extra_env={"MAENG_CLAUDE": str(fake), "MAENG_CODEX": str(dead)})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(count.read_text(), "xxx")
+        self.assertTrue(log.exists())
+        rev = receipts.load(json.loads(r.stdout)["receipt"])["verdict"]["reviewer"]
+        self.assertEqual((rev["model"], rev["effort"]), ("claude-opus-5-5", "medium"))
+        self.assertEqual(rev["fallback_from"], {"model": "gpt-6-astra", "effort": "medium", "attempts": 3})
 
     def test_codex_backend_stays_selectable(self):
         fake, log, _ = self.fake_claude()
@@ -269,12 +299,42 @@ class ClaudeBackend(ReviewRunFixture):
         self.assertTrue(self.log.exists())
         self.assertFalse(log.exists())
 
-    def test_claude_reviewer_with_an_extra_model_in_usage_is_rejected(self):
-        fake, _, _ = self.fake_claude(model=["claude-fable-5-1", "claude-haiku-4-5"])
+    def test_aux_model_is_recorded_and_accepted_when_the_requested_model_is_primary(self):
+        usage = {"claude-opus-5-5": {"inputTokens": 900, "outputTokens": 5000},
+                 "claude-opus-4-8": {"inputTokens": 100, "outputTokens": 40}}
+        fake, _, _ = self.fake_claude(model=usage)
+        r = self.run_claude_review(fake)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        rev = receipts.load(json.loads(r.stdout)["receipt"])["verdict"]["reviewer"]
+        self.assertEqual(rev["model"], "claude-opus-5-5")
+        self.assertEqual(rev["aux_models"], [{"model": "claude-opus-4-8", "inputTokens": 100, "outputTokens": 40}])
+
+    def test_primary_is_decided_by_total_tokens_when_output_tokens_tie(self):
+        usage = {"claude-opus-5-5": {"inputTokens": 900, "outputTokens": 50},
+                 "claude-opus-4-8": {"inputTokens": 10, "outputTokens": 50}}
+        fake, _, _ = self.fake_claude(model=usage)
+        self.assertEqual(self.run_claude_review(fake).returncode, 0)
+
+    def test_requested_model_absent_from_usage_is_rejected(self):
+        usage = {"claude-opus-4-8": {"outputTokens": 10}, "claude-haiku-4-5": {"outputTokens": 5}}
+        fake, _, _ = self.fake_claude(model=usage)
         r = self.run_claude_review(fake)
         self.assertNotEqual(r.returncode, 0)
-        self.assertIn("not the requested", r.stderr)
+        self.assertIn("not the primary", r.stderr)
         self.assertEqual(list(receipts.receipts_dir().glob("*.json")) if receipts.receipts_dir().exists() else [], [])
+
+    def test_requested_model_present_but_not_primary_is_rejected(self):
+        usage = {"claude-opus-5-5": {"inputTokens": 9000, "outputTokens": 40},
+                 "claude-opus-4-8": {"inputTokens": 100, "outputTokens": 5000}}
+        fake, _, _ = self.fake_claude(model=usage)
+        r = self.run_claude_review(fake)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("not the primary", r.stderr)
+        self.assertEqual(list(receipts.receipts_dir().glob("*.json")) if receipts.receipts_dir().exists() else [], [])
+
+    def test_empty_model_usage_is_rejected(self):
+        fake, _, _ = self.fake_claude(model={})
+        self.assertNotEqual(self.run_claude_review(fake).returncode, 0)
 
     def test_claude_reviewer_without_structured_output_is_rejected(self):
         fake, _, _ = self.fake_claude(structured=False)

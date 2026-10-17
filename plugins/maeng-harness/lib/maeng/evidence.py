@@ -108,6 +108,9 @@ UNITTEST_VALUES = {"-s": PATH_RE, "-t": PATH_RE, "-p": R(r"^[A-Za-z0-9_.*?-]+$")
 FORGE_VALUES = {f"--{p}match-{k}": VALUE_RE for p in ("", "no-") for k in ("test", "contract", "path")}
 CARGO_BOOLS = ("--all", "--workspace", "--all-features", "--release", "-q")
 CARGO_VALUES = {"-p": NAME_RE_, "--package": NAME_RE_}
+# Narrowing forms of `cargo test`: evidence for an explicit Plan requirement, never default-mode (unfiltered()).
+CARGO_TEST_BOOLS = CARGO_BOOLS + ("--lib", "--doc", "--bins", "--tests")
+CARGO_TEST_VALUES = {**CARGO_VALUES, "--test": NAME_RE_, "--bin": NAME_RE_}
 GO_BOOLS = ("-v", "-race", "-json")
 # -count=0 (and `-run` patterns that cannot select a test) make `go test` exit 0 without running any test
 GO_RUN_RE = R(r"^(?=.*[A-Za-z0-9_])(?!.*[^|(/]\^)[A-Za-z0-9_|()./*+?\[\]^-]+$")
@@ -183,7 +186,9 @@ def _runner(tokens):
     if prog == "cargo" and sub in ("test", "clippy", "build"):
         if _narrowed(rest):
             return None
-        if _parse_args(rest, CARGO_BOOLS, CARGO_VALUES):
+        bools, values, pos = (CARGO_TEST_BOOLS, CARGO_TEST_VALUES, NAME_RE_) if sub == "test" else \
+            (CARGO_BOOLS, CARGO_VALUES, None)
+        if _parse_args(rest, bools, values, pos=pos):
             return _result(f"cargo {sub}", TEST_KINDS if sub == "test" else "check", rest)
         return None
     if prog == "go" and sub == "test":

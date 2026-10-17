@@ -1,4 +1,7 @@
+import contextlib
+import io
 import unittest
+from pathlib import Path
 
 import parse_aside as pa
 
@@ -30,6 +33,15 @@ ITEM2 = ('=== ITEM ===\nurl: https://doi.org/10.1000/xyz123\ntitle: Paper\n'
 def P(raw, nonce=NONCE, code=0):
     return pa.parse(raw, nonce, code)
 
+
+
+def quiet():
+    """Silence a CLI call's stdout/stderr inside a test (its result is asserted separately)."""
+    import contextlib, io
+    stack = contextlib.ExitStack()
+    stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
+    stack.enter_context(contextlib.redirect_stderr(io.StringIO()))
+    return stack
 
 class ParseAside(unittest.TestCase):
     def test_strip_ansi(self):
@@ -121,7 +133,7 @@ class ParseAside(unittest.TestCase):
         self.assertEqual(res['items'][0]['missing'], ['content'])
 
     def test_cli_requires_nonce_and_exit_code(self):
-        with self.assertRaises(SystemExit):
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             pa.main(['-'])
 
     def test_canonical_url(self):
@@ -136,11 +148,11 @@ class PrivateFilter(unittest.TestCase):
         raw = '<private>transcript-secret</private>\n' + final(item) + '\n'
         with tempfile.TemporaryDirectory() as d:
             src, out = os.path.join(d, 'o.txt'), os.path.join(d, 'raw.md')
-            open(src, 'w').write(raw)
+            Path(src).write_text(raw)
             r = subprocess.run([sys.executable, pa.__file__, src, '--nonce', NONCE, '--exit-code', '0',
                                 '--clean', out], capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stderr)
-            persisted = open(out).read()
+            persisted = Path(out).read_text()
             self.assertNotIn('secret', persisted)
             self.assertNotIn('secret', r.stdout)
             res = json.loads(r.stdout)
@@ -151,16 +163,18 @@ class PrivateFilter(unittest.TestCase):
         import os, subprocess, sys, tempfile
         with tempfile.TemporaryDirectory() as d:
             src, out = os.path.join(d, 'o.txt'), os.path.join(d, 'raw.md')
-            open(src, 'w').write(final(ITEM2))
+            Path(src).write_text(final(ITEM2))
             args = [src, '--nonce', NONCE, '--exit-code', '0', '--clean', out]
-            self.assertEqual(pa.main(args), 0)
-            first = open(out).read()
-            self.assertEqual(pa.main(args), 2)
-            self.assertEqual(open(out).read(), first)
+            with quiet():
+                self.assertEqual(pa.main(args), 0)
+            first = Path(out).read_text()
+            with quiet():
+                self.assertEqual(pa.main(args), 2)
+            self.assertEqual(Path(out).read_text(), first)
             r = subprocess.run([sys.executable, pa.__file__] + args, capture_output=True, text=True)
             self.assertEqual(r.returncode, 2)
             self.assertIn('refusing to overwrite', r.stderr)
-            self.assertEqual(open(out).read(), first)
+            self.assertEqual(Path(out).read_text(), first)
 
     def test_refuses_without_filter(self):
         import os, tempfile
@@ -169,8 +183,9 @@ class PrivateFilter(unittest.TestCase):
         try:
             with tempfile.TemporaryDirectory() as d:
                 src, out = os.path.join(d, 'o.txt'), os.path.join(d, 'raw.md')
-                open(src, 'w').write(final(ITEM2))
-                rc = pa.main([src, '--nonce', NONCE, '--exit-code', '0', '--clean', out])
+                Path(src).write_text(final(ITEM2))
+                with quiet():
+                    rc = pa.main([src, '--nonce', NONCE, '--exit-code', '0', '--clean', out])
                 self.assertEqual(rc, 3)
                 self.assertFalse(os.path.exists(out))
         finally:

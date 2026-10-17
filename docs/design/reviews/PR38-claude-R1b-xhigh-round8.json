@@ -1,0 +1,83 @@
+{
+  "verdict": "fail",
+  "receipt": null,
+  "findings": [
+    {
+      "severity": "high",
+      "title": "Fixture-receipt switch: production default (variable absent) is never exercised, and the agent-settable path to enable it is not pinned as denied",
+      "body": "Every test runs with MAENG_TEST_FIXTURES=\"1\" (helpers.HarnessCase.setUp) and the negative cases in R7_B set it to \"0\" explicitly (no_fixtures, patch.dict); no test pops it. The production hook / maeng-ship environment has the variable absent, so the suite cannot distinguish an `== \"1\"` implementation from a `!= \"0\"` one. This is the same pattern as the round-7 D-9 finding, but the consequence here is that a self-written verdict stored with `maeng-review store` authorises a merge. Second, the store refusal message names the variable (asserted: assertIn(\"MAENG_TEST_FIXTURES\", r.stderr)), the Claude Code Bash tool is a persistent shell, and nothing pins that `export MAENG_TEST_FIXTURES=1` or `MAENG_TEST_FIXTURES=1 maeng-review store v.json` is denied (env prefixes are denied only on route commands; `CI=1 pytest` is allowed). The hook does not check receipts for the canonical `maeng-ship merge <N>` form itself (R2_A allows it with no receipt stored), so maeng-ship, running in the tool shell with the exported variable, is the only check and it honours the variable. Following the tool's own error hint is a convenience shortcut, not a disguise. Add: (a) a test that pops the variable from self.env/os.environ and asserts store refuses, maeng-ship rejects a fixture receipt, and the lease hook rejects it; (b) Bash-hook denials for any assignment/export of MAENG_TEST_FIXTURES (and MAENG_GIT/MAENG_GH/MAENG_CLAUDE/MAENG_CODEX/MAENG_HOME) in any segment, including standalone `export`; or (c) move the test switch to a channel the hook controls (a marker under MAENG_HOME written only by the test harness) and pin that maeng-ship ignores the env var.",
+      "file": "plugins/maeng-harness/tests/test_r7.py",
+      "line": 40
+    },
+    {
+      "severity": "medium",
+      "title": "gh subcommand surface is not pinned as closed: unknown subcommands and gh aliases have no fail-closed assertion",
+      "body": "The gh allowlist is pinned per form (reads, pr/issue writes with -R, destructive forms denied in R7_H, local writes by directory in R3_8) but no test fixes the behaviour for a gh subcommand outside those sets: `gh frob 1`, `gh alias set m 'pr merge'` followed by `gh m 1`, a pre-existing user alias in the hermetic HOME's gh config, `gh extension exec`, `gh repo fork`, `gh run rerun`, `gh secret set`. Git aliases were closed in round 7 (R7_G reads repo and global config); gh aliases (`gh alias list`) are the direct analogue and are unpinned, so a user alias expanding to `pr merge` is a non-disguised route the gate cannot decide on. Add: unknown gh subcommand denied, `gh alias set|import` denied, and a test with a pre-set alias in HOME/.config/gh/config.yml asserting `gh <alias> 1` is denied.",
+      "file": "plugins/maeng-harness/tests/test_g1.py",
+      "line": 187
+    },
+    {
+      "severity": "medium",
+      "title": "Unknown git subcommands are pinned as allowed (fail open): `git subtree push`, `git svn dcommit`, git-town/git-extras ship routes are unpinned",
+      "body": "R7_G.test_unknown_subcommand_without_alias_is_not_blocked_by_the_alias_check asserts `git frobnicate` is allowed. That pins every unknown git subcommand as fail-open, including real contrib/external commands that push without `push` being the subcommand token: `git subtree push origin main` (contrib, shipped with Apple and Homebrew git), `git svn dcommit`, `git p4 submit`, git-town `git town ship`, git-extras `git release`. Whether `git subtree push` is caught by the route-mention detection is also unpinned (R2_A shows mention detection is structural, not keyword, so `subtree` would be the subcommand). Under the stated rule, a gate that cannot decide must deny. Replace the allow pin with: known read-only builtins allowed, known local-mutation builtins allowed in personal directories, everything else denied; add deny assertions for `git subtree push origin main`, `git svn dcommit`, and an unknown `git-<name>` on PATH in the hermetic env.",
+      "file": "plugins/maeng-harness/tests/test_r7.py",
+      "line": 249
+    },
+    {
+      "severity": "medium",
+      "title": "Notion MCP tool set is not pinned as closed; `notion-duplicate-page` of a registered outcome page is ungated in both worlds",
+      "body": "R7_L closes delete/move/update-data-source/create-database for registered pages and outcome DBs, but the Notion surface is pinned only as a denylist of named tools: no test asserts that an unrecognised `mcp__claude_ai_Notion__*` tool is denied (contrast R7_E for GitHub), and `notion-duplicate-page` (a documented connector tool) is not asserted gated in either the personal or the UNKNOWN world. Duplicating a registered outcome page creates an unreviewed sibling in the outcome DB whose id is not in the registry, so subsequent `notion-update-page` calls on the copy are ungated too (test_update_scope_is_the_registry pins unknown pages as free). 'Use last week's page as a template' is a plausible cooperative shortcut. The same closure gap exists for `mcp__linear-endix__<unknown>` (only save_issue/save_comment denied, list_issues allowed). Add: duplicate-page of a registered page or into an outcome DB requires a receipt and journals like create; unknown Notion and linear-endix tool names are denied; pin the Notion write-tool set as a constant equality like the GITHUB_* sets.",
+      "file": "plugins/maeng-harness/tests/test_r7.py",
+      "line": 349
+    },
+    {
+      "severity": "low",
+      "title": "Lease-form remote-config pins assert reason text only, not the deny decision",
+      "body": "R7_N.test_lease_form_has_the_plain_remote_pins uses assertIn(\"pushurl\", self.bash_pre(...)[1]) and similar for mirror/followTags/recurseSubmodules/insteadOf/set-head without asserting the denied flag. helpers.pre returns stderr as the reason when the hook allows, so an allow accompanied by a stderr warning naming the config key would pass. Use assertDenied-style checks (denied is True and the reason contains the text), as the other lease tests do.",
+      "file": "plugins/maeng-harness/tests/test_r7.py",
+      "line": 465
+    },
+    {
+      "severity": "low",
+      "title": "Runner allowlist: further narrowing forms are in neither the rejected nor the filtered list",
+      "body": "Still unplaced after R7_K: cargo positional TESTNAME filter, `-p/--package` (R4_2 allows `-p core` as evidence; its unfiltered status is unpinned), `--lib`, `--test <name>`, `--bin`, `--doc`; npm/pnpm/yarn `--` passthrough other than `--list` (e.g. `npm test -- --testPathPattern x`); make variable overrides, `-C dir`, `-f file`; playwright `--shard`, `--only-changed`, `--last-failed`, `--grep`; pytest `-c`, `-o`/`--override-ini`, `--rootdir`; unittest `-k`. Each should be asserted as rejected or as filtered (never satisfying the default whole-suite rule).",
+      "file": "plugins/maeng-harness/tests/test_r4.py",
+      "line": 95
+    },
+    {
+      "severity": "low",
+      "title": "GitHub MCP read set not pinned as a constant; MCP create_pull_request cross-repository head unpinned",
+      "body": "R7_E pins gates.GITHUB_PLAIN_WRITES and GITHUB_GATED_WRITES by equality but only samples the read set; a tool mis-filed as a read in the gate would not be caught. Pin the read set by equality too. Also, mcp__github__create_pull_request with head `someone:feat` (cross-repository) is not asserted denied, while the gh CLI form is (R2_H 'cross-repository').",
+      "file": "plugins/maeng-harness/tests/test_r7.py",
+      "line": 154
+    },
+    {
+      "severity": "low",
+      "title": "gh api REST write forms (--input, typed -F fields) are pinned only for eta slugs, not for personal repositories",
+      "body": "R4_1 asserts `gh api repos/<eta>/issues --input body.json` and `-f title=t` denied via eta taint. For a personal repo, test_gh_denied_routes pins `-X`, `--method`, implicit POST via `-f`, and graphql forms, but not `gh api repos/o/r/merges --input body.json` (a merge) or `-F/--field key=value` on REST endpoints. Add the personal-repo deny assertions so the G1 classification of `--input`/`-F` as writes is pinned independently of G3.",
+      "file": "plugins/maeng-harness/tests/test_g1.py",
+      "line": 187
+    },
+    {
+      "severity": "low",
+      "title": "Eta classification: MAENG_ETA_ROOT absent and symlinks into eta are unpinned",
+      "body": "Every test sets MAENG_ETA_ROOT; its absence (the hook's production default when the user's shell does not export it) is never exercised. If the default is empty, path-prefix classification is silently off and only origin/settings detection remains. Also unpinned: a symlink inside a personal directory pointing into eta_v1 (Edit/Write file_path or a Bash operand through the link); the gate should resolve realpath before classification and a test should assert the write is denied.",
+      "file": "plugins/maeng-harness/tests/test_guard.py",
+      "line": 20
+    },
+    {
+      "severity": "low",
+      "title": "Notion create-pages gating pinned only for parent.data_source_id",
+      "body": "G2 create-pages tests use `{\"parent\": {\"data_source_id\": DB}}` only. The legacy `parent.database_id` field and type-tagged parents `{\"type\": \"data_source_id\", \"data_source_id\": DB}` are unpinned for create-pages (type-tagged is pinned only for move-pages new_parent in R7_L). An agent following older Notion docs would use database_id; assert both forms are gated against the outcome DB id.",
+      "file": "plugins/maeng-harness/tests/test_g2_g3.py",
+      "line": 66
+    },
+    {
+      "severity": "low",
+      "title": "Round-7 R1b findings resolved; AC-1..AC-6 confirmed at head; two dispositioned residuals",
+      "body": "All twelve round-7 items are addressed: R7_N (lease non-fast-forward receipt denied with BEHIND through the hook and maeng-ship; pushurl/mirror/followTags/recurseSubmodules/pushInsteadOf/set-head pins on the lease form), ClaudeBackend (variable-absent default runs claude not codex; extra model and missing structured_output rejected; ReviewRunFixture removes the 4x inheritance), R7_D graphql file/variable/typed forms denied, R7_E MCP closure with unknown-name deny, R7_L Notion structural writes in the personal world, R7_M quarantine tombstone, R7_R eta git mutations and local-path eta remote, R7_K narrowing flags, prompt aligned with the SHA:refs/heads rule and the weak assertions fixed, R7_J interrupted/error PostToolUse recorded as failures, test_r5 docstring order fixed. AC-1..AC-3: real runner executions at HEAD 0ca7c3b in ev-exec-R1.txt (3 validates pass; 400, 54, 20, 18 tests OK) match the seq 97-103 runner evidence at the head tree. AC-4/AC-5: run f130573 shows S1-S4, S6-S9 and GF1-GF3 all PASS. AC-6: S5 asserts maeng-harness absent, zero maeng hook output, eta checkouts unchanged; met literally. Residuals: the two S5 FAILs (codebase-explorer agent and loose harness-run/work-records skills loaded in eta) mean the must-have truth 'no personal record flow is reachable in eta' is not yet true until MAE-224, and GF4 is a host limit; both are dispositioned in the plan and should be stated in the PR description.",
+      "file": null,
+      "line": null
+    }
+  ]
+}

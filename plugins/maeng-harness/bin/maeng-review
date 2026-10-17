@@ -64,17 +64,33 @@ BUNDLE:
 """
 
 
-# Review backend (design D-9): "claude" (default; headless isolated `claude -p`) or "codex" (Astra/Sol).
-CLAUDE_REVIEWER = os.environ.get("MAENG_CLAUDE_REVIEWER", "claude-fable-5-1")  # differs from the authors' models
+# Review backend (design D-9): Codex (Astra/Sol) always comes first. A headless isolated `claude -p` reviewer is
+# only the fallback after CODEX_ATTEMPTS failed codex runs (e.g. usage exhausted): Fable for parent integration,
+# Opus for everything else. MAENG_REVIEW_BACKEND=claude skips codex and is set only on the user's request.
+CODEX_ATTEMPTS = 3
+OPUS = os.environ.get("MAENG_OPUS_REVIEWER", "claude-opus-5-5")
+FABLE = os.environ.get("MAENG_FABLE_REVIEWER", "claude-fable-5-1")
+FABLE_EFFORT = os.environ.get("MAENG_FABLE_EFFORT", "medium")  # changed only on the user's request
 
 
 def backend():
-    return os.environ.get("MAENG_REVIEW_BACKEND", "claude")
+    return os.environ.get("MAENG_REVIEW_BACKEND", "codex")
 
 
 def tier_for(kind, binding):
-    model, effort = _codex_tier(kind, binding)
-    return (CLAUDE_REVIEWER, effort) if backend() == "claude" else (model, effort)
+    return fallback_tier(kind, binding) if backend() == "claude" else _codex_tier(kind, binding)
+
+
+def fallback_tier(kind, binding):
+    if kind == "parent":
+        return FABLE, FABLE_EFFORT
+    if kind == "docs":
+        return OPUS, "high"
+    if kind == "notion":
+        return OPUS, "medium"
+    if binding and binding.get("parent") and binding.get("criteria"):
+        return OPUS, "medium"
+    return OPUS, "high"
 
 
 def claude_command(model, effort, schema_json):
@@ -86,14 +102,14 @@ def claude_command(model, effort, schema_json):
 
 def _codex_tier(kind, binding):
     if kind == "parent":
-        return ASTRA, "xhigh"
-    if kind == "docs":
         return ASTRA, "high"
+    if kind == "docs":
+        return ASTRA, "medium"
     if kind == "notion":
         return SOL, "medium"
     if binding and binding.get("parent") and binding.get("criteria"):
         return ASTRA, "medium"
-    return SOL, "xhigh"
+    return SOL, "high"
 
 
 def features_to_disable(codex):
@@ -201,6 +217,28 @@ def code_bundle(a, cwd, st):
             "evidence": ev, "evidence_binding": evidence_binding, "ship_verified": ok, "ship_verified_reasons": reasons, "missing": missing}
 
 
+def primary_model(usage, requested):
+    """-> (primary key, aux_models) when the requested model is PRESENT in modelUsage and is the PRIMARY reviewer
+    (most outputTokens; fallback input+output tokens), else (None, []). Other models (a model may use an auxiliary
+    one internally) are allowed and returned as aux_models with their token counts."""
+    if not isinstance(usage, dict) or not usage:
+        return None, []
+    def toks(v):
+        v = v if isinstance(v, dict) else {}
+        o, i = v.get("outputTokens") or 0, v.get("inputTokens") or 0
+        return (o, i + o)
+    keys = [k for k in usage if k.startswith(requested)]
+    if not keys:
+        return None, []
+    best = max(keys, key=lambda k: toks(usage[k]))
+    others = [k for k in usage if k != best]
+    if any(toks(usage[k]) >= toks(usage[best]) for k in others):  # strictly the most output tokens (then total)
+        return None, []
+    aux = [{"model": k, "inputTokens": int((usage[k] or {}).get("inputTokens") or 0),
+            "outputTokens": int((usage[k] or {}).get("outputTokens") or 0)} for k in others]
+    return best, aux
+
+
 def run_claude(model, effort, out_schema, prompt_text, cwd):
     proc = subprocess.run(claude_command(model, effort, json.dumps(out_schema)), cwd=cwd,
                           input=prompt_text, capture_output=True, text=True)
@@ -211,13 +249,28 @@ def run_claude(model, effort, out_schema, prompt_text, cwd):
         die(f"reviewer failed (rc={proc.returncode}): not JSON: ..." + (proc.stderr.strip() or out)[-2000:])
     if proc.returncode != 0 or envelope.get("is_error"):
         die(f"reviewer failed (rc={proc.returncode}): {str(envelope.get('result') or proc.stderr)[-2000:]}")
-    used = list((envelope.get("modelUsage") or {}).keys())
-    if used and any(not u.startswith(model) for u in used):
-        die(f"reviewer ran on {used}, not the requested {model}")
+    primary, aux = primary_model(envelope.get("modelUsage"), model)
+    if primary is None:
+        die(f"reviewer ran on {sorted((envelope.get('modelUsage') or {}))}; the requested {model} is not the "
+            f"primary (most output tokens) reviewer")
     result = envelope.get("structured_output")
     if not isinstance(result, dict):
         die("reviewer returned no structured output")
-    return result
+    return result, aux
+
+
+def run_codex(model, effort, schema_path, out_path, prompt_text, cwd):
+    """One codex attempt -> (result, None) or (None, error text)."""
+    out_path.unlink(missing_ok=True)
+    proc = subprocess.run(codex_command(model, effort, schema_path, out_path), cwd=cwd,
+                          input=prompt_text, capture_output=True, text=True)
+    if proc.returncode != 0 or not out_path.exists():
+        err = proc.stderr.strip()  # the cause is at the end of codex output
+        return None, f"rc={proc.returncode}: " + ("..." + err[-2000:] if len(err) > 2000 else err)
+    try:
+        return json.loads(out_path.read_text()), None
+    except ValueError:
+        return None, "reviewer output is not JSON"
 
 
 def run_review(a, cwd):
@@ -265,24 +318,28 @@ def run_review(a, cwd):
     with tempfile.TemporaryDirectory(prefix="maeng-review-") as d:
         schema_path, out_path = Path(d, "schema.json"), Path(d, "out.json")
         write_json(schema_path, out_schema)
+        fallback_from = None
         if backend() == "claude":
-            result = run_claude(model, effort, out_schema, prompt_text, cwd)
+            result, aux_models = run_claude(model, effort, out_schema, prompt_text, cwd)
         else:
-            proc = subprocess.run(codex_command(model, effort, schema_path, out_path), cwd=cwd,
-                                  input=prompt_text, capture_output=True, text=True)
-            if proc.returncode != 0 or not out_path.exists():
-                err = proc.stderr.strip()
-                die(f"reviewer failed (rc={proc.returncode}): ..." + err[-2000:] if len(err) > 2000 else
-                    f"reviewer failed (rc={proc.returncode}): {err}")  # the cause is at the end of codex output
-            try:
-                result = json.loads(out_path.read_text())
-            except ValueError:
-                die("reviewer output is not JSON")
+            aux_models = []
+            for attempt in range(1, CODEX_ATTEMPTS + 1):
+                result, err = run_codex(model, effort, schema_path, out_path, prompt_text, cwd)
+                if err is None:
+                    break
+                print(f"warning: codex reviewer attempt {attempt}/{CODEX_ATTEMPTS} failed: {err}", file=sys.stderr)
+            else:
+                fallback_from = {"model": model, "effort": effort, "attempts": CODEX_ATTEMPTS}
+                model, effort = fallback_tier(a.kind, st.get("binding"))
+                print(f"warning: falling back to Claude reviewer {model} ({effort})", file=sys.stderr)
+                result, aux_models = run_claude(model, effort, out_schema, prompt_text, cwd)
     errors = schema.validate(result, out_schema)
     if errors:
         die("reviewer output violates schema: " + "; ".join(errors))
     verdict = {"verdict": result["verdict"], "subject": subject,
-               "reviewer": {"model": model, "effort": effort, "provenance": "review-run"},
+               "reviewer": {"model": model, "effort": effort, "provenance": "review-run",
+                            **({"aux_models": aux_models} if aux_models else {}),
+                            **({"fallback_from": fallback_from} if fallback_from else {})},
                "findings": result["findings"]}
     if verdict["verdict"] == "pass":
         verdict_key = receipts.store_verdict(verdict)

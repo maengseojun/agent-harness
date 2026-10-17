@@ -1,4 +1,5 @@
 """`gh` command parsing/classification and the canonical `gh pr create` form."""
+import os
 import re
 
 GH_ALLOWED = {
@@ -35,6 +36,28 @@ PR_CREATE_VALUE = {"--base": "base", "-B": "base", "--head": "head", "-H": "head
                    "--body": "body", "-b": "body", "--body-file": "body_file", "-F": "body_file", "--repo": "repo",
                    "-R": "repo"}
 PR_CREATE_BOOL = {"--draft", "-d"}
+
+
+def gh_aliases():
+    """Names of the aliases in the user's gh config (`aliases:` mapping of config.yml), else an empty set."""
+    base = os.environ.get("GH_CONFIG_DIR") or (os.path.join(os.environ["XDG_CONFIG_HOME"], "gh")
+                                               if os.environ.get("XDG_CONFIG_HOME")
+                                               else os.path.join(os.path.expanduser("~"), ".config", "gh"))
+    names, inside = set(), False
+    try:
+        with open(os.path.join(base, "config.yml"), encoding="utf-8") as f:
+            for line in f:
+                if re.match(r"^aliases:\s*$", line):
+                    inside = True
+                elif inside and re.match(r"^\S", line):
+                    inside = False
+                elif inside:
+                    m = re.match(r"^\s+['\"]?([^:'\"\s]+)['\"]?\s*:", line)
+                    if m:
+                        names.add(m.group(1))
+    except OSError:
+        pass
+    return names
 
 
 def parse_gh(toks):
@@ -99,7 +122,12 @@ def classify_gh(toks):
     if group in DENIED_ACTIONS and action in DENIED_ACTIONS[group]:
         return "deny", f"`gh {group} {action}` is a destructive remote operation and is denied.", repo, info
     if group not in GH_ALLOWED:
-        return "deny", f"`gh {group}` is not on the G1 allowlist.", repo, info
+        if group in gh_aliases():
+            return "deny", (f"`gh {group}` is a user-defined gh alias (it can expand to `pr merge` or any other "
+                            f"route); gh aliases are not allowed, run the underlying command."), repo, info
+        return "deny", f"`gh {group}` is not a known gh command (fail closed; not on the G1 allowlist).", repo, info
+    if group == "alias" and action != "list":
+        return "deny", f"`gh alias {action or ''}` is denied: gh aliases can hide merge/push routes.", repo, info
     allowed = GH_ALLOWED[group]
     if allowed is not None and action not in allowed:
         return "deny", f"`gh {group} {action or ''}` is not on the G1 allowlist " \

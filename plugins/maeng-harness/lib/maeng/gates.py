@@ -108,6 +108,8 @@ def g3_edit(tool_name, tool_input, ctx):
 
 # ---- G1/G3 Bash ----------------------------------------------------------
 
+SWITCH_ASSIGN = re.compile(r"^(?:MAENG_(?:TEST_FIXTURES|GIT|GH|CLAUDE|CODEX|HOME|ETA_ROOT|VAULT|NOTION_DBS|"
+                           r"REVIEW_BACKEND|CACHE_DIR))=", re.I)
 GIT_RETARGET = re.compile(r"^(?:GIT_DIR|GIT_WORK_TREE|GIT_COMMON_DIR)=")
 
 
@@ -119,6 +121,11 @@ def check_bash(command, ctx):
     except ParseError:
         return deny("maeng: cannot parse this command; use a simpler form (no unusual heredoc delimiters / deep "
                     "nesting)")
+    for s_ in segs:
+        for t in s_.tokens:
+            if SWITCH_ASSIGN.match(t):
+                return deny(f"maeng G3: assigning `{t.partition('=')[0]}` in a command is denied; the maeng test/override "
+                            f"switches are set by the test harness, never from the agent's shell.")
     if canon.route_mentions(segs, command):
         form, why = canon.canonical_command(command, segs)
         if not form:
@@ -178,8 +185,13 @@ cherry cherry-pick clean clone commit commit-tree config count-objects describe 
 for-each-ref format-patch fsck gc grep hash-object help init log ls-files ls-remote ls-tree maintenance merge
 merge-base mergetool mv name-rev notes pull push range-diff read-tree rebase reflog remote repack replace request-pull
 reset restore rev-list rev-parse revert rm send-email shortlog show show-branch show-ref sparse-checkout stash status
-submodule subtree switch symbolic-ref tag update-index update-ref var verify-commit verify-tag version whatchanged
-worktree write-tree prune pack-refs""".split())
+submodule switch symbolic-ref tag update-index update-ref var verify-commit verify-tag version whatchanged
+worktree write-tree prune pack-refs diff-tree diff-files diff-index merge-tree merge-file mktree mktag stripspace
+interpret-trailers patch-id show-index verify-pack unpack-file rerere bugreport fast-export fast-import checkout-index
+index-pack pack-objects unpack-objects update-server-info multi-pack-index for-each-repo mailinfo mailsplit
+fmt-merge-msg diagnose gitk""".split())
+# `git lfs` is an external command: only its read subcommands are allowed
+GIT_LFS_READS = {"ls-files", "status", "env", "version"}
 
 
 def git_alias(cwd, sub):
@@ -391,6 +403,15 @@ def check_git(toks, cwd, ctx):
     if any(k.startswith("alias.") for k in cfg) or git_alias(cwd, sub):
         return deny(f"maeng G3: `git {sub}` is a git alias, and git aliases are not allowed for mutating commands "
                     f"(they can hide push/merge/force); run the underlying command.")
+    if sub == "lfs":
+        lfs = [a for a in args if not a.startswith("-")]
+        pointers = lfs[:1] == ["fsck"] and "--pointers" in args and "--objects" not in args
+        if not ((lfs[:1] and lfs[0] in GIT_LFS_READS) or pointers):
+            return deny(f"maeng G3: `git lfs {' '.join(lfs[:1])}` is denied; only git lfs ls-files, status, env, "
+                        f"version and fsck --pointers are allowed.")
+    elif sub not in GIT_BUILTINS:
+        return deny(f"maeng G3: unknown git subcommand `{sub}` (git subtree/svn/p4/town/extras can push without a "
+                    f"`push` subcommand); run a builtin form.")
     if not ro:
         blocked = _cwd_gate(cwd, ctx, "git " + sub, True)
         if blocked:
@@ -559,7 +580,11 @@ def _is_read_tool(name):
     return name.startswith(WRITE_VERBS)
 
 
-GITHUB_READ = re.compile(r"^(?:get_|list_|search_)|_read$")
+GITHUB_READS = frozenset({
+    "get_file_contents", "get_issue", "get_issue_comments", "get_pull_request", "get_pull_request_files",
+    "get_pull_request_comments", "get_pull_request_reviews", "get_pull_request_status", "get_me", "list_commits",
+    "list_issues", "list_pull_requests", "list_branches", "list_tags", "list_releases", "search_code",
+    "search_issues", "search_repositories", "search_users", "issue_read", "pull_request_read"})
 # Writes that need no tree verification (comments, issues, reviews); everything else is denied (fail closed).
 GITHUB_PLAIN_WRITES = {"add_issue_comment", "create_issue", "update_issue", "create_pull_request_review"}
 GITHUB_GATED_WRITES = {"push_files", "create_or_update_file", "merge_pull_request", "update_pull_request_branch",
@@ -570,7 +595,7 @@ def check_mcp_github(tool, tool_input, ctx):
     """ALLOWLIST: known read tools; known comment/issue/review writes (never eta); create_pull_request (verified
     origin head). Every other github MCP tool is denied, including tools a server upgrade may add."""
     name = tool.split("__", 2)[-1]
-    if GITHUB_READ.search(name):
+    if name in GITHUB_READS:
         return Decision()
     if name not in GITHUB_PLAIN_WRITES | GITHUB_GATED_WRITES:
         return deny(f"maeng G1: github MCP tool `{name}` is not on the allowlist (reads, comments/issues/reviews and "
@@ -593,9 +618,19 @@ def check_mcp_github(tool, tool_input, ctx):
     return Decision()
 
 
+LINEAR_READS = frozenset({
+    "extract_images", "get_agent_skill", "get_attachment", "get_diff", "get_diff_threads", "get_document", "get_issue",
+    "get_issue_status", "get_milestone", "get_notifications", "get_project", "get_release", "get_release_note",
+    "get_status_updates", "get_team", "get_template", "get_triage_responsibility", "get_user", "get_workspace",
+    "list_agent_skills", "list_comments", "list_custom_views", "list_cycles", "list_diffs", "list_documents",
+    "list_issue_labels", "list_issue_statuses", "list_issues", "list_milestones", "list_project_labels",
+    "list_projects", "list_release_notes", "list_release_pipelines", "list_releases", "list_teams", "list_templates",
+    "list_users", "search_documentation", "authenticate", "complete_authentication"})
+
+
 def check_mcp_eta_linear(tool, tool_input, ctx):
     name = tool.split("__", 2)[-1]
-    if _is_read_tool(name):
+    if name in LINEAR_READS:
         return Decision()
     return deny(f"maeng G3: `{name}` writes to eta Linear; eta records belong to the eta session.")
 
@@ -684,7 +719,8 @@ def _protected_ids(dbs):
 def notion_scope(tool, tool_input):
     """-> (op, destination) when this call is G2-gated, else None."""
     name = tool.split("__", 2)[-1]
-    if name not in ("notion-create-pages", "notion-update-page") and name not in NOTION_STRUCTURAL:
+    if name not in ("notion-create-pages", "notion-update-page", "notion-duplicate-page") \
+            and name not in NOTION_STRUCTURAL:
         return None
     dbs = notion_dbs()  # may raise NotionConfigError: check_mcp_notion turns it into a deny
     if name in NOTION_STRUCTURAL:
@@ -697,8 +733,20 @@ def notion_scope(tool, tool_input):
         return (NOTION_STRUCTURAL[name], hit[0]) if hit else None
     if name == "notion-create-pages":
         parent = tool_input.get("parent") or {}
-        dest = _nid(next((v for k, v in parent.items() if k.endswith("_id")), ""))
-        return ("create", dest) if dest in dbs else None
+        if isinstance(parent, str):
+            cands = [parent]
+        elif isinstance(parent, dict):  # data_source_id, database_id, type-tagged {"type": ..., "<type>": id}
+            cands = [v for k, v in parent.items() if k.endswith("_id") and isinstance(v, str)]
+        else:
+            cands = []
+        hit = sorted({_nid(c) for c in cands} & dbs)
+        return ("create", hit[0]) if hit else None
+    if name == "notion-duplicate-page":
+        # a copy of a registered/outcome page, or a copy placed into an outcome database, adds an unreviewed
+        # sibling to the outcome records: gated like a create
+        hit = sorted({_nid(m) for text in _strings(tool_input) for m in NOTION_ID_FIND.findall(text)}
+                     & _protected_ids(dbs))
+        return ("create", hit[0]) if hit else None
     if name == "notion-update-page":
         pid = _nid(tool_input.get("page_id"))
         # a malformed registry/journal raises RegistryError: protection cannot be decided, so every update is gated
@@ -707,10 +755,38 @@ def notion_scope(tool, tool_input):
     return None
 
 
+# The Notion tool set is CLOSED: reads, gated writes (receipt required, see notion_scope), other known writes that
+# are not about outcome pages, and nothing else. A tool a connector upgrade adds is denied until classified here.
+NOTION_READS = frozenset({
+    "notion-fetch", "notion-search", "notion-memory-search", "notion-search-agents", "notion-search-sessions",
+    "notion-get-async-task", "notion-get-comments", "notion-get-enabled-skills", "notion-get-file-download-urls",
+    "notion-get-groups", "notion-get-self", "notion-get-session-status", "notion-get-teams", "notion-get-tool-access",
+    "notion-get-users", "notion-list-favorite-pages", "notion-list-page-backlinks", "notion-list-private-pages",
+    "notion-list-recent-pages", "notion-list-session-events", "notion-list-shared-pages",
+    "notion-calendar-list-calendar-resources", "notion-calendar-list-calendars", "notion-calendar-list-contacts",
+    "notion-calendar-list-coworkers-events", "notion-calendar-list-events", "notion-query-data-sources",
+    "notion-query-meeting-notes", "notion-query-multiple-data-sources", "notion-query-sessions",
+    "notion-read-session-event", "notion-download-attachment", "notion-download-skill", "notion-wait-session",
+    "notion-check-mcp-next-steps", "notion-show-advanced-analysis-next-steps"})
+# Gated on a registered/outcome target (see notion_scope); `notion-duplicate-page` is gated like a create.
+NOTION_GATED_WRITES = frozenset({"notion-create-pages", "notion-update-page", "notion-duplicate-page",
+                                 "notion-delete-pages", "notion-delete-databases", "notion-move-pages",
+                                 "notion-create-database", "notion-update-data-source"})
+NOTION_OTHER_WRITES = frozenset({
+    "notion-create-comment", "notion-update-comment", "notion-delete-comment", "notion-set-comment-reaction",
+    "notion-set-discussion-resolved", "notion-create-view", "notion-update-view", "notion-create-folder",
+    "notion-update-folder", "notion-create-attachment", "notion-create-file-upload", "notion-restore-pages",
+    "notion-calendar-create-events", "notion-calendar-update-events", "notion-calendar-cancel-events",
+    "notion-convert-page-to-skill", "notion-update-enabled-skills", "notion-upload-skill", "notion-spawn-session",
+    "notion-send-message-to-session", "notion-stop-session"})
 NOTION_WRITE = re.compile(r"^notion-(create|update|delete|move|duplicate|restore|upload|set-|send-|spawn|stop|convert)")
 
 
 def check_mcp_notion(tool, tool_input, ctx, tool_use_id=""):
+    name = tool.split("__", 2)[-1]
+    if name not in NOTION_READS | NOTION_GATED_WRITES | NOTION_OTHER_WRITES:
+        return deny(f"maeng G2: Notion tool `{name}` is not on the allowlist; denied because the gate cannot tell "
+                    f"what it writes.")
     if ctx.unknown and NOTION_WRITE.match(tool.split("__", 2)[-1]):
         return deny(UNKNOWN_REASON)
     try:

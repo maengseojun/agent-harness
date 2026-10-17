@@ -31,7 +31,15 @@
       "required": ["model", "effort"],
       "additionalProperties": false,
       "properties": {"model": {"type": "string"}, "effort": {"enum": ["low", "medium", "high", "xhigh"]},
-                     "provenance": {"enum": ["review-run", "fixture"]}}
+                     "provenance": {"enum": ["review-run", "fixture"]},
+                     "aux_models": {"type": "array", "items": {"type": "object", "required": ["model"],
+                                    "properties": {"model": {"type": "string"},
+                                                   "inputTokens": {"type": "integer"},
+                                                   "outputTokens": {"type": "integer"}}}},
+                     "fallback_from": {"type": "object", "required": ["model", "attempts"],
+                                       "properties": {"model": {"type": "string"},
+                                                      "effort": {"enum": ["low", "medium", "high", "xhigh"]},
+                                                      "attempts": {"type": "integer"}}}}
     },
     "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}}
   },

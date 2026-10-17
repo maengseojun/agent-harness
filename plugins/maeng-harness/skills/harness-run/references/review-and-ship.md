@@ -1,6 +1,6 @@
 # Review tiers and shipping
 
-Author is never the reviewer. `maeng-review` runs an isolated, read-only reviewer and writes a verdict bound to the exact subject. The backend is Claude by default (design D-9: headless `claude -p`, model `claude-fable-5-1`, which differs from the authors' models; the model that actually ran is recorded and a mismatch is rejected). Set `MAENG_REVIEW_BACKEND=codex` to use the Codex Astra/Sol tiers below instead; run `maeng-review --help` for the current flags.
+Author is never the reviewer. `maeng-review` runs an isolated, read-only reviewer and writes a verdict bound to the exact subject. Codex (Astra/Sol, table below) always comes first. If codex fails 3 times in a row (e.g. usage exhausted), `maeng-review` falls back to an isolated headless `claude -p` reviewer and records `reviewer.fallback_from`: parent integration uses Fable (`claude-fable-5-1`) at medium (`MAENG_FABLE_EFFORT` changes it, only on the user's request); every other subject uses Opus (`claude-opus-5-5`) at the Claude effort in the table. The requested Claude model must appear in the run's `modelUsage` and be the primary one, i.e. the most output tokens; other models it uses internally are recorded as `reviewer.aux_models`; an absent or non-primary requested model is rejected. `MAENG_REVIEW_BACKEND=claude` skips codex and is set only when the user asks; run `maeng-review --help` for the current flags.
 
 Commands (tier is picked from the bound issue; see the table below):
 
@@ -14,14 +14,14 @@ Commands (tier is picked from the bound issue; see the table below):
 
 Store payloads under the session repo's `publish/` directory (`publish/<id>.json`, git-ignored) so the reviewed bytes and the published bytes are the same file.
 
-| Subject | Reviewer | Effort | Use when |
-|---|---|---|---|
-| Child-task PR in a structured implementation | Astra | medium | the bound issue has a parent and the task has a Plan with `AC-n` |
-| Parent integration / boundary (children meet) | Astra | xhigh | children merged; review the combined diff against the parent Spec/Plan and child contracts |
-| Architecture, rules, design documents | Astra | high | document review |
-| Small implementation without a task tree | Sol | xhigh | no parent/child structure |
-| Notion outcome payload | Sol | medium | `work-records` flow |
-| Research draft | Sol xhigh (small) or Astra (structured) | per tier | `aside-research`, with a devil's-advocate lens |
+| Subject | Codex reviewer | Effort | Claude fallback | Use when |
+|---|---|---|---|---|
+| Child-task PR in a structured implementation | Astra | medium | Opus medium | the bound issue has a parent and the task has a Plan with `AC-n` |
+| Parent integration / boundary (children meet) | Astra | high | Fable medium | children merged; review the combined diff against the parent Spec/Plan and child contracts |
+| Architecture, rules, design documents | Astra | medium | Opus high | document review |
+| Small implementation without a task tree | Sol | high | Opus high | no parent/child structure |
+| Notion outcome payload | Sol | medium | Opus medium | `work-records` flow |
+| Research draft | per subject kind above | per tier | Opus | `aside-research`, with a devil's-advocate lens |
 
 ## Bundle (reviewer reports `blocked` if anything is missing)
 

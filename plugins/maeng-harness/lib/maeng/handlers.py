@@ -355,7 +355,7 @@ def review_reminder(binding):
     if binding and binding.get("parent"):
         tier = "Astra gpt-6-astra, medium (child-task PR)"
     else:
-        tier = "Sol gpt-6.1-sol, xhigh (small implementation)"
+        tier = "Sol gpt-6.1-sol, high (small implementation)"
     return f"PR created. Next: run `maeng-review` ({tier}) before `maeng-ship merge`."
 
 
@@ -400,14 +400,16 @@ CONFIRMED_NOTION_REJECTION = re.compile(
 def post_mcp(sid, cwd, st0, tool, tin, tresp, tuid, failed, payload=None):
     name = tool.split("__")[-1]
     if tool.startswith("mcp__claude_ai_Notion__"):
-        if name in ("notion-create-pages", "notion-update-page") or name in gates.NOTION_STRUCTURAL:
+        if name in ("notion-create-pages", "notion-update-page", "notion-duplicate-page") \
+                or name in gates.NOTION_STRUCTURAL:
             if failed:
                 err = " ".join(str(x) for x in ((payload or {}).get("error"), (payload or {}).get("tool_response"), tresp) if x)
                 if CONFIRMED_NOTION_REJECTION.search(err):
                     receipts.journal_rejected(tuid)
                 # else (timeout, connection reset, unknown): the write may have landed; stay pending until reconcile
             else:
-                ids = notion_ids(tresp) if name in ("notion-create-pages", "notion-create-database") else notion_ids(tin)
+                ids = notion_ids(tresp) if name in ("notion-create-pages", "notion-create-database", "notion-duplicate-page") \
+                    else notion_ids(tin)
                 receipts.journal_sent(tuid, ids)
         elif name == "notion-fetch" and not failed:
             for pid in notion_ids(tin):

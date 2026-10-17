@@ -9,6 +9,7 @@ Usage:
   parse_aside.py RAW_FILE|- --nonce HEX --exit-code N            # JSON to stdout
   parse_aside.py RAW_FILE --nonce HEX --exit-code N --clean OUT  # also write ANSI-stripped, private-filtered text
 """
+from pathlib import Path
 import argparse
 import importlib.util
 import json
@@ -169,7 +170,7 @@ def main(argv=None):
     a = ap.parse_args(argv)
     if not re.fullmatch(r'[0-9a-f]{8,64}', a.nonce):
         ap.error('--nonce must be 8-64 lowercase hex characters')
-    raw = sys.stdin.read() if a.raw == '-' else open(a.raw, encoding='utf-8', errors='replace').read()
+    raw = sys.stdin.read() if a.raw == '-' else Path(a.raw).read_text(encoding='utf-8', errors='replace')
     try:
         result, clean = parse(raw, a.nonce, a.exit_code)
     except FilterUnavailable as e:
