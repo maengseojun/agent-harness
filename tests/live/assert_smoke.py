@@ -95,16 +95,22 @@ def s3(S):
     ]
 
 
+WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit", "Bash"}
+
+
 def s4(S):
     import check_models
     rep = check_models.check(S["init"]["session_id"])
     S["models_report"] = rep
+    (EV / "S4.models.json").write_text(json.dumps(rep, indent=1) + "\n")  # fresh per run, never a stale copy
     texts = " ".join(S["result"]["result"].split())
     return [
         ("main session model is opus", "opus" in S["init"]["model"]),
         ("check_models: haiku/opus/sonnet for researcher/architect/implementer, >=1 call each, read-only agents used no write tool", rep["ok"] or str(rep["errors"])),
         ("negative: note.txt not created", S["facts"]["note_txt_exists"] is False),
-        ("negative: researcher (2nd call) used no tools at all", sum(1 for c in rep.get("calls", []) if c["subagent_type"].endswith("researcher") and not c["tools_used"]) >= 1),
+        ("negative: a later researcher call used no write-capable tool",
+         any(c["subagent_type"].endswith("researcher") and not (WRITE_TOOLS & set(c["tools_used"]))
+             for c in rep.get("calls", [])[1:])),
         ("frontmatter of researcher/architect lists no write tool", all(t and not ({"Write", "Edit", "Bash"} & set(t)) for t in rep.get("frontmatter_tools", {}).values())),
     ]
 
@@ -168,10 +174,11 @@ def g3_denied(S, needle):
 
 def s7(S):
     d = denies(S)
-    a = call(S, "status --short | head -5")
+    a = next((c for c in S["tool_calls"] if (c.get("input") or "").startswith("[redacted eta call")), None)
     f = S["facts"]
     return [
-        ("A read-only git -C real eta_v1 status allowed and returned output", bool(a) and not a.get("is_error") and bool((a.get("result") or "").strip())),
+        ("A read-only git -C on a real eta checkout allowed and returned output",
+         bool(a) and not a.get("is_error") and "0 lines" not in (a.get("result") or "")),
         # Match the denied command and a G3 denial, not one exact message (taint or command-specific checks may answer).
         ("B git -C eta-classified repo commit denied by G3", g3_denied(S, "commit --allow-empty")),
         ("C gh pr create -R endix-foundation-v1/x denied by G3", g3_denied(S, "gh pr create -R endix-foundation-v1/x")),

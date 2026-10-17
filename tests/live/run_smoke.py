@@ -33,6 +33,21 @@ TIMEOUT = int(os.environ.get("SMOKE_TIMEOUT", "900"))
 ETA_MARKERS = (".sisyphus", ".agent/", ".codex-worktrees", "/eta_v1/")
 
 
+
+def redact_eta_calls(summary, sid):
+    """Calls that touch a real eta checkout: keep only whether they ran and how many lines they printed."""
+    eta = str(ETA_REAL)
+    for c in summary.get("tool_calls", []):
+        if eta in (c.get("input") or ""):
+            out = c.get("result") or ""
+            c["input"] = "[redacted eta call]"
+            c["result"] = f"[redacted eta output: {len(out.splitlines())} lines]"
+    if sid == "S7":  # the narrative may quote eta file names
+        summary["assistant_text"] = ["[redacted: S7 touched a real eta checkout]"]
+        if isinstance(summary.get("result"), dict):
+            summary["result"]["result"] = "[redacted: S7 touched a real eta checkout]"
+    return summary
+
 def scrub_eta(obj):
     """Evidence lives in a personal repo: drop any text that quotes eta_v1 working-tree content."""
     if isinstance(obj, dict):
@@ -244,6 +259,7 @@ def finish(scn, meta, facts):
                    gh_log=scn.gh_log.read_text().splitlines() if scn.gh_log.exists() else [],
                    scratch=str(scn.dir), raw=str(scn.raw))
     EVIDENCE.mkdir(exist_ok=True)
+    summary = redact_eta_calls(summary, scn.id)
     summary = scrub_eta(summary)
     (EVIDENCE / f"{scn.id}.summary.json").write_text(json.dumps(summary, indent=1, ensure_ascii=False) + "\n")
     r = summary["result"] or {}
