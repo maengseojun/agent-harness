@@ -11,10 +11,10 @@ Run the steps in order and write the result of each into the interview notes or 
 
 ## Steps
 
-1. **Decompose (first principles).** Break the problem down until each part is a plain fact or a single decision. Question every requirement ("who asked for this, and why?") and delete what is not needed. Find the one part that, if solved, makes the rest easy. **user** confirms the core.
+1. **Decompose (first principles).** Break the problem down until each part is a plain fact or a single decision. Question every requirement ("who asked for this, and why?") and delete what is not needed; decisions the user already settled stay settled. Find the one part that, if solved, makes the rest easy. **user** confirms the core.
 2. **Restate the structure.** Describe the core with verbs, not domain nouns: "an irreversible, expensive decision under uncertain inputs; we want the failure conditions before acting", not "opening a cafe". **user** confirms this is the essence.
 3. **Is this AI-only value?** Check at least one: many counterfactuals run in parallel; tireless self-attack; links between distant domains; turning expensive, irreversible trial and error into cheap, reversible experiments. If the idea is only "do a human task faster", say so plainly; it is a weak differentiator.
-4. **Borrow by structure, not by solution.** Find fields that already solved the same structure (stress testing, yield maps, red teaming, queueing, actuarial, clinical trials, simulators...) and what each lends: a **metric**, a **visualization**, a **procedure** or a **formula**. Research through `aside-research` (or `aside-collect` for gathering only). For every borrowed tool record: the assumptions it rests on, the conditions where it breaks, the most common mistake practitioners make, and a 1:1 mapping table (theirs -> ours) with the places the mapping fails. Learn "when it is wrong", not "how to master it".
+4. **Borrow by structure, not by solution.** Find fields that already solved the same structure (stress testing, yield maps, red teaming, queueing, actuarial, clinical trials, simulators...) and what each lends: a **metric**, a **visualization**, a **procedure** or a **formula**. Research through `aside-research` (or `aside-collect` for gathering only); in the eta world follow those skills' eta world rules. For every borrowed tool record: the assumptions it rests on, the conditions where it breaks, the most common mistake practitioners make, and a 1:1 mapping table (theirs -> ours) with the places the mapping fails. Learn "when it is wrong", not "how to master it".
 5. **Success hypothesis.** One sentence, written now, before anything is built: who, what changes in their decision, how we would notice. Measuring it needs a finished product and real users; that is recommended follow-up, not part of this checklist.
 6. **Assign roles.**
 
@@ -38,7 +38,7 @@ Run the steps in order and write the result of each into the interview notes or 
    | L4 sensitivity | Which assumption flips the conclusion? | perturb one assumption at a time; report the flip points |
 
    Known-answer tests (L1) are what let a non-expert trust borrowed domain math: you can check the textbook answer without deriving the formula.
-9. **After a verified result exists,** ask the user: "이 결과를 HTML로 만들어볼까요?" Do not build a prototype before the loop has produced a verified result.
+9. **After a verified result exists,** **user** is asked: "이 결과를 HTML로 만들어볼까요?" Do not build a prototype before the loop has produced a verified result.
 
 ## Watch for
 
