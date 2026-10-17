@@ -1,6 +1,6 @@
 # Review tiers and shipping
 
-Author is never the reviewer. `maeng-review` runs a read-only `codex exec` reviewer and writes a verdict bound to the exact subject; run `maeng-review --help` for the current flags.
+Author is never the reviewer. `maeng-review` runs an isolated, read-only reviewer and writes a verdict bound to the exact subject. The backend is Claude by default (design D-9: headless `claude -p`, model `claude-fable-5-1`, which differs from the authors' models; the model that actually ran is recorded and a mismatch is rejected). Set `MAENG_REVIEW_BACKEND=codex` to use the Codex Astra/Sol tiers below instead; run `maeng-review --help` for the current flags.
 
 Commands (tier is picked from the bound issue; see the table below):
 
@@ -36,15 +36,16 @@ Verdict `{verdict, subject, reviewer, findings[]}` is stored per subject. Route 
 
 ## Receipts
 
-Single use. A `pass` receipt is consumed only when the gated action succeeded (merge push accepted; Notion create/update read back). A rejected action leaves it unconsumed. A changed head, base, criteria or digest needs a new review. If the client failed but the remote may have changed, the receipt stays `pending` until `maeng-review reconcile`.
+Single use. Only `maeng-review run` writes usable receipts (`reviewer.provenance: review-run`); `maeng-review store` and fixture receipts exist for the test suite only (`MAENG_TEST_FIXTURES=1`) and the gates reject them otherwise. A `pass` receipt is consumed only when the gated action succeeded (merge push accepted; Notion create/update read back). A rejected action leaves it unconsumed. A changed head, base, criteria or digest needs a new review. If the client failed but the remote may have changed, the receipt stays `pending` until `maeng-review reconcile`.
 
 ## Shipping
 
 - Shipping commands must use a **canonical form**: one plain command, no `&&`/`;`/pipes, no `git -c`, wrappers, env prefixes or `$(...)`. Non-canonical forms are denied by design (design D-6):
-  - `git push <remote> <branch>` or `git push <remote> <src>:refs/heads/<name>` (optionally `-u`), after the tree is ship-verified;
+  - `git push <remote> <branch>`, `git push <remote> <local-branch>:<name|refs/heads/name>`, or `git push <remote> <full-commit-sha>:refs/heads/<name>` (a SHA source requires the full `refs/heads/` destination; optionally `-u`), after the tree is ship-verified;
   - `gh pr create -R <owner/repo> --base <b> --head <h> --title "<t>" --body-file <file>` (optionally `--draft`); `-R` is required and must name origin's repository, and the remote head must be the verified commit, so push first;
   - other gh writes (`gh pr comment|edit|review|ready|close`, `gh issue …`) also need an explicit `-R <owner/repo>`;
-  - `maeng-ship merge <PR>` (the only merge route).
+  - `maeng-ship merge <PR>` (the only merge route);
+  - not allowed: git aliases for mutating commands (run the underlying command), `gh api graphql` unless the query is an inspectable literal `-f query='query ...'` (no mutation, `@file`, `--input` or substitution), `gh pr close --delete-branch`, `gh issue|repo|release delete`, `gh repo archive|rename`, and every GitHub MCP tool outside the allowlist (reads, issue/comment/review writes, verified `create_pull_request`).
 - The remote must be plain (one URL, no mirror, no `remote.<r>.push`, no `push.followTags`, no recursive submodule push) and its default branch known and current on the server; if a push is denied for an unknown default branch, run `git remote set-head <remote> --auto` once.
 - Merge is only `maeng-ship merge <PR>`: it requires the base to be an ancestor of the head, a ship-verified head tree and a matching `pass` receipt, then does a lease-guarded fast-forward push. If it reports "base moved", update the branch, re-verify, re-review.
 - Denied routes: `gh pr merge` (all modes), `gh pr update-branch`, force pushes, pushes to the default branch except via `maeng-ship`, contents-API writes, `mcp__github__merge_pull_request`.

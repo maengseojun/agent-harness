@@ -363,9 +363,9 @@ class R1_11_ReviewPromptAndEvidence(HarnessCase):
 
 
 def _review_cases():
-    from .test_cli import ReviewRun
+    from .test_cli import ReviewRunFixture
 
-    class R1_11_ReviewBundle(ReviewRun):
+    class R1_11_ReviewBundle(ReviewRunFixture):
         def bundle(self):
             sent = self.stdin_log.read_text()
             return json.loads(sent[sent.index("\n{") + 1:])

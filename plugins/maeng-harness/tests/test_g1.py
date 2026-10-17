@@ -66,9 +66,12 @@ class PushRoutes(ShipBase):
 
     def test_default_branch_destinations_denied(self):
         self.verified()
-        for cmd in ("git push origin main", "git push origin HEAD:main", "git push origin feat:refs/heads/main",
-                    "git push origin :main", "git push --delete origin main", "git push origin master"):
-            self.assertDenied(cmd)
+        for cmd, why in (("git push origin main", "default branch"), ("git push origin feat:refs/heads/main", "default branch"),
+                         ("git push origin feat:main", "default branch"), ("git push origin master", "default branch"),
+                         ("git push origin HEAD:main", "HEAD is not a branch name"),
+                         ("git push origin :main", "must be a local branch name or a full commit SHA"),
+                         ("git push --delete origin main", "flag `--delete` is not allowed")):
+            self.assertDenied(cmd, why)
 
     def test_implicit_destination_forms_are_not_canonical(self):
         """Allowlist (was: upstream/push.default resolution): only an explicit `<remote> <refspec>` is allowed."""
@@ -94,7 +97,9 @@ class PushRoutes(ShipBase):
                     "git push origin refs/tags/v1", "git push origin tag v1", "git push origin feat:refs/tags/v1",
                     "git push --mirror origin", "git push --all origin", "git push origin 'refs/heads/*:refs/heads/*'",
                     "git push origin feat:refs/notes/x"):
-            self.assertDenied(cmd)
+            self.assertDenied(cmd, "canonical")
+        sha = self.head(self.repo)
+        self.assertDenied(f"git push origin {sha}:feat", "needs destination refs/heads/<name>")   # SHA source: full ref only
 
     def test_wrappers_and_compound_commands(self):
         self.verified()
@@ -240,9 +245,18 @@ class McpRoutes(ShipBase):
             self.assertTrue(denied, tool)
             self.assertIn("verified `git commit`", reason)
 
-    def test_mcp_pr_and_push_files_need_verification(self):
+    def test_mcp_create_pull_request_needs_a_verified_remote_head(self):
+        self.alias_origin()
         (self.repo / "app.py").write_text("print('dirty')\n")
         base = {"owner": "o", "repo": "r"}
         self.git(self.repo, "checkout", "-q", "app.py")
-        denied, _ = self.pre(self.repo, "mcp__github__create_pull_request", {**base, "head": "feat", "base": "main"})
+        denied, reason = self.pre(self.repo, "mcp__github__create_pull_request", {**base, "head": "feat", "base": "main"})
         self.assertTrue(denied)
+        self.assertIn("not ship-verified", reason)
+
+    def test_mcp_push_files_is_denied_even_on_a_verified_tree(self):
+        self.verified()
+        denied, reason = self.pre(self.repo, "mcp__github__push_files",
+                                  {"owner": "o", "repo": "r", "branch": "feat", "files": [], "message": "m"})
+        self.assertTrue(denied)
+        self.assertIn("verified `git commit`", reason)

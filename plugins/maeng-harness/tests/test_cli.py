@@ -57,7 +57,9 @@ class ReviewConfig(HarnessCase):
         self.assertEqual(rv.codex_command("m", "high", "s", "o")[0], "/x/fake")
 
 
-class ReviewRun(HarnessCase):
+class ReviewRunFixture(HarnessCase):
+    """Shared repo + fake codex fixture. Holds no test methods so subclasses do not re-run each other's tests."""
+
     def setUp(self):
         super().setUp()
         self.repo = self.make_repo()
@@ -91,6 +93,9 @@ class ReviewRun(HarnessCase):
         return self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
                                          "--base-ref", "main", *extra], self.repo, extra_env={"MAENG_CODEX": str(self.codex)})
 
+
+
+class ReviewRun(ReviewRunFixture):
     def test_pass_verdict_is_stored_as_receipt_with_exact_flags(self):
         r = self.review()
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -109,7 +114,8 @@ class ReviewRun(HarnessCase):
         self.assertEqual(rec["status"], "unconsumed")
         s = rec["verdict"]["subject"]
         self.assertEqual((s["base"], s["head"], s["destination"], s["op"]), (self.base, self.h, "refs/heads/main", "merge"))
-        self.assertEqual(rec["verdict"]["reviewer"], {"model": "gpt-6-astra", "effort": "medium"})
+        self.assertEqual(rec["verdict"]["reviewer"],
+                         {"model": "gpt-6-astra", "effort": "medium", "provenance": "review-run"})
         self.assertTrue(s["criteria_rev"])
 
     def test_fail_verdict_stores_no_receipt(self):
@@ -135,9 +141,9 @@ class ReviewRun(HarnessCase):
         for b in bundle["evidence_binding"]:
             self.assertIn("evidence_tree", b)
             self.assertIsInstance(b["relevant_differences"], list)
-        if bundle["ship_verified"]:
-            # A verified head must have at least one evidence tree with no relevant difference.
-            self.assertTrue(any(b["relevant_differences"] == [] for b in bundle["evidence_binding"]))
+        self.assertTrue(bundle["ship_verified"], bundle.get("ship_verified_reasons"))
+        # A verified head must have at least one evidence tree with no relevant difference.
+        self.assertTrue(any(b["relevant_differences"] == [] for b in bundle["evidence_binding"]))
 
     def test_prompt_over_limit_is_blocked_before_codex(self):
         big = self.tmp / "big-evidence.txt"
@@ -192,18 +198,20 @@ class ReviewRun(HarnessCase):
         self.assertIsNotNone(rec, problem)
 
 
-class ClaudeBackend(ReviewRun):
+class ClaudeBackend(ReviewRunFixture):
     """D-9: the default reviewer is an isolated headless `claude -p` (different model from the authors)."""
 
-    def fake_claude(self, verdict="pass", model="claude-fable-5-1", is_error=False):
+    def fake_claude(self, verdict="pass", model="claude-fable-5-1", is_error=False, structured=True):
         log, stdin_log = self.tmp / "claude-argv.json", self.tmp / "claude-stdin.txt"
         fake = self.tmp / "fake-claude"
         fake.write_text(
             f"#!{sys.executable}\nimport json, sys\n"
             f"open({str(log)!r}, 'w').write(json.dumps(sys.argv[1:]))\n"
             f"open({str(stdin_log)!r}, 'w').write(sys.stdin.read())\n"
-            f"print(json.dumps({{'is_error': {is_error!r}, 'modelUsage': {{{model!r}: {{}}}},"
-            f" 'structured_output': {{'verdict': {verdict!r}, 'findings': []}}}}))\n")
+            f"models = {([model] if isinstance(model, str) else list(model))!r}\n"
+            f"out = {{'is_error': {is_error!r}, 'modelUsage': {{m: {{}} for m in models}}}}\n"
+            f"if {structured!r}:\n    out['structured_output'] = {{'verdict': {verdict!r}, 'findings': []}}\n"
+            f"print(json.dumps(out))\n")
         fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
         return fake, log, stdin_log
 
@@ -236,6 +244,43 @@ class ClaudeBackend(ReviewRun):
         r = self.run_claude_review(fake)
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("not the requested", r.stderr)
+
+    def test_default_backend_is_claude_when_the_variable_is_unset(self):
+        """D-9: with MAENG_REVIEW_BACKEND absent, maeng-review runs the Claude backend, not codex."""
+        fake, log, _ = self.fake_claude()
+        self.env.pop("MAENG_REVIEW_BACKEND")
+        r = self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
+                                      "--base-ref", "main"], self.repo,
+                     extra_env={"MAENG_CLAUDE": str(fake), "MAENG_CODEX": str(self.codex)})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue(log.exists())
+        self.assertFalse(self.log.exists(), "codex must not run by default")
+        rec = receipts.load(json.loads(r.stdout)["receipt"])
+        self.assertEqual(rec["verdict"]["reviewer"]["model"], "claude-fable-5-1")
+        self.assertEqual(rec["verdict"]["reviewer"]["provenance"], "review-run")
+
+    def test_codex_backend_stays_selectable(self):
+        fake, log, _ = self.fake_claude()
+        r = self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
+                                      "--base-ref", "main"], self.repo,
+                     extra_env={"MAENG_REVIEW_BACKEND": "codex", "MAENG_CLAUDE": str(fake),
+                                "MAENG_CODEX": str(self.codex)})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue(self.log.exists())
+        self.assertFalse(log.exists())
+
+    def test_claude_reviewer_with_an_extra_model_in_usage_is_rejected(self):
+        fake, _, _ = self.fake_claude(model=["claude-fable-5-1", "claude-haiku-4-5"])
+        r = self.run_claude_review(fake)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("not the requested", r.stderr)
+        self.assertEqual(list(receipts.receipts_dir().glob("*.json")) if receipts.receipts_dir().exists() else [], [])
+
+    def test_claude_reviewer_without_structured_output_is_rejected(self):
+        fake, _, _ = self.fake_claude(structured=False)
+        r = self.run_claude_review(fake)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("no structured output", r.stderr)
 
     def test_claude_error_is_reported_not_stored(self):
         fake, _, _ = self.fake_claude(is_error=True)

@@ -68,10 +68,15 @@ def cmd_exec(a, cwd):
     rel = evidence.rel_dir(cwd, treelib.toplevel(cwd))
     state.update(sid, lambda st: evidence.pre_runner(st, key, command, rec, tree_start, common, rel), cwd)
     digest, t0, rc = hashlib.sha256(), time.monotonic(), None
+    head, tail = bytearray(), bytearray()  # kept for the zero-tests check
     try:
         proc = subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         for chunk in iter(lambda: proc.stdout.read1(65536), b""):
             digest.update(chunk)
+            if len(head) < 524288:
+                head += chunk[:524288 - len(head)]
+            tail += chunk
+            del tail[:-524288]
             sys.stdout.buffer.write(chunk)
             sys.stdout.buffer.flush()
         rc = proc.wait()
@@ -84,10 +89,18 @@ def cmd_exec(a, cwd):
     duration = round(time.monotonic() - t0, 3)
     tree_finish, _ = treelib.tree_id(cwd)
 
+    zero = rc == 0 and evidence.ran_zero_tests((head + b"\n" + tail).decode("utf-8", "replace"))
+
     def finish(st):
+        if zero:
+            st["pending"].pop(key, None)
+            return
         for ev in evidence.post_runner(st, key, rc == 0, tree_finish):
             ev.update(exit_code=rc, duration_s=duration, output_sha256=digest.hexdigest())
     state.update(sid, finish, cwd)
+    if zero:
+        print("maeng-verify exec: the runner exited 0 but ran ZERO tests; nothing was recorded as evidence",
+              file=sys.stderr)
     print(f"maeng-verify exec: exit {rc} in {duration}s; output sha256 {digest.hexdigest()[:12]}", file=sys.stderr)
     sys.exit(rc)
 

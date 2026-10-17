@@ -71,6 +71,7 @@ def build_context(cwd):
 
 def on_session_start(payload):
     cwd, sid = payload.get("cwd", os.getcwd()), payload.get("session_id", "")
+    state.clear_quarantine(sid)  # a (re)started session begins with fresh state
     world = guard.classify(cwd)
     if world == guard.ETA:
         try:
@@ -118,6 +119,8 @@ def on_prompt(payload):
 
 def on_pre(payload):
     sid, cwd = payload.get("session_id", ""), payload.get("cwd", os.getcwd())
+    if state.is_quarantined(sid):  # regardless of cwd: the session's world is no longer known
+        return deny_out("maeng: session state was quarantined; restart the session")
     st = state.load(sid, cwd)
     world = world_of(payload, st)
     if world == guard.ETA:
@@ -274,6 +277,21 @@ def has_commit(command):
     return False
 
 
+def response_failed(tresp):
+    """True when a PostToolUse tool_response says the command did not succeed (interrupted, error, non-zero exit)."""
+    if not isinstance(tresp, dict):
+        return False
+    if tresp.get("interrupted") is True or tresp.get("is_error") is True or tresp.get("isError") is True:
+        return True
+    for key in ("returnCode", "return_code", "returncode", "exit_code", "exitCode", "exit_status", "code"):
+        v = tresp.get(key)
+        if isinstance(v, str) and re.fullmatch(r"-?\d+", v.strip()):
+            v = int(v)
+        if isinstance(v, int) and not isinstance(v, bool) and v != 0:
+            return True
+    return False
+
+
 def on_post(payload, failed=False):
     sid, cwd = payload.get("session_id", ""), payload.get("cwd", os.getcwd())
     st0 = state.load(sid, cwd)
@@ -285,6 +303,8 @@ def on_post(payload, failed=False):
     out = {}
     try:
         if tool == "Bash":
+            failed = failed or response_failed(tresp)
+            payload = {**payload, "_zero_tests": evidence.ran_zero_tests(" ".join(gates._strings(tresp)))}
             out = post_bash(sid, cwd, st0, tin, tuid, failed, interrupted, payload)
         elif tool in EDIT_TOOLS and not failed:
             post_edit(sid, cwd, tool, tin, tresp)
@@ -310,7 +330,9 @@ def post_bash(sid, cwd, st0, tin, tuid, failed, interrupted, payload):
     top = treelib.toplevel(run_cwd)
 
     def mark(st):
-        if pend.get("checks") and not interrupted:
+        if pend.get("checks") and payload.get("_zero_tests") and not failed:
+            st["pending"].pop(key, None)  # the run executed no tests: not evidence (neither pass nor fail)
+        elif pend.get("checks") and not interrupted:
             evidence.post_runner(st, key, not failed, tree)
         elif pend:
             st["pending"].pop(key, None)
@@ -378,14 +400,14 @@ CONFIRMED_NOTION_REJECTION = re.compile(
 def post_mcp(sid, cwd, st0, tool, tin, tresp, tuid, failed, payload=None):
     name = tool.split("__")[-1]
     if tool.startswith("mcp__claude_ai_Notion__"):
-        if name in ("notion-create-pages", "notion-update-page", "notion-update-data-source"):
+        if name in ("notion-create-pages", "notion-update-page") or name in gates.NOTION_STRUCTURAL:
             if failed:
                 err = " ".join(str(x) for x in ((payload or {}).get("error"), (payload or {}).get("tool_response"), tresp) if x)
                 if CONFIRMED_NOTION_REJECTION.search(err):
                     receipts.journal_rejected(tuid)
                 # else (timeout, connection reset, unknown): the write may have landed; stay pending until reconcile
             else:
-                ids = notion_ids(tresp) if name == "notion-create-pages" else notion_ids(tin)
+                ids = notion_ids(tresp) if name in ("notion-create-pages", "notion-create-database") else notion_ids(tin)
                 receipts.journal_sent(tuid, ids)
         elif name == "notion-fetch" and not failed:
             for pid in notion_ids(tin):

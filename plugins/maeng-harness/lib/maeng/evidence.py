@@ -8,7 +8,7 @@ from pathlib import Path
 
 from . import tree as treelib
 from .common import now_iso
-from .shellparse import ENV_ASSIGN, ParseError, program, split_segments
+from .shellparse import ENV_ASSIGN, WRAPPER_PREFIX, ParseError, program, split_segments
 from .state import bump
 
 TEST_KINDS = "test"
@@ -26,7 +26,31 @@ PYTEST_BENIGN = re.compile(r"^(?:-v+|-q+|-s|-x|--verbose|--quiet|--no-header|-r[
 PATH_RE = re.compile(r"^[A-Za-z0-9_./:\[\]@+,%-]+$")
 VALUE_RE = re.compile(r"^[^\s$`-][^$`]*$")
 NAME_RE_ = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]*$")
-UNSAFE_ENV = re.compile(r"ADDOPTS|FLAGS|OVERRIDES|_OPTIONS$", re.I)
+UNSAFE_ENV = re.compile(r"ADDOPTS|FLAGS|OVERRIDES|_OPTIONS$|^(?:PATH|PYTHON\w*|LD_\w+|DYLD_\w+|PYTEST_\w+)$", re.I)
+
+# Output that shows no test ran: such a run is not evidence even when it exits 0. A positive marker (some tests ran,
+# e.g. `go test ./...` printing `[no test files]` for one package) wins.
+ZERO_TESTS = re.compile(r"\bRan 0 tests?\b|collected 0 items|\bno tests ran\b|\bno test files\b", re.I)
+RAN_SOME = re.compile(r"\bRan [1-9]\d* tests?\b|collected [1-9]\d* items?|\b[1-9]\d* passed\b|^ok\s", re.I | re.M)
+
+# Narrowing flags that are never evidence at all (the run can silently skip tests); selectors that merely filter
+# (pytest -k/-m, forge --match-*/--no-match-*, go -run) stay allowed but are never default-mode evidence.
+NARROWING_REJECTED = ("--ignore", "--ignore-glob", "--deselect", "--lf", "--last-failed", "--ff", "--failed-first",
+                      "--nf", "--new-first", "--sw", "--stepwise", "-short", "--skip", "--exact")
+
+
+def ran_zero_tests(text):
+    """True when the runner output shows that zero tests ran."""
+    text = text or ""
+    return bool(ZERO_TESTS.search(text)) and not RAN_SOME.search(text)
+
+
+def _narrowed(args):
+    for a in args:
+        name = a.partition("=")[0]
+        if name in NARROWING_REJECTED:
+            return True
+    return False
 INT_RE = re.compile(r"^\d+$")
 PY_PLAIN_OPTS = {"-B", "-u", "-I", "-E", "-s"}
 LAUNCHER_PLAIN = {"-y", "--yes", "--no-install", "--no", "--quiet", "-q"}
@@ -115,12 +139,14 @@ def _unwrap_launcher(args):
 def _runner(tokens):
     """Return (name, kind, identity) if this segment is exactly an allowlisted runner invocation."""
     toks0 = list(tokens)
-    for t in toks0:
-        if ENV_ASSIGN.match(t):
-            if UNSAFE_ENV.search(t.split("=", 1)[0]):
-                return None
-        else:
-            break
+    i = 0
+    while i < len(toks0) and ENV_ASSIGN.match(toks0[i]):  # every leading assignment is checked
+        name, _, val = toks0[i].partition("=")
+        if UNSAFE_ENV.search(name) or "$" in val or "`" in val:
+            return None
+        i += 1
+    if i < len(toks0) and os.path.basename(toks0[i]) in WRAPPER_PREFIX:
+        return None  # env/sudo/nice/nohup/command/exec/time/builtin change what runs: not evidence
     prog, toks = program(tokens)
     if not prog or any("$" in t or "`" in t for t in toks):
         return None
@@ -155,10 +181,14 @@ def _runner(tokens):
             return _result(f"forge {sub}", TEST_KINDS if sub == "test" else "check", rest)
         return None
     if prog == "cargo" and sub in ("test", "clippy", "build"):
+        if _narrowed(rest):
+            return None
         if _parse_args(rest, CARGO_BOOLS, CARGO_VALUES):
             return _result(f"cargo {sub}", TEST_KINDS if sub == "test" else "check", rest)
         return None
     if prog == "go" and sub == "test":
+        if _narrowed(rest):
+            return None
         if _parse_args(rest, GO_BOOLS, GO_VALUES, pos=PATH_RE, eq_short=True):
             return _result("go test", TEST_KINDS, rest)
         return None
@@ -188,6 +218,8 @@ def _runner(tokens):
 
 
 def _module_runner(mod, rest):
+    if mod in ("pytest", "unittest") and _narrowed(rest):
+        return None
     if mod == "pytest":
         if _parse_args(rest, PYTEST_BOOLS, PYTEST_VALUES, pos=PATH_RE):
             return _result("pytest", TEST_KINDS, rest)

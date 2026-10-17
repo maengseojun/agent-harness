@@ -73,10 +73,41 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def copy_file(src: Path, dst: Path, exclusive: bool = False) -> None:
+def _exclusive_publish(tmp: str, dst: Path) -> str:
+    """Create dst from the fsynced temp file without ever replacing an existing dst.
+
+    Returns "link" or "fallback". Fast path is link() (atomic, raises FileExistsError). Cloud File Provider
+    mounts (OneDrive/Google Drive) may reject link(); then create dst with O_CREAT|O_EXCL, copy the bytes,
+    fsync and verify size+sha256. A failed fallback removes only the file it created."""
+    try:
+        os.link(tmp, dst)  # raises FileExistsError instead of overwriting
+        return "link"
+    except FileExistsError:
+        raise
+    except OSError:
+        pass  # EPERM/ENOTSUP/EXDEV/EOPNOTSUPP or any other link failure: use the portable path
+    fd = os.open(dst, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)  # FileExistsError if present
+    try:
+        with os.fdopen(fd, "wb") as out, open(tmp, "rb") as inp:
+            shutil.copyfileobj(inp, out, 1 << 20)
+            out.flush()
+            os.fsync(out.fileno())
+        if os.path.getsize(dst) != os.path.getsize(tmp) or sha256_file(Path(dst)) != sha256_file(Path(tmp)):
+            raise ArchiveError(f"exclusive fallback copy verification failed: {dst}")
+    except BaseException:
+        try:
+            os.unlink(dst)
+        except OSError:
+            pass
+        raise
+    return "fallback"
+
+
+def copy_file(src: Path, dst: Path, exclusive: bool = False) -> str:
     """Copy via temp file in the destination directory, fsync, then atomic rename.
 
-    exclusive=True never replaces an existing destination (link-then-unlink is atomic and fails on EEXIST)."""
+    exclusive=True never replaces an existing destination: link() when supported, else an O_EXCL
+    create-and-verify fallback. Returns the path used ("replace", "link" or "fallback")."""
     dst.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=dst.parent, prefix=".tmp-archive-")
     try:
@@ -85,10 +116,12 @@ def copy_file(src: Path, dst: Path, exclusive: bool = False) -> None:
             out.flush()
             os.fsync(out.fileno())
         if exclusive:
-            os.link(tmp, dst)  # raises FileExistsError instead of overwriting
+            how = _exclusive_publish(tmp, dst)
             os.unlink(tmp)
         else:
             os.replace(tmp, dst)
+            how = "replace"
+        return how
     except BaseException:
         if os.path.exists(tmp):
             os.unlink(tmp)
@@ -245,6 +278,10 @@ def cmd_move(rel: str, store: str, world: str, dry_run: bool) -> dict:
     if not src.is_file():
         raise ArchiveError(f"not a file in vault: {src}")
     ensure_inside_vault(vault, src, must_exist=True)
+    if _has_private(src):
+        raise ArchiveError(
+            f"refusing to move {rel}: it contains a <private> span, and <private> content never leaves "
+            "the vault; remove or relocate the private text first. Nothing changed")
     root = store_root(store)
     if root is None:
         raise ArchiveError(f"store '{store}' not found; nothing changed")
@@ -395,8 +432,9 @@ def verify_backup(zip_path: Path, manifest: dict) -> None:
 
 def cmd_backup(targets: list[str], keep: int, dry_run: bool) -> dict:
     # Unique identity per run: two backups in the same second must never share a name.
-    # Microseconds keep lexicographic order == creation order (retention sorts by name); the random
-    # suffix only disambiguates identical timestamps.
+    # The stamp is only an identity (microseconds + random suffix keep names unique). Retention does NOT
+    # sort by name: _prune orders by (st_mtime_ns, name), so pruning depends on the store preserving
+    # mtime; a cloud rehydration that resets mtimes would reorder which backups get pruned.
     stamp = now().strftime("%Y%m%d-%H%M%S-%f") + "-" + secrets.token_hex(3)
     name = f"maeng-{stamp}"
     result: dict = {"name": name, "stores": {}}

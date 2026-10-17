@@ -35,7 +35,8 @@ non-disguised route must still be gated, and every gate must fail closed when it
 a known route or a gate that fails open; do not report out-of-scope disguised bypasses.
 Shipping and cross-world gating is an ALLOWLIST of canonical forms, by design: a Bash command that mentions a
 shipping route is allowed only as one plain single command in one of these forms: `git push [-u] <remote>
-<branch>`, `git push [-u] <remote> <branch-or-sha>:<refs/heads/name|name>`, maeng-ship's exact lease push
+<branch>`, `git push [-u] <remote> <local-branch>:<name|refs/heads/name>`, `git push [-u] <remote>
+<full-commit-sha>:refs/heads/<name>` (a SHA source REQUIRES the refs/heads/ destination; `<sha>:<name>` is denied), maeng-ship's exact lease push
 (`git push --force-with-lease=refs/heads/<base>:<sha> <remote> <sha>:refs/heads/<base>`), `gh pr create --repo|-R <owner/repo>` (the
 repo must equal origin) with only --base/--head/--title/--body/--body-file/--draft/--repo, `maeng-ship merge <N>`,
 read-only gh commands, and gh pr/issue writes (comment/edit/review/ready/close, issue *) that carry an explicit
@@ -48,7 +49,7 @@ small read-only allowlist used without mutation options. Verify that allowlist i
 subcommand slips through). Verification evidence is a RUNNER INVOCATION ALLOWLIST: a command counts as evidence
 only when it matches a canonical runner form with allowlisted flags (pytest, unittest, npm/pnpm/yarn scripts, forge,
 cargo, go test, make targets, ruff check, mypy, tsc, claude plugin validate, playwright test); any other flag
-(dry-run, list, collect-only, ...) makes it no evidence. Verify that these lists are closed. Everything else (compound commands, wrappers, env assignments, `git -c/-C/--git-dir`, substitutions,
+(dry-run, list, collect-only, ...) makes it no evidence. Verify that these lists are closed. Further by design: an unparseable command is denied; a token with an unresolved $VAR/`${}`/backtick, or a `cd` into one, makes non-read-only segments undecidable and denied; git aliases are denied; `gh api graphql` is allowed only as an inspectable literal `-f query=` without mutation; the GitHub MCP surface is an allowlist (unknown tools denied); only `maeng-review run` receipts (reviewer.provenance=review-run) authorize anything. Everything else (compound commands, wrappers, env assignments, `git -c/-C/--git-dir`, substitutions,
 redirects, other flags) is denied by design, so do NOT enumerate disguised or non-canonical variants as findings.
 Instead verify that the allowlist is closed (no route reaches the shell without passing it) and that each
 canonical form is fully checked (remote configuration, default branch, verified tree/remote head, receipts,
@@ -211,7 +212,7 @@ def run_claude(model, effort, out_schema, prompt_text, cwd):
     if proc.returncode != 0 or envelope.get("is_error"):
         die(f"reviewer failed (rc={proc.returncode}): {str(envelope.get('result') or proc.stderr)[-2000:]}")
     used = list((envelope.get("modelUsage") or {}).keys())
-    if used and not any(u.startswith(model) for u in used):
+    if used and any(not u.startswith(model) for u in used):
         die(f"reviewer ran on {used}, not the requested {model}")
     result = envelope.get("structured_output")
     if not isinstance(result, dict):
@@ -280,7 +281,8 @@ def run_review(a, cwd):
     errors = schema.validate(result, out_schema)
     if errors:
         die("reviewer output violates schema: " + "; ".join(errors))
-    verdict = {"verdict": result["verdict"], "subject": subject, "reviewer": {"model": model, "effort": effort},
+    verdict = {"verdict": result["verdict"], "subject": subject,
+               "reviewer": {"model": model, "effort": effort, "provenance": "review-run"},
                "findings": result["findings"]}
     if verdict["verdict"] == "pass":
         verdict_key = receipts.store_verdict(verdict)
@@ -341,7 +343,13 @@ def main(argv=None):
     if a.cmd == "reconcile":
         sys.exit(reconcile(a, cwd))
     if a.cmd == "store":
-        print(receipts.store_verdict(json.loads(Path(a.verdict_file).read_text())))
+        if not receipts.fixtures_allowed():
+            die("`maeng-review store` writes fixture receipts and is only available with MAENG_TEST_FIXTURES=1; "
+                "receipts come from `maeng-review run`", 2)
+        verdict = json.loads(Path(a.verdict_file).read_text())
+        if isinstance(verdict.get("reviewer"), dict):
+            verdict["reviewer"]["provenance"] = "fixture"
+        print(receipts.store_verdict(verdict))
     if a.cmd == "registry":
         ids = [i.replace("-", "").lower() for i in a.ids]
         bad = [i for i in ids if not re.fullmatch(r"[0-9a-f]{32}", i)]

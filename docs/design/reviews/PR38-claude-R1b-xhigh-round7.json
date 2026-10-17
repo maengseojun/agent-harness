@@ -1,0 +1,90 @@
+{
+  "verdict": "fail",
+  "receipt": null,
+  "findings": [
+    {
+      "severity": "high",
+      "title": "Exact lease push through the hook is never tested with a non-fast-forward head (and lacks remote-config pins)",
+      "body": "Every lease-form test (ExactLeaseThroughHook, R1_1, R1_2, R1_3) stores a receipt with base=self.base, which is an ancestor of head. No test stores a receipt whose base is NOT contained in head (e.g. base = the commit main moved to, head = the old PR tip, reviewed as base...head) and asserts that `git push --force-with-lease=refs/heads/main:<base> origin <head>:refs/heads/main` is denied by the PreToolUse hook. maeng-ship pins this via 'BEHIND' (test_behind_pr_is_denied_before_push), but the raw lease form is listed as a canonical allowed route in the reviewer prompt (R2_J asserts that wording), so a cooperative agent may use it directly; if the hook does not check ancestry the lease succeeds (remote main == base) and main is replaced by a non-descendant, dropping commits. This is the design's 'lease-guarded fast-forward' (D-3) with the fast-forward half unpinned on one of the two known routes. Also unpinned for the lease form: the plain-remote checks exercised only for `git push origin feat` and maeng-ship (pushurl, mirror, insteadOf/pushInsteadOf, push.followTags, push.recurseSubmodules, unknown default branch). Add: (a) receipt base=moved main, head=old tip -> assertDenied through the hook; (b) the R2_B/R3_3/R4_3 config cases applied to lease_cmd().",
+      "file": "plugins/maeng-harness/tests/test_merge.py",
+      "line": 218
+    },
+    {
+      "severity": "medium",
+      "title": "D-9 default reviewer backend is never exercised: every test hardwires MAENG_REVIEW_BACKEND",
+      "body": "helpers.HarnessCase sets MAENG_REVIEW_BACKEND='codex' for all tests and ClaudeBackend sets 'claude' explicitly, so no test runs maeng-review with the variable absent. The commit claims the Claude backend is the default (D-9); a regression of the default to codex (or any other value) would be invisible to the suite, and receipts would silently come from a different model than documented. ClaudeBackend also inherits all 11 ReviewRun tests, which run under the codex backend despite the class name. Add a test that pops MAENG_REVIEW_BACKEND, provides both fake binaries, and asserts the fake claude is invoked and the fake codex is not; also pin rejection when modelUsage lists more than one model or structured_output is missing.",
+      "file": "plugins/maeng-harness/tests/helpers.py",
+      "line": 43
+    },
+    {
+      "severity": "medium",
+      "title": "gh api graphql with a file-sourced query is not pinned as denied in personal repos",
+      "body": "test_gh_allowed_routes allows `gh api graphql -f query='query { viewer { login } }'` and test_gh_denied_routes denies only inline `mutation {...}` text; the `--input` denial (R4_1) is asserted only for eta slugs. Not pinned for a personal repo: `gh api graphql -F query=@m.graphql`, `gh api graphql --input body.json`, `gh api graphql -f query=... -F variables=@f`. These are documented gh forms in which the mutation (mergePullRequest, createCommitOnBranch, updateRef) is not visible in the command line. If the gate classifies graphql by inline text only, this is a known shipping route that reaches GitHub unreviewed. Add deny assertions for the file-sourced forms (ideally: any graphql call whose query text is not inline is denied).",
+      "file": "plugins/maeng-harness/tests/test_g1.py",
+      "line": 187
+    },
+    {
+      "severity": "medium",
+      "title": "GitHub MCP write-tool set is not closed by tests; unrecognised tool names have no fail-closed pin",
+      "body": "McpRoutes / G3Tests / R2_C pin merge_pull_request, update_pull_request_branch, push_files, create_or_update_file, create_pull_request, create_issue, add_issue_comment and get_* reads. Not pinned either way: `mcp__github__delete_file` (a remote commit never tied to the verified tree, same class as create_or_update_file), `create_branch`, `update_pull_request` (base retarget), `create_pull_request_review` with event=APPROVE, `create_release`, and above all the behaviour for an unrecognised `mcp__github__*` name (a server upgrade adding a new write tool). The matcher routes all of these to the gate; whether the gate denies unknown names is exactly the 'fail closed when it cannot decide' property, and the suite does not assert it.",
+      "file": "plugins/maeng-harness/tests/test_g1.py",
+      "line": 213
+    },
+    {
+      "severity": "medium",
+      "title": "Notion destructive writes (delete/move/update-data-source) are pinned only in the UNKNOWN world, not in a personal session",
+      "body": "R2_I lists notion-delete-pages, notion-move-pages, notion-update-data-source and notion-create-database as write tools but only asserts denial when classification is UNKNOWN. In a personal session, G2Tests never asserts that deleting or moving a registry page (seeded via `maeng-review registry seed`) or a page in an outcome DB requires a Sol receipt or is denied; test_out_of_scope_notion_write_is_not_gated covers only create under a non-outcome parent. An unreviewed delete of an outcome page is a plausible cooperative 'clean-up' mistake and is the kind of G2 gap this scope is meant to catch. Add personal-world tests for each of those tools against a registry page and an outcome data_source_id.",
+      "file": "plugins/maeng-harness/tests/test_g2_g3.py",
+      "line": 66
+    },
+    {
+      "severity": "medium",
+      "title": "Absent session state plus an eta cwd resolves to allow; the lost-state personal case is untested",
+      "body": "test_eta_session_has_zero_side_effects pins that with no session state and cwd inside eta, PreToolUse returns None even for `git push --force origin main` (inert by design for eta sessions). The G3 drift protection (test_session_cwd_drifting_into_eta_is_still_gated) depends on personal state existing. The sequence 'state quarantined via maeng-verify state --quarantine (R5_5) -> agent continues without restart -> cwd drifts into eta' is not tested and, by construction of the two pinned behaviours, allows eta mutations: the hook cannot tell an eta session from a personal session that lost its state and resolves the ambiguity to allow. Narrow, but it is a fail-open on an undecidable input. Either pin a deny (e.g. a quarantine marker that keeps the sid classified as personal until SessionStart) or document the residual explicitly in the design.",
+      "file": "plugins/maeng-harness/tests/test_stop_hooks.py",
+      "line": 218
+    },
+    {
+      "severity": "low",
+      "title": "Common git mutations inside eta and local-path eta remotes are not asserted",
+      "body": "R1_8/R4_1/R5_3 show a closed read-only option allowlist, but none of `git -C {eta} pull`, `fetch`, `merge`, `rebase`, `reset --hard`, `clean -fd`, `checkout -- file`, `am`, `apply`, `cherry-pick`, `submodule update` is asserted denied (pull/fetch are the most likely cooperative slips). test_remote_parsing has no filesystem-path case: a pre-existing remote whose URL is a local path under MAENG_ETA_ROOT, pushed via `git push <name> feat` or `maeng-ship merge N --remote <name>`, is not pinned as eta-classified (the hook check for `--remote` on maeng-ship is only exercised via the CLI in R1_3).",
+      "file": "plugins/maeng-harness/tests/test_r1.py",
+      "line": 255
+    },
+    {
+      "severity": "low",
+      "title": "Runner allowlist: narrowing flags not placed in either the rejected or the filtered lists",
+      "body": "R4_2 pins that unknown flags make a run non-evidence and R5_DefaultModeNeedsUnfilteredSuite pins -k/-m/paths as filtered, but `pytest --ignore=\u2026`, `--deselect`, `--lf/--ff`, `go test -short`, `cargo test -- --skip X`, `forge test --no-match-path` are in neither list. If any is accepted by the allowlist and treated as unfiltered, a narrowed run satisfies the default 'whole suite passed' rule. Add each to one of the two lists so the closure is explicit.",
+      "file": "plugins/maeng-harness/tests/test_r4.py",
+      "line": 95
+    },
+    {
+      "severity": "low",
+      "title": "Prompt/behaviour mismatch and weak or misnamed assertions",
+      "body": "(1) The reviewer PROMPT (whose wording R2_J pins) lists `git push <remote> <branch-or-sha>:<refs/heads/name|name>` as canonical, but R2_A asserts `git push origin <sha>:feat` is denied; only `<sha>:refs/heads/feat` is allowed (test_g1). Align the prompt or the gate. (2) test_mcp_pr_and_push_files_need_verification never exercises push_files. (3) test_default_branch_destinations_denied and test_tags_mirror_all_and_non_branch_refs assert denial without a reason, so `git push origin master` (no such branch) may be denied for an unrelated cause. (4) test_bundle_carries_evidence_binding_to_head guards its key assertion with `if bundle['ship_verified']`, which is skipped in the three subclasses that re-run it.",
+      "file": "plugins/maeng-harness/tests/test_r2.py",
+      "line": 20
+    },
+    {
+      "severity": "low",
+      "title": "ReviewRun tests execute four times via inheritance; misleading class names and stray import",
+      "body": "ClaudeBackend, R1_11_ReviewBundle and R2_G_ReviewRevocationAndDelegation all subclass ReviewRun, so its 11 subprocess-heavy tests run four times (under the codex backend each time), inflating the ~410 s suite and making 'ClaudeBackend' report codex-backend results. test_r5.py places `import unittest` before the module docstring, so the docstring is a no-op expression. Prefer a mixin/base without test_ methods for shared setUp.",
+      "file": "plugins/maeng-harness/tests/test_cli.py",
+      "line": 191
+    },
+    {
+      "severity": "low",
+      "title": "Evidence recording pins only PostToolUse=success / PostToolUseFailure=failure; interrupted or error-bearing PostToolUse untested",
+      "body": "helpers.run_check models success as a PostToolUse with {'stdout':'ok'} and failure only as PostToolUseFailure. No test feeds a PostToolUse whose tool_response signals a non-success (e.g. 'interrupted': true after the user cancels a long pytest run, or a response carrying an exit-code/error field). If the host reports such outcomes through PostToolUse, the hook would record passing evidence. Add a test asserting such responses yield no evidence.",
+      "file": "plugins/maeng-harness/tests/helpers.py",
+      "line": 108
+    },
+    {
+      "severity": "low",
+      "title": "AC-4..AC-6 rest on declared evidence not included in this bundle",
+      "body": "Only ev-exec-R1.txt is attached. AC-1..AC-3 are confirmed by runner evidence at tree 83bc0198, which differs from head only in tests/live/evidence/*.json (non-code), so AC-2 (394 tests OK) is met for this head. AC-4..AC-6 are `kind: declared` entries at the head tree and the staging summaries are excluded from the bundle; the head commit message reports '65/69; 4 known'. These cannot be independently confirmed here; the parent verdict should rely on the staging evidence review receipts rather than on this tests-scoped review.",
+      "file": null,
+      "line": null
+    }
+  ]
+}

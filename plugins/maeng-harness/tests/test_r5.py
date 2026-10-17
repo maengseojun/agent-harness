@@ -1,7 +1,7 @@
-import unittest
 """Regression tests for Astra round-5 findings (PR #38, MAENG-220): MCP PR destination (1), non-executing runner
 values (2), G3 read-only option allowlist (3), declarations vs runner requirements + `maeng-verify exec` (4), corrupt
 session state (5), Notion registry/journal schema (6)."""
+import unittest
 import json
 import sys
 

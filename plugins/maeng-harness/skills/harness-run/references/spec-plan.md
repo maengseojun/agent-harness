@@ -1,6 +1,6 @@
 # Spec and Plan templates
 
-Each task has two Linear documents. Header of both: `status: draft|current|superseded`, task id, parent id, source links, `updatedAt` seen. A draft is not an execution criterion. A superseded document points to its replacement.
+Each task has two Linear documents. The Spec holds `must_haves`, the `AC-n` criteria and the `D-n` decisions; the Plan holds readiness, steps (citing the `AC-n` they advance) and the `Verification` line for every `AC-n`. Header of both: `status: draft|current|superseded`, task id, parent id, source links, `updatedAt` seen. A draft is not an execution criterion. A superseded document points to its replacement.
 
 ## Spec
 

@@ -1,5 +1,6 @@
 """Review verdicts, single-use receipts (pending/consume/reject/reconcile), Notion journal + registry."""
 import json
+import os
 import re
 
 from . import schema
@@ -19,6 +20,17 @@ class ReceiptError(Exception):
 
 def receipts_dir():
     return home_dir() / "receipts"
+
+
+def fixtures_allowed():
+    """Test-only escape hatch: fixture receipts (and the `maeng-review store` command) need MAENG_TEST_FIXTURES=1."""
+    return os.environ.get("MAENG_TEST_FIXTURES") == "1"
+
+
+def usable_provenance(rec):
+    """Only receipts written by `maeng-review run` authorize anything; fixture/unknown ones need the test switch."""
+    prov = ((rec.get("verdict") or {}).get("reviewer") or {}).get("provenance")
+    return prov == "review-run" or fixtures_allowed()
 
 
 def subject_key(subject):
@@ -151,7 +163,7 @@ def find_code(cwd, repo, base, head, ref, criteria_rev, files=None):
     repo/base/head/criteria. A file is covered when it is in `files_reviewed` of a pass receipt, or in
     `files_excluded` of a pass receipt of kind `parent` (the parent reviewer accepted the exclusion).
     -> (list of records | None, problem). Every returned record must be consumed together."""
-    unreadable = stale = failed = revoked = False
+    unreadable = stale = failed = revoked = fixture = False
     seen_status = None
     cands = []
     for _, rec in _scan("code-"):
@@ -167,6 +179,9 @@ def find_code(cwd, repo, base, head, ref, criteria_rev, files=None):
             continue
         if rec["verdict"]["verdict"] != "pass":
             failed = True
+            continue
+        if not usable_provenance(rec):
+            fixture = True
             continue
         if rec.get("revoked"):
             revoked = True
@@ -185,6 +200,8 @@ def find_code(cwd, repo, base, head, ref, criteria_rev, files=None):
             return None, "review was revoked by a later fail/blocked verdict for this head"
         if stale:
             return None, "review is stale: criteria updatedAt changed since review"
+        if fixture:
+            return None, "the receipt is a fixture, not a `maeng-review run` result"
         if seen_status:
             return None, f"receipt is {seen_status}; run `maeng-review reconcile`"
         return None, "receipt unreadable" if unreadable else "no pass receipt for this repo/base/head"
@@ -230,6 +247,8 @@ def find_notion(digest, destination, op):
         if (nid(s["destination"]), s["op"]) == (nid(destination), op):
             if rec["verdict"]["verdict"] != "pass":
                 return None, "review verdict is not pass"
+            if not usable_provenance(rec):
+                return None, "the receipt is a fixture, not a `maeng-review run` result"
             if rec.get("revoked"):
                 return None, "review was revoked by a later fail/blocked verdict for this payload"
             if rec["status"] != UNCONSUMED:

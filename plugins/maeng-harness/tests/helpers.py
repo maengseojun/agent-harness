@@ -42,6 +42,8 @@ class HarnessCase(unittest.TestCase):
             "MAENG_NOTION_DBS": "db111111111111111111111111111111",
             # Existing review tests exercise the codex backend with a fake binary; claude-backend tests opt in.
             "MAENG_REVIEW_BACKEND": "codex",
+            # `maeng-review store` and fixture receipts are test-only; tests of the default policy pop this.
+            "MAENG_TEST_FIXTURES": "1",
         }
         patcher = unittest.mock.patch.dict(os.environ, self.env, clear=True)
         patcher.start()

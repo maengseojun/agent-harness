@@ -14,6 +14,9 @@ GH_ALLOWED = {
     "ssh-key": {"list"}, "gpg-key": {"list"}, "extension": {"list", "search", "browse"},
     "alias": {"list"}, "config": {"get", "list"},
 }
+# Destructive remote operations, denied everywhere even where the group is otherwise open (`gh issue *`).
+DENIED_ACTIONS = {"issue": {"delete"}, "repo": {"delete", "archive", "unarchive", "rename", "edit"},
+                  "release": {"delete", "delete-asset", "create", "edit", "upload"}}
 READ_ACTIONS = {"view", "list", "diff", "checks", "status", "watch", "token", "get", "check",
                 "search", "browse"}
 # Remote reads that also write files into the local working directory / a destination operand.
@@ -36,7 +39,8 @@ PR_CREATE_BOOL = {"--draft", "-d"}
 
 def parse_gh(toks):
     args = toks[1:]
-    info = {"repo": None, "pos": [], "flags": {}, "method": None, "fields": [], "input": False}
+    info = {"repo": None, "pos": [], "flags": {}, "method": None, "fields": [], "raw": [], "typed": [],
+            "input": False}
     i = 0
     while i < len(args):
         t = args[i]
@@ -51,9 +55,12 @@ def parse_gh(toks):
             info["method"] = v.upper(); i += 0 if eq else 1
         elif t in ("-f", "-F", "--field", "--raw-field") or name in ("--field", "--raw-field"):
             v = val if eq else (args[i + 1] if i + 1 < len(args) else "")
-            info["fields"].append(v); i += 0 if eq else 1
+            info["fields"].append(v)
+            info["raw" if t in ("-f", "--raw-field") or name == "--raw-field" else "typed"].append(v)
+            i += 0 if eq else 1
         elif t.startswith(("-f", "-F")) and len(t) > 2 and t[2] != "-":
             info["fields"].append(t[2:])
+            info["raw" if t.startswith("-f") else "typed"].append(t[2:])
         elif name == "--input" or t == "--input":
             info["input"] = True; i += 0 if eq else 1
         elif t.startswith("-"):
@@ -87,6 +94,10 @@ def classify_gh(toks):
         return "deny", "`gh pr merge` is denied in every mode; use `maeng-ship merge <PR>`.", repo, info
     if group == "pr" and action == "create":
         return "create", "", repo, info
+    if group == "pr" and action == "close" and (info["flags"].get("--delete-branch") or info["flags"].get("-d")):
+        return "deny", "`gh pr close --delete-branch` deletes the remote head branch and is denied.", repo, info
+    if group in DENIED_ACTIONS and action in DENIED_ACTIONS[group]:
+        return "deny", f"`gh {group} {action}` is a destructive remote operation and is denied.", repo, info
     if group not in GH_ALLOWED:
         return "deny", f"`gh {group}` is not on the G1 allowlist.", repo, info
     allowed = GH_ALLOWED[group]
@@ -100,14 +111,37 @@ def classify_gh(toks):
     return "read", "", repo, info
 
 
+_SUBST = re.compile(r"\$\(|`")
+_WHOLE_VAR = re.compile(r"^\$\{?\w+\}?$")
+
+
+def _graphql_uninspectable(info):
+    """-> why this GraphQL call's content cannot be read from the command line, else ''."""
+    if info["input"]:
+        return "--input hides the request body"
+    raw = {f.partition("=")[0]: f.partition("=")[2] for f in info["raw"]}
+    if "query" not in raw:
+        return "the query is not a literal -f/--raw-field query=<text>"
+    for v in info["fields"]:
+        if v.partition("=")[2].startswith("@") or _SUBST.search(v) or _WHOLE_VAR.match(v.partition("=")[2]):
+            return "a field value comes from a file or a substitution"
+    if any(f.partition("=")[0] == "query" for f in info["typed"]):
+        return "the query is passed with -F/--field"
+    if re.search(r"\bmutation\b|createCommitOnBranch|mergePullRequest", raw["query"], re.I):
+        return "GraphQL mutations (createCommitOnBranch, mergePullRequest, ...) are denied"
+    return ""
+
+
 def _classify_api(info):
     pos = info["pos"]
     endpoint = pos[1] if len(pos) > 1 else ""
     repo = info["repo"] or _api_repo(endpoint)
     if endpoint == "graphql":
-        text = " ".join(info["fields"])
-        if info["input"] or re.search(r"\bmutation\b|createCommitOnBranch|mergePullRequest", text, re.I):
-            return "deny", "GraphQL mutations (createCommitOnBranch, mergePullRequest, ...) are denied.", repo, info
+        why = _graphql_uninspectable(info)
+        if why:
+            return "deny", (f"`gh api graphql` is denied: {why}. Only an inspectable literal "
+                            f"`-f query='query {{ ... }}'` (no mutation, no @file, no --input, no substitution) is "
+                            f"allowed."), repo, info
         return "read", "", repo, info
     method = info["method"] or ("POST" if (info["fields"] or info["input"]) else "GET")
     if method in ("GET", "HEAD"):
@@ -204,6 +238,8 @@ def readonly_strict(toks):
     if not pos or not gh_options_ok(info):
         return False
     if pos[0] == "api":
+        if len(pos) > 1 and pos[1] == "graphql":  # an inspectable literal query only reads
+            return not _graphql_uninspectable(info)
         if info["fields"] or info["input"]:
             return False
         if info["method"] not in (None, "GET"):

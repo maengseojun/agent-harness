@@ -1,0 +1,104 @@
+{
+  "verdict": "fail",
+  "receipt": null,
+  "findings": [
+    {
+      "severity": "high",
+      "title": "AC-4 live evidence for S6\u2013S8 (and S5, GF1\u2013GF4) predates the gate rewrite; only S1\u2013S4 and S9 were re-run",
+      "body": "evidence_binding shows S5/S6/S7/S8.summary.json and GF1\u2013GF4.summary.json are byte-identical between tree 078ee162 (2026-10-17 05:26) and head b123b92a; every later evidence tree (6211bee6, c219706d, 83bc0198) differs from head only in S1\u2013S4 summaries. Summaries embed session ids, durations and costs, so identical content means those scenarios were not re-run. Between 078ee162 and head the verification-relevant diff includes gates.py, ghcmd.py, readonly.py, receipts.py, remotecfg.py, state.py, handlers.py, guard.py, maeng-ship and maeng_hooks.py, i.e. the token-taint G3, the closed read-only allowlist, the corrupt-state fail-closed path and the plain-remote/default-head checks. So S7 (G3 denials), S8 (receipt + lease merge) and S6 (harness inert in an eta checkout) were exercised against the previous implementation. The round-5 reviewer already stated the S7 summary came from the old gate; the response was to relax the s7 assertions (g3_denied matches any 'maeng G3' text) rather than re-run, so the PASS rows for S7 B/C do not show the current gate denying. The declared check 'live staging smoke' at head tree b123b92a and the commit message 'staging S1-S9 at 13e7bed' overstate what ran. AC-4 (S6\u2013S8 pass, GF1\u2013GF3 block) is therefore not established for this head. Fix: re-run S5\u2013S9 and GF1\u2013GF4 at 13e7bed/head, commit the new summaries and results, then re-declare the live-smoke check.",
+      "file": "tests/live/assert_smoke.py",
+      "line": 167
+    },
+    {
+      "severity": "high",
+      "title": "check_bash fails open on ParseError: unparseable commands skip every G3/G1 check",
+      "body": "On ParseError the gate returns Decision() (allow) unless RISKY matches a shipping word. The parser raises on heredocs whose delimiter is not [A-Za-z0-9_] with optional matching quotes, e.g. `cat <<\\EOF > ~/Documents/Project/eta_v1/f` or `<<\"E-OF\"`, and on more than 5 nested substitutions; bash accepts all of these. In a personal session such a command is executed with no redirect, token-taint or directory check, so a write into an eta checkout is allowed. This violates the stated rule that a gate must fail closed when it cannot decide. Fix: deny on ParseError (message: rewrite as a plain command / quote the heredoc delimiter), and widen the heredoc regex to accept `<<\\WORD` if you want that idiom.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 120
+    },
+    {
+      "severity": "high",
+      "title": "`maeng-review store <file>` turns any local JSON into a pass receipt",
+      "body": "The store subcommand calls receipts.store_verdict on an arbitrary file with no provenance check, no require_personal, and no link to a reviewer run. An agent that cannot get the reviewer to run (the code itself notes the npm codex install is broken) can write {verdict: pass, subject: {...}} with the subject fields that maeng-review prints in a blocked bundle, store it, and `maeng-ship merge` / the lease push will accept it. That is exactly the convenience shortcut the threat model says gates must stop; the receipt mechanism's only value is that passes come from the isolated reviewer. Fix: restrict store to fail/blocked verdicts (revocations), or accept only verdict files written by `maeng-review run` into $MAENG_HOME/reviews/<hash>.json whose hash matches, or remove the subcommand.",
+      "file": "plugins/maeng-harness/bin/maeng-review",
+      "line": 343
+    },
+    {
+      "severity": "medium",
+      "title": "Runner allowlist: `env VAR=\u2026 <runner>` bypasses UNSAFE_ENV and the `$` check",
+      "body": "_runner only applies UNSAFE_ENV to leading assignments in the raw tokens; program() then strips an `env` wrapper together with all of its `-opts` and `KEY=VALUE` arguments before the remaining checks. So `env PYTEST_ADDOPTS=--collect-only pytest -q` (hook path) or `maeng-verify exec -- env PYTEST_ADDOPTS=--co python3 -m pytest` is recognised as an unfiltered pytest run, exits 0 without executing tests, and records passing test evidence; `env PATH=\u2026 pytest` likewise escapes the `$`/backtick check. The same stripping applies to sudo/nice/nohup/command/exec/time. Fix: in _runner (and cmd_exec) treat any WRAPPER_PREFIX token as not-evidence, or at least run UNSAFE_ENV and the `$` check over env's stripped arguments.",
+      "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+      "line": 118
+    },
+    {
+      "severity": "medium",
+      "title": "`gh api graphql` with a file- or substitution-sourced query is uninspectable yet classified read",
+      "body": "_classify_api only regex-scans the literal field text for `mutation`. `gh api graphql -F query=@m.graphql` (fields=['@m.graphql']) and `gh api graphql -f query=\"$(cat m.graphql)\"` are classified `read`, so route_mentions never fires, canonical_command is not consulted, readonly_strict rejects them only for taint purposes, and check_gh allows them. A file holding mergePullRequest/createCommitOnBranch therefore runs. --input is already denied for this reason. Fix: deny graphql when any field value starts with `@`, contains `$` or a backtick, or when the query is not given as a literal -f/--raw-field.",
+      "file": "plugins/maeng-harness/lib/maeng/ghcmd.py",
+      "line": 103
+    },
+    {
+      "severity": "medium",
+      "title": "check_mcp_github is a denylist; `delete_file` commits to a branch without tree verification",
+      "body": "Only push_files, create_or_update_file, merge_pull_request, update_pull_request_branch and create_pull_request are handled; every other non-read tool is allowed after the eta check. github-mcp-server's delete_file commits a deletion to a branch, which is the same unverified-content route as create_or_update_file, and future content-writing tools would also pass. The design elsewhere is allowlist-by-form. Fix: invert to an allowlist of permitted write tools (issue/PR comments, reviews, labels, create_branch, create_issue, \u2026) and deny everything else by default.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 455
+    },
+    {
+      "severity": "medium",
+      "title": "G3 taint resolves unexpandable `$VAR` tokens (and `cd $VAR`) as personal",
+      "body": "world_of_path runs os.path.expandvars with the hook's environment, not the agent's persistent shell, so `E=~/Documents/Project/eta_v1; touch $E/x` or `export E=\u2026` in one call and `cd $E && git commit` in the next leave `$E` literal; _abs makes it cwd/$E/\u2026, _nearest_dir falls back to the (personal) cwd, and the mutating segment is allowed. The gate cannot decide such a token and currently decides 'personal'. Fix: for non-read-only segments, treat any token (and any cd target) that still contains `$` or a backtick after expandvars as undecidable and deny with a 'use a literal path' message; accept the extra denials as the fail-closed cost.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 221
+    },
+    {
+      "severity": "medium",
+      "title": "Configured git aliases are not resolved: `git <alias>` that expands to push bypasses G1",
+      "body": "route_mentions and check_git only recognise the literal `push` subcommand (and `-c alias.*` overrides). A user- or repo-level alias such as `pushf = push --force` or a `!sh \u2026` alias is a plain `git <name> origin feat`: not read-only, so it reaches check_git, passes _cwd_gate and returns Decision() with no verification or default-branch check. Since `-c alias.*` is already treated as a shipping mention, persisted aliases are the same route. Fix: for a subcommand outside a known builtin set, run `git config --get alias.<sub>`; if it resolves, substitute and re-check (or deny).",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 300
+    },
+    {
+      "severity": "low",
+      "title": "`gh pr close --delete-branch -R \u2026` deletes the remote head branch under the 'pr write' form",
+      "body": "pr close is an allowed write with -R; --delete-branch is not filtered, so the remote feature branch is deleted. Not a ship route, but it is a remote mutation outside the described write set. Consider rejecting --delete-branch (and `gh issue delete`) or listing them explicitly in FORMS.",
+      "file": "plugins/maeng-harness/lib/maeng/ghcmd.py",
+      "line": 97
+    },
+    {
+      "severity": "low",
+      "title": "must_haves truth 1 is not yet true at this head (loose work-records skill loads in eta_v1)",
+      "body": "S5 still fails 'no personal loose skills' (harness-run, work-records loaded from ~/.claude/skills) and 'no personal agents' (codebase-explorer). AC-6 is met by its wording (no maeng-harness, zero maeng hook output, eta_v1 unchanged), and the plan dispositions the leak to MAE-224, but the personal record flow is reachable in the eta world until that retirement lands. Recorded so the integration PR is not read as having achieved the truth.",
+      "file": "tests/live/assert_smoke.py",
+      "line": 113
+    },
+    {
+      "severity": "low",
+      "title": "PreToolUse matcher omits MultiEdit although gates handle it",
+      "body": "gates.evaluate and malformed() accept MultiEdit, but hooks.json's PreToolUse matcher lists only Bash|Edit|Write|NotebookEdit|mcp__\u2026; if the host still exposes MultiEdit, its writes bypass G3. Add it to the matcher or drop the dead branch.",
+      "file": "plugins/maeng-harness/hooks/hooks.json",
+      "line": 27
+    },
+    {
+      "severity": "low",
+      "title": "Default mode counts `unittest discover -s <dir>` as unfiltered though an empty directory exits 0 on Python < 3.12",
+      "body": "unfiltered() accepts any -s/-t directories; `python3 -m unittest discover -s docs` runs 0 tests and exits 0 on 3.11 and earlier, satisfying the default 'some passing tests' predicate. Python 3.12+ exits 5 in that case. Either require -s to be the repository root or pin to 3.12+ semantics by checking the output for 'Ran 0 tests'.",
+      "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+      "line": 225
+    },
+    {
+      "severity": "low",
+      "title": "Exclusion list accepted as parent exemptions; executable scripts rest on the provenance claim",
+      "body": "Accepted: archive/ copies, docs/design/*, staging evidence and the skills documented as verbatim or mechanically split in skill-provenance.md / skill-hygiene.md (passed rev6). This exempts executable files such as frontend-slides/scripts/deploy.sh, vercel-deploy/scripts/deploy.sh, chart-style/setup.sh, screenshot/scripts/*.py, diagram-explainer/scripts/*.py and obsidian-workspace/scripts/*.py except private_filter.py, whose verbatim status this review could not verify. Delegated paths (tests, harness-run, work-records, skill scripts) remain uncovered and need their own pass receipts.",
+      "file": null,
+      "line": null
+    },
+    {
+      "severity": "low",
+      "title": "Round-5 findings: all seven confirmed resolved in this head",
+      "body": "1 MCP create_pull_request now passes must_be_origin=True and denies on plain_remote errors. 2 go test -count must match [1-9]\\d* and -run is never unfiltered. 3 `file` is absent from the read-only SPECS/PROGS. 4 parse_requirement marks runner-parseable constituents and requirement_met requires source=runner for them; the three runner checks here are satisfied by maeng-verify exec evidence at tree 83bc0198, whose relevant diff to head is empty. 5 state.load raises StateCorrupt on unreadable or malformed state and the dispatcher denies PreToolUse. 6 _checked_registry/_checked_journal raise RegistryError and check_mcp_notion denies. 7 s7 assertions now match any G3 denial (but see the high finding on stale S7 evidence). AC-1, AC-2, AC-3 and AC-5 are met by runner evidence and S4.models.json at head.",
+      "file": null,
+      "line": null
+    }
+  ]
+}

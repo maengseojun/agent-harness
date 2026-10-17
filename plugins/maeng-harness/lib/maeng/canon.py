@@ -18,7 +18,8 @@ NON_EXEC = {"echo", "printf", "grep", "egrep", "fgrep", "rg", "man", "which", "t
 
 FORMS = (
     "git push [-u] <remote> <branch>",
-    "git push [-u] <remote> <branch-or-sha>:<refs/heads/name|name>",
+    "git push [-u] <remote> <local-branch>:<name|refs/heads/name>",
+    "git push [-u] <remote> <full-commit-sha>:refs/heads/<name> (a SHA source needs the full refs/heads/ destination)",
     "git push --force-with-lease=refs/heads/<base>:<sha> <remote> <sha>:refs/heads/<base> (maeng-ship's exact lease)",
     "gh pr create --repo|-R <owner/repo of origin> [--base B] [--head H] [--title T] [--body B | --body-file F] [--draft]",
     "maeng-ship merge <N> [--remote R] [--session S]",

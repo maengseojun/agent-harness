@@ -1,6 +1,6 @@
 ---
 name: execute-code-brief
-description: Execute an agreed coding brief or specification in Codex, preserving scope and connecting implementation to targeted verification. Use for implementation handoffs rather than general coding questions.
+description: Execute an agreed coding brief or specification, preserving scope and connecting implementation to targeted verification. Use for implementation handoffs rather than general coding questions.
 ---
 
 # Execute a coding brief

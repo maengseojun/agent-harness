@@ -29,12 +29,13 @@ class PluginLayout(unittest.TestCase):
         pre = self.hooks["PreToolUse"]
         self.assertEqual(len(pre), 1)
         self.assertEqual(pre[0]["hooks"][0]["onFailure"], "block")
-        self.assertEqual(pre[0]["matcher"], "Bash|Edit|Write|NotebookEdit|mcp__github__.*|mcp__claude_ai_Notion__.*|mcp__linear-endix__.*")
+        self.assertEqual(pre[0]["matcher"], "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__github__.*|mcp__claude_ai_Notion__.*|mcp__linear-endix__.*")
         for event, g, h in self.commands():
             if event != "PreToolUse":
                 self.assertNotEqual(h.get("onFailure"), "block", event)
         self.assertIn("mcp__.*", self.hooks["PostToolUse"][0]["matcher"])
-        self.assertEqual(self.hooks["PostToolUseFailure"][0]["matcher"], "Bash|Edit|Write|NotebookEdit|mcp__.*")
+        self.assertEqual(self.hooks["PostToolUseFailure"][0]["matcher"], "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__.*")
+        self.assertEqual(self.hooks["PostToolUse"][1]["matcher"], "Edit|Write|MultiEdit|NotebookEdit")
         for event in ("SessionStart", "UserPromptSubmit", "Stop", "SubagentStop", "SessionEnd"):
             self.assertNotIn("matcher", self.hooks[event][0])
 

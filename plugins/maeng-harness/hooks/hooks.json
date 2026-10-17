@@ -24,7 +24,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|Edit|Write|NotebookEdit|mcp__github__.*|mcp__claude_ai_Notion__.*|mcp__linear-endix__.*",
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__github__.*|mcp__claude_ai_Notion__.*|mcp__linear-endix__.*",
         "hooks": [
           {
             "type": "command",
@@ -47,7 +47,7 @@
         ]
       },
       {
-        "matcher": "Edit|Write|NotebookEdit",
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [
           {
             "type": "command",
@@ -59,7 +59,7 @@
     ],
     "PostToolUseFailure": [
       {
-        "matcher": "Bash|Edit|Write|NotebookEdit|mcp__.*",
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__.*",
         "hooks": [
           {
             "type": "command",

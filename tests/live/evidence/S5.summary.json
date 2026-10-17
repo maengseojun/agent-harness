@@ -1,9 +1,9 @@
 {
  "init": {
   "cwd": "/Users/maengseojun/Documents/Project/eta_v1",
-  "session_id": "79cf02a3-2708-4262-a813-d43a44b1bbcf",
+  "session_id": "44691cd9-0c86-4cab-bf53-078308c661c8",
   "model": "claude-sonnet-5-5",
-  "claude_code_version": "2.1.301",
+  "claude_code_version": "2.1.302",
   "plugins": [
    {
     "name": "maeng-tools",
@@ -34,16 +34,11 @@
    "claude",
    "codebase-explorer",
    "Explore",
-   "explorer",
    "general-purpose",
-   "implementer",
    "maeng-tools:architect",
    "maeng-tools:implementer",
    "maeng-tools:researcher",
    "Plan",
-   "planner",
-   "researcher",
-   "reviewer",
    "statusline-setup"
   ],
   "skills": [
@@ -76,15 +71,6 @@
    "tutorial-video",
    "vercel-deploy",
    "work-records",
-   "checkpoint",
-   "code-review",
-   "daily-log",
-   "debug",
-   "environment-sync",
-   "github",
-   "memory",
-   "modes",
-   "optimize",
    "deep-research",
    "maeng-tools:aside-browser",
    "maeng-tools:aside-collect",
@@ -173,6 +159,8 @@
    "dataviz",
    "update-config",
    "verify",
+   "debug",
+   "code-review",
    "simplify",
    "batch",
    "fewer-permission-prompts",
@@ -269,9 +257,9 @@
   "subtype": "success",
   "is_error": false,
   "num_turns": 1,
-  "total_cost_usd": 0.0216968,
+  "total_cost_usd": 0.849804,
   "stop_reason": "end_turn",
-  "session_id": "79cf02a3-2708-4262-a813-d43a44b1bbcf",
+  "session_id": "44691cd9-0c86-4cab-bf53-078308c661c8",
   "permission_denials": [],
   "result": "OK"
  },
@@ -279,6 +267,8 @@
   "OK"
  ],
  "scenario": "S5",
+ "run_id": "6446ea5c68134575af22f82dc3cf3c74",
+ "finished_at": "2026-10-17T14:54:46+0900",
  "run": {
   "cmd": [
    "claude",
@@ -296,18 +286,54 @@
    "Read,Grep,Glob"
   ],
   "returncode": 0,
-  "seconds": 5.9
+  "seconds": 11.3
  },
  "facts": {
   "eta_before": {
-   "head": "7e818ec1673c80a08ac5adfde1432904232d1f8d",
-   "porcelain_sha256": "eb2d9150f3bc7dd805d60ba71d7a0c5a2497534c5623d28e68d8c2247bdc184c",
-   "porcelain_lines": 565
+   "folder_listing_sha256": "73b6be6004a2618decf7175544d2e352e788c96df5460bbac04559378352c07e",
+   "dev": {
+    "head": "d72679e1a99d48103935609bb16b725fcf459255",
+    "porcelain_sha256": "49c6c6c2a8ef536b3cb30b6eaf32ba2101293052654548024f57468d6b235356",
+    "porcelain_lines": 8
+   },
+   "dev/contracts": {
+    "head": "1919aa3d25e88a4fcd0a03ae00328b5b93fd795c",
+    "porcelain_sha256": "f5baf67f16b76c18f5e5a78514f8310c155e1a0a091bba28acee786d0ed2f226",
+    "porcelain_lines": 9
+   },
+   "dev/web": {
+    "head": "f1ce382312cb78b558dabd76b16139361a5c0ccf",
+    "porcelain_sha256": "4d88ed1b22ab2d1982d30fc9569025f480368a93409eb433f29e8edfa196daee",
+    "porcelain_lines": 2
+   },
+   "docs-repo": {
+    "head": "a79528401cf0f1f9d4f252fa2f9f5655aa4244e0",
+    "porcelain_sha256": "65f1c258c537e72834769c537355bc7aec0836597d94aba9f40b0f6599164572",
+    "porcelain_lines": 4
+   }
   },
   "eta_after": {
-   "head": "7e818ec1673c80a08ac5adfde1432904232d1f8d",
-   "porcelain_sha256": "eb2d9150f3bc7dd805d60ba71d7a0c5a2497534c5623d28e68d8c2247bdc184c",
-   "porcelain_lines": 565
+   "folder_listing_sha256": "73b6be6004a2618decf7175544d2e352e788c96df5460bbac04559378352c07e",
+   "dev": {
+    "head": "d72679e1a99d48103935609bb16b725fcf459255",
+    "porcelain_sha256": "49c6c6c2a8ef536b3cb30b6eaf32ba2101293052654548024f57468d6b235356",
+    "porcelain_lines": 8
+   },
+   "dev/contracts": {
+    "head": "1919aa3d25e88a4fcd0a03ae00328b5b93fd795c",
+    "porcelain_sha256": "f5baf67f16b76c18f5e5a78514f8310c155e1a0a091bba28acee786d0ed2f226",
+    "porcelain_lines": 9
+   },
+   "dev/web": {
+    "head": "f1ce382312cb78b558dabd76b16139361a5c0ccf",
+    "porcelain_sha256": "4d88ed1b22ab2d1982d30fc9569025f480368a93409eb433f29e8edfa196daee",
+    "porcelain_lines": 2
+   },
+   "docs-repo": {
+    "head": "a79528401cf0f1f9d4f252fa2f9f5655aa4244e0",
+    "porcelain_sha256": "65f1c258c537e72834769c537355bc7aec0836597d94aba9f40b0f6599164572",
+    "porcelain_lines": 4
+   }
   },
   "eta_path": "/Users/maengseojun/Documents/Project/eta_v1"
  },

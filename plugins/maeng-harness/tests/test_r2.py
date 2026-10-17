@@ -8,7 +8,7 @@ from unittest import mock
 from maeng import evidence, gates, guard, handlers, receipts
 from maeng.common import canonical, sha256
 from .helpers import BIN, HOOK, HarnessCase, run
-from .test_cli import ReviewRun
+from .test_cli import ReviewRunFixture
 from .test_g1 import ShipBase
 from .test_g2_g3 import CREATE, DB, G2Tests
 from .test_merge import MergeBase
@@ -432,7 +432,7 @@ class R2_F_EvidenceIdentity(ShipBase):
         self.assertAllowed("git push origin feat")
 
 
-class R2_G_ReviewRevocationAndDelegation(ReviewRun):
+class R2_G_ReviewRevocationAndDelegation(ReviewRunFixture):
     def setUp(self):
         super().setUp()
         (self.repo / "lib.py").write_text("x = 1\n")

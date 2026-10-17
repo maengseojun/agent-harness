@@ -108,6 +108,70 @@ class MoveTests(Base):
         self.assertIn("world: eta", (self.vault / "eta/n.md").read_text())
 
 
+class MovePrivateTests(Base):
+    def test_move_refuses_private_note(self):
+        p = self.note("raw/p.md", "hello <private>secret</private>\n")
+        before = p.read_bytes()
+        with self.assertRaises(A.ArchiveError) as cm:
+            A.cmd_move("raw/p.md", "onedrive", "personal", False)
+        self.assertIn("private", str(cm.exception))
+        self.assertEqual(p.read_bytes(), before)
+        self.assertFalse(list(self.od.rglob("p.md")))
+
+    def test_move_refuses_private_even_dry_run_and_binary(self):
+        b = self.vault / "f.bin"
+        b.write_bytes(b"x< Private y")
+        with self.assertRaises(A.ArchiveError):
+            A.cmd_move("f.bin", "onedrive", "personal", True)
+        self.assertTrue(b.exists())
+
+
+class ExclusiveCopyTests(Base):
+    def _src(self, data=b"twenty bytes of data"):
+        s = self.home / "src.bin"
+        s.write_bytes(data)
+        return s
+
+    def test_link_path_used_normally(self):
+        d = self.od / "x" / "out.bin"
+        self.assertEqual(A.copy_file(self._src(), d, exclusive=True), "link")
+        self.assertEqual(d.read_bytes(), b"twenty bytes of data")
+
+    def test_fallback_when_link_fails(self):
+        import errno
+        for code in (errno.EPERM, errno.ENOTSUP, errno.EXDEV, errno.EOPNOTSUPP):
+            d = self.od / f"out{code}.bin"
+            with mock.patch.object(A.os, "link", side_effect=OSError(code, "no link")):
+                self.assertEqual(A.copy_file(self._src(), d, exclusive=True), "fallback")
+            self.assertEqual(d.read_bytes(), b"twenty bytes of data")
+            self.assertEqual([x.name for x in self.od.iterdir() if x.name.startswith(".tmp-archive-")], [])
+
+    def test_fallback_never_overwrites(self):
+        import errno
+        d = self.od / "exists.bin"
+        d.write_bytes(b"original")
+        with mock.patch.object(A.os, "link", side_effect=OSError(errno.EPERM, "no link")):
+            with self.assertRaises(FileExistsError):
+                A.copy_file(self._src(), d, exclusive=True)
+        self.assertEqual(d.read_bytes(), b"original")
+
+    def test_link_fileexists_still_raised_and_no_fallback(self):
+        d = self.od / "exists2.bin"
+        d.write_bytes(b"original")
+        with self.assertRaises(FileExistsError):
+            A.copy_file(self._src(), d, exclusive=True)
+        self.assertEqual(d.read_bytes(), b"original")
+
+    def test_fallback_verification_failure_removes_partial(self):
+        import errno
+        d = self.od / "bad.bin"
+        with mock.patch.object(A.os, "link", side_effect=OSError(errno.EPERM, "no link")), \
+                mock.patch.object(A, "sha256_file", side_effect=["a", "b"]):
+            with self.assertRaises(A.ArchiveError):
+                A.copy_file(self._src(), d, exclusive=True)
+        self.assertFalse(d.exists())
+
+
 class SafetyTests(Base):
     def test_binary_move_refuses_existing_unrelated_stub(self):
         p = self.vault / "files" / "x.pdf"
@@ -390,9 +454,6 @@ class RestoreTests(Base):
         self.assertEqual((tgt / "vault/a.md").read_text(), "A")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class BackupConsistencyTests(Base):
     def test_file_changing_after_read_stays_consistent(self):
@@ -609,3 +670,7 @@ class CliRoundTrip(unittest.TestCase):
             self.assertIn("body", note.read_text(encoding="utf-8"))
             self.assertEqual(run("backup", "--to", "onedrive,gdrive").returncode, 0)
             self.assertTrue(list((od / "maeng-backup").glob("maeng-*.zip")))
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -20,6 +20,23 @@ def path_for(session_id):
     return sessions_dir() / (safe_id(session_id) + ".json")
 
 
+def tombstone_for(session_id):
+    return sessions_dir() / (safe_id(session_id) + ".quarantined")
+
+
+def is_quarantined(session_id):
+    """True when this session's state was quarantined: without its state the hook cannot tell a personal session
+    from an eta one, so every tool call of the session is denied until it is restarted."""
+    return tombstone_for(session_id).exists()
+
+
+def clear_quarantine(session_id):
+    try:
+        tombstone_for(session_id).unlink()
+    except FileNotFoundError:
+        pass
+
+
 def fresh(session_id, cwd=""):
     return {"session_id": session_id, "cwd": cwd, "seq": 0, "binding": None, "evidence": [],
             "skips": [], "plan_records": [], "pending": {}, "decisions": [], "baseline_tree": None,
@@ -87,6 +104,7 @@ def quarantine(session_id):
             pass
         dest = p.with_name(f"{p.name}.corrupt-{time.strftime('%Y%m%dT%H%M%S')}-{os.getpid()}")
         os.replace(p, dest)
+        atomic_write(tombstone_for(session_id), f"quarantined {dest.name}\n")
     return dest
 
 

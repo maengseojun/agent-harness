@@ -30,7 +30,8 @@
       "type": "object",
       "required": ["model", "effort"],
       "additionalProperties": false,
-      "properties": {"model": {"type": "string"}, "effort": {"enum": ["low", "medium", "high", "xhigh"]}}
+      "properties": {"model": {"type": "string"}, "effort": {"enum": ["low", "medium", "high", "xhigh"]},
+                     "provenance": {"enum": ["review-run", "fixture"]}}
     },
     "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}}
   },

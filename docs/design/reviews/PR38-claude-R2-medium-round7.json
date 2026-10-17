@@ -1,0 +1,76 @@
+{
+  "verdict": "pass",
+  "receipt": "code-88597c883a597fa94c310740",
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "move does not enforce the <private> rule the backup path enforces",
+      "body": "SKILL.md tells the agent not to `move` a note containing <private> text, and `backup` enforces exclusion in code (_has_private_bytes). `cmd_move` has no such check: a .md with <private> spans is hashed, copied in full to OneDrive/Google Drive, and then replaced by a stub, so the private text ends up only in the cloud tier. claude-edition.md says <private> content is never written outside the vault. Under the guardrail threat model this is an instruction-only guard where the sibling command has a code guard. Suggest refusing (or requiring an explicit flag) when `_has_private_bytes(src.read_bytes())` is true, with a test.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": 246
+    },
+    {
+      "severity": "medium",
+      "title": "Exclusive copy relies on os.link, which cloud File Provider mounts may not support",
+      "body": "`copy_file(..., exclusive=True)` creates the final backup via a hard link in the destination directory. The real stores are `~/Library/CloudStorage/OneDrive-*` and `GoogleDrive-*/My Drive`, which on macOS are File Provider mounts that commonly reject link() (EPERM/ENOTSUP). Tests only exercise APFS temp dirs and the bundle has no live backup evidence against a real store. The failure is fail-closed (store marked failed, exit 1), so this is a functionality risk rather than a gate gap, but backups could fail on every real run. A portable alternative is open(dst, O_CREAT|O_EXCL|O_WRONLY) and write+fsync directly, or try link and fall back to O_EXCL open.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": 82
+    },
+    {
+      "severity": "low",
+      "title": "Stale comment: retention no longer sorts by name",
+      "body": "The comment above the stamp says 'retention sorts by name' and that microseconds keep lexicographic order; `_prune` now sorts by (st_mtime_ns, name). Update the comment so the next reader does not reintroduce name ordering. Also note the retention fix now depends on the store preserving mtime; a cloud rehydration that resets mtime would reorder pruning.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": 397
+    },
+    {
+      "severity": "low",
+      "title": "aside-collect pipeline contradicts itself on STAMP format and nonce reuse",
+      "body": "Step 3 sets `STAMP=$(date +%Y%m%d-%H%M)` while step 5 defines <STAMP> as YYYYMMDD-HHMMSS. Step 2 says a fresh nonce is generated for every retry, while step 7 says the resume retry uses the same nonce. Pick one in each case; the parser accepts either, but the sidecar/filename convention should be unambiguous.",
+      "file": "plugins/maeng-tools/skills/aside-collect/SKILL.md",
+      "line": 26
+    },
+    {
+      "severity": "low",
+      "title": "Reviewer backend described as codex exec; D-9 made Claude the default",
+      "body": "review-and-ship.md opens with 'maeng-review runs a read-only codex exec reviewer'. Commit 13e7bed introduced the Claude reviewer backend as default (D-9). execute-code-brief's description also still says 'in Codex'. Update both so the Claude edition docs match the shipped behavior.",
+      "file": "plugins/maeng-harness/skills/harness-run/references/review-and-ship.md",
+      "line": 3
+    },
+    {
+      "severity": "low",
+      "title": "Garbled sentence in prepare-work-deliverable",
+      "body": "'Keep evidence current, leave close the Linear issue yourself (Done) ...' is a broken merge of two edits ('leave' is a leftover). Fix the sentence.",
+      "file": "plugins/maeng-tools/skills/prepare-work-deliverable/SKILL.md",
+      "line": 12
+    },
+    {
+      "severity": "low",
+      "title": "graphify docs claim a vendored runtime that is not in the repository",
+      "body": "local-evidence.md says pinned source and licenses are in this skill's `vendor/graphify/`, but no such path appears in the bundle's file lists, and runtime-location.json points at a non-portable absolute path under ~/Documents/ChatGPT/.... The PIN_SOURCE_SHA256 check still protects extraction, so this is a documentation/portability gap, not a gate gap. Either vendor the source or reword the doc to say the runtime is external and must match the pinned digest.",
+      "file": "plugins/maeng-tools/skills/graphify-repository/references/local-evidence.md",
+      "line": 3
+    },
+    {
+      "severity": "low",
+      "title": "Plan Verification line is a compound && command",
+      "body": "The bound Plan writes AC-6 as four unittest invocations joined with `&&`. verification.md states that a check counts only as one plain command and that Plan requirements should use the plain forms. The gate evidently split the line, and the actual evidence is four separate `maeng-verify exec` runs at tree 83bc0198 (differs from head only in tests/live/evidence/**), so AC-6 is met. For consistency with the written rule, express each runner on its own Verification line.",
+      "file": "plugins/maeng-harness/skills/harness-run/references/verification.md",
+      "line": 41
+    },
+    {
+      "severity": "low",
+      "title": "must_haves placement differs between harness-run and spec-plan",
+      "body": "harness-run step 5 says 'The Plan carries must_haves', while spec-plan.md puts must_haves in the Spec and gives the Plan readiness/steps/Verification. Align the two so a task author knows which document a falsify-first reviewer reads for must_haves.",
+      "file": "plugins/maeng-harness/skills/harness-run/SKILL.md",
+      "line": 29
+    },
+    {
+      "severity": "low",
+      "title": "unittest.main() guard sits mid-file in test_archive.py",
+      "body": "The `if __name__ == \"__main__\": unittest.main()` block appears after RestoreTests, before six more test classes. `python3 -m unittest discover` (the required form) collects everything, but running the file directly would exit before the later classes are defined. Move the guard to the end.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/test_archive.py",
+      "line": 315
+    }
+  ]
+}

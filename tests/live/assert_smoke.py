@@ -121,7 +121,7 @@ def s5(S):
         ("no personal loose skills in init.skills (e.g. harness-run, work-records)", not ({"harness-run", "work-records", "obsidian-workspace"} & set(S["init"]["skills"])) or "loose ~/.claude/skills still loaded (pre-retirement)"),
         ("zero maeng hook output (no hook output mentions maeng)", all("maeng" not in (h["output"] + h["stderr"]).lower() for h in S["hooks"])),
         ("temp MAENG_HOME/VAULT unchanged (empty)", not S["fs"]["home"] and not S["fs"]["vault"]),
-        ("eta_v1 git status/HEAD unchanged", f["eta_before"] == f["eta_after"]),
+        ("eta team checkouts (dev, contracts, web, docs) and eta_v1 folder unchanged", f["eta_before"] == f["eta_after"]),
         ("session answered OK", S["result"]["result"].strip() == "OK"),
     ]
 
@@ -176,7 +176,7 @@ def s7(S):
         ("B git -C eta-classified repo commit denied by G3", g3_denied(S, "commit --allow-empty")),
         ("C gh pr create -R endix-foundation-v1/x denied by G3", g3_denied(S, "gh pr create -R endix-foundation-v1/x")),
         ("eta-classified repo HEAD unchanged", f["eta_repo_head_before"] == f["eta_repo_head_after"]),
-        ("real eta_v1 git status unchanged", f["eta_before"] == f["eta_after"]),
+        ("eta team checkouts and eta_v1 folder unchanged", f["eta_before"] == f["eta_after"]),
         ("fake gh not invoked for pr create", not any("create" in l for l in S["gh_log"])),
     ]
 
@@ -214,10 +214,17 @@ CHECKS = {"S1": s1, "S2": s2, "S3": s3, "S4": s4, "S5": s5, "S6": s6, "S7": s7, 
 
 def main(ids):
     results, bad = {}, 0
+    run = json.loads((EV / "run.json").read_text()) if (EV / "run.json").exists() else {}
     for sid in ids:
         try:
             S = load(sid)
-            rows = CHECKS[sid](S)
+            if not run or S.get("run_id") != run.get("run_id"):
+                rows = [("evidence is from the current run (run.json run_id matches)",
+                         f"stale or unmatched evidence: summary run_id={S.get('run_id')} run.json={run.get('run_id')}")]
+            elif S.get("error"):
+                rows = [("scenario ran without crashing", S["error"].strip().splitlines()[-1])]
+            else:
+                rows = CHECKS[sid](S)
         except Exception as exc:  # noqa: BLE001
             rows = [(f"assertion crashed: {type(exc).__name__}: {exc}", False)]
         results[sid] = [{"check": n, "pass": ok is True, "detail": ("" if ok is True else str(ok))} for n, ok in rows]

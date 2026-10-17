@@ -117,7 +117,8 @@ def check_bash(command, ctx):
     try:
         segs = split_segments(command)
     except ParseError:
-        return deny(canon.message("it cannot be parsed")) if RISKY.search(command) else Decision()
+        return deny("maeng: cannot parse this command; use a simpler form (no unusual heredoc delimiters / deep "
+                    "nesting)")
     if canon.route_mentions(segs, command):
         form, why = canon.canonical_command(command, segs)
         if not form:
@@ -172,6 +173,23 @@ def mutating_options(prog, toks):
     return False
 
 
+GIT_BUILTINS = set("""add am annotate apply archive bisect blame branch bundle cat-file check-attr check-ignore checkout
+cherry cherry-pick clean clone commit commit-tree config count-objects describe diff difftool fetch filter-branch
+for-each-ref format-patch fsck gc grep hash-object help init log ls-files ls-remote ls-tree maintenance merge
+merge-base mergetool mv name-rev notes pull push range-diff read-tree rebase reflog remote repack replace request-pull
+reset restore rev-list rev-parse revert rm send-email shortlog show show-branch show-ref sparse-checkout stash status
+submodule subtree switch symbolic-ref tag update-index update-ref var verify-commit verify-tag version whatchanged
+worktree write-tree prune pack-refs""".split())
+
+
+def git_alias(cwd, sub):
+    """-> the configured alias expansion for `git <sub>` ('' when there is none)."""
+    if not sub or sub in GIT_BUILTINS:
+        return ""
+    rc, out, _ = git(cwd, "config", "--get-all", f"alias.{sub}")
+    return out.strip() if rc == 0 else ""
+
+
 def git_readonly(sub, args):
     if sub in READONLY_GIT:
         return not any(a == "--output" or a.startswith("--output=") for a in args) and readonly.git_options_ok(args)
@@ -195,6 +213,33 @@ def git_readonly(sub, args):
 SLUG_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?(?:\.git)?$")
 SCP_RE = re.compile(r"^[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+:[A-Za-z0-9_.~/-]+$")
 GLOB_CUT = re.compile(r"[*?\[{]")
+UNRESOLVED = re.compile(r"\$[A-Za-z_{]|`")
+SCRIPT_PROGS = {"awk", "gawk", "sed"}
+
+
+class UndecidableDir(str):
+    """Marks an effective directory the hook cannot resolve (`cd $VAR`): mutations are denied until a literal cd."""
+
+
+def _strip_substitutions(tok):
+    """Drop balanced `$( ... )` spans: their inner commands are parsed and checked as segments of their own."""
+    out, i, n = [], 0, len(tok)
+    while i < n:
+        if tok.startswith("$(", i):
+            depth, j = 1, i + 2
+            while j < n and depth:
+                depth += (tok[j] == "(") - (tok[j] == ")")
+                j += 1
+            i = j
+        else:
+            out.append(tok[i]); i += 1
+    return "".join(out)
+
+
+def unresolved(tok):
+    """True when the token still holds a `$VAR`, `${...}` or backtick after expanding the HOOK's environment (not the
+    agent's persistent shell): the path it stands for cannot be decided."""
+    return bool(UNRESOLVED.search(os.path.expandvars(_strip_substitutions(tok))))
 
 
 def _variants(tok):
@@ -241,7 +286,10 @@ def world_of_path(path, cwd, ctx):
 
 def token_taint(seg, cwd, ctx):
     """-> the first reason a token of this segment is eta/unknown tainted, or None."""
+    script_prog = program(seg.tokens)[0] in SCRIPT_PROGS
     for tok in seg.tokens:
+        if unresolved(tok) and not (script_prog and re.search(r"[\s{]", tok)):
+            return f"`{tok}` holds a variable or substitution the gate cannot resolve (use a literal path)"
         for v in _variants(tok):
             if not v or v == "-":
                 continue
@@ -295,11 +343,22 @@ def check_taint(seg, prog, toks, cwd, ctx):
 def check_segment(seg, cwd, ctx):
     prog, toks = program(seg.tokens)
     for target in seg.redirects:  # every output target, relative to this segment's effective directory
-        d = g3_path(target, cwd, ctx, "redirect")
+        if isinstance(cwd, UndecidableDir) and not unresolved(target) and not os.path.isabs(os.path.expanduser(target)):
+            return deny("maeng G3: redirect in a directory the gate cannot determine; use a literal path."), cwd
+        d = g3_path(target, cwd, ctx, "redirect") if not unresolved(target) else None
         if d:
             return d, cwd
+    for target in seg.redirects:
+        if unresolved(target):
+            return deny(f"maeng G3: redirect target `{target}` holds a variable or substitution the gate cannot "
+                        f"resolve; use a literal path."), cwd
     if prog in ("cd", "pushd") and len(toks) > 1:
-        return Decision(), _abs(toks[1], cwd)
+        if unresolved(toks[1]) or toks[1] == "-":
+            return Decision(), UndecidableDir("undecidable")
+        return Decision(), _abs(os.path.expandvars(toks[1]), cwd)
+    if isinstance(cwd, UndecidableDir) and not readonly_invocation(prog, toks):
+        return deny(f"maeng G3: `{prog}` would run in a directory the gate cannot determine (an earlier `cd` used "
+                    f"an unresolved variable); use a literal path."), cwd
     blocked = check_taint(seg, prog, toks, cwd, ctx)
     if blocked:
         return blocked, cwd
@@ -329,6 +388,9 @@ def check_git(toks, cwd, ctx):
                 return blocked
     if sub is None:
         return Decision()
+    if any(k.startswith("alias.") for k in cfg) or git_alias(cwd, sub):
+        return deny(f"maeng G3: `git {sub}` is a git alias, and git aliases are not allowed for mutating commands "
+                    f"(they can hide push/merge/force); run the underlying command.")
     if not ro:
         blocked = _cwd_gate(cwd, ctx, "git " + sub, True)
         if blocked:
@@ -497,10 +559,22 @@ def _is_read_tool(name):
     return name.startswith(WRITE_VERBS)
 
 
+GITHUB_READ = re.compile(r"^(?:get_|list_|search_)|_read$")
+# Writes that need no tree verification (comments, issues, reviews); everything else is denied (fail closed).
+GITHUB_PLAIN_WRITES = {"add_issue_comment", "create_issue", "update_issue", "create_pull_request_review"}
+GITHUB_GATED_WRITES = {"push_files", "create_or_update_file", "merge_pull_request", "update_pull_request_branch",
+                       "create_pull_request"}
+
+
 def check_mcp_github(tool, tool_input, ctx):
+    """ALLOWLIST: known read tools; known comment/issue/review writes (never eta); create_pull_request (verified
+    origin head). Every other github MCP tool is denied, including tools a server upgrade may add."""
     name = tool.split("__", 2)[-1]
-    if _is_read_tool(name):
+    if GITHUB_READ.search(name):
         return Decision()
+    if name not in GITHUB_PLAIN_WRITES | GITHUB_GATED_WRITES:
+        return deny(f"maeng G1: github MCP tool `{name}` is not on the allowlist (reads, comments/issues/reviews and "
+                    f"a verified create_pull_request); denied because the gate cannot tell what it publishes.")
     if ctx.unknown:
         return deny(UNKNOWN_REASON)
     slug = f"{tool_input.get('owner', '')}/{tool_input.get('repo', '')}"
@@ -583,12 +657,44 @@ def notion_dbs():
     return _valid_dbs(data.get("notion_databases"), "shipped default")
 
 
+NOTION_ID_FIND = re.compile(r"[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}")
+# Destructive / structural tools gated on a protected target (registered page, outcome database or its rows):
+# tool -> the op a Sol receipt must name. The pages under an outcome database that were not created through the
+# gate cannot be recognised offline (the hook has no network); only registered/journaled pages and databases count.
+NOTION_STRUCTURAL = {"notion-delete-pages": "delete", "notion-delete-databases": "delete", "notion-move-pages": "move",
+                     "notion-create-database": "create", "notion-update-data-source": "update"}
+
+
+def _strings(obj):
+    if isinstance(obj, dict):
+        for v in obj.values():
+            yield from _strings(v)
+    elif isinstance(obj, (list, tuple)):
+        for v in obj:
+            yield from _strings(v)
+    elif obj is not None:
+        yield str(obj)
+
+
+def _protected_ids(dbs):
+    journaled = {_nid(i) for e in receipts.read_journal() for i in e["page_ids"]}
+    return set(dbs) | receipts.registry_ids() | journaled
+
+
 def notion_scope(tool, tool_input):
     """-> (op, destination) when this call is G2-gated, else None."""
     name = tool.split("__", 2)[-1]
-    if name not in ("notion-create-pages", "notion-update-page", "notion-update-data-source"):
+    if name not in ("notion-create-pages", "notion-update-page") and name not in NOTION_STRUCTURAL:
         return None
     dbs = notion_dbs()  # may raise NotionConfigError: check_mcp_notion turns it into a deny
+    if name in NOTION_STRUCTURAL:
+        if name == "notion-update-data-source":
+            did = _nid(tool_input.get("data_source_id"))
+            if did in dbs:
+                return ("update", did)
+        hit = sorted({_nid(m) for text in _strings(tool_input) for m in NOTION_ID_FIND.findall(text)}
+                     & _protected_ids(dbs))
+        return (NOTION_STRUCTURAL[name], hit[0]) if hit else None
     if name == "notion-create-pages":
         parent = tool_input.get("parent") or {}
         dest = _nid(next((v for k, v in parent.items() if k.endswith("_id")), ""))
@@ -598,9 +704,6 @@ def notion_scope(tool, tool_input):
         # a malformed registry/journal raises RegistryError: protection cannot be decided, so every update is gated
         journaled = {_nid(i) for e in receipts.read_journal() for i in e["page_ids"]}
         return ("update", pid) if pid in receipts.registry_ids() | journaled else None
-    if name == "notion-update-data-source":
-        did = _nid(tool_input.get("data_source_id"))
-        return ("update", did) if did in dbs else None
     return None
 
 
