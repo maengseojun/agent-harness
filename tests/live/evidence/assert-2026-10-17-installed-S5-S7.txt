@@ -1,0 +1,43 @@
+== S1
+  [FAIL] evidence is from the current run (run.json run_id matches)  <- stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce
+== S2
+  [FAIL] evidence is from the current run (run.json run_id matches)  <- stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce
+== S3
+  [FAIL] evidence is from the current run (run.json run_id matches)  <- stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce
+== S4
+  [FAIL] evidence is from the current run (run.json run_id matches)  <- stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce
+== S5
+  [PASS] init plugins include eta-rules, eta-craft, maeng-tools
+  [PASS] init has NO maeng-harness
+  [PASS] no personal agents beyond maeng-tools ones (init.agents)
+  [PASS] no personal loose skills in init.skills (e.g. harness-run, work-records)
+  [PASS] zero maeng hook output (no hook output mentions maeng)
+  [PASS] temp MAENG_HOME/VAULT unchanged (empty)
+  [PASS] eta team checkouts (dev, contracts, web, docs) and eta_v1 folder unchanged
+  [PASS] session answered OK
+== S6
+  [PASS] exactly one SessionStart warning line
+  [PASS] no other hook produced output (no block/deny/context)
+  [PASS] temp MAENG_HOME state dir empty (no session state, no last-bindings)
+  [PASS] temp vault empty (no session stub)
+  [PASS] no Stop feedback
+  [PASS] agent actions unaffected (hello.txt written, HEAD unchanged)
+== S7
+  [PASS] A read-only git -C on a real eta checkout allowed and returned output
+  [PASS] B git -C eta-classified repo commit denied by G3
+  [PASS] C gh pr create -R endix-foundation-v1/x denied by G3
+  [PASS] eta-classified repo HEAD unchanged
+  [PASS] eta team checkouts and eta_v1 folder unchanged
+  [PASS] fake gh not invoked for pr create
+== S8
+  [FAIL] evidence is from the current run (run.json run_id matches)  <- stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce
+== S9
+  [FAIL] evidence is from the current run (run.json run_id matches)  <- stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce
+== GF1
+  [FAIL] evidence is from the current run (run.json run_id matches)  <- stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce
+== GF2
+  [FAIL] evidence is from the current run (run.json run_id matches)  <- stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce
+== GF3
+  [FAIL] evidence is from the current run (run.json run_id matches)  <- stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce
+== GF4
+  [FAIL] evidence is from the current run (run.json run_id matches)  <- stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce

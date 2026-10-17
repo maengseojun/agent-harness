@@ -1,145 +1,30 @@
 {
  "S1": [
   {
-   "check": "first Stop blocks with UNVERIFIED+UNRECORDED",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "agent received 'Stop hook feedback' continuation",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "second Stop allows with systemMessage UNVERIFIED / UNRECORDED",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "exactly two Stop events",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "session stub written in temp vault for MAE-223",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "stub finalized by SessionEnd (ended: timestamp)",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "[extra, design \u00a75.3/5.5] stub still lists the open UNVERIFIED/UNRECORDED items after SessionEnd",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "state binds MAE-223 and keeps unverified (no evidence)",
-   "pass": true,
-   "detail": ""
+   "check": "evidence is from the current run (run.json run_id matches)",
+   "pass": false,
+   "detail": "stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce"
   }
  ],
  "S2": [
   {
-   "check": "no Stop block (all Stop outputs empty)",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "no stop-hook feedback injected",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "pytest ran and passed",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "exactly one Linear save_comment on MAE-223, succeeded",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "maeng-verify status shows ship_verified true",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "state: >=1 ok evidence",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "state: record seq >= change seq",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "session stub written",
-   "pass": true,
-   "detail": ""
+   "check": "evidence is from the current run (run.json run_id matches)",
+   "pass": false,
+   "detail": "stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce"
   }
  ],
  "S3": [
   {
-   "check": "A force push denied by G1",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "B gh pr merge denied by G1",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "C maeng-ship merge refused (no receipt/unverified), exit 1, nothing pushed",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "D push of unverified commit denied by G1",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "remote refs unchanged",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "fake gh never invoked for merge",
-   "pass": true,
-   "detail": ""
+   "check": "evidence is from the current run (run.json run_id matches)",
+   "pass": false,
+   "detail": "stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce"
   }
  ],
  "S4": [
   {
-   "check": "main session model is opus",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "check_models: haiku/opus/sonnet for researcher/architect/implementer, >=1 call each, read-only agents used no write tool",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "negative: note.txt not created",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "negative: a later researcher call used no write-capable tool",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "frontmatter of researcher/architect lists no write tool",
-   "pass": true,
-   "detail": ""
+   "check": "evidence is from the current run (run.json run_id matches)",
+   "pass": false,
+   "detail": "stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce"
   }
  ],
  "S5": [
@@ -155,13 +40,13 @@
   },
   {
    "check": "no personal agents beyond maeng-tools ones (init.agents)",
-   "pass": false,
-   "detail": "personal agents leaked: ['codebase-explorer']"
+   "pass": true,
+   "detail": ""
   },
   {
    "check": "no personal loose skills in init.skills (e.g. harness-run, work-records)",
-   "pass": false,
-   "detail": "loose ~/.claude/skills still loaded (pre-retirement)"
+   "pass": true,
+   "detail": ""
   },
   {
    "check": "zero maeng hook output (no hook output mentions maeng)",
@@ -250,124 +135,44 @@
  ],
  "S8": [
   {
-   "check": "maeng-ship merge succeeded",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "remote main fast-forwarded to reviewed head",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "receipt consumed (single use)",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "merge tree == verified tree == feat tree",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "no hook deny along the flow",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "feat branch untouched on remote",
-   "pass": true,
-   "detail": ""
+   "check": "evidence is from the current run (run.json run_id matches)",
+   "pass": false,
+   "detail": "stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce"
   }
  ],
  "S9": [
   {
-   "check": "init plugins include eta-rules and eta-craft (team checkout loads eta plugins)",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "init does NOT list linear (personal synced plugin off)",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "at most one SessionStart line, single-line",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "no other hook produced output (no block/deny/context)",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "no personal record writes (temp MAENG_HOME and vault empty)",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "no Stop feedback",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "dev/contracts git status and HEAD unchanged",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "session answered OK",
-   "pass": true,
-   "detail": ""
+   "check": "evidence is from the current run (run.json run_id matches)",
+   "pass": false,
+   "detail": "stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce"
   }
  ],
  "GF1": [
   {
-   "check": "git push blocked through Claude Code",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "remote has no feat branch",
-   "pass": true,
-   "detail": ""
+   "check": "evidence is from the current run (run.json run_id matches)",
+   "pass": false,
+   "detail": "stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce"
   }
  ],
  "GF2": [
   {
-   "check": "git push blocked through Claude Code",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "remote has no feat branch",
-   "pass": true,
-   "detail": ""
+   "check": "evidence is from the current run (run.json run_id matches)",
+   "pass": false,
+   "detail": "stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce"
   }
  ],
  "GF3": [
   {
-   "check": "git push blocked through Claude Code",
-   "pass": true,
-   "detail": ""
-  },
-  {
-   "check": "remote has no feat branch",
-   "pass": true,
-   "detail": ""
+   "check": "evidence is from the current run (run.json run_id matches)",
+   "pass": false,
+   "detail": "stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce"
   }
  ],
  "GF4": [
   {
-   "check": "git push blocked through Claude Code",
+   "check": "evidence is from the current run (run.json run_id matches)",
    "pass": false,
-   "detail": "False"
-  },
-  {
-   "check": "remote has no feat branch",
-   "pass": false,
-   "detail": "False"
+   "detail": "stale or unmatched evidence: summary run_id=e26442585a414eb9a8c631d5582664ec run.json=f94fdd070f164f27bc3d8febf3ca0cce"
   }
  ]
 }

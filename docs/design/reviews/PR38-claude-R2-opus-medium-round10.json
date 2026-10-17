@@ -1,0 +1,27 @@
+{
+  "verdict": "pass",
+  "receipt": "code-0bef7cbd2f350e271fb4daed",
+  "findings": [
+    {
+      "severity": "low",
+      "title": "aside-collect retry success leaves the sidecar describing the failed first run",
+      "body": "Step 7 only says to set parse_status in the sidecar when the retry still fails. When the retry succeeds, nothing records the retry nonce, the resume exit code, its timings or the retry raw path. The first run's sidecar keeps parse_status parse_failed/no_final_answer while source notes point at the -retry capture. Specify a sidecar for the retry capture (<STAMP>-<run-slug>-<RNONCE>-retry.json) or an update of the existing one, so the provenance trail matches the raw file the notes cite.",
+      "file": "plugins/maeng-tools/skills/aside-collect/SKILL.md",
+      "line": 46
+    },
+    {
+      "severity": "low",
+      "title": "work-records closeout step 4 names no route for the pending journal entry",
+      "body": "Step 4 requires a pending entry in the local journal before dispatch and says the publish gate requires it. It gives no command or file for writing that entry; only `maeng-review reconcile` is named elsewhere. An agent has to guess the route, and a guess may hit the gate's deny path or create an ad-hoc file. Name the exact command or tool that records the journal entry.",
+      "file": "plugins/maeng-harness/skills/work-records/SKILL.md",
+      "line": 41
+    },
+    {
+      "severity": "low",
+      "title": "verification.md runner-form list is maintained by hand next to the evidence.py allowlist",
+      "body": "The plain-form and filtered-form lists are now internally consistent (round-9 finding resolved). They are still a hand-written copy of the allowlist in evidence.py, which this review does not cover, so they cannot be checked against each other here. A test or generated list that ties the documented forms to the evidence allowlist would stop Plan authors from writing requirements the gate cannot satisfy.",
+      "file": "plugins/maeng-harness/skills/harness-run/references/verification.md",
+      "line": 40
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "verdict": "pass",
+  "receipt": "code-73106b2d944793c934eb82f1",
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "needs-external-check: git/gh option semantics (tool_reference is null in this bundle)",
+      "body": "The bundle carries tool_reference: null (built with --no-tool-ref, see test_no_tool_ref_omits_it), so the installed git/gh help was not available to judge the allowlists. Items that depend on it and could not be decided from the tests alone: whether READONLY_GIT option handling covers `git show ... --output=<file>` (diff options apply to show as to log/diff, where --output is pinned denied); `git clone --upload-pack/-u` and `git clone|init --template=<dir>` (installs hooks); gh forms admitted by the pinned sets such as `gh issue develop` (creates a remote branch under the open `issue` group), `gh pr checkout --detach/-b`, `gh release download -O/-D/--dir` (pinned) versus `--pattern`/`--archive`, and `gh browse`/`gh run watch` flags. Re-run the parent review with the tool reference attached, or pin these forms explicitly in test_r9.",
+      "file": "plugins/maeng-harness/tests/test_cli.py",
+      "line": 171
+    },
+    {
+      "severity": "medium",
+      "title": "needs-external-check: Claude Code behaviour when the 5 s PreToolUse gate times out (does onFailure=block cover timeouts?)",
+      "body": "test_plugin pins PreToolUse timeout=5 and onFailure='block'. The gate performs network calls on the shipping routes (ls-remote --symref for the default branch, ls-remote for the PR remote head, receipt reservation on the lease form), so a slow remote can exceed 5 s exactly on the routes that matter. GF4 already documents that the host fails open on malformed exit-0 output; whether the host also fails open on a hook timeout (and whether onFailure applies to timeouts rather than only to non-zero exits) is host behaviour that no unit test or attached evidence establishes. Verify with the host (or add a GF scenario that forces a slow ls-remote) and, if timeouts fail open, raise the PreToolUse timeout or move the network probe behind a cached/pre-fetched check.",
+      "file": "plugins/maeng-harness/tests/test_plugin.py",
+      "line": 41
+    },
+    {
+      "severity": "medium",
+      "title": "Default-mode ship verification is not pinned against check-kind-only evidence (ruff/tsc/mypy/npm run build/cargo build/forge build/claude plugin validate)",
+      "body": "Without a bound plan or .maeng/verify.json, the default rule is described in the tests as 'passing recognized test runner' (test_declared_ran_and_skip comment, R5_DefaultModeNeedsUnfilteredSuite docstring). But every assertion of that rule uses a test runner; no test asserts that a tree whose only passing evidence is a check-kind runner (kind='check': `ruff check .`, `tsc`, `mypy src`, `npm run build`, `cargo build`, `forge build`, `claude plugin validate`) is NOT ship-verified. test_failed_pytest_plus_passing_ruff only proves the unresolved pytest failure blocks, not that ruff alone would not suffice; `unfiltered()` is asserted for `make check` (True) but never for ruff/tsc identities. If the default accepts any ok runner evidence, `npm run build` passing would ship an untested tree. Add: run_check('ruff check .'/'tsc'/'npm run build') alone, assert push denied with a 'no passing test' reason, and pin unfiltered()/kind for the check runners.",
+      "file": "plugins/maeng-harness/tests/test_evidence.py",
+      "line": 95
+    },
+    {
+      "severity": "low",
+      "title": "Residual git arbitrary-command routes after R9_1/R9_6: environment analogues and clone/init options are unasserted",
+      "body": "R9_1 denies builtins that run a caller-supplied command and R9_6 denies setting exec-bearing config keys, but the environment equivalents of those keys are only pinned for GIT_DIR/GIT_WORK_TREE (R2_C) and for push (R2_A `GIT_SSH_COMMAND=x git push` denied as non-canonical). Unasserted for ordinary git commands: `GIT_SSH_COMMAND=... git fetch origin`, `GIT_EXTERNAL_DIFF=... git diff`, `GIT_EDITOR`/`GIT_SEQUENCE_EDITOR=... git rebase -i main` (rebase -i is pinned allowed), `GIT_CONFIG_GLOBAL=<file> git <cmd>` (a file that may define aliases/sshCommand), `GIT_CONFIG_COUNT/KEY/VALUE` for core.sshCommand. Also unpinned: `git clone --upload-pack=x`, `git clone|init --template=<dir>` (hooks), `git archive -o <eta path>`. Pin the GIT_* prefix rule the same way as MAENG_* (any assignment/export/env of GIT_SSH_COMMAND, GIT_EXTERNAL_DIFF, GIT_EDITOR, GIT_SEQUENCE_EDITOR, GIT_CONFIG_*, GIT_ASKPASS, GIT_PROXY_COMMAND) and add deny assertions for the clone/init options.",
+      "file": "plugins/maeng-harness/tests/test_r9.py",
+      "line": 14
+    },
+    {
+      "severity": "low",
+      "title": "Read-only allowlists are not pinned by equality; curl/wget in an eta directory and non-Python zero-test outputs are unasserted",
+      "body": "The gh and MCP sets are now pinned by equality, but gates.READONLY_GIT and the read-only program set with its per-program option allowlists (readonly.py) are only sampled (R5_3, R4_1, R1_8). Pin them by equality so an added program/option is a visible diff. Specific unasserted cases: `cd <eta> && curl -o out url`, `curl -O`, `curl --output-dir <eta>`, `curl -J`, and `wget url` (writes by default) \u2014 R2_A allows `curl -s https://api.github.com/...` in the personal world, so curl is at least partly classified as read-only; its file-writing options need a deny pin in the eta/tainted case. Separately, the zero-test detector (R7_J) is pinned only for pytest/unittest/go output; cargo (`running 0 tests ... 0 passed`), forge (`No tests found`), playwright (`No tests found`) and `npm test` wrappers are unasserted.",
+      "file": "plugins/maeng-harness/tests/test_r5.py",
+      "line": 66
+    },
+    {
+      "severity": "low",
+      "title": "maeng-ship flag surface exceeds the stated canonical form: `--session` and `--remote` are allowed while the MAENG_SESSION_ID override is denied",
+      "body": "R2_A asserts `maeng-ship merge 7 --remote origin` and `maeng-ship --session s1 merge 7` as allowed, although the canonical form in the prompt and the skill is `maeng-ship merge <N>`. R9_3 now denies `MAENG_SESSION_ID=other maeng-ship merge 7`, but the equivalent `--session <other>` flag reaches the shell. Since ship verification is tree-bound, borrowing a session is only harmful if maeng-ship trusts anything per-session beyond tree-matched evidence (plan record/criteria_rev, skip records); pin either that `--session` is denied by the hook, or add a maeng-ship test that a foreign session's state cannot satisfy plan coverage for the current tree. Also unasserted in R9_3: `set -a; MAENG_HOME=/x` (auto-export) and `env -S 'MAENG_HOME=/x maeng-verify status'`.",
+      "file": "plugins/maeng-harness/tests/test_r2.py",
+      "line": 26
+    },
+    {
+      "severity": "low",
+      "title": "Plugin disablement through settings writes is not asserted denied in the personal world",
+      "body": "R9_5 pins that file tools cannot write MAENG_HOME/cache/session state, but a Write/Edit to `.claude/settings.local.json` or `~/.claude/settings.json` that sets `enabledPlugins['maeng-harness@maeng']=false` or adds a `hooks` override removes every gate for the next session. This is a one-step follow-on to any deny ('the hook is blocking me, disable it') and is a plain, non-disguised route under the cooperative model. Add deny assertions for Write/Edit/MultiEdit and Bash redirects into `<personal repo>/.claude/settings*.json` and `$HOME/.claude/settings.json` when the content touches enabledPlugins or hooks (or deny all writes to those two keys' files from the agent).",
+      "file": "plugins/maeng-harness/tests/test_r9.py",
+      "line": 196
+    },
+    {
+      "severity": "low",
+      "title": "Round-9 findings resolved; AC-1..AC-6 met at head tree 8ffb2609",
+      "body": "(1) High: the fresh staging run e26442585a414eb9a8c631d5582664ec (finished 18:24:30) shows S2 fully PASS (no Stop block, no feedback, pytest ran, one Linear save_comment, ship_verified true); S1-S4, S6-S9 and GF1-GF3 PASS; only the two dispositioned S5 leaks (MAE-224) and GF4 (host limit) FAIL. The declared 'live staging smoke' at seq 148 is bound to the head tree; the commit message states the run was made at 61bbeed and c3eede5 adds only tests/live/evidence/** (non-code glob), which is consistent but not independently verifiable from the bundle. (2) Medium git exec builtins: R9_1 (submodule foreach, rebase -x/--exec incl. bundled/abbreviated forms, bisect run, filter-branch, difftool -x/--extcmd/-t, mergetool -t, grep -O, fetch/pull/ls-remote --upload-pack, archive --exec, send-email --sendmail-cmd) plus R9_6 exec-bearing config keys; structural rule pinned world-independent. (3) gh surface pinned by equality (R9_2) with mutating known commands denied in personal and eta slugs. (4) MAENG_* prefix rule pinned across assignment/export/unset/env/declare/typeset/readonly/local/read/printf -v and wrappers (R9_3). (5) Unknown-world closure iterates NOTION_OTHER_WRITES|NOTION_GATED_WRITES and linear-endix writes (R9_4). (6) Harness-state writes denied for all file tools, symlinks and Bash (R9_5). AC-1..AC-3: runner evidence seq 141-147 at the head tree, matching the attached ev-exec log (3 validates OK; 471/58/20/18 tests OK). AC-5: S4 PASS. AC-6: S5 plugin-controlled checks PASS.",
+      "file": null,
+      "line": null
+    }
+  ]
+}

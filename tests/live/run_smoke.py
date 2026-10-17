@@ -133,7 +133,8 @@ class Scn:
             extra_env=None, tools=None):
         cmd = ["claude", "-p", prompt, "--output-format", "stream-json", "--verbose", "--include-hook-events",
                "--model", model]
-        for p in plugins:
+        # MAENG_SMOKE_INSTALLED=1: run against the user-scope release install instead of the worktree (post-release)
+        for p in (() if os.environ.get("MAENG_SMOKE_INSTALLED") == "1" else plugins):
             cmd += ["--plugin-dir", str(p)]
         if allowed:
             cmd += ["--allowedTools", allowed]

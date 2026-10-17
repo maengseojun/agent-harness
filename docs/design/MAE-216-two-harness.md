@@ -519,6 +519,8 @@ Sonnet implements, Opus reviews each step, and Codex reviews the PR (Sol xhigh p
 - Child-task PR review: Sol xhigh (user, 2026-10-17).
 - Review backend: Codex first; Claude fallback after 3 failed codex runs, Fable medium only for parent integration (user, 2026-10-17).
 - PR #38 reviews run with `MAENG_REVIEW_BACKEND=claude` on the user's request ("일단 claude로 해줘", 2026-10-17; Codex quota nearly used up): parent integration Fable medium, child PR Opus medium. The variable is set in the review job's environment, not through the agent's Bash tool: the harness denies every `MAENG_*` assignment, export, unset and `env` form there (round-9 fix).
+- Merge criterion changed (user, 2026-10-17, during PR #38 round 10): a merge needs pass verdicts with no critical/high findings; medium and low findings are handled after the merge in a follow-up issue (MAE-227). PR #38 merged at `c3eede5` under this rule.
+- Release (2026-10-17): release clone `~/.local/share/maeng/agent-harness` at `c3eede5`, marketplace `maeng`, maeng-tools and maeng-harness 0.1.0 plus commit-commands at user scope; installed files hash-match the release clone. `plugin-dev` is installed at **local** scope in this repo (not project scope as planned), so no tracked settings file changes. 29 loose skills and `~/.claude/agents/codebase-explorer.md` were quarantined; both fresh-session checks passed, with `synced/` official skills still listed. Installed S5-S7 re-run: 20/20 pass (tests/live/evidence/assert-2026-10-17-installed-S5-S7.txt).
 - Phase 2 adoptions per `MAE-216-phase2-adoption.md` (§5.9).
 - Cold storage tier: OneDrive archive + Google Drive backup/search, eta allowed (§3.5, user).
 - **Open: final approval of this revision (Q1).**

@@ -1,0 +1,69 @@
+{
+  "verdict": "pass",
+  "receipt": "code-f5fea46a780b8dce30962912",
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "maeng-archive's eta rule (path under eta/) contradicts where the other skills put eta notes; eta raw captures get archived as personal",
+      "body": "The round-9 fix for finding 4 bound `--world eta` to the vault folder `eta/` (cmd_move: `in_eta = Path(rel).parts[:1] == ('eta',)`, and SKILL.md: 'eta material ... lives under `eta/`'). No other skill writes eta material there. obsidian-workspace/references/claude-edition.md says eta-world notes go in `wiki/sessions/` (or the matching wiki folder), carry `world: eta` and are linked from `hubs/projects/P-ETA.md`. aside-collect writes eta source notes to `wiki/sources/` and eta raw captures to `raw/aside/`. Consequences: (a) a documented eta note such as `wiki/sessions/SESSION-...md` with `world: eta` cannot be archived at all. `--world eta` fails the path check and `--world personal` fails the frontmatter check. (b) Eta raw captures in `raw/aside/` have no frontmatter, and the aside-collect sidecar has no `world` field. They pass `--world personal` without any objection and land in `maeng-archive/personal/<YYYY>/raw/aside/...`, losing their world classification. maeng-archive even lists `raw/aside/` dumps as prime candidates. Fix: align the rule with the vault convention. Key on the `world:` frontmatter (and a world field in aside sidecars or raw frontmatter), not on an `eta/` prefix. Or change claude-edition.md and aside-collect to store eta material under `eta/`.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": 270
+    },
+    {
+      "severity": "medium",
+      "title": "The exclusion reason says staging evidence for AC-4..AC-6 is attached, but it is not in the bundle",
+      "body": "scope.exclusion_reason says 'AC-4..6 a fresh, run-id-checked staging run (run.json + assertion output attached)'. evidence_files contains only ev-exec-R2.txt, ev-linecounts.txt, aside-smoke, vault-policy-readback and the round-9 R2 verdict. tests/live/evidence/run.json and assert-2026-10-17-final.txt appear only as excluded paths, without content. So AC-4 (S1-S4, S6-S8 pass; GF1-GF3 block), AC-5 (model routing from transcripts) and AC-6 (S5 eta isolation) rest only on the declared records seq 148-150 at tree 8ffb260. The harness evidence model accepts declared checks for these non-runner requirements, so I count the criteria as met. But the bundle's own claim of attached proof is false, and this review could not check the staging results independently. Attach the assertion output in evidence_files, or drop the claim.",
+      "file": null,
+      "line": null
+    },
+    {
+      "severity": "medium",
+      "title": "needs-external-check: the maeng-verify / maeng-review subcommands and flags cited by the skills exist with the documented meaning",
+      "body": "The parent Plan's key_link K2 is 'the skills cite the real CLI subcommands'. The skills cite `maeng-verify bind MAE-n --plan`, `maeng-verify ran --ok|--fail`, `maeng-verify plan --met/--unmet`, `maeng-verify skip`, `maeng-verify state --quarantine`, `maeng-review run --kind code|parent|docs|research|notion` (with `--pr`, `--draft`, `--source`, `--payload`, `--destination`, `--op`), `maeng-review reconcile [--notion]` and `maeng-ship merge <N>`. Only `maeng-verify exec --` is shown working, in ev-exec-R2. tool_reference covers git and gh only, and the bin/ files are excluded. Someone must check that each cited subcommand and flag exists, for example from `--help` output of the three CLIs at head c3eede5.",
+      "file": "plugins/maeng-harness/skills/harness-run/SKILL.md",
+      "line": 33
+    },
+    {
+      "severity": "low",
+      "title": "harness-run step 10 puts research drafts in the Opus 'medium' fallback; D-9 and review-and-ship say high",
+      "body": "Step 10 says the Claude fallback is 'everything else, Opus (docs and small work high, the rest medium)'. Research drafts therefore fall under 'the rest medium'. D-9 in the plan says 'docs, small and research high', and the review-and-ship.md table and aside-research step 6 both say research falls back to Opus high. Add research to the 'high' list.",
+      "file": "plugins/maeng-harness/skills/harness-run/SKILL.md",
+      "line": 34
+    },
+    {
+      "severity": "low",
+      "title": "aside-collect leaves the unfiltered scratch captures (full logged-in page snapshots) in /tmp",
+      "body": "Steps 3 and 7 redirect raw `aside exec` / `aside session resume` stdout and stderr to `<TMP>/<STAMP>-<NONCE>.out.txt` / `.err.txt`, for example under `/tmp/aside-collect`. Only the ANSI-stripped, private-filtered copy is written to the vault. The skill's privacy rule says the raw snapshot contains account details and `<private>` spans must never persist. Yet the unfiltered scratch files are never removed or moved. Add a step that deletes the scratch captures after the parse has written the filtered `--clean` file, or require a per-run private temp directory.",
+      "file": "plugins/maeng-tools/skills/aside-collect/SKILL.md",
+      "line": 41
+    },
+    {
+      "severity": "low",
+      "title": "Binary-move retry branch trusts the stub's archive.path without a containment check, so a bad stub can delete the only copy",
+      "body": "When `<name>.archived.md` exists with the same sha256, cmd_move checks `prior_root / prior['path']`, then calls `src.unlink()`. `prior['path']` is never checked to stay inside the store or to differ from `src`. A corrupted or hand-edited stub whose path resolves back to the vault file itself (for example via `..`) passes the hash check, and the binary, the only copy, is deleted. The same unchecked path is used in cmd_restore, though only for reads there. Fix: reject `..` or absolute paths in archive.path, require `prior_copy.resolve()` to sit under `prior_root/maeng-archive/` and not equal `src`. Also check that the stub's world matches `--world`.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": 306
+    },
+    {
+      "severity": "low",
+      "title": "Markdown move can lose an edit made between the copy and the stub write",
+      "body": "cmd_move hashes src, copies it and verifies `dest == src_hash`. Then it reads `src` again to build the stub and replaces `src` with the stub, without re-checking that `src` still has `src_hash`. An edit landing after the copy (for example from Obsidian sync or the app) is overwritten by the stub, and the archive holds the older bytes. The window is small and the skill says not to archive notes being edited, but the 'never delete without a verified copy' rule is not enforced at the replace step. Re-hash src immediately before write_text_atomic, and abort if it changed.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": 333
+    },
+    {
+      "severity": "low",
+      "title": "execute-code-brief routes to dither-motion-landing as if it were installed; frontend-guidance says it is archived",
+      "body": "execute-code-brief says 'A requested dithered motion style belongs to `dither-motion-landing`'. frontend-guidance (and its design.md) says the skill is archived: recover its guidance from the MAE-127 GitHub archive when needed, and do not silently reinstall it. Point execute-code-brief at frontend-guidance's recovery rule instead.",
+      "file": "plugins/maeng-harness/skills/execute-code-brief/SKILL.md",
+      "line": 18
+    },
+    {
+      "severity": "low",
+      "title": "The Notion closeout journal step doesn't name the command or route that creates the pending entry",
+      "body": "Closeout step 4 says 'Record a pending entry in the local journal before dispatch (the publish gate also requires it)'. It names no command for this. review-and-ship.md mentions only `maeng-review reconcile --notion` for resolving entries. An agent following the skill cannot tell whether the entry is created by a CLI, by `maeng-review run --kind notion`, or by the PreToolUse hook. Name the concrete route, or say that the hook creates it.",
+      "file": "plugins/maeng-harness/skills/work-records/SKILL.md",
+      "line": 41
+    }
+  ]
+}

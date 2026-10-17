@@ -1,13 +1,13 @@
 {
  "init": {
   "cwd": "/Users/maengseojun/Documents/Project/eta_v1",
-  "session_id": "439d99cb-7111-4437-a706-1de43a484797",
+  "session_id": "ee3773da-c02c-4168-a70e-746f0276f847",
   "model": "claude-sonnet-5-5",
   "claude_code_version": "2.1.302",
   "plugins": [
    {
     "name": "maeng-tools",
-    "source": "maeng-tools@inline"
+    "source": "maeng-tools@maeng"
    },
    {
     "name": "eta-rules",
@@ -32,7 +32,6 @@
   ],
   "agents": [
    "claude",
-   "codebase-explorer",
    "Explore",
    "general-purpose",
    "maeng-tools:architect",
@@ -42,35 +41,6 @@
    "statusline-setup"
   ],
   "skills": [
-   "aside-browser",
-   "ask-claude",
-   "blockchain-upstream-review",
-   "coherent-writing",
-   "design-reference",
-   "diagram-explainer",
-   "error-fix-manual-1",
-   "explainer",
-   "frontend-guidance",
-   "frontend-slides",
-   "gh-address-comments",
-   "gh-fix-ci",
-   "graphify-repository",
-   "hangul-wrap",
-   "harness-run",
-   "interactive-explainer",
-   "linear",
-   "manuscript-writing-review",
-   "notion-authoring",
-   "obsidian-workspace",
-   "playwright",
-   "prepare-work-deliverable",
-   "presentation-design-interview",
-   "screenshot",
-   "skill-feedback",
-   "subscription-harness",
-   "tutorial-video",
-   "vercel-deploy",
-   "work-records",
    "deep-research",
    "maeng-tools:aside-browser",
    "maeng-tools:aside-collect",
@@ -187,7 +157,7 @@
    "anthropic-skills:xlsx"
   ],
   "tools": {
-   "count": 348,
+   "count": 272,
    "builtin": [
     "Glob",
     "Grep",
@@ -199,7 +169,6 @@
    "sequential-thinking:connected",
    "sentry:needs-auth",
    "playwright:connected",
-   "linear:connected",
    "serena:pending",
    "headroom:connected",
    "nogic:failed",
@@ -215,8 +184,12 @@
    "drawio:connected",
    "obsidian_vault:connected",
    "notion-eta:connected",
-   "linear-endix:connected",
+   "linear-maeng:needs-auth",
+   "linear-eta:needs-auth",
+   "slack-maeng:needs-auth",
+   "slack-eta:needs-auth",
    "claude.ai Claude Docs:connected",
+   "claude.ai Linear:connected",
    "claude.ai Slack:connected",
    "claude.ai draw.io:connected",
    "claude.ai Google Drive:connected"
@@ -255,9 +228,9 @@
   "subtype": "success",
   "is_error": false,
   "num_turns": 1,
-  "total_cost_usd": 0.0253309,
+  "total_cost_usd": 0.8507520000000001,
   "stop_reason": "end_turn",
-  "session_id": "439d99cb-7111-4437-a706-1de43a484797",
+  "session_id": "ee3773da-c02c-4168-a70e-746f0276f847",
   "permission_denials": [],
   "result": "OK"
  },
@@ -265,8 +238,8 @@
   "OK"
  ],
  "scenario": "S5",
- "run_id": "e26442585a414eb9a8c631d5582664ec",
- "finished_at": "2026-10-17T18:22:20+0900",
+ "run_id": "f94fdd070f164f27bc3d8febf3ca0cce",
+ "finished_at": "2026-10-17T18:51:07+0900",
  "run": {
   "cmd": [
    "claude",
@@ -278,13 +251,11 @@
    "--include-hook-events",
    "--model",
    "sonnet",
-   "--plugin-dir",
-   "/Users/maengseojun/Documents/Project/agent-harness-mae216/plugins/maeng-tools",
    "--tools",
    "Read,Grep,Glob"
   ],
   "returncode": 0,
-  "seconds": 10.4
+  "seconds": 8.2
  },
  "facts": {
   "eta_before": {
