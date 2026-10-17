@@ -62,9 +62,9 @@ def build_context(cwd):
         newest = sorted(sessions.glob("SESSION-*.md"), key=lambda p: p.stat().st_mtime, reverse=True)[:1]
         if newest:
             lines.append("Latest session note: wiki/sessions/" + newest[0].name)
-    missing = [str(p) for p in guard.eta_checkouts() if guard.isolation_missing(p)]
-    if missing:
-        lines.append(f"{len(missing)} eta checkout(s) lack isolation: run `maeng-eta-isolate --apply`.")
+    # Cheap check only (full discovery walks every eta checkout; the hook has a 5s budget).
+    if guard.eta_root().is_dir() and guard.isolation_missing(guard.eta_root()):
+        lines.append("eta checkouts lack isolation: run `maeng-eta-isolate --apply`.")
     text = "\n".join(lines)
     return text.encode()[:2000].decode(errors="ignore")
 
@@ -73,8 +73,16 @@ def on_session_start(payload):
     cwd, sid = payload.get("cwd", os.getcwd()), payload.get("session_id", "")
     world = guard.classify(cwd)
     if world == guard.ETA:
-        return context_out("SessionStart", "maeng-harness is loaded in an eta checkout (misconfigured). Personal "
-                           "hooks are inert here. Run `maeng-eta-isolate --apply` and restart this session.")
+        try:
+            top = guard.project_root(cwd)
+            missing = top is None or guard.isolation_missing(top)
+        except Exception:
+            missing = True
+        if not missing:
+            return None
+        return context_out("SessionStart", "maeng-harness is loaded in an eta checkout whose local settings lack the "
+                           "eta enables or the maeng-harness disable. Personal hooks are inert here. Run "
+                           "`maeng-eta-isolate --apply` and restart this session.")
     if world == guard.UNKNOWN:
         return None
     def init(st):

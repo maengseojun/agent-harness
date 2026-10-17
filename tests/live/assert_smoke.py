@@ -126,6 +126,24 @@ def s5(S):
     ]
 
 
+def s9(S):
+    names = [p["name"] for p in S["init"]["plugins"]]
+    f = S["facts"]
+    ctx = [h for h in S["hooks"] if h["event"] == "SessionStart" and h["output"].strip()]
+    other = [h for h in S["hooks"] if h["event"] != "SessionStart" and h["output"].strip()]
+    txt = out_json(ctx[0]).get("hookSpecificOutput", {}).get("additionalContext", "") if ctx else ""
+    return [
+        ("init plugins include eta-rules and eta-craft (team checkout loads eta plugins)", {"eta-rules", "eta-craft"} <= set(names)),
+        ("init does NOT list linear (personal synced plugin off)", not any(n.startswith("linear") for n in names)),
+        ("at most one SessionStart line, single-line", len(ctx) <= 1 and "\n" not in txt),
+        ("no other hook produced output (no block/deny/context)", not other),
+        ("no personal record writes (temp MAENG_HOME and vault empty)", not S["fs"]["home"] and not S["fs"]["vault"]),
+        ("no Stop feedback", not S["stop_feedback"]),
+        ("dev/contracts git status and HEAD unchanged", f["checkout_before"] == f["checkout_after"]),
+        ("session answered OK", S["result"]["result"].strip() == "OK"),
+    ]
+
+
 def s6(S):
     ctx = [h for h in S["hooks"] if h["event"] == "SessionStart" and h["output"].strip()]
     other = [h for h in S["hooks"] if h["event"] != "SessionStart" and h["output"].strip()]
@@ -181,7 +199,7 @@ def gf_factory(expect_block):
     return gf
 
 
-CHECKS = {"S1": s1, "S2": s2, "S3": s3, "S4": s4, "S5": s5, "S6": s6, "S7": s7, "S8": s8,
+CHECKS = {"S1": s1, "S2": s2, "S3": s3, "S4": s4, "S5": s5, "S6": s6, "S7": s7, "S8": s8, "S9": s9,
           "GF1": gf_factory(True), "GF2": gf_factory(True), "GF3": gf_factory(True), "GF4": gf_factory(True)}
 
 

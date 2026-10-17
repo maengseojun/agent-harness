@@ -223,34 +223,99 @@ class EtaIsolate(HarnessCase):
         self.git(root, "worktree", "add", "-q", "-b", "b", str(self.wt))
         (root / ".claude").mkdir()
         (root / ".claude/settings.local.json").write_text(json.dumps({"permissions": {"allow": ["Bash(ls)"]}}))
+        self.calls = self.tmp / "claude-calls.jsonl"
+        self.fake = self.tmp / "fake-claude"
+        self.fake.write_text("#!/bin/sh\nprintf '{\"argv\": [' >> \"%s\"\nsep=; for a in \"$@\"; do printf '%%s\"%%s\"' \"$sep\" \"$a\" >> \"%s\"; sep=,; done\nprintf '], \"cwd\": \"%%s\"}\\n' \"$(pwd -P)\" >> \"%s\"\n" % (self.calls, self.calls, self.calls))
+        self.fake.chmod(0o755)
 
-    def isolate(self, *args):
-        return self.cli("maeng-eta-isolate", list(args), self.tmp)
+    def isolate(self, *args, env=None):
+        return self.cli("maeng-eta-isolate", list(args), self.tmp, extra_env={"MAENG_CLAUDE": str(self.fake), **(env or {})})
+
+    def report(self, r):
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        return {t["path"]: t for t in json.loads(r.stdout)["targets"]}
+
+    def make_team_repo(self, parent, name, origin=None, ignore=True):
+        repo = parent / name
+        repo.mkdir(parents=True)
+        self.git(repo, "init", "-q", "-b", "main")
+        if ignore:
+            (repo / ".gitignore").write_text(".claude/settings.local.json\n")
+        if origin:
+            self.git(repo, "remote", "add", "origin", origin)
+        return repo
 
     def test_dry_run_is_default_and_writes_nothing(self):
         before = (self.eta_root / ".claude/settings.local.json").read_text()
         r = self.isolate()
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn("would write", r.stdout)
-        self.assertIn("dry run", r.stdout)
+        t = self.report(r)
+        self.assertEqual(json.loads(r.stdout)["mode"], "dry-run")
+        self.assertEqual(t[str(self.eta_root)]["settings"], "would write")
+        self.assertEqual(t[str(self.eta_root)]["installs_needed"], ["eta-rules@eta", "eta-craft@eta"])
         self.assertEqual((self.eta_root / ".claude/settings.local.json").read_text(), before)
-        r = self.isolate("--dry-run")
-        self.assertIn("would write", r.stdout)
+        self.assertFalse(self.calls.exists())
+        self.assertEqual(json.loads(self.isolate("--dry-run").stdout)["mode"], "dry-run")
 
-    def test_apply_merges_keys_and_is_idempotent(self):
-        sub = self.eta_root / "dev/contracts"
-        sub.mkdir(parents=True)
-        self.git(sub, "init", "-q")
-        (sub / ".gitignore").write_text(".claude/settings.local.json\n")
-        r = self.isolate("--apply")
-        self.assertEqual(r.returncode, 0, r.stderr)
+    def test_apply_merges_keys_installs_and_is_idempotent(self):
+        sub = self.make_team_repo(self.eta_root / "dev", "contracts", "git@github.com:endix-foundation-v1/contracts.git")
+        skipped = self.make_team_repo(self.eta_root / "_to_delete", "old")
+        nm = self.make_team_repo(self.eta_root / "dev/web/node_modules", "pkg")
+        t = self.report(self.isolate("--apply"))
+        self.assertIn(str(sub), t)
+        self.assertNotIn(str(skipped), t)
+        self.assertNotIn(str(nm), t)
         data = json.loads((self.eta_root / ".claude/settings.local.json").read_text())
         self.assertEqual(data["permissions"], {"allow": ["Bash(ls)"]})          # existing keys preserved
         self.assertEqual(data["enabledPlugins"], {"maeng-harness@maeng": False, "linear@synced": False,
-                                                  "commit-commands@claude-plugins-official": False})
+                                                  "commit-commands@claude-plugins-official": False,
+                                                  "eta-rules@eta": True, "eta-craft@eta": True})
         for checkout in (self.eta_root, self.wt, sub):
             self.assertFalse(guard.isolation_missing(checkout), checkout)
-        self.assertIn("already isolated", self.isolate("--apply").stdout)
+        calls = [json.loads(l) for l in self.calls.read_text().splitlines()]
+        self.assertIn({"argv": ["plugin", "install", "eta-rules@eta", "--scope", "local"], "cwd": str(sub)}, calls)
+        self.assertIn({"argv": ["plugin", "install", "eta-craft@eta", "--scope", "local"], "cwd": str(self.eta_root)}, calls)
+        self.assertEqual(len(calls), 2 * 3)
+        n = len(calls)
+        # idempotent for settings; installs repeat only where the registry has no entry (fake registers nothing)
+        t = self.report(self.isolate("--apply"))
+        self.assertEqual({v["settings"] for v in t.values()}, {"ok"})
+        self.assertGreaterEqual(len(self.calls.read_text().splitlines()), n)
+
+    def test_install_skipped_when_registered_for_path(self):
+        reg = self.home / ".claude/plugins"
+        reg.mkdir(parents=True)
+        entries = lambda path: [{"scope": "local", "projectPath": path}]
+        (reg / "installed_plugins.json").write_text(json.dumps({"version": 2, "plugins": {
+            "eta-rules@eta": entries(str(self.eta_root)), "eta-craft@eta": [{"scope": "user"}]}}))
+        t = self.report(self.isolate("--apply"))
+        self.assertEqual(t[str(self.eta_root)]["installs_needed"], ["eta-craft@eta"])
+        calls = [json.loads(l) for l in self.calls.read_text().splitlines()]
+        self.assertFalse([c for c in calls if c["cwd"] == str(self.eta_root) and "eta-rules@eta" in c["argv"]])
+
+    def test_non_git_eta_folder_is_a_target(self):
+        import shutil
+        shutil.rmtree(self.eta_root)
+        self.eta_root.mkdir()
+        t = self.report(self.isolate("--apply"))
+        self.assertEqual(t[str(self.eta_root)]["kind"], "folder")
+        self.assertEqual(t[str(self.eta_root)]["settings"], "written")
+        data = json.loads((self.eta_root / ".claude/settings.local.json").read_text())
+        self.assertIs(data["enabledPlugins"]["eta-rules@eta"], True)
+
+    def test_scan_finds_team_checkouts_by_origin_org(self):
+        elsewhere = self.tmp / "elsewhere"
+        labs = self.make_team_repo(elsewhere / "a", "web", "https://github.com/endix-labs-v1/web.git")
+        found = self.make_team_repo(elsewhere, "contracts", "git@github.com:endix-foundation-v1/contracts.git")
+        other = self.make_team_repo(elsewhere, "mine", "https://github.com/maengseojun/agent-harness.git")
+        deep = self.make_team_repo(elsewhere / "a/b/c/d/e", "toodeep", "https://github.com/endix-labs-v1/x.git")
+        t = self.report(self.isolate("--apply", "--scan", str(elsewhere)))
+        self.assertIn(str(labs), t)
+        self.assertIn(str(found), t)
+        self.assertNotIn(str(other), t)
+        self.assertNotIn(str(deep), t)
+        self.assertFalse(guard.isolation_missing(labs))
+        t = self.report(self.isolate("--dry-run"))      # without --scan they are not discovered
+        self.assertNotIn(str(labs), t)
 
     def test_refuses_tracked_or_unignored_settings_and_bad_json(self):
         (self.eta_root / ".gitignore").write_text("")
@@ -258,6 +323,7 @@ class EtaIsolate(HarnessCase):
         self.git(self.eta_root, "commit", "-qm", "unignore")
         r = self.isolate("--apply")
         self.assertIn("not git-ignored", r.stdout)
+        self.assertEqual(r.returncode, 1)
         self.assertNotIn("enabledPlugins", (self.eta_root / ".claude/settings.local.json").read_text())
         (self.eta_root / ".gitignore").write_text(".claude/settings.local.json\n")
         self.git(self.eta_root, "add", "-f", "-A")

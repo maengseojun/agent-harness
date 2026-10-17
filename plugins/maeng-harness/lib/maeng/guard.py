@@ -8,8 +8,10 @@ from .common import cache_dir, git, read_json, write_json
 
 PERSONAL, ETA, UNKNOWN = "personal", "eta", "unknown"
 ETA_SLUGS = {"maengseojun/eta_v1"}
-ETA_ORGS = {"endix-foundation-v1"}
+# Single source of truth for the eta world: every checkout of a repo under these orgs (or slugs) is eta.
+ETA_ORGS = {"endix-foundation-v1", "endix-labs-v1"}
 ETA_PLUGIN = "eta-rules@eta"
+ETA_PLUGINS = ("eta-rules@eta", "eta-craft@eta")
 
 _URL_PATTERNS = (
     re.compile(r"^(?:https?|ssh|git)://(?:[^@/]+@)?[^/]+/([^/]+)/([^/]+?)(?:\.git)?/?$"),
@@ -191,17 +193,67 @@ def classify(path):
         return UNKNOWN
 
 
-def eta_checkouts():
-    """eta root, its linked worktrees, and dev/contracts, dev/web."""
-    root = eta_root()
+SKIP_DIRS = {"_to_delete", "node_modules", ".git", ".venv", "__pycache__"}
+SETTINGS_REL = ".claude/settings.local.json"
+ISOLATION_KEYS = ("maeng-harness@maeng", "linear@synced", "commit-commands@claude-plugins-official")
+DESIRED_PLUGINS = {**{k: False for k in ISOLATION_KEYS}, **{k: True for k in ETA_PLUGINS}}
+
+
+def _walk_checkouts(root, max_depth=None):
+    """Yield directories under `root` that hold a `.git` entry (repos, linked worktrees, submodules)."""
+    root = Path(root)
+    base = len(root.parts)
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        depth = len(Path(dirpath).parts) - base
+        if ".git" in dirnames or ".git" in filenames:
+            yield Path(dirpath)
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS and not os.path.islink(os.path.join(dirpath, d))]
+        if max_depth is not None and depth >= max_depth:
+            dirnames[:] = []
+
+
+def _is_submodule(p):
+    rc, out, _ = git(p, "rev-parse", "--show-superproject-working-tree")
+    return rc == 0 and bool(out.strip())
+
+
+def _worktrees(p):
+    if (Path(p) / ".git").is_file():      # a linked worktree (or submodule): its main repo lists it
+        return []
+    rc, out, _ = git(p, "worktree", "list", "--porcelain")
+    if rc != 0:
+        return []
+    return [Path(l[9:]) for l in out.splitlines() if l.startswith("worktree ")]
+
+
+def checkout_origin_is_eta(p):
+    try:
+        return remote_is_eta(_origin_url(p))
+    except Exception:
+        return False
+
+
+def discover_checkouts(scan_roots=(), root=None):
+    """Every eta checkout: the eta_v1 folder, each git repo and linked worktree under it (walk, skipping
+    _to_delete/node_modules/.git/submodules), plus checkouts under `scan_roots` (depth <= 4) whose origin org is eta.
+    -> list of Path, de-duplicated."""
+    root = Path(root) if root else eta_root()
     found = []
-    if not root.exists():
-        return found
-    found.append(root)
-    rc, out, _ = git(root, "worktree", "list", "--porcelain")
-    if rc == 0:
-        found += [Path(l[9:]) for l in out.splitlines() if l.startswith("worktree ")]
-    found += [root / "dev/contracts", root / "dev/web"]
+    if root.is_dir():
+        found.append(root)
+        for co in _walk_checkouts(root):
+            if not _is_submodule(co):
+                found.append(co)
+                found += _worktrees(co)
+    for sr in scan_roots:
+        sr = Path(sr).expanduser()
+        if not sr.is_dir():
+            continue
+        for co in _walk_checkouts(sr, max_depth=4):
+            if _is_submodule(co) or not checkout_origin_is_eta(co):
+                continue
+            found.append(co)
+            found += _worktrees(co)
     seen, result = set(), []
     for p in found:
         if p.exists() and str(p.resolve()) not in seen:
@@ -210,13 +262,26 @@ def eta_checkouts():
     return result
 
 
-ISOLATION_KEYS = ("maeng-harness@maeng", "linear@synced", "commit-commands@claude-plugins-official")
+def eta_checkouts():
+    return discover_checkouts()
+
+
+def project_root(path):
+    """The directory Claude uses as project root for `path`: git toplevel, else the eta folder, else the dir itself."""
+    p = _nearest_dir(path)
+    if p is None:
+        return None
+    paths = _repo_paths(p)
+    if paths:
+        return Path(paths[2])
+    return eta_root() if _under(p, eta_root()) else p
 
 
 def isolation_missing(checkout):
+    """True when the checkout's local settings lack the maeng-harness disables or the eta enables."""
     try:
-        data = read_json(Path(checkout) / ".claude/settings.local.json", {}) or {}
+        data = read_json(Path(checkout) / SETTINGS_REL, {}) or {}
         plugins = data.get("enabledPlugins", {})
-        return any(plugins.get(k) is not False for k in ISOLATION_KEYS)
+        return any(plugins.get(k) is not v for k, v in DESIRED_PLUGINS.items())
     except (ValueError, AttributeError):
         return True

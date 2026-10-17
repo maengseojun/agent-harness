@@ -80,16 +80,18 @@ Reading the whole vault is allowed in both worlds.
 
 ### 1.3 Isolation from the eta world
 
-1. **Plugin OFF in every eta checkout.**
-   - `maeng-eta-isolate` enumerates eta_v1, `git worktree list` of eta_v1, `dev/contracts` and `dev/web`, plus any path classified as eta.
-   - In each, it merges into `.claude/settings.local.json`: `maeng-harness@maeng: false`, `linear@synced: false`, `commit-commands@claude-plugins-official: false`.
-   - Before writing, it requires `git check-ignore` to pass, and it never touches tracked files.
-   - It runs at release, and again whenever SessionStart finds a misconfigured eta checkout.
+1. **eta world = every checkout of an eta repo (D-8).** A Claude session started inside a nested team repo uses that repo as its project root, so settings placed in the `eta_v1` folder never apply there. Isolation is therefore per checkout, not per folder.
+   - **Org list:** one constant, `guard.ETA_ORGS = {endix-foundation-v1, endix-labs-v1}` (plus the slug `maengseojun/eta_v1` and the `eta_v1` path prefix). The guard (`spec_is_eta`, `remote_is_eta`, origin classification) and the CLI all read it.
+   - **Discovery** (`maeng-eta-isolate`, shared with the SessionStart check): the `eta_v1` folder itself (a plain folder, no git needed); every git repo and linked worktree found by walking it (skipping `_to_delete`, `node_modules`, `.git` internals and submodules, and following `git worktree list` of each repo); and, with `--scan <dir>` (depth <= 4), team checkouts elsewhere, classified by origin org.
+   - **Per target** it merges into `.claude/settings.local.json`, keeping existing keys: `maeng-harness@maeng`, `linear@synced` and `commit-commands@claude-plugins-official` set to `false`; `eta-rules@eta` and `eta-craft@eta` set to `true`.
+   - **Plugin install:** in `--apply` mode it runs `claude plugin install eta-rules@eta|eta-craft@eta --scope local` with the target as cwd, unless `installed_plugins.json` already has a local/project entry for that path. `MAENG_CLAUDE` overrides the binary (tests use a fake).
+   - **Safety:** for a git target it requires `git check-ignore` to pass and refuses tracked files; the non-git `eta_v1` folder needs no check. Default is a dry run that prints the plan as JSON; `--apply` executes and reports per target.
+   - It runs at release, and again whenever SessionStart finds an eta checkout whose local settings lack the eta enables or the maeng-harness disable (one warning line, written to nothing).
    - Verified 2026-10-17: a local `false` removed `linear@synced`.
 2. **Guard.**
    - `guard.classify(path)` returns `eta` when:
      - the path is under eta_v1;
-     - the git `origin` is `maengseojun/eta_v1` or belongs to the `endix-foundation-v1` org;
+     - the git `origin` is `maengseojun/eta_v1` or belongs to an org in `ETA_ORGS` (`endix-foundation-v1`, `endix-labs-v1`);
      - or the project settings enable `eta-rules@eta`.
    - The result is cached, keyed by the mtimes of the config files actually used: `git rev-parse --git-common-dir`/`config`, `--git-dir`/`config.worktree` when present, and `.claude/settings*.json`. This works for linked worktrees.
    - **If classification cannot be resolved, the state is `unknown`.**
@@ -445,6 +447,7 @@ The Codex ledger and prepare-tool are not ported.
 | S2 | run pytest, record on the bound issue | No block; ship-verified |
 | S3 | `git push --force`; `gh pr merge`; `maeng-ship merge` without a receipt; push of an unverified commit | Deny |
 | S8 | Scratch repo with a local bare remote: verified + reviewed PR → `maeng-ship merge` | Push accepted; receipt consumed; merge tree == verified tree |
+| S9 | Real `dev/contracts` (endix-foundation-v1) after `maeng-eta-isolate --apply`, both maeng plugins inline, read-only prompt | `init` shows eta-rules / eta-craft, no linear; maeng-harness hooks have no side effects (guard eta by org); checkout unchanged |
 | S4 | the agents | Transcripts show opus / sonnet / haiku |
 | S5 | eta_v1 with **only maeng-tools inline**, after isolation | `init`: eta-rules, eta-craft, maeng-tools; no maeng-harness; zero personal hook events; state dir unchanged |
 | S6 | eta worktree with maeng-harness inline (misconfigured) | Guard: no side effects; one SessionStart warning |

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # NOTE: never add mcp__obsidian_vault__* to --allowedTools here; MAENG_VAULT does not redirect that MCP server (staging finding).
-"""Live staging smoke runner (MAE-223 C6). Usage: run_smoke.py [S1 S2 ... S8 GF1 GF2 GF3]
+"""Live staging smoke runner (MAE-223 C6). Usage: run_smoke.py [S1 S2 ... S9 GF1 GF2 GF3]
 
 Raw stream-json -> $SMOKE_SCRATCH/<id>.jsonl ; condensed evidence -> tests/live/evidence/<id>.summary.json
 No real vault/home/remote is touched: every scenario gets temp MAENG_HOME/VAULT/CACHE dirs, a fake `gh` first on
@@ -336,6 +336,23 @@ def s5():
     finish(s, meta, {"eta_before": before, "eta_after": eta_status(), "eta_path": str(ETA_REAL)})
 
 
+ETA_CONTRACTS = ETA_REAL / "dev/contracts"
+
+
+def s9():
+    """D-8: session inside a real nested team checkout, personal plugins passed by --plugin-dir (installed state)."""
+    s = Scn("S9")
+    before = checkout_status(ETA_CONTRACTS)
+    meta = s.run("Reply OK only.", ETA_CONTRACTS, plugins=(TOOLS, HARNESS), allowed=None, tools="Read,Grep,Glob")
+    finish(s, meta, {"checkout": str(ETA_CONTRACTS), "checkout_before": before, "checkout_after": checkout_status(ETA_CONTRACTS)})
+
+
+def checkout_status(path):
+    st = sh(["git", "status", "--porcelain=v1", "--untracked-files=all"], cwd=path, env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"}).stdout
+    return {"head": sh(["git", "rev-parse", "HEAD"], cwd=path).stdout.strip(),
+            "porcelain_sha256": hashlib.sha256(st.encode()).hexdigest(), "porcelain_lines": len(st.splitlines())}
+
+
 def make_eta_repo(s, name):
     return s.make_repo(name, remote=False, origin="https://github.com/maengseojun/eta_v1.git")
 
@@ -430,7 +447,7 @@ def gf(gid):
                      "git": git_info(repo, s)})
 
 
-ALL = {"S1": s1, "S2": s2, "S3": s3, "S4": s4, "S5": s5, "S6": s6, "S7": s7, "S8": s8,
+ALL = {"S1": s1, "S2": s2, "S3": s3, "S4": s4, "S5": s5, "S6": s6, "S7": s7, "S8": s8, "S9": s9,
        **{g: (lambda g=g: gf(g)) for g in GF_VARIANTS}}
 
 if __name__ == "__main__":

@@ -10,7 +10,8 @@ class GuardTests(HarnessCase):
     def test_remote_parsing(self):
         for url in ("https://github.com/maengseojun/eta_v1.git", "git@github.com:maengseojun/eta_v1.git",
                     "ssh://git@github.com/endix-foundation-v1/x", "endix-foundation-v1/anything",
-                    "https://github.com/Endix-Foundation-V1/Y.git"):
+                    "https://github.com/Endix-Foundation-V1/Y.git", "https://github.com/endix-labs-v1/web.git",
+                    "git@github.com:endix-labs-v1/docs.git"):
             self.assertTrue(guard.remote_is_eta(url), url)
         for url in ("https://github.com/maengseojun/agent-harness.git", "other/eta_v1", "", None):
             self.assertFalse(guard.remote_is_eta(url), url)
@@ -20,6 +21,18 @@ class GuardTests(HarnessCase):
         self.assertEqual(guard.classify(self.eta_root / "dev/web"), guard.ETA)
         self.assertEqual(guard.classify(self.eta_root / "not/yet/created.txt"), guard.ETA)
 
+    def test_org_list_is_single_constant(self):
+        self.assertEqual(guard.ETA_ORGS, {"endix-foundation-v1", "endix-labs-v1"})
+        for org in guard.ETA_ORGS:
+            self.assertTrue(guard.spec_is_eta(f"{org}/anything"), org)
+            self.assertTrue(guard.remote_is_eta(f"https://github.com/{org}/x.git"), org)
+
+    def test_non_git_path_inside_eta_folder_is_eta(self):
+        plain = self.eta_root / "docs-repo-notes/sub"
+        plain.mkdir(parents=True)
+        self.assertEqual(guard.classify(plain), guard.ETA)
+        self.assertEqual(guard.project_root(plain), self.eta_root)
+
     def test_personal_repo_and_plain_dir(self):
         repo = self.make_repo()
         self.assertEqual(guard.classify(repo), guard.PERSONAL)
@@ -28,7 +41,8 @@ class GuardTests(HarnessCase):
         self.assertEqual(guard.classify(plain), guard.PERSONAL)
 
     def test_origin_triggers(self):
-        for i, url in enumerate(("https://github.com/maengseojun/eta_v1.git", "git@github.com:endix-foundation-v1/web.git")):
+        for i, url in enumerate(("https://github.com/maengseojun/eta_v1.git", "git@github.com:endix-foundation-v1/web.git",
+                                    "git@github.com:endix-labs-v1/web.git")):
             repo = self.make_repo(f"r{i}", with_remote=False)
             self.git(repo, "remote", "add", "origin", url)
             self.assertEqual(guard.classify(repo), guard.ETA, url)
@@ -89,6 +103,7 @@ class GuardTests(HarnessCase):
         self.git(root, "add", "-A")
         self.git(root, "commit", "-qm", "i")
         (root / "dev/contracts").mkdir(parents=True)
+        self.git(root / "dev/contracts", "init", "-q")
         wt = self.tmp / "eta-wt"
         self.git(root, "worktree", "add", "-q", "-b", "b", str(wt))
         found = {str(p.resolve()) for p in guard.eta_checkouts()}

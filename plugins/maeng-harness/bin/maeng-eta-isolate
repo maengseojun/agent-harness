@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""maeng-eta-isolate: turn maeng-harness off in every eta checkout (settings.local.json only)."""
+"""maeng-eta-isolate: make every eta checkout eta-only (settings.local.json + local-scope eta plugin installs)."""
 import argparse
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -11,55 +12,103 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..
 from maeng import guard  # noqa: E402
 from maeng.common import atomic_write, git  # noqa: E402
 
+REL = guard.SETTINGS_REL
 
-def plan_for(checkout):
-    """-> (action, detail). action: write | ok | skip"""
-    rel = ".claude/settings.local.json"
-    if git(checkout, "rev-parse", "--git-dir")[0] != 0:
-        return "skip", "not a git checkout"
-    if git(checkout, "check-ignore", "-q", rel)[0] != 0:
-        return "skip", f"{rel} is not git-ignored; refusing to touch it"
-    if git(checkout, "ls-files", "--error-unmatch", rel)[0] == 0:
-        return "skip", f"{rel} is tracked; refusing to touch it"
-    path = Path(checkout) / rel
+
+def is_git(p):
+    return git(p, "rev-parse", "--git-dir")[0] == 0 and Path(git(p, "rev-parse", "--show-toplevel")[1].strip()).resolve() == Path(p).resolve()
+
+
+def installed_for(target):
+    """Plugins already installed (local/project scope) for this exact project path."""
+    f = Path.home() / ".claude/plugins/installed_plugins.json"
+    try:
+        data = json.loads(f.read_text())
+    except (OSError, ValueError):
+        return set()
+    want = {str(target), str(Path(target).resolve())}
+    out = set()
+    for name, entries in (data.get("plugins") or {}).items():
+        for e in entries if isinstance(entries, list) else []:
+            if e.get("scope") in ("local", "project") and e.get("projectPath") in want:
+                out.add(name)
+    return out
+
+
+def merge_plan(target, tracked_git):
+    """-> (status, detail, data, changes). status: write | ok | refuse"""
+    path = Path(target) / REL
+    if tracked_git:
+        if git(target, "check-ignore", "-q", REL)[0] != 0:
+            return "refuse", f"{REL} is not git-ignored; refusing to touch it", None, []
+        if git(target, "ls-files", "--error-unmatch", REL)[0] == 0:
+            return "refuse", f"{REL} is tracked; refusing to touch it", None, []
     try:
         data = json.loads(path.read_text()) if path.exists() else {}
+        if not isinstance(data, dict):
+            raise ValueError("not an object")
         plugins = data.setdefault("enabledPlugins", {})
         if not isinstance(plugins, dict):
             raise ValueError("enabledPlugins is not an object")
     except ValueError as exc:
-        return "skip", f"cannot merge into {rel}: {exc}"
-    needed = [k for k in guard.ISOLATION_KEYS if plugins.get(k) is not False]
-    if not needed:
-        return "ok", "already isolated"
-    for k in needed:
-        plugins[k] = False
-    return "write", (path, data, needed)
+        return "refuse", f"cannot merge into {REL}: {exc}", None, []
+    changes = {k: v for k, v in guard.DESIRED_PLUGINS.items() if plugins.get(k) is not v}
+    for k, v in changes.items():
+        plugins[k] = v
+    return ("write" if changes else "ok"), "", data, changes
+
+
+def run_install(claude, plugin, target):
+    p = subprocess.run([claude, "plugin", "install", plugin, "--scope", "local"], cwd=target, capture_output=True, text=True)
+    return {"plugin": plugin, "rc": p.returncode, "output": (p.stdout + p.stderr).strip()[-300:]}
+
+
+def process(target, apply, claude):
+    gitco = is_git(target)
+    rep = {"path": str(target), "kind": "git" if gitco else "folder"}
+    status, detail, data, changes = merge_plan(target, gitco)
+    if status == "refuse":
+        rep.update(settings="refused", detail=detail, installs=[])
+        return rep
+    have = installed_for(target)
+    need = [p for p in guard.ETA_PLUGINS if p not in have]
+    rep["installs_needed"] = need
+    rep["settings_changes"] = changes
+    if not apply:
+        rep["settings"] = "would write" if status == "write" else "ok"
+        return rep
+    rep["installs"] = [run_install(claude, p, target) for p in need]
+    # re-read after install: `plugin install --scope local` itself edits settings.local.json
+    status, detail, data, changes = merge_plan(target, gitco)
+    if status == "refuse":
+        rep.update(settings="refused", detail=detail)
+    elif status == "write":
+        atomic_write(Path(target) / REL, json.dumps(data, indent=2) + "\n")
+        rep["settings"] = "written"
+    else:
+        rep["settings"] = "ok"
+    rep["ok"] = rep["settings"] != "refused" and all(i["rc"] == 0 for i in rep["installs"])
+    return rep
 
 
 def main(argv=None):
     p = argparse.ArgumentParser(prog="maeng-eta-isolate")
     p.add_argument("--apply", action="store_true", help="write the changes (default: dry run)")
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--scan", action="append", default=[], metavar="DIR", help="also scan DIR (depth <= 4) for team checkouts")
     p.add_argument("--extra", action="append", default=[], help="additional eta checkout path")
     a = p.parse_args(argv)
-    checkouts = guard.eta_checkouts() + [Path(x) for x in a.extra]
-    if not checkouts:
-        print("no eta checkouts found")
-        return 0
     apply = a.apply and not a.dry_run
-    for co in checkouts:
-        action, detail = plan_for(co)
-        if action == "write":
-            path, data, needed = detail
-            print(f"{'write' if apply else 'would write'} {path}: {', '.join(needed)} = false")
-            if apply:
-                atomic_write(path, json.dumps(data, indent=2) + "\n")
-        else:
-            print(f"{action} {co}: {detail}")
-    if not apply:
-        print("(dry run; pass --apply to write)")
-    return 0
+    targets = guard.discover_checkouts(a.scan) + [Path(x) for x in a.extra]
+    claude = os.environ.get("MAENG_CLAUDE") or "claude"
+    seen, reports = set(), []
+    for t in targets:
+        if str(t.resolve()) in seen:
+            continue
+        seen.add(str(t.resolve()))
+        reports.append(process(t, apply, claude))
+    print(json.dumps({"mode": "apply" if apply else "dry-run", "targets": reports}, indent=2))
+    return 1 if apply and any(r.get("ok") is False or r.get("settings") == "refused" for r in reports) else 0
 
 
 if __name__ == "__main__":

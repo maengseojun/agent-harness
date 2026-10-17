@@ -229,6 +229,23 @@ class EtaAndUnknown(HarnessCase):
             self.assertEqual(snapshot(self.maeng_home, self.vault, self.home), before)
         self.assertFalse(self.maeng_home.exists())
 
+    def test_session_start_warning_only_when_checkout_lacks_isolation(self):
+        from maeng import guard
+        repo = self.make_repo("labs-clone", with_remote=False)
+        self.git(repo, "remote", "add", "origin", "https://github.com/endix-labs-v1/web.git")
+        sub = repo / "src"
+        sub.mkdir()
+        rc, out, _ = self.hook("SessionStart", sub, source="startup")
+        ctx = out["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("maeng-eta-isolate --apply", ctx)
+        self.assertNotIn("\n", ctx)
+        (repo / ".claude").mkdir()
+        (repo / ".claude/settings.local.json").write_text(json.dumps({"enabledPlugins": guard.DESIRED_PLUGINS}))
+        rc, out, _ = self.hook("SessionStart", sub, source="startup")
+        self.assertEqual(rc, 0)
+        self.assertIsNone(out)
+        self.assertFalse(self.maeng_home.exists())
+
     def _eta_by_origin(self):
         repo = self.make_repo("eta-clone", with_remote=False)
         self.git(repo, "remote", "add", "origin", "https://github.com/maengseojun/eta_v1.git")
