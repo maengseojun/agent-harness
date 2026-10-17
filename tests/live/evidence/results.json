@@ -44,13 +44,13 @@
  "S2": [
   {
    "check": "no Stop block (all Stop outputs empty)",
-   "pass": true,
-   "detail": ""
+   "pass": false,
+   "detail": "False"
   },
   {
    "check": "no stop-hook feedback injected",
-   "pass": true,
-   "detail": ""
+   "pass": false,
+   "detail": "False"
   },
   {
    "check": "pytest ran and passed",
@@ -59,8 +59,8 @@
   },
   {
    "check": "exactly one Linear save_comment on MAE-223, succeeded",
-   "pass": true,
-   "detail": ""
+   "pass": false,
+   "detail": "False"
   },
   {
    "check": "maeng-verify status shows ship_verified true",
@@ -74,8 +74,8 @@
   },
   {
    "check": "state: record seq >= change seq",
-   "pass": true,
-   "detail": ""
+   "pass": false,
+   "detail": "False"
   },
   {
    "check": "session stub written",

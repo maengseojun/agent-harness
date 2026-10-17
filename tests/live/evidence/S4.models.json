@@ -1,11 +1,11 @@
 {
  "ok": true,
- "session": "9e7a221b-53be-4731-870e-fa02325b1410",
- "transcript": "/Users/maengseojun/.claude/projects/-private-tmp-maeng-smoke-S4-repo/9e7a221b-53be-4731-870e-fa02325b1410.jsonl",
+ "session": "87e2c3da-c145-4338-ad13-37b6caa7e736",
+ "transcript": "/Users/maengseojun/.claude/projects/-private-tmp-maeng-smoke-S4-repo/87e2c3da-c145-4338-ad13-37b6caa7e736.jsonl",
  "calls": [
   {
    "subagent_type": "maeng-tools:researcher",
-   "tool_use_id": "toolu_011FMDP7nVdkhy7qSmmAuQRU",
+   "tool_use_id": "toolu_01JSNaVq7y9z1qynndZqZK35",
    "models": [
     "claude-haiku-5-5"
    ],
@@ -17,7 +17,7 @@
   },
   {
    "subagent_type": "maeng-tools:architect",
-   "tool_use_id": "toolu_01Kf29a3TfKxSCB3csfNWTGF",
+   "tool_use_id": "toolu_01PrvgSsHpPbFjjAriXWVaZQ",
    "models": [
     "claude-opus-5-5"
    ],
@@ -29,7 +29,7 @@
   },
   {
    "subagent_type": "maeng-tools:implementer",
-   "tool_use_id": "toolu_01H1a5kQSV8poGiSJQsrHHCk",
+   "tool_use_id": "toolu_01WaDTYxtZq6ohbV6AL9Ttfe",
    "models": [
     "claude-sonnet-5-5"
    ],
@@ -44,7 +44,7 @@
   },
   {
    "subagent_type": "maeng-tools:researcher",
-   "tool_use_id": "toolu_01TgeutFNvweh8V5PGcL6Pxf",
+   "tool_use_id": "toolu_01R9rJh7mEDHSbwEU88RTQ1P",
    "models": [
     "claude-haiku-5-5"
    ],
@@ -54,17 +54,17 @@
   }
  ],
  "frontmatter_tools": {
-  "maeng-tools:architect": [
-   "Read",
-   "Grep",
-   "Glob"
-  ],
   "maeng-tools:researcher": [
    "Read",
    "Grep",
    "Glob",
    "WebFetch",
    "WebSearch"
+  ],
+  "maeng-tools:architect": [
+   "Read",
+   "Grep",
+   "Glob"
   ]
  },
  "errors": []
