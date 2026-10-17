@@ -435,7 +435,8 @@ def parse_requirement(pat):
             return literal
         else:
             out.append((norm_identity(" ".join(seg.tokens)).lower(), cur, False))
-    return out or literal
+    # no runner constituent: the check is prose (parentheses, `;`, `&&` included), so one declaration names it whole
+    return out if any(runner for _, _, runner in out) else literal
 
 
 def _ev_ident(ev):

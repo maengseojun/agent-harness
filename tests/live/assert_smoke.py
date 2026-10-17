@@ -65,9 +65,13 @@ def s1(S):
     ]
 
 
+# the host exposes the maeng Linear workspace either as the claude.ai connector or as the local `linear` server
+LINEAR_SAVE_COMMENT = ("mcp__claude_ai_Linear__save_comment", "mcp__linear__save_comment")
+
+
 def s2(S):
     stops = hooks(S, "Stop")
-    sc = [t for t in S["tool_calls"] if t["name"] == "mcp__claude_ai_Linear__save_comment"]
+    sc = [t for t in S["tool_calls"] if t["name"] in LINEAR_SAVE_COMMENT]
     st = call(S, "maeng-verify status")
     return [
         ("no Stop block (all Stop outputs empty)", bool(stops) and all(not h["output"].strip() for h in stops)),

@@ -291,11 +291,12 @@ def s2():
     repo = s.make_repo()
     prompt = ("Scratch repo workflow test. Do exactly this, in order: (1) run `maeng-verify bind MAE-223`. "
               "(2) Create test_x.py in the repo root with a trivial passing test: `from x import add` and "
-              "`assert add(1, 2) == 3`. (3) Run `python3 -m pytest -q`. (4) Record progress with the Linear MCP tool "
-              "mcp__claude_ai_Linear__save_comment: post exactly ONE comment on issue MAE-223 whose body is exactly "
+              "`assert add(1, 2) == 3`. (3) Run `python3 -m pytest -q`. (4) Record progress with the Linear MCP "
+              "save_comment tool of the maeng workspace (mcp__claude_ai_Linear__save_comment, or mcp__linear__save_comment "
+              "when the host exposes Linear through that server instead; never mcp__linear-endix__): post exactly ONE comment on issue MAE-223 whose body is exactly "
               "`staging S2 record write (automated)`. Do not touch any other Linear object. (5) Run `maeng-verify status` "
               "and show its output. (6) End your turn.")
-    meta = s.run(prompt, repo, allowed=WRITE_TOOLS + " ToolSearch mcp__claude_ai_Linear__save_comment")
+    meta = s.run(prompt, repo, allowed=WRITE_TOOLS + " ToolSearch mcp__claude_ai_Linear__save_comment mcp__linear__save_comment")
     finish(s, meta, {"repo": str(repo), "git": git_info(repo, s),
                      "vault_files": sorted(str(p.relative_to(s.vault)) for p in s.vault.rglob("*") if p.is_file())})
 

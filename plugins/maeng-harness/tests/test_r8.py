@@ -372,3 +372,23 @@ class R8_10_NotionCreatePagesParents(HarnessCase):
         f.write_text(json.dumps(v))
         self.assertEqual(self.cli("maeng-review", ["store", str(f)], self.repo).returncode, 0)
         self.assertFalse(self.pre(self.repo, NOTION + "notion-create-pages", payload)[0])
+
+
+class R8_DeclaredProseChecks(unittest.TestCase):
+    """A Plan check with no runner in it is prose: shell punctuation in it must not split it into parts that no single
+    declaration can satisfy; a runner constituent still needs runner evidence."""
+
+    def test_prose_with_parentheses_and_separators_is_one_literal(self):
+        for t in ("skill line counts (declared; evidence wc -l of every SKILL.md)", "a && b", "cd x && make lint"):
+            self.assertEqual(evidence.parse_requirement(t), [(evidence.norm_identity(t).lower(), "", False)])
+
+    def test_declaration_of_the_exact_text_satisfies_it(self):
+        t = "vault policy readback (declared, evidence docs/design/vault-policy-readback.md)"
+        good = [{"identity": evidence.norm_identity(t), "check": t, "source": "declared"}]
+        self.assertTrue(evidence.requirement_met(good, t))
+        self.assertFalse(evidence.requirement_met(good, t + " extra"))
+
+    def test_runner_constituent_still_requires_runner_evidence(self):
+        reqs = evidence.parse_requirement("python3 -m pytest -q && docs reviewed")
+        self.assertIn(True, [r for _, _, r in reqs])
+        self.assertEqual(len(reqs), 2)
