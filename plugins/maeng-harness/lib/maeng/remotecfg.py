@@ -90,6 +90,14 @@ def plain_remote(cwd, remote, for_push=True):
     for u in (effective, urls[0]):
         if guard.remote_is_eta(u) or guard.spec_is_eta(u):
             return None, f"maeng G3: remote `{remote}` ({u}) is an eta repository; eta is a separate world."
+    rc, out, _ = git(cwd, "remote", "get-url", remote)
+    fetch_effective = out.strip() if rc == 0 else ""
+    if not fetch_effective:
+        return None, f"maeng G1: cannot resolve the fetch url of remote `{remote}`."
+    if effective != urls[0] or fetch_effective != urls[0]:
+        return None, (f"maeng G1: a url.<base>.insteadOf / pushInsteadOf rewrite applies to remote `{remote}` "
+                      f"(configured {urls[0]}, fetch {fetch_effective}, push {effective}); fetch, push and PR-head "
+                      f"verification would not use one URL. Remove the rewrite.")
     if for_push:
         rc, out, _ = git(cwd, "config", "--get-all", f"remote.{remote}.push")
         if rc != 1:

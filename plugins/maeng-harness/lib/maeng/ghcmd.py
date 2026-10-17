@@ -14,10 +14,10 @@ GH_ALLOWED = {
     "ssh-key": {"list"}, "gpg-key": {"list"}, "extension": {"list", "search", "browse"},
     "alias": {"list"}, "config": {"get", "list"},
 }
-READ_ACTIONS = {"view", "list", "diff", "checks", "status", "watch", "set-default", "token", "get", "check",
+READ_ACTIONS = {"view", "list", "diff", "checks", "status", "watch", "token", "get", "check",
                 "search", "browse"}
 # Remote reads that also write files into the local working directory / a destination operand.
-LOCAL_WRITES = {("pr", "checkout"), ("repo", "clone"), ("release", "download"), ("run", "download"),
+LOCAL_WRITES = {("pr", "checkout"), ("repo", "clone"), ("repo", "set-default"), ("release", "download"), ("run", "download"),
                 ("gist", "clone")}
 REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 GH_VALUE_FLAGS = {"-X", "--method", "-H", "--header", "-f", "-F", "--field", "--raw-field", "-q", "--jq", "-t",
@@ -188,3 +188,24 @@ def canonical_gh(toks):
     if kind == "read":
         return {"form": "gh-read", "repos": target_repos(info)}, ""
     return None, reason or "this gh command is not on the G1 allowlist"
+
+
+STRICT_READ = {"pr": {"view", "list", "diff", "checks", "status"}, "issue": {"view", "list", "status"},
+               "repo": {"view"}, "run": {"view", "list"}, "release": {"view", "list"},
+               "workflow": {"view", "list"}}
+
+
+def readonly_strict(toks):
+    """The closed read-only gh allowlist used under G3 taint: pr/issue view|list|diff|checks|status, repo view and
+    `gh api` GET without -f/-F/--input/-X non-GET, plus run/release/workflow view|list. Anything else is not read-only."""
+    info = parse_gh(toks)
+    pos = info["pos"]
+    if not pos:
+        return False
+    if pos[0] == "api":
+        if info["fields"] or info["input"]:
+            return False
+        if info["method"] not in (None, "GET"):
+            return False
+        return len(pos) > 1 and pos[1] != "graphql"
+    return len(pos) > 1 and pos[1] in STRICT_READ.get(pos[0], ())

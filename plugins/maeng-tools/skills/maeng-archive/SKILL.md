@@ -33,16 +33,16 @@ Do not archive anything still being edited, anything no note summarizes yet, or 
 1. `status`: shows which stores were found, free space and the last backup per store. Run it first. A missing store is reported, not an error.
 2. `move <vault-relative-path> [--store onedrive|gdrive] [--world personal|eta] [--dry-run]`
    - Always `--dry-run` first and show the destination.
-   - Copies to the store (temp file, fsync, rename), verifies sha256, and only then replaces the vault file with a stub. A `.md` keeps its name; any other file gets a sibling `<name>.archived.md` and the original is removed after verification.
+   - Copies to the store (temp file, fsync, rename), verifies sha256, and only then replaces the vault file with a stub. A `.md` keeps its name (`archive.stub_kind: inplace`); any other file gets a sibling `<name>.archived.md` (`stub_kind: sibling`) and the original is removed after verification. Every stub stores `archive.original` (vault-relative original path) and `archive.stub_kind`; restore uses these, never the filename suffix (so a normal `report.archived.md` note round-trips). Legacy stubs without them are inferred from the archive path and refused when ambiguous.
    - Aborts with the vault untouched on hash mismatch, missing store, or a destination with a different hash. Re-running is safe (idempotent).
-3. `backup [--to onedrive,gdrive] [--keep N] [--dry-run]`: zips the vault (minus workspace state, `.trash`, `.DS_Store`, cache dirs) and harness state, writes a manifest of sha256 hashes, verifies the zip, and prunes beyond N (default 10) only after verification. Missing stores are skipped with a message; tell the user which backup copy is missing.
+3. `backup [--to onedrive,gdrive] [--keep N] [--dry-run]`: zips the vault (minus workspace state, `.trash`, `.DS_Store`, cache dirs) and harness state, writes a manifest of sha256 hashes, verifies the zip, and prunes beyond N (default 10) only after verification. Missing stores are skipped with a message; tell the user which backup copy is missing. Exit code: nonzero (1, per-store JSON still printed) if any requested store copy or verification failed or no store succeeded; never proceed to deletion after a nonzero backup. `move` and `restore` also exit 1 on error.
 4. `restore <stub-path|backup-zip> [--apply] [--target DIR]`: dry run by default.
    - Stub: copies the archived file back after a hash check; with `--apply` the stub is kept as `<name>.restored.md`.
    - Zip: lists what it holds. `--apply` needs `--target`, which must be outside the live vault; it refuses to overwrite files.
 
 ## The stub and your job
 
-The stub keeps the original frontmatter, adds `status: archived` and `archive: {store, path, sha256, size, archived_at}`, and a link line to the archive path. Its body contains a placeholder comment under `## Summary`.
+The stub keeps the original frontmatter, adds `status: archived` and `archive: {store, path, sha256, size, archived_at, original, stub_kind}`, and a link line to the archive path. Its body contains a placeholder comment under `## Summary`.
 
 **You must fill the summary** right after each move: read the original (still in the archive, or before moving), write 3 to 5 lines on what was here and why it was archived, using Obsidian MCP `patch_note` or `write_note`. A stub with the placeholder still in it is unfinished work. Keep existing links in the stub intact.
 

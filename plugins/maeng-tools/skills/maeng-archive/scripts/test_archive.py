@@ -447,6 +447,104 @@ class RestoreCwdTests(Base):
             self.assertEqual(f.read_text(), "x")
 
 
+class StubIdentityTests(Base):
+    def test_markdown_named_archived_md_roundtrips(self):
+        self.note("other.md", "see [[report.archived]]\n")
+        self.note("report.archived.md", "---\nid: R\n---\nbody\n")
+        A.cmd_move("report.archived.md", "onedrive", "personal", False)
+        stub = self.vault / "report.archived.md"
+        txt = stub.read_text()
+        self.assertIn('stub_kind: "inplace"', txt)
+        self.assertIn('original: "report.archived.md"', txt)
+        r = A.cmd_restore("report.archived.md", True, None)
+        self.assertEqual(Path(r["restore_to"]), (self.vault / "report.archived.md").resolve())
+        self.assertIn("body", stub.read_text())
+        self.assertFalse((self.vault / "report").exists())
+        self.assertEqual((self.vault / "other.md").read_text(), "see [[report.archived]]\n")
+
+    def test_sibling_metadata_and_restore(self):
+        (self.vault / "d").mkdir()
+        (self.vault / "d" / "x.bin").write_bytes(b"\x00")
+        A.cmd_move("d/x.bin", "onedrive", "personal", False)
+        txt = (self.vault / "d" / "x.bin.archived.md").read_text()
+        self.assertIn('stub_kind: "sibling"', txt)
+        self.assertIn('original: "d/x.bin"', txt)
+        A.cmd_restore("d/x.bin.archived.md", True, None)
+        self.assertEqual((self.vault / "d" / "x.bin").read_bytes(), b"\x00")
+
+    def test_explicit_fields_must_match_location(self):
+        self.note("a.md", "x\n")
+        A.cmd_move("a.md", "onedrive", "personal", False)
+        (self.vault / "a.md").rename(self.vault / "b.md")
+        with self.assertRaises(A.ArchiveError):
+            A.cmd_restore("b.md", True, None)
+
+    def _legacy(self, rel, arch_rel):
+        # write a stub without original/stub_kind pointing at a real archived copy
+        data = b"legacy\n"
+        dest = self.od / arch_rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(data)
+        meta = {"store": "onedrive", "path": arch_rel, "sha256": hashlib.sha256(data).hexdigest(),
+                "size": len(data), "archived_at": "2026-01-01T00:00:00+00:00"}
+        stub = A.build_stub(None, {**meta, "original": "", "stub_kind": ""}, "personal", rel)
+        stub = stub.replace('  original: ""\n', "").replace('  stub_kind: ""\n', "")
+        self.note(rel, stub)
+
+    def test_legacy_inplace_md_named_archived_md_infers_inplace(self):
+        self._legacy("report.archived.md", "maeng-archive/personal/2026/report.archived.md")
+        r = A.cmd_restore("report.archived.md", False, None)
+        self.assertEqual(Path(r["restore_to"]).name, "report.archived.md")
+
+    def test_legacy_sibling_infers_sibling(self):
+        self._legacy("x.bin.archived.md", "maeng-archive/personal/2026/x.bin")
+        r = A.cmd_restore("x.bin.archived.md", False, None)
+        self.assertEqual(Path(r["restore_to"]).name, "x.bin")
+
+    def test_legacy_ambiguous_refused(self):
+        self._legacy("report.archived.md", "maeng-archive/personal/2026/elsewhere.md")
+        with self.assertRaises(A.ArchiveError):
+            A.cmd_restore("report.archived.md", False, None)
+
+
+class CliExitCodes(unittest.TestCase):
+    def _env(self, t):
+        return dict(os.environ, MAENG_VAULT=str(Path(t, "vault")), MAENG_ARCHIVE_ONEDRIVE=str(Path(t, "od")),
+                    MAENG_ARCHIVE_GDRIVE=str(Path(t, "none")), MAENG_HOME=str(Path(t, "home")))
+
+    def _run(self, env, *a):
+        import subprocess, sys
+        return subprocess.run([sys.executable, str(Path(__file__).with_name("archive.py")), *a],
+                              env=env, capture_output=True, text=True)
+
+    def test_backup_nonzero_when_store_copy_fails_but_prints_json(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as t:
+            Path(t, "vault").mkdir(); Path(t, "od").mkdir()
+            Path(t, "vault", "n.md").write_text("hi\n")
+            Path(t, "od", "maeng-backup").write_text("a file, so mkdir of the backup dir fails")
+            r = self._run(self._env(t), "backup", "--to", "onedrive")
+            self.assertEqual(r.returncode, 1)
+            self.assertEqual(json.loads(r.stdout)["stores"]["onedrive"]["status"], "failed")
+
+    def test_backup_nonzero_when_no_store_available(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as t:
+            Path(t, "vault").mkdir()
+            Path(t, "vault", "n.md").write_text("hi\n")
+            r = self._run(self._env(t), "backup", "--to", "gdrive")
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("skipped", r.stdout)
+
+    def test_move_and_restore_nonzero_on_error(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as t:
+            Path(t, "vault").mkdir(); Path(t, "od").mkdir()
+            env = self._env(t)
+            self.assertEqual(self._run(env, "move", "missing.md").returncode, 1)
+            self.assertEqual(self._run(env, "restore", "missing.md").returncode, 1)
+
+
 class CliRoundTrip(unittest.TestCase):
     """Drives the real CLI (main) so argument wiring is covered, not only cmd_* functions."""
 

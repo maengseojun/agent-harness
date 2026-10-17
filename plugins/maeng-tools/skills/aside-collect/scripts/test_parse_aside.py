@@ -129,5 +129,38 @@ class ParseAside(unittest.TestCase):
                          'http://example.com/a?a=1&b=2')
 
 
+class PrivateFilter(unittest.TestCase):
+    def test_raw_and_items_have_no_secret(self):
+        import json, os, subprocess, sys, tempfile
+        item = ITEM2.replace('Abstract.', 'Abstract <private>item-secret</private> end.')
+        raw = '<private>transcript-secret</private>\n' + final(item) + '\n'
+        with tempfile.TemporaryDirectory() as d:
+            src, out = os.path.join(d, 'o.txt'), os.path.join(d, 'raw.md')
+            open(src, 'w').write(raw)
+            r = subprocess.run([sys.executable, pa.__file__, src, '--nonce', NONCE, '--exit-code', '0',
+                                '--clean', out], capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            persisted = open(out).read()
+            self.assertNotIn('secret', persisted)
+            self.assertNotIn('secret', r.stdout)
+            res = json.loads(r.stdout)
+            self.assertEqual(res['private_spans_removed'], 2)
+            self.assertEqual(len(res['items']), 1)
+
+    def test_refuses_without_filter(self):
+        import os, tempfile
+        orig = pa.FILTER_PATH
+        pa.FILTER_PATH = '/nonexistent/private_filter.py'
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                src, out = os.path.join(d, 'o.txt'), os.path.join(d, 'raw.md')
+                open(src, 'w').write(final(ITEM2))
+                rc = pa.main([src, '--nonce', NONCE, '--exit-code', '0', '--clean', out])
+                self.assertEqual(rc, 3)
+                self.assertFalse(os.path.exists(out))
+        finally:
+            pa.FILTER_PATH = orig
+
+
 if __name__ == '__main__':
     unittest.main()

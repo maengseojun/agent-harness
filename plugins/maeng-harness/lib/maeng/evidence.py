@@ -8,52 +8,90 @@ from pathlib import Path
 
 from . import tree as treelib
 from .common import now_iso
-from .shellparse import ParseError, program, split_segments
+from .shellparse import ENV_ASSIGN, ParseError, program, split_segments
 from .state import bump
 
 TEST_KINDS = "test"
 PY_RE = re.compile(r"^python[\d.]*$")
 
 
-# ---- runner recognition -------------------------------------------------
+# ---- runner recognition (closed-world allowlist) -------------------------
+#
+# A command is evidence only when it matches a canonical runner form with an allowlisted set of flags. Any flag,
+# operand or launcher option not listed below makes the invocation "not evidence" (deny by default): dry runs,
+# listings, --collect-only, --help, --version and the like are therefore never evidence.
 
-NO_RUN_FLAGS = {"--version", "-V", "--help", "-h", "--collect-only", "--co", "--dry-run", "--no-run", "--list-tests"}
-BENIGN_FLAG = re.compile(r"^(?:-v+|-q+|-s|-x|--verbose|--quiet|--no-header|-ra|-rA|--color=\S+|--tb=\S+)$")
-
-
-def _first_arg(toks, skip_flags=True):
-    for t in toks[1:]:
-        if not (skip_flags and t.startswith("-")):
-            return t
-    return None
-
-
-def _drop_first(toks, *words):
-    out, used = [], set()
-    for t in toks:
-        if t in words and t not in used:
-            used.add(t)
-            continue
-        out.append(t)
-    return out
+BENIGN_FLAG = re.compile(r"^(?:-v+|-q+|--verbose|--quiet)$")
+PYTEST_BENIGN = re.compile(r"^(?:-v+|-q+|-s|-x|--verbose|--quiet|--no-header|-r[aAsSxXfFpPEeQw]+|--color=\S+|--tb=\S+)$")
+PATH_RE = re.compile(r"^[A-Za-z0-9_./:\[\]@+,%-]+$")
+VALUE_RE = re.compile(r"^[^\s$`-][^$`]*$")
+NAME_RE_ = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]*$")
+UNSAFE_ENV = re.compile(r"ADDOPTS|FLAGS|OVERRIDES|_OPTIONS$", re.I)
+INT_RE = re.compile(r"^\d+$")
+PY_PLAIN_OPTS = {"-B", "-u", "-I", "-E", "-s"}
+LAUNCHER_PLAIN = {"-y", "--yes", "--no-install", "--no", "--quiet", "-q"}
+LAUNCHER_VALUE_OPTS = {"-p", "--package"}
 
 
 def _result(name, kind, args):
     """(name, kind, identity): identity = runner + args, whitespace-normalized, minus verbosity-only flags."""
-    if any(a in NO_RUN_FLAGS or a.startswith("--collect-only") for a in args):
-        return None  # --version / --help / --collect-only ... run no checks: never evidence
-    kept = [a for a in args if not BENIGN_FLAG.match(a)]
+    benign = PYTEST_BENIGN if name == "pytest" else BENIGN_FLAG
+    kept = [a for a in args if not benign.match(a)]
     return name, kind, " ".join([name, *kept])
 
 
-LAUNCHER_NO_RUN = {"--help", "-h", "--version", "-v", "-V", "--versions"}
-PY_PLAIN_OPTS = {"-B", "-u", "-I", "-E", "-s"}
-LAUNCHER_VALUE_OPTS = {"-p", "--package", "--cache", "--userconfig", "--prefix", "--registry", "--workspace", "-w"}
+def _parse_args(args, bools=(), values=None, pos=None, pos_min=0, pos_max=None, eq_short=False):
+    """Validate `args` against an allowlist spec. `bools`: exact strings or compiled regexes; `values`: {flag:
+    value-regex} accepted as `--flag=V` / `--flag V` / `-f V`; `pos`: regex for operands (None: no operands).
+    -> True when every token is allowed."""
+    values = values or {}
+    n_pos, i = 0, 0
+    while i < len(args):
+        t = args[i]
+        if "$" in t or "`" in t:
+            return False
+        name, eq, val = t.partition("=")
+        if any(b == t if isinstance(b, str) else b.match(t) for b in bools):
+            pass
+        elif t.startswith("-"):
+            rx = values.get(name if eq else t)
+            if rx is None or (eq and not (name.startswith("--") or eq_short)):
+                return False
+            if eq:
+                if not rx.match(val):
+                    return False
+            else:
+                if i + 1 >= len(args) or not rx.match(args[i + 1]):
+                    return False
+                i += 1
+        else:
+            if pos is None or not pos.match(t):
+                return False
+            n_pos += 1
+        i += 1
+    return n_pos >= pos_min and (pos_max is None or n_pos <= pos_max)
 
 
-def _launched(args):
-    """npx / pnpm dlx / yarn dlx: strip only the launcher's own options; the runner's own arguments are kept
-    (so `npx playwright test --help` stays a no-run invocation)."""
+R = re.compile
+PYTEST_BOOLS = (R(r"^-v+$"), R(r"^-q+$"), "-x", "-s", "--verbose", "--quiet", "--no-header", R(r"^-r[a-zA-Z]+$"),
+                R(r"^--color=(yes|no|auto)$"), R(r"^--tb=(auto|long|short|line|native|no)$"), "-pno:cacheprovider",
+                R(r"^-n\d+$"))
+PYTEST_VALUES = {"-k": VALUE_RE, "-m": VALUE_RE, "--maxfail": R(r"^\d+$"), "-p": R(r"^no:cacheprovider$"),
+                 "-n": R(r"^(\d+|auto)$")}
+UNITTEST_BOOLS = (R(r"^-v+$"), "-q", "--quiet", "--verbose")
+UNITTEST_VALUES = {"-s": PATH_RE, "-t": PATH_RE, "-p": R(r"^[A-Za-z0-9_.*?-]+$"), "--start-directory": PATH_RE,
+                   "--top-level-directory": PATH_RE, "--pattern": R(r"^[A-Za-z0-9_.*?-]+$")}
+FORGE_VALUES = {f"--{p}match-{k}": VALUE_RE for p in ("", "no-") for k in ("test", "contract", "path")}
+CARGO_BOOLS = ("--all", "--workspace", "--all-features", "--release", "-q")
+CARGO_VALUES = {"-p": NAME_RE_, "--package": NAME_RE_}
+GO_BOOLS = ("-v", "-race", "-json")
+GO_VALUES = {"-run": VALUE_RE, "-count": R(r"^\d+$")}
+SCRIPTS = ("lint", "build", "typecheck")
+
+
+def _unwrap_launcher(args):
+    """npx / pnpm dlx / yarn dlx / npm exec: only the listed launcher options are skipped; the runner's own
+    arguments must then pass that runner's allowlist."""
     i = 0
     while i < len(args):
         t = args[i]
@@ -62,69 +100,104 @@ def _launched(args):
             break
         if not t.startswith("-"):
             break
-        if t in LAUNCHER_NO_RUN:
-            return None  # launcher-level --help/--version: runs nothing
-        if t in ("-c", "--call", "--shell-mode"):
-            return None  # a shell string: not a recognized runner
-        i += 2 if (t in LAUNCHER_VALUE_OPTS) else 1
+        if t in LAUNCHER_PLAIN:
+            i += 1
+        elif t in LAUNCHER_VALUE_OPTS and i + 1 < len(args):
+            i += 2
+        else:
+            return None  # any other launcher option (--help, --version, -c, --call, ...): not evidence
     rest = args[i:]
     return _runner(rest) if rest else None
 
 
 def _runner(tokens):
-    """Return (name, kind, identity) if this segment is a recognized check runner."""
+    """Return (name, kind, identity) if this segment is exactly an allowlisted runner invocation."""
+    toks0 = list(tokens)
+    for t in toks0:
+        if ENV_ASSIGN.match(t):
+            if UNSAFE_ENV.search(t.split("=", 1)[0]):
+                return None
+        else:
+            break
     prog, toks = program(tokens)
-    if not prog:
+    if not prog or any("$" in t or "`" in t for t in toks):
         return None
     if prog in ("uv", "poetry", "pipenv") and len(toks) > 2 and toks[1] == "run":
         rest = [t for t in toks[2:] if t != "--"]
         return _runner(rest)
     if prog == "npx":
-        return _launched(toks[1:])
+        return _unwrap_launcher(toks[1:])
     if prog in ("pnpm", "yarn", "npm") and len(toks) > 2 and toks[1] in ("dlx", "exec"):
-        return _launched(toks[2:])
+        return _unwrap_launcher(toks[2:])
     if PY_RE.match(prog):
         i = 1  # only `<python> [-B|-u|-I|-E|-s ...] -m <runner> ...`; any other interpreter option is no evidence
         while i < len(toks) and toks[i] in PY_PLAIN_OPTS:
             i += 1
         if i + 1 < len(toks) and toks[i] == "-m":
             mod, rest = toks[i + 1], toks[i + 2:]
-            if mod in ("pytest", "unittest"):
-                return _result(mod, TEST_KINDS, rest)
-            if mod == "mypy":
-                return _result("mypy", "check", rest)
-            if mod == "ruff" and _first_arg([mod, *rest]) == "check":
-                return _result("ruff check", "check", _drop_first(rest, "check"))
+            return _module_runner(mod, rest)
         return None
     if prog in ("pytest", "py.test"):
-        return _result("pytest", TEST_KINDS, toks[1:])
-    if prog in ("mypy", "tsc"):
-        return _result(prog, "check", toks[1:])
-    sub = _first_arg(toks)
-    table = {
-        "ruff": {"check": ("ruff check", "check")},
-        "forge": {"test": ("forge test", TEST_KINDS), "build": ("forge build", "check")},
-        "cargo": {"test": ("cargo test", TEST_KINDS), "clippy": ("cargo clippy", "check"),
-                  "build": ("cargo build", "check")},
-        "go": {"test": ("go test", TEST_KINDS)},
-        "make": {"test": ("make test", TEST_KINDS), "check": ("make check", TEST_KINDS)},
-        "playwright": {"test": ("playwright test", TEST_KINDS)},
-    }
-    if prog in table:
-        hit = table[prog].get(sub)
-        return _result(hit[0], hit[1], _drop_first(toks[1:], sub)) if hit else None
-    if prog == "claude" and toks[1:3] == ["plugin", "validate"]:
-        return _result("claude plugin validate", "check", toks[3:])
+        return _module_runner("pytest", toks[1:])
+    if prog == "mypy":
+        return _module_runner("mypy", toks[1:])
+    if prog == "ruff":
+        return _module_runner("ruff", toks[1:])
+    if prog == "tsc":
+        ok = _parse_args(toks[1:], ("--noEmit",), {"-p": PATH_RE, "--project": PATH_RE})
+        return _result("tsc", "check", toks[1:]) if ok else None
+    args = toks[1:]
+    sub, rest = (args[0], args[1:]) if args else (None, [])
+    if prog == "forge" and sub in ("test", "build"):
+        if _parse_args(rest, (R(r"^-v+$"),), FORGE_VALUES):
+            return _result(f"forge {sub}", TEST_KINDS if sub == "test" else "check", rest)
+        return None
+    if prog == "cargo" and sub in ("test", "clippy", "build"):
+        if _parse_args(rest, CARGO_BOOLS, CARGO_VALUES):
+            return _result(f"cargo {sub}", TEST_KINDS if sub == "test" else "check", rest)
+        return None
+    if prog == "go" and sub == "test":
+        if _parse_args(rest, GO_BOOLS, GO_VALUES, pos=PATH_RE, eq_short=True):
+            return _result("go test", TEST_KINDS, rest)
+        return None
+    if prog == "make":
+        # only target names; no -n/--dry-run/-q/--question/-t/--touch (or any other flag or VAR=value)
+        if len(args) == 1 and args[0] in ("test", "check"):
+            return _result(f"make {args[0]}", TEST_KINDS, [])
+        return None
+    if prog == "playwright" and sub == "test":
+        if _parse_args(rest, (), {"--project": VALUE_RE}, pos=PATH_RE):
+            return _result("playwright test", TEST_KINDS, rest)
+        return None
+    if prog == "claude" and args[:2] == ["plugin", "validate"]:
+        if _parse_args(args[2:], (), None, pos=PATH_RE, pos_min=1, pos_max=1):
+            return _result("claude plugin validate", "check", args[2:])
+        return None
     if prog in ("npm", "pnpm", "yarn"):
-        args = [t for t in toks[1:] if not t.startswith("-")]
-        rest = toks[1:]
-        if args[:1] in (["test"], ["t"]):
-            return _result(f"{prog} test", TEST_KINDS, _drop_first(rest, "test", "t"))
-        script = args[1] if args[:1] == ["run"] and len(args) > 1 else (args[0] if prog == "yarn" and args else None)
-        if script in ("lint", "build", "typecheck"):
-            return _result(f"{prog} run {script}", "check", _drop_first(rest, "run", script))
-        if script == "test":
-            return _result(f"{prog} test", TEST_KINDS, _drop_first(rest, "run", "test"))
+        if args in (["test"], ["t"]):
+            return _result(f"{prog} test", TEST_KINDS, [])
+        if len(args) == 2 and args[0] == "run" and args[1] == "test":
+            return _result(f"{prog} test", TEST_KINDS, [])
+        if len(args) == 2 and args[0] == "run" and args[1] in SCRIPTS:
+            return _result(f"{prog} run {args[1]}", "check", [])
+        if prog == "yarn" and len(args) == 1 and args[0] in SCRIPTS:
+            return _result(f"yarn run {args[0]}", "check", [])
+    return None
+
+
+def _module_runner(mod, rest):
+    if mod == "pytest":
+        if _parse_args(rest, PYTEST_BOOLS, PYTEST_VALUES, pos=PATH_RE):
+            return _result("pytest", TEST_KINDS, rest)
+    elif mod == "unittest":
+        if _parse_args(rest, UNITTEST_BOOLS, UNITTEST_VALUES, pos=PATH_RE):
+            return _result("unittest", TEST_KINDS, rest)
+    elif mod == "mypy":
+        if _parse_args(rest, (), None, pos=PATH_RE):
+            return _result("mypy", "check", rest)
+    elif mod == "ruff":
+        if rest[:1] == ["check"] and _parse_args(rest[1:], (), None, pos=PATH_RE):
+            return _result("ruff check", "check", rest[1:])
     return None
 
 

@@ -1,3 +1,7 @@
+import os
+import stat
+import sys
+
 from .helpers import HarnessCase
 
 
@@ -13,8 +17,16 @@ class ShipBase(HarnessCase):
         """Make origin a github.com URL (what `gh pr create --repo` must name) that git maps to the local bare repo."""
         remote = self.git(self.repo, "config", "remote.origin.url").stdout.strip()
         url = f"https://github.com/{slug}.git"
-        self.git(self.repo, "config", f"url.{remote}.insteadOf", url)
         self.git(self.repo, "config", "remote.origin.url", url)
+        # MAENG_GIT maps the github URL to the local bare repo for the gate's own ls-remote calls (no insteadOf
+        # rewrite: a rewritten remote is denied by design)
+        fake = self.tmp / "alias-git"
+        fake.write_text(f"#!{sys.executable}\nimport os, sys\n"
+                        f"args = [{remote!r} if a == {url!r} else a for a in sys.argv[1:]]\n"
+                        f"os.execvp('git', ['git', *args])\n")
+        fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+        self.env["MAENG_GIT"] = str(fake)
+        os.environ["MAENG_GIT"] = str(fake)
         return slug
 
     def verified(self):
@@ -202,8 +214,7 @@ class GhRoutes(ShipBase):
 class McpRoutes(ShipBase):
     def test_github_mcp(self):
         base = {"owner": "o", "repo": "r"}
-        remote = self.git(self.repo, "config", "remote.origin.url").stdout.strip()
-        self.git(self.repo, "config", f"url.{remote}.insteadOf", "https://github.com/o/r.git")  # o/r -> local bare
+        self.alias_origin()
         self.verified()
         for tool, tin in (("merge_pull_request", {**base, "pullNumber": 1}),
                           ("update_pull_request_branch", {**base, "pullNumber": 1}),

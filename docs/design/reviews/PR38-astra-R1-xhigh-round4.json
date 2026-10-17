@@ -1,0 +1,69 @@
+{
+  "verdict": "fail",
+  "receipt": null,
+  "findings": [
+    {
+      "body": "The repository check accepts either origin's raw URL or its rewritten push URL, but verifies the head only at the latter. With origin naming o/r and pushInsteadOf redirecting to fork/r, canonical `gh pr create --repo o/r --head feat --title t --body b` verifies fork/r while gh publishes from o/r. A probe confirmed this mismatch. Require repository identity to agree with the actual gh destination and verify that repository's head.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 367,
+      "severity": "high",
+      "title": "PR creation can verify a different repository's head"
+    },
+    {
+      "body": "`gh issue transfer 1 maengseojun/eta_v1 -R maengseojun/other` passes the gate. target_repos checks the explicit source repository and URL-shaped positionals, but ignores the bare destination slug. This allowed issue command can therefore transfer an issue into eta. Parse and classify the transfer destination as well as the source.",
+      "file": "plugins/maeng-harness/lib/maeng/ghcmd.py",
+      "line": 127,
+      "severity": "high",
+      "title": "Issue transfers omit the destination repository from G3"
+    },
+    {
+      "body": "For mutating Git subcommands, check_git checks the working directory but skips destination operands. Probes allowed both `git clone https://github.com/o/r /eta/new` and `git worktree add /eta/new` from a personal directory even when /eta was classified as eta. These ordinary commands write into the protected checkout. Check command-specific destinations before allowing local Git mutations.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 263,
+      "severity": "high",
+      "title": "Git clone and worktree destinations bypass eta isolation"
+    },
+    {
+      "body": "`make -n test` is recognized as kind=test although a normal test recipe is only printed. An in-memory probe showed that this sole successful evidence makes default ship verification pass. Other recognized no-run invocations include `go test -list .` and `playwright test --list`. Reject runner-specific dry-run and listing modes before recording passing test evidence.",
+      "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+      "line": 43,
+      "severity": "high",
+      "title": "Dry runs still satisfy default test verification"
+    },
+    {
+      "body": "notion_databases is consumed without schema validation. A configuration containing one UUID as a string produces a set of individual characters, so the actual database no longer matches and publication is allowed without a receipt. Missing or unreadable fallback configuration similarly produces an empty protected set. Both cases reproduced as allow with no reservation effects. Validate configuration and deny affected writes when the protected destinations cannot be established.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 469,
+      "severity": "high",
+      "title": "Invalid Notion configuration silently disables G2"
+    },
+    {
+      "body": "_nid removes hyphens but does not normalize case. Consequently, an uppercase UUID naming the same configured outcome database misses the lowercase membership check and is treated as ungated. A probe denied the lowercase destination without a receipt but allowed its uppercase equivalent. Normalize configured, incoming, registered and journaled identifiers consistently before comparing them.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 473,
+      "severity": "high",
+      "title": "UUID capitalization bypasses Notion publication checks"
+    },
+    {
+      "body": "Receipt lookup checks revocation, but the subsequent locked reservation checks only status. If a concurrent re-review revokes the receipt after lookup and before begin, it remains unconsumed and is still reserved for shipment. A probe confirmed that begin changes an already revoked pass to pending. Recheck the current verdict and revocation under the reservation lock before authorizing the mutation.",
+      "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+      "line": 235,
+      "severity": "high",
+      "title": "Reservation can authorize a newly revoked receipt"
+    },
+    {
+      "body": "`gh repo set-default` falls through as read-only, so check_gh returns before checking the effective directory. A personal-session probe allowed `cd /eta && gh repo set-default maengseojun/eta_v1`, although the setter writes repository configuration. Remove this setter from the read allowlist or classify it as a local mutation and apply G3.",
+      "file": "plugins/maeng-harness/lib/maeng/ghcmd.py",
+      "line": 100,
+      "severity": "medium",
+      "title": "gh repo set-default is incorrectly treated as read-only"
+    },
+    {
+      "body": "Reconciliation validates the effective push URL against intent.repo, then queries `ls-remote origin`, which uses the fetch URL. With pushInsteadOf directing pushes elsewhere, the checked repository and queried repository differ. If the fetch repository remains at base, reconciliation releases the pending receipt and reports no mutation even when the push destination received it. Query and fetch the validated push destination directly; preserve pending status when its outcome is uncertain.",
+      "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+      "line": 289,
+      "severity": "medium",
+      "title": "Reconciliation still settles receipts against the fetch repository"
+    }
+  ]
+}

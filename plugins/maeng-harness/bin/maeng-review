@@ -38,7 +38,16 @@ shipping route is allowed only as one plain single command in one of these forms
 (`git push --force-with-lease=refs/heads/<base>:<sha> <remote> <sha>:refs/heads/<base>`), `gh pr create --repo <owner/repo>` (the
 repo must equal origin) with only --base/--head/--title/--body/--body-file/--draft/--repo, `maeng-ship merge <N>`,
 read-only gh commands, and gh pr/issue writes (comment/edit/review/ready/close, issue *) that carry an explicit
-`-R <owner/repo>` (never eta). gh checkout/clone/download commands are local writes gated by the effective directory. Everything else (compound commands, wrappers, env assignments, `git -c/-C/--git-dir`, substitutions,
+`-R <owner/repo>` (never eta). gh checkout/clone/download commands are local writes gated by the effective directory.
+Cross-world gate G3 is TOKEN TAINT with a read-only allowlist: in a personal session every token of every Bash
+segment (option values, key=value values, redirect targets, bare operands, owner/repo slugs, github.com URLs) is
+resolved against the segment's effective directory (tracking cd) and against the eta repository classification;
+a segment with any eta-tainted token, or running in an eta/unknown directory, is denied unless its program is on a
+small read-only allowlist used without mutation options. Verify that allowlist is closed (no mutating option or
+subcommand slips through). Verification evidence is a RUNNER INVOCATION ALLOWLIST: a command counts as evidence
+only when it matches a canonical runner form with allowlisted flags (pytest, unittest, npm/pnpm/yarn scripts, forge,
+cargo, go test, make targets, ruff check, mypy, tsc, claude plugin validate, playwright test); any other flag
+(dry-run, list, collect-only, ...) makes it no evidence. Verify that these lists are closed. Everything else (compound commands, wrappers, env assignments, `git -c/-C/--git-dir`, substitutions,
 redirects, other flags) is denied by design, so do NOT enumerate disguised or non-canonical variants as findings.
 Instead verify that the allowlist is closed (no route reaches the shell without passing it) and that each
 canonical form is fully checked (remote configuration, default branch, verified tree/remote head, receipts,
@@ -165,7 +174,7 @@ def run_review(a, cwd):
     if a.kind == "notion":
         payload = json.loads(Path(a.payload).read_text())
         digest = sha256(canonical(payload))
-        bundle = {"kind": "notion", "payload": payload, "digest": digest, "destination": a.destination,
+        bundle = {"kind": "notion", "payload": payload, "digest": digest, "destination": receipts.nid(a.destination),
                   "op": a.op, "draft": a.draft and Path(a.draft).read_text(), "sources": a.source or [],
                   "evidence_files": read_evidence_files(a.evidence),
                   "missing": [] if a.destination and a.op else ["destination/op"]}
@@ -173,7 +182,7 @@ def run_review(a, cwd):
         if total > a.max_bytes:
             bundle["missing"].append(f"bundle is {total} bytes (> --max-bytes {a.max_bytes})")
         subject = {"kind": "notion", "repo": None, "pr": None, "base": None, "head": None, "criteria_rev": None,
-                   "digest": digest, "destination": a.destination, "op": a.op}
+                   "digest": digest, "destination": receipts.nid(a.destination), "op": a.op}
     else:
         bundle = code_bundle(a, cwd, st)
         diff_digest = sha256(bundle.get("diff", ""))

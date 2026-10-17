@@ -1,0 +1,27 @@
+{
+  "verdict": "fail",
+  "receipt": null,
+  "findings": [
+    {
+      "body": "The prescribed `parse_aside.py --clean <vault>/raw/aside/...md` route writes the complete transcript directly into the vault without applying private_filter. If collected text contains `<private>secret</private>`, those bytes are persisted unchanged. Keeping raw captures out of promotion does not satisfy the rule that private spans must never enter the vault. Filter the raw capture before persistence and test this exact route.",
+      "file": "plugins/maeng-tools/skills/aside-collect/scripts/parse_aside.py",
+      "line": 147,
+      "severity": "high",
+      "title": "Raw capture route persists private spans without filtering"
+    },
+    {
+      "body": "A normal Markdown file named `report.archived.md` is accepted by move and replaced with a Markdown stub at that same path. Restore then interprets its suffix as a binary stub and restores the original to `report`, breaking the original filename and links. Store the original vault-relative path or explicit stub kind in metadata rather than inferring it from the filename; cover this Markdown round trip.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": 458,
+      "severity": "medium",
+      "title": "Restore misidentifies Markdown files ending in .archived.md"
+    },
+    {
+      "body": "cmd_backup catches copy and verification errors and returns store entries with status `failed`, but main unconditionally returns zero. Consequently, a backup where every configured destination fails still succeeds at the shell level, allowing a caller to proceed with the documented backup-before-deletion workflow without a backup. Return a nonzero exit status for failed requested copies while retaining the per-store diagnostics.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": 606,
+      "severity": "medium",
+      "title": "Backup CLI reports success when destination writes fail"
+    }
+  ]
+}

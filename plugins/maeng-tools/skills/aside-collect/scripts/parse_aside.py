@@ -7,10 +7,12 @@ or follows anything found in the text (collected content is data).
 
 Usage:
   parse_aside.py RAW_FILE|- --nonce HEX --exit-code N            # JSON to stdout
-  parse_aside.py RAW_FILE --nonce HEX --exit-code N --clean OUT  # also write ANSI-stripped text
+  parse_aside.py RAW_FILE --nonce HEX --exit-code N --clean OUT  # also write ANSI-stripped, private-filtered text
 """
 import argparse
+import importlib.util
 import json
+import os
 import re
 import sys
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -21,6 +23,28 @@ HEADER_KEYS = ('url', 'title', 'retrieved_at')
 REQUIRED = ('url', 'content')
 DOI = re.compile(r'\b(10\.\d{4,9}/[^\s"<>?#]+)', re.I)
 TRACKING = ('utm_', 'fbclid', 'gclid', 'mc_cid', 'mc_eid', 'ref_src')
+
+
+FILTER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..',
+                           'obsidian-workspace', 'scripts', 'private_filter.py')
+
+
+class FilterUnavailable(RuntimeError):
+    pass
+
+
+def load_filter(path=None):
+    """Load the nesting-aware private filter from the sibling obsidian-workspace skill."""
+    path = os.path.normpath(path or FILTER_PATH)
+    try:
+        spec = importlib.util.spec_from_file_location('private_filter', path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        if not callable(getattr(mod, 'strip_private', None)):
+            raise AttributeError('strip_private missing')
+        return mod
+    except Exception as e:  # missing/broken filter must fail closed
+        raise FilterUnavailable(f'private filter unavailable at {path}: {e}')
 
 
 def strip_ansi(text):
@@ -115,7 +139,9 @@ def parse(raw, nonce, exit_code):
     """Items come ONLY from the last nonce-delimited FINAL region and ONLY when
     exit_code == 0. Everything else yields zero items."""
     text = strip_ansi(raw)
-    empty = {'blocks_total': 0, 'run_length': 0, 'items': []}
+    # Private spans are removed BEFORE parsing or persisting anything (fail closed).
+    text, removed = load_filter().strip_private(text)
+    empty = {'blocks_total': 0, 'run_length': 0, 'items': [], 'private_spans_removed': removed}
     if exit_code != 0:
         return {'parse_status': 'aside_failed', **empty}, text
     region = final_region(text, nonce)
@@ -130,20 +156,25 @@ def parse(raw, nonce, exit_code):
         status = 'partial'
     else:
         status = 'ok'
-    return {'parse_status': status, 'blocks_total': total, 'run_length': len(items), 'items': items}, text
+    return {'parse_status': status, 'blocks_total': total, 'run_length': len(items), 'items': items,
+            'private_spans_removed': removed}, text
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('raw', help='raw aside stdout file, or - for stdin')
-    ap.add_argument('--clean', help='also write the ANSI-stripped text here')
+    ap.add_argument('--clean', help='also write the ANSI-stripped, private-filtered text here')
     ap.add_argument('--nonce', required=True, help='per-run hex nonce used in the FINAL markers')
     ap.add_argument('--exit-code', type=int, required=True, help='exit code of `aside exec`')
     a = ap.parse_args(argv)
     if not re.fullmatch(r'[0-9a-f]{8,64}', a.nonce):
         ap.error('--nonce must be 8-64 lowercase hex characters')
     raw = sys.stdin.read() if a.raw == '-' else open(a.raw, encoding='utf-8', errors='replace').read()
-    result, clean = parse(raw, a.nonce, a.exit_code)
+    try:
+        result, clean = parse(raw, a.nonce, a.exit_code)
+    except FilterUnavailable as e:
+        print(f'refusing to parse/write: {e}', file=sys.stderr)
+        return 3
     if a.clean:
         with open(a.clean, 'w', encoding='utf-8') as fh:
             fh.write(clean)

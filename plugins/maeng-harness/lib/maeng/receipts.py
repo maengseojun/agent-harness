@@ -7,6 +7,11 @@ from .common import canonical, git, home_dir, locked, now_iso, read_json, sha256
 UNCONSUMED, PENDING, CONSUMED = "unconsumed", "pending", "consumed"
 
 
+def nid(value):
+    """Canonical Notion id: hyphens stripped, lowercase."""
+    return str(value or "").replace("-", "").strip().lower()
+
+
 class ReceiptError(Exception):
     pass
 
@@ -36,6 +41,8 @@ def store_verdict(verdict):
     errors = schema.validate(verdict, schema.load_schema())
     if errors:
         raise ReceiptError("invalid verdict: " + "; ".join(errors))
+    if verdict["subject"].get("kind") == "notion" and verdict["subject"].get("destination"):
+        verdict["subject"]["destination"] = nid(verdict["subject"]["destination"])
     key = subject_key(verdict["subject"])
     p = _path(key)
     with locked(p):
@@ -89,8 +96,8 @@ def _revoke_notion(subject, by):
         if rec is None or rec["verdict"]["verdict"] != "pass" or rec["status"] != UNCONSUMED or rec.get("revoked"):
             continue
         s = rec["verdict"]["subject"]
-        if (s.get("digest"), s.get("destination"), s.get("op")) != (digest, subject.get("destination"),
-                                                                     subject.get("op")):
+        if (s.get("digest"), nid(s.get("destination")), s.get("op")) != (digest, nid(subject.get("destination")),
+                                                                          subject.get("op")):
             continue
 
         def mark(r, by=by):
@@ -219,7 +226,7 @@ def find_notion(digest, destination, op):
         return None, "no Sol pass receipt for this payload digest (digest mismatch or never reviewed)"
     for rec in matches:
         s = rec["verdict"]["subject"]
-        if (s["destination"], s["op"]) == (destination, op):
+        if (nid(s["destination"]), s["op"]) == (nid(destination), op):
             if rec["verdict"]["verdict"] != "pass":
                 return None, "review verdict is not pass"
             if rec.get("revoked"):
@@ -232,6 +239,11 @@ def find_notion(digest, destination, op):
 
 def begin(key, intent):
     def f(rec):
+        # re-checked under the receipt lock: a concurrent re-review may have revoked the receipt after lookup
+        if rec.get("revoked"):
+            raise ReceiptError("receipt was revoked")
+        if (rec.get("verdict") or {}).get("verdict") != "pass":
+            raise ReceiptError("receipt verdict is not pass")
         if rec["status"] != UNCONSUMED:
             raise ReceiptError(f"receipt is {rec['status']}")
         rec["status"], rec["intent"] = PENDING, intent
@@ -286,7 +298,12 @@ def reconcile_code(key, cwd):
     if not it.get("repo") or here != it["repo"]:
         return "pending", (f"run reconcile in a checkout of {it.get('repo') or 'the receipt repository'} "
                            f"(remote `{it['remote']}` here is {here or 'unresolvable'}); receipt left pending")
-    rc, out, err = git(cwd, "ls-remote", it["remote"], it["ref"])
+    from . import remotecfg  # same leaf-module reasoning as guard
+    eff, err = remotecfg.plain_remote(cwd, it["remote"], for_push=False)
+    if err or guard.normalize_repo(eff) != it["repo"]:
+        return "pending", (f"remote `{it['remote']}` is not a plain remote ({err or 'url differs'}); "
+                           f"receipt left pending")
+    rc, out, err = git(cwd, "ls-remote", eff, it["ref"])
     if rc != 0:
         return "pending", "cannot reach remote: " + err.strip()
     remote_sha = out.split()[0] if out.split() else ""
@@ -297,7 +314,7 @@ def reconcile_code(key, cwd):
         reject(key, "reconcile:remote-still-at-base")
         return "retry", "remote unchanged; no mutation happened"
     if remote_sha:
-        git(cwd, "fetch", "--quiet", it["remote"], it["ref"])
+        git(cwd, "fetch", "--quiet", eff, it["ref"])
         if git(cwd, "cat-file", "-e", remote_sha + "^{commit}")[0] == 0 and \
                 git(cwd, "merge-base", "--is-ancestor", it["head_sha"], remote_sha)[0] == 0:
             consume(key, {"merge_sha": remote_sha, "via": "reconcile:head-ancestor-of-remote"})
@@ -400,12 +417,12 @@ def journal_absent(entry_id):
 
 
 def registry_ids():
-    return set((read_json(_notion("registry.json"), {}) or {}).get("page_ids", []))
+    return {nid(i) for i in (read_json(_notion("registry.json"), {}) or {}).get("page_ids", [])}
 
 
 def registry_add(ids):
     p = _notion("registry.json")
     with locked(p):
         cur = read_json(p, {}) or {}
-        cur["page_ids"] = sorted(set(cur.get("page_ids", [])) | set(ids))
+        cur["page_ids"] = sorted({nid(i) for i in cur.get("page_ids", [])} | {nid(i) for i in ids})
         write_json(p, cur)

@@ -11,7 +11,7 @@ class Recognition(HarnessCase):
                "cd sub && pytest": "pytest", "uv run pytest": "pytest", "npm test": "npm test",
                "pnpm run lint": "pnpm run lint", "yarn test": "yarn test", "npm run typecheck": "npm run typecheck",
                "npm run build": "npm run build", "forge test -vvv": "forge test", "forge build": "forge build",
-               "cargo test": "cargo test", "cargo clippy -- -D warnings": "cargo clippy", "cargo build": "cargo build",
+               "cargo test": "cargo test", "cargo clippy --all": "cargo clippy", "cargo build": "cargo build",
                "go test ./...": "go test", "make test": "make test", "make check": "make check",
                "ruff check .": "ruff check", "mypy src": "mypy", "tsc --noEmit": "tsc",
                "claude plugin validate plugins/x": "claude plugin validate", "playwright test": "playwright test",

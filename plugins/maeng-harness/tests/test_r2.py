@@ -563,7 +563,7 @@ class R2_H_PullRequestRemoteHead(ShipBase):
     def push_unverified_commit(self):
         (self.repo / "app.py").write_text("print('unverified')\n")
         self.commit_all(self.repo, "unverified")
-        self.git(self.repo, "push", "-q", "origin", "feat")
+        self.git(self.repo, "push", "-q", str(self.tmp / "repo-remote.git"), "feat")  # origin is a github URL here
 
     def test_gh_pr_create_denied_when_the_remote_head_is_not_the_verified_commit(self):
         self.verified()

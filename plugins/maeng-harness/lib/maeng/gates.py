@@ -30,6 +30,7 @@ def deny(reason):
 class Ctx:
     def __init__(self, cwd, state, world=guard.PERSONAL, home=None):
         self.cwd, self.state, self.world = cwd, state, world
+        self.world_cache = {}
 
     @property
     def unknown(self):
@@ -84,7 +85,6 @@ READONLY_PROGS = {"cat", "ls", "head", "tail", "grep", "rg", "find", "wc", "stat
                   "sha256sum", "shasum", "md5", "readlink"}
 READONLY_GIT = {"status", "log", "diff", "show", "rev-parse", "ls-files", "ls-tree", "cat-file", "blame", "describe",
                 "grep", "shortlog", "rev-list", "name-rev", "merge-base", "ls-remote", "check-ignore"}
-PATHLIKE = ("/", "~", "../", "./")
 
 
 def _target_world(path):
@@ -188,23 +188,111 @@ def git_readonly(sub, args):
     return False
 
 
-def _arg_paths(toks):
-    for t in toks[1:]:
-        if "=" in t and not t.startswith("/"):  # --output=/x, of=/x
-            t = t.split("=", 1)[1]
-        if t and not t.startswith("-") and (t.startswith(PATHLIKE) or "/" in t or t == ".."):
-            yield t
+# ---- G3 token taint ---------------------------------------------------------
+#
+# In a personal session every token of every Bash segment (program, options, option values, key=value values,
+# redirect targets, bare operands) is resolved against the segment's effective directory, and slugs / github.com
+# URLs are classified; a segment with any tainted token is denied unless it is a read-only invocation from the
+# closed allowlist (READONLY_PROGS without mutating options, read-only git subcommands, strict read-only gh).
+
+SLUG_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?(?:\.git)?$")
+SCP_RE = re.compile(r"^[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+:[A-Za-z0-9_.~/-]+$")
+GLOB_CUT = re.compile(r"[*?\[{]")
 
 
-def _operands(toks):
-    """Every non-flag operand (bare names included), with `--opt=value` / `of=value` reduced to the value."""
-    for t in toks[1:]:
-        if t.startswith("-") and "=" not in t:
-            continue
-        if "=" in t and not t.startswith("/"):
-            t = t.split("=", 1)[1]
-        if t and not t.startswith("-"):
-            yield t
+def _variants(tok):
+    """The token itself plus the path-like values hidden inside it: `--dir=X`, `key=value`, `-DX`, `a:b`."""
+    out = [tok]
+    if "=" in tok:
+        out.append(tok.split("=", 1)[1])
+    m = re.match(r"^-[A-Za-z]([^=].*)$", tok)
+    if m:
+        out.append(m.group(1))
+    for v in list(out):
+        if ":" in v and "://" not in v:
+            out += [part for part in v.split(":") if part]
+    return out
+
+
+def _resolvable(path):
+    return bool(path) and "\n" not in path and "\0" not in path and len(path) < 4096 and \
+        all(len(c) < 255 for c in path.split("/"))
+
+
+def world_of_path(path, cwd, ctx):
+    """World of a path-like token resolved against `cwd` (memoized by nearest existing directory)."""
+    expanded = os.path.expandvars(path)
+    m = GLOB_CUT.search(expanded)
+    if m:
+        expanded = expanded[:m.start()] or "."
+    if not _resolvable(expanded):
+        return guard.PERSONAL
+    absolute = _abs(expanded, cwd)
+    parts = absolute.split("/")
+    if ".git" in parts:  # a path inside a .git directory belongs to the repository that owns it
+        absolute = "/".join(parts[:parts.index(".git")]) or "/"
+    try:
+        near = guard._nearest_dir(absolute)
+    except (OSError, ValueError):
+        near = None
+    key = str(near) if near is not None else absolute
+    cache = ctx.world_cache
+    if key not in cache:
+        cache[key] = guard.classify(absolute if near is None else str(near))
+    return cache[key]
+
+
+def token_taint(seg, cwd, ctx):
+    """-> the first reason a token of this segment is eta/unknown tainted, or None."""
+    for tok in seg.tokens:
+        for v in _variants(tok):
+            if not v or v == "-":
+                continue
+            # (b) repository identity: owner/repo slugs, github.com URLs, API paths
+            m = ghcmd.URL_REPO.search(v) or ghcmd.API_REPO.match(v)
+            if m and guard.spec_is_eta(f"{m.group(1)}/{m.group(2)}"):
+                return f"`{tok}` names an eta repository"
+            if (SLUG_RE.match(v) or SCP_RE.match(v)) and guard.spec_is_eta(v):
+                return f"`{tok}` names an eta repository"
+            if v.startswith("-"):
+                continue
+            # (a) filesystem path relative to the effective directory
+            w = world_of_path(v, cwd, ctx)
+            if w == guard.ETA:
+                return f"`{tok}` resolves into an eta checkout"
+            if w == guard.UNKNOWN:
+                return f"`{tok}` resolves somewhere whose world cannot be determined"
+    return None
+
+
+def readonly_invocation(prog, toks):
+    """True only for the closed read-only allowlist."""
+    if not prog or prog in ("cd", "pushd", "popd"):
+        return True
+    if prog == "git":
+        sub, args, _, _ = _parse_git_globals(toks)
+        return sub is None or git_readonly(sub, args)
+    if prog == "gh":
+        return ghcmd.readonly_strict(toks)
+    return prog in READONLY_PROGS and not mutating_options(prog, toks)
+
+
+def check_taint(seg, prog, toks, cwd, ctx):
+    """The G3 authority: deny a non-read-only segment that is tainted or runs in an eta/unknown directory."""
+    if readonly_invocation(prog, toks):
+        return None
+    if ctx.unknown:
+        return deny(UNKNOWN_REASON)
+    w = world_of_path(".", cwd, ctx)
+    if w == guard.ETA:
+        return deny(f"maeng G3: `{prog}` would run inside an eta checkout ({cwd}); only read-only commands are allowed there.")
+    if w == guard.UNKNOWN:
+        return deny(UNKNOWN_REASON)
+    why = token_taint(seg, cwd, ctx)
+    if why:
+        return deny(f"maeng G3: `{prog}` is not a read-only command and {why}; eta is a separate world "
+                    f"(read-only access is allowed; do eta work in an eta session).")
+    return None
 
 
 def check_segment(seg, cwd, ctx):
@@ -215,27 +303,15 @@ def check_segment(seg, cwd, ctx):
             return d, cwd
     if prog in ("cd", "pushd") and len(toks) > 1:
         return Decision(), _abs(toks[1], cwd)
+    blocked = check_taint(seg, prog, toks, cwd, ctx)
+    if blocked:
+        return blocked, cwd
     if prog == "git":
         return check_git(toks, cwd, ctx), cwd
     if prog == "gh":
         return check_gh(toks, cwd, ctx), cwd
     if prog == "maeng-ship":
         return check_ship_cmd(toks, cwd, ctx), cwd
-    if not prog or (prog in READONLY_PROGS and not mutating_options(prog, toks)):
-        return Decision(), cwd
-    d = _cwd_gate(cwd, ctx, prog, True)
-    if d:
-        return d, cwd
-    for t in _operands(toks):  # bare names resolve against this segment's directory like any other path
-        d = g3_path(t, cwd, ctx, f"`{prog}` argument")
-        if d:
-            return d, cwd
-    if prog == "tee":
-        for t in toks[1:]:
-            if not t.startswith("-"):
-                d = g3_path(t, cwd, ctx, "tee target")
-                if d:
-                    return d, cwd
     return Decision(), cwd
 
 
@@ -258,10 +334,6 @@ def check_git(toks, cwd, ctx):
         return Decision()
     if not ro:
         blocked = _cwd_gate(cwd, ctx, "git " + sub, True)
-        if blocked:
-            return blocked
-    for p_ in _arg_paths(["git", *args]) if sub in READONLY_GIT and not ro else ():
-        blocked = g3_path(p_, cwd, ctx, "git output")
         if blocked:
             return blocked
     if sub == "push":
@@ -457,33 +529,71 @@ def check_mcp_eta_linear(tool, tool_input, ctx):
 
 # ---- G2 Notion -----------------------------------------------------------
 
-def notion_dbs():
-    env = os.environ.get("MAENG_NOTION_DBS")
-    if env:
-        ids = env.split(",")
-    else:
-        ids = (read_json(home_dir() / "config.json", {}) or {}).get("notion_databases")
-        if not ids:  # shipped defaults: never leave the outcome databases ungated
-            shipped = Path(__file__).resolve().parents[2] / "config" / "notion-databases.json"
-            ids = (read_json(shipped, {}) or {}).get("notion_databases", [])
-    return {i.replace("-", "").strip() for i in ids if i}
+class NotionConfigError(Exception):
+    pass
+
+
+NOTION_ID_RE = re.compile(r"^[0-9a-f]{32}$")
+NOTION_CONFIG_REASON = ("maeng G2: invalid Notion gate configuration ({why}); Notion create/update writes are denied "
+                        "until MAENG_NOTION_DBS / $MAENG_HOME/config.json notion_databases / the shipped "
+                        "config/notion-databases.json is a non-empty list of 32-hex Notion ids.")
 
 
 def _nid(value):
-    return str(value or "").replace("-", "").strip()
+    return receipts.nid(value)
+
+
+def _valid_dbs(ids, source):
+    if not isinstance(ids, list) or not ids:
+        raise NotionConfigError(f"{source}: notion_databases must be a non-empty list")
+    out = set()
+    for i in ids:
+        n = _nid(i) if isinstance(i, str) else ""
+        if not NOTION_ID_RE.match(n):
+            raise NotionConfigError(f"{source}: `{i}` is not a 32-hex Notion id")
+        out.add(n)
+    return out
+
+
+def notion_dbs():
+    """-> set of normalized protected database ids. Raises NotionConfigError when the chosen source is invalid or
+    the shipped default is unreadable (the caller must deny)."""
+    env = os.environ.get("MAENG_NOTION_DBS")
+    if env:
+        return _valid_dbs([p.strip() for p in env.split(",") if p.strip()], "MAENG_NOTION_DBS")
+    user = home_dir() / "config.json"
+    if user.exists():
+        try:
+            data = read_json(user, {})
+        except (ValueError, OSError) as exc:
+            raise NotionConfigError(f"{user}: unreadable ({exc})")
+        if not isinstance(data, dict):
+            raise NotionConfigError(f"{user}: must be a JSON object")
+        if "notion_databases" in data:
+            return _valid_dbs(data["notion_databases"], str(user))
+    shipped = Path(__file__).resolve().parents[2] / "config" / "notion-databases.json"
+    try:
+        data = read_json(shipped, None)
+    except (ValueError, OSError) as exc:
+        raise NotionConfigError(f"shipped default unreadable ({exc})")
+    if not isinstance(data, dict):
+        raise NotionConfigError("shipped default missing or malformed")
+    return _valid_dbs(data.get("notion_databases"), "shipped default")
 
 
 def notion_scope(tool, tool_input):
     """-> (op, destination) when this call is G2-gated, else None."""
     name = tool.split("__", 2)[-1]
-    dbs = notion_dbs()
+    if name not in ("notion-create-pages", "notion-update-page", "notion-update-data-source"):
+        return None
+    dbs = notion_dbs()  # may raise NotionConfigError: check_mcp_notion turns it into a deny
     if name == "notion-create-pages":
         parent = tool_input.get("parent") or {}
         dest = _nid(next((v for k, v in parent.items() if k.endswith("_id")), ""))
         return ("create", dest) if dest in dbs else None
     if name == "notion-update-page":
         pid = _nid(tool_input.get("page_id"))
-        journaled = {i for e in receipts.read_journal() for i in e["page_ids"]}
+        journaled = {_nid(i) for e in receipts.read_journal() for i in e["page_ids"]}
         return ("update", pid) if pid in receipts.registry_ids() | journaled else None
     if name == "notion-update-data-source":
         did = _nid(tool_input.get("data_source_id"))
@@ -497,7 +607,10 @@ NOTION_WRITE = re.compile(r"^notion-(create|update|delete|move|duplicate|restore
 def check_mcp_notion(tool, tool_input, ctx, tool_use_id=""):
     if ctx.unknown and NOTION_WRITE.match(tool.split("__", 2)[-1]):
         return deny(UNKNOWN_REASON)
-    scope = notion_scope(tool, tool_input)
+    try:
+        scope = notion_scope(tool, tool_input)
+    except NotionConfigError as exc:
+        return deny(NOTION_CONFIG_REASON.format(why=exc))
     if not scope:
         return Decision()
     op, dest = scope

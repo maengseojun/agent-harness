@@ -161,7 +161,9 @@ def build_stub(original_text: str | None, meta: dict, world: str, rel: str) -> s
     if world == "eta" and not any(l.startswith("world:") for l in fm):
         fm.append("world: eta")
     fm.append("archive:")
-    for k in ("store", "path", "sha256", "size", "archived_at"):
+    for k in ("store", "path", "sha256", "size", "archived_at", "original", "stub_kind"):
+        if k not in meta and k in ("original", "stub_kind"):
+            continue  # only callers building legacy-form stubs omit these
         fm.append(f"  {k}: {json.dumps(meta[k], ensure_ascii=False)}")
     fm.append("status: archived")
     return (
@@ -280,7 +282,8 @@ def cmd_move(rel: str, store: str, world: str, dry_run: bool) -> dict:
         finally:
             raise ArchiveError("hash mismatch after copy; vault unchanged")
     meta = {"store": store, "path": arch_rel, "sha256": src_hash, "size": size,
-            "archived_at": stamp.isoformat(timespec="seconds")}
+            "archived_at": stamp.isoformat(timespec="seconds"),
+            "original": rel_posix, "stub_kind": "inplace" if is_md else "sibling"}
     original_text = src.read_text(encoding="utf-8", errors="replace") if is_md else None
     stub = build_stub(original_text, meta, world, rel_posix)
     write_text_atomic(stub_path, stub)
@@ -455,10 +458,37 @@ def _prune(bdir: Path, keep: int) -> list[str]:
 
 
 # ---------- restore ----------
-def _original_of_stub(stub: Path) -> Path:
-    if stub.name.endswith(".archived.md"):
-        return stub.with_name(stub.name[: -len(".archived.md")])
-    return stub
+def _original_of_stub(vault: Path, stub: Path, meta: dict) -> Path:
+    """Original path of a stub. Uses explicit archive.original/stub_kind; legacy stubs are
+    inferred from the archive path and refused when ambiguous. Never trusts the filename alone."""
+    try:
+        stub_rel = stub.relative_to(vault).as_posix()
+    except ValueError:
+        raise ArchiveError("stub is outside the vault")
+    kind, original = meta.get("stub_kind"), meta.get("original")
+    if kind is not None or original is not None:
+        if kind not in ("inplace", "sibling") or not isinstance(original, str) or not original:
+            raise ArchiveError("stub has invalid archive.original / archive.stub_kind; refusing")
+        op = Path(original)
+        if op.is_absolute() or ".." in op.parts:
+            raise ArchiveError("stub archive.original must be vault-relative without '..'; refusing")
+        expected = original if kind == "inplace" else original + ".archived.md"
+        if stub_rel != expected:
+            raise ArchiveError(f"stub location {stub_rel} does not match archive.original ({original}, {kind}); refusing")
+        if not str(meta.get("path", "")).endswith("/" + op.as_posix()):
+            raise ArchiveError("stub archive.path does not match archive.original; refusing")
+        return vault / op
+    # legacy stub (no explicit fields)
+    if not stub_rel.endswith(".archived.md"):
+        return stub
+    sibling = stub_rel[: -len(".archived.md")]
+    apath = "/" + str(meta.get("path", ""))
+    is_inplace = apath.endswith("/" + stub_rel)
+    is_sibling = apath.endswith("/" + sibling) and not sibling.lower().endswith(".md")
+    if is_inplace == is_sibling:
+        raise ArchiveError(f"legacy stub {stub.name} is ambiguous (markdown file or sibling stub); "
+                           "refusing, restore manually from the archive path in the stub")
+    return stub if is_inplace else vault / sibling
 
 
 def cmd_restore(path: str, apply: bool, target: str | None) -> dict:
@@ -483,7 +513,7 @@ def cmd_restore(path: str, apply: bool, target: str | None) -> dict:
         raise ArchiveError(f"archived file missing: {arch}")
     if sha256_file(arch) != meta["sha256"]:
         raise ArchiveError("archived file hash differs from stub; refusing")
-    orig = _original_of_stub(p)
+    orig = _original_of_stub(vault, p, meta)
     orig = ensure_inside_vault(vault, orig, must_exist=False)
     kept = p.with_name(p.stem + ".restored.md")
     plan = {"archive": str(arch), "restore_to": str(orig), "stub_renamed_to": str(kept)}
@@ -599,10 +629,16 @@ def main(argv: list[str] | None = None) -> int:
             res = cmd_backup(targets, a.keep, a.dry_run)
         else:
             res = cmd_restore(a.path, a.apply, a.target)
-    except ArchiveError as e:
+    except (ArchiveError, OSError) as e:
         print(json.dumps({"error": str(e)}, ensure_ascii=False) if as_json else f"error: {e}", file=sys.stderr)
         return 1
     print(json.dumps(res, ensure_ascii=False, indent=2))
+    if a.cmd == "backup" and not a.dry_run:
+        stores = res.get("stores", {}).values()
+        failed = any(v.get("status") == "failed" for v in stores)
+        if failed or not any(v.get("status") == "ok" for v in stores):
+            print("error: backup incomplete: a requested store failed or no store succeeded", file=sys.stderr)
+            return 1
     return 0
 
 
