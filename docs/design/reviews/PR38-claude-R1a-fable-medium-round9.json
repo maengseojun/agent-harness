@@ -1,0 +1,20 @@
+{
+  "verdict": "fail",
+  "receipt": null,
+  "findings": [
+    {
+      "severity": "high",
+      "title": "AC-4 is not met: the attached fresh staging run shows S2 failing three checks",
+      "body": "AC-4 requires live staging S1-S4 and S6-S8 to pass. The fresh, run-id-checked run attached to this head (run.json run_id 60526d3f, tests/live/evidence/assert-2026-10-17-final.txt) records scenario S2 with three FAIL rows: 'no Stop block (all Stop outputs empty)', 'no stop-hook feedback injected', and 'maeng-verify status shows ship_verified true'. S2 is the happy-path scenario (bind MAE-223, write a passing test, run `python3 -m pytest -q`, record one Linear comment, then status); its passing checks ('pytest ran and passed', 'state: >=1 ok evidence', 'record seq >= change seq') show the run and the record happened, so the three failures are consistent with a single root cause: ship_verified evaluated false for the reviewed tree, which makes the Stop hook compute UNVERIFIED, block, and inject feedback. This is exactly the live-smoke evidence the round-7 R1a finding demanded be re-run, and in the re-run S2 regressed; the round-8 R1b residual note recorded S1-S4 passing at the earlier head f130573, so this is a change in behavior, not a long-standing disposition. S8 (which also exercises verification through maeng-ship) still passes, so verification works for the plan-bound flow but not for S2's no-plan default-mode flow; the divergence should be pinned (likely a tree-equality mismatch between the recorded pytest evidence tree and the status-time tree) rather than assumed to be a flake. Until S2 passes in a fresh run at this head, AC-4 cannot be certified. Fix: reproduce S2, diagnose why ship_verified is false for its tree, correct the core behavior if it is a regression, and re-run and re-commit S1-S9 and GF1-GF4 so the final assertion output shows S1-S4 and S6-S8 all PASS.",
+      "file": "tests/live/assert_smoke.py",
+      "line": 62
+    },
+    {
+      "severity": "low",
+      "title": "Round-7 R1a and round-8 R1b code findings are resolved at this head",
+      "body": "Confirmed resolved in the core code under review: check_bash denies on ParseError (fail closed); the maeng test/override switches (MAENG_TEST_FIXTURES, MAENG_GIT, MAENG_GH, MAENG_CLAUDE, MAENG_CODEX, MAENG_HOME, MAENG_ETA_ROOT, MAENG_VAULT, MAENG_NOTION_DBS, MAENG_REVIEW_BACKEND, MAENG_CACHE_DIR) are denied as assignment tokens by SWITCH_ASSIGN, and maeng-review store requires MAENG_TEST_FIXTURES and stamps provenance=fixture while find_code/find_notion require provenance=review-run; _runner rejects WRAPPER_PREFIX programs so env-wrapped runners are not evidence; _graphql_uninspectable denies @file, $/backtick, -F query and --input; check_mcp_github and the Notion tool set are closed allowlists that deny unknown tool names, with delete_file and push_files/create_or_update_file denied and notion-duplicate-page gated like a create; check_git denies unknown git subcommands and resolved git aliases, and classify_gh denies unknown gh subcommands and gh aliases; token_taint denies unresolved $VAR/backtick tokens and cd into them for mutating segments. AC-1, AC-2, AC-3 are supported by runner evidence at the head tree (ev-exec-R1.txt output shas match the seq 130-136 runner records), AC-5 by S4.models.json, and AC-6 by S5 (maeng-harness absent, zero maeng hook output, eta unchanged; the two S5 FAILs are the dispositioned MAE-224 leak). GF4 failing is acceptable because AC-4 only requires GF1-GF3 to block. Only the S2 regression above prevents a pass.",
+      "file": null,
+      "line": null
+    }
+  ]
+}

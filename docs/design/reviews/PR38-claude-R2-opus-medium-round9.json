@@ -1,0 +1,34 @@
+{
+  "verdict": "pass",
+  "receipt": "code-bfd1b2e59a3c1cc9381b86db",
+  "findings": [
+    {
+      "severity": "low",
+      "title": "aside-collect retry step does not say where the resume output is captured",
+      "body": "Step 3 redirects stdout and stderr of `aside exec` to `<TMP>/<STAMP>-<NONCE>.out.txt` and `.err.txt` with literal paths. Step 7's retry command is `aside session resume <id> \"...\" < /dev/null`, with no stdout redirect. It then says to 'save its output as `<STAMP>-<slug>-<RNONCE>-retry.md`' and to 'parse again', but it never names the scratch input file for `parse_aside.py`. Give the retry the same literal redirect form (`> <TMP>/<STAMP>-<RNONCE>.out.txt 2> ...`). Then show the exact parse command with `--clean <vault>/raw/aside/<STAMP>-<slug>-<RNONCE>-retry.md`, so an agent does not invent a different route.",
+      "file": "plugins/maeng-tools/skills/aside-collect/SKILL.md",
+      "line": 46
+    },
+    {
+      "severity": "low",
+      "title": "Source-note `raw:` path reuses the `<slug>` placeholder with a different meaning",
+      "body": "In step 8, `S-<slug>` is the per-item slug derived from the title. The `raw:` frontmatter value `raw/aside/<STAMP>-<slug>-<nonce>.md` needs the collection slug from step 3. Both use the same placeholder name, so an agent could write the item slug into `raw:`. The resulting path would not exist, and the provenance check (\"a `raw` path that exists\") would fail. Rename one placeholder, for example `<run-slug>`.",
+      "file": "plugins/maeng-tools/skills/aside-collect/SKILL.md",
+      "line": 60
+    },
+    {
+      "severity": "low",
+      "title": "verification.md contradicts itself on `cargo test -p X` and pnpm/yarn forms",
+      "body": "The plain-forms list counts `cargo test|clippy|build [--all|--workspace|-p X]` as normal evidence. The next bullet lists `cargo test ... -p X` as 'Filtered', meaning it is not evidence for the default rule. The summary line names `npm/pnpm/yarn test|lint|build|typecheck`, but the plain-forms list gives only `npm test` / `npm run ...`. Make the two lists agree with the runner allowlist in evidence.py, so Plan authors do not write a requirement that cannot be satisfied.",
+      "file": "plugins/maeng-harness/skills/harness-run/references/verification.md",
+      "line": 40
+    },
+    {
+      "severity": "low",
+      "title": "maeng-archive --world eta is not tied to the eta/ vault folder",
+      "body": "SKILL.md says eta material is archived with `--world eta`, is kept under `eta/` and must never be mixed with personal archive paths. `cmd_move` does not check this. It accepts `--world personal` for `eta/...` paths and `--world eta` for any other path, and a stub written with `--world personal` gets no `world` key. Either reject a world/path mismatch or state that the agent has to choose the world correctly.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": 268
+    }
+  ]
+}

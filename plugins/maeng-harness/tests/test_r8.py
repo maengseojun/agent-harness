@@ -119,8 +119,13 @@ class R8_3_GitSubcommandsClosed(ShipBase):
         self.verified()
         for cmd in ("git status", "git log -1", "git diff", "git add -A", "git commit --allow-empty -m x",
                     "git push origin feat", "git branch", "git stash list", "git worktree list", "git help",
-                    "git diff-tree -r HEAD", "git fsck"):
+                    "git diff-tree -r HEAD", "git fsck", "git rebase main", "git bisect start", "git bisect good",
+                    "git difftool HEAD~1", "git mergetool", "git submodule status", "git submodule update --remote"):
             self.assertAllowed(cmd)
+        # builtins that run a caller-supplied command are not unaffected (test_r9.R9_1)
+        for cmd in ("git submodule foreach make", "git rebase -x make main", "git bisect run make",
+                    "git filter-branch --tree-filter make HEAD", "git difftool -x cat", "git mergetool -t meld"):
+            self.assertDenied(cmd, "runs an arbitrary command")
 
     def test_git_lfs_is_read_only(self):
         self.verified()

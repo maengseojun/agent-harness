@@ -198,8 +198,8 @@ def build_stub(original_text: str | None, meta: dict, world: str, rel: str) -> s
         skip = False
         cleaned.append(l)
     fm = [l for l in cleaned if l.strip() != ""] if not cleaned else cleaned
-    if world == "eta" and not any(l.startswith("world:") for l in fm):
-        fm.append("world: eta")
+    if not any(l.startswith("world:") for l in fm):
+        fm.append(f"world: {world}")
     fm.append("archive:")
     for k in ("store", "path", "sha256", "size", "archived_at", "original", "stub_kind"):
         if k not in meta and k in ("original", "stub_kind"):
@@ -261,6 +261,11 @@ def ensure_inside_vault(vault: Path, path: Path, must_exist: bool = True) -> Pat
 def cmd_move(rel: str, store: str, world: str, dry_run: bool) -> dict:
     if Path(rel).is_absolute() or ".." in Path(rel).parts:
         raise ArchiveError("path must be vault-relative without '..'")
+    in_eta = Path(rel).parts[:1] == ("eta",)
+    if (world == "eta") != in_eta:
+        raise ArchiveError(
+            f"world/path mismatch: --world {world} with {rel}; eta material lives under eta/ and needs "
+            "--world eta, everything else needs --world personal. Nothing changed")
     vault = resolved_vault()
     src = vault / rel
     ensure_inside_vault(vault, src, must_exist=False)
@@ -278,6 +283,11 @@ def cmd_move(rel: str, store: str, world: str, dry_run: bool) -> dict:
     if not src.is_file():
         raise ArchiveError(f"not a file in vault: {src}")
     ensure_inside_vault(vault, src, must_exist=True)
+    if is_md:
+        fm_world = [l.partition(":")[2].strip().strip("'\"") for l in
+                    split_frontmatter(src.read_text(encoding="utf-8", errors="replace"))[0] if l.startswith("world:")]
+        if fm_world and fm_world[0] != world:
+            raise ArchiveError(f"world mismatch: {rel} has world: {fm_world[0]} but --world {world}. Nothing changed")
     if _has_private(src):
         raise ArchiveError(
             f"refusing to move {rel}: it contains a <private> span, and <private> content never leaves "

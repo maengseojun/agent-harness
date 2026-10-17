@@ -23,6 +23,15 @@ READ_ACTIONS = {"view", "list", "diff", "checks", "status", "watch", "token", "g
 # Remote reads that also write files into the local working directory / a destination operand.
 LOCAL_WRITES = {("pr", "checkout"), ("repo", "clone"), ("repo", "set-default"), ("release", "download"), ("run", "download"),
                 ("gist", "clone")}
+# The closed known surface, derived from GH_ALLOWED and pinned by equality in the tests: GH_OPEN_GROUPS take any
+# action (`issue` writes everything except DENIED_ACTIONS; the others only read), GH_WRITES are the known remote
+# writes of the closed groups (`pr create` is GH_GATED), LOCAL_WRITES write files locally, GH_READS is the rest.
+# Anything else (repo create, gist create, variable set, label create, project, codespace, auth login, ...) is denied.
+GH_OPEN_GROUPS = frozenset(g for g, acts in GH_ALLOWED.items() if acts is None)
+WRITE_ACTIONS = ("comment", "edit", "review", "ready", "close")
+GH_WRITES = frozenset((g, a) for g, acts in GH_ALLOWED.items() for a in acts or () if a in WRITE_ACTIONS)
+GH_GATED = frozenset({("pr", "create")})
+GH_READS = frozenset((g, a) for g, acts in GH_ALLOWED.items() for a in acts or ()) - GH_WRITES - LOCAL_WRITES
 REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 GH_VALUE_FLAGS = {"-X", "--method", "-H", "--header", "-f", "-F", "--field", "--raw-field", "-q", "--jq", "-t",
                   "--template", "--hostname", "--cache", "--input", "-B", "--base", "-H", "--head", "-t", "--title",
@@ -134,7 +143,7 @@ def classify_gh(toks):
                        f"(merge/sync/release/repo-edit routes go through maeng-ship or are denied).", repo, info
     if (group, action) in LOCAL_WRITES:
         return "local", "", repo, info
-    if group in ("issue",) or action in ("comment", "edit", "review", "ready", "close"):
+    if group in ("issue",) or (group, action) in GH_WRITES:
         return ("read" if action in READ_ACTIONS else "write"), "", repo, info
     return "read", "", repo, info
 

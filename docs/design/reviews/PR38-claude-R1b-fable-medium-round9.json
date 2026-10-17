@@ -1,0 +1,55 @@
+{
+  "verdict": "fail",
+  "receipt": null,
+  "findings": [
+    {
+      "severity": "high",
+      "title": "AC-4 not met: the attached final staging run shows S2 failing three assertions, yet 'live staging smoke' was declared ok at the head tree",
+      "body": "tests/live/evidence/assert-2026-10-17-final.txt (run 60526d3f, finished 2026-10-17T17:37:56) reports for S2: '[FAIL] no Stop block (all Stop outputs empty)', '[FAIL] no stop-hook feedback injected', '[FAIL] maeng-verify status shows ship_verified true', while 'pytest ran and passed' and 'exactly one Linear save_comment' PASS. AC-4 requires S1-S4 and S6-S8 to pass; only S5 and GF4 are dispositioned in the plan. The declared evidence at seq 137 ('live staging smoke', ok=true, tree 055e0a8a == head tree) therefore contradicts its own attached output, and ship_verified=true in this bundle rests on that declaration. Substantively, S2 is the happy path: a recognized runner passed and a Linear record was written, but the harness still reports the tree as unverified and blocks Stop. That is a false-positive gate (fail-closed on a correct flow), most plausibly caused by the round-8 tightening of runner recognition (R8_6 passthrough/narrowing forms, R7_J zero-test output parsing, or the unfiltered-suite rule) applied to the exact command the live agent chose. Required: root-cause S2 (compare the agent's pytest invocation and tool_response in S2.summary.json against evidence.recognize/unfiltered and the zero-test detector), fix or document, re-run staging, and only then re-declare AC-4. Until then AC-4 is unmet and the parent cannot pass.",
+      "file": null,
+      "line": null
+    },
+    {
+      "severity": "medium",
+      "title": "Known git builtins that execute arbitrary commands are pinned as allowed by omission: submodule foreach, rebase --exec, bisect run, filter-branch, difftool/mergetool --extcmd",
+      "body": "R8_3 closes unknown/external subcommands and R2_A pins that route mentions inside data (git log --grep='git push') are not routes, so detection is structural on the git subcommand token. That leaves documented builtins whose arguments are executed by git: `git submodule foreach git push origin main`, `git rebase -x 'git push origin main' HEAD~1`, `git bisect run sh -c 'git push origin main'`, `git filter-branch --tree-filter 'git push origin main'`, `git difftool --extcmd='git push origin main'`, `git mergetool --tool-help`-style `-t` with a configured tool. None is asserted denied in test_g1/test_r2/test_r7/test_r8, and the builtins list in R8_3.test_builtins_are_unaffected pins a permissive default for builtins. These are plain, documented invocations, not disguises. Add deny assertions (in the personal world, verified tree) for each, and pin that `--exec/-x`, `foreach`, `run`, `--tree-filter/--index-filter/--msg-filter`, `--extcmd/-x` make the segment undecidable or a route.",
+      "file": "plugins/maeng-harness/tests/test_r8.py",
+      "line": 101
+    },
+    {
+      "severity": "low",
+      "title": "Known gh subcommand surface is not pinned as a closed constant; several mutating known commands are unasserted",
+      "body": "R8_2 pins unknown subcommands and aliases as denied but, unlike the MCP sets (GITHUB_*, NOTION_*), the gh read set and gh write set are not asserted by equality against a gates constant. Known mutating commands with no assertion either way: `gh repo create`, `gh gist create`, `gh variable set`, `gh label create/delete`, `gh project item-add`, `gh ssh-key add`, `gh gpg-key add`, `gh codespace create`, `gh ruleset`, `gh auth login/setup-git`. Pin the gh read and write sets by equality and add deny assertions for these in both personal and eta slugs.",
+      "file": "plugins/maeng-harness/tests/test_r8.py",
+      "line": 84
+    },
+    {
+      "severity": "low",
+      "title": "Bash-side MAENG_* override pin covers only named variables; unset and the remaining variables are unasserted",
+      "body": "R8_1.test_the_agent_cannot_set_the_switch_or_the_binary_overrides_from_bash asserts six variables and checks only that the reason mentions 'MAENG_'. Not asserted: `unset MAENG_ETA_ROOT` / `unset MAENG_HOME` (which switch maeng-verify/maeng-ship to defaults in the persistent tool shell), `MAENG_SESSION_ID=<other> maeng-ship merge 7` (borrowing another session's verified state), `MAENG_NOTION_DBS=... maeng-review ...`, `MAENG_CACHE_DIR`, `MAENG_VAULT`, and `MAENG_REVIEW_BACKEND=claude` (which changes the reviewer tier). Pin the rule as a prefix (any assignment, export, unset, or env -u of MAENG_*) with one assertion per form.",
+      "file": "plugins/maeng-harness/tests/test_r8.py",
+      "line": 66
+    },
+    {
+      "severity": "low",
+      "title": "UNKNOWN-world closure for Notion 'other writes' and linear-endix is unpinned",
+      "body": "R2_I.test_every_notion_write_tool_is_denied_when_unknown asserts six gated tools; R8_4 now defines NOTION_OTHER_WRITES (comments, views, folders, uploads, calendar, sessions) but no test asserts those are denied when classification is UNKNOWN, nor that linear-endix save_* stays denied there. Iterate gates.NOTION_OTHER_WRITES | NOTION_GATED_WRITES in the unknown-world test and add the linear-endix writes.",
+      "file": "plugins/maeng-harness/tests/test_r2.py",
+      "line": 329
+    },
+    {
+      "severity": "low",
+      "title": "File-tool writes under MAENG_HOME (receipts, Notion registry/journal, session state) are not asserted denied",
+      "body": "Receipt provenance is checked from file content, so a receipt written with the Write tool carrying provenance 'review-run' would be honoured by maeng-ship and the lease hook; likewise a Write to notion/registry.json or the session state file. No test asserts that Edit/Write/MultiEdit with a file_path under MAENG_HOME (or MAENG_CACHE_DIR) is denied. This is borderline under the cooperative model, but it is a one-step follow-on from the 'store refused' error and cheap to pin: assert deny for Write into receipts_dir(), _notion('registry.json'), and state.path_for(sid).",
+      "file": "plugins/maeng-harness/tests/test_r8.py",
+      "line": 22
+    },
+    {
+      "severity": "low",
+      "title": "Round-8 findings resolved; AC-1, AC-2, AC-3, AC-5, AC-6 confirmed; AC-4 blocked by S2",
+      "body": "Resolved at head: (1) R8_1 pops the variable from both env maps and pins store/ship/lease/G2 refusal plus the literal-'1' rule and Bash denial of exports; (2) R8_2 unknown gh subcommands, alias set/import/delete, and a HOME config alias denied; (3) R8_3 unknown/external git subcommands denied, git lfs split read/write, R7_G flipped to fail-closed; (4) R8_4 Notion and linear-endix sets pinned by equality with unknown-name deny and duplicate-page gated like create; (5) R7_N lease pins now assert the deny flag; (6) R8_6 cargo/npm/make/playwright/pytest/unittest narrowing forms placed; (7) R8_7 GITHUB_READS by equality and MCP cross-repository head denied; (8) R8_8 personal-repo gh api --input/-F writes denied; (9) R8_9 default eta root and symlink realpath classification; (10) R8_10 database_id and type-tagged parents gated. AC-1..AC-3: runner evidence seq 130-136 at tree 055e0a8a equals the head tree with no relevant differences (3 validates pass; 450, 54, 20, 18 tests OK); the ev-exec log header naming HEAD b4183c8 for the first four runs is cosmetic given the tree binding. AC-5: S4 PASS. AC-6: S5 plugin-controlled checks PASS with the two dispositioned leaks. AC-4: see the high finding.",
+      "file": null,
+      "line": null
+    }
+  ]
+}

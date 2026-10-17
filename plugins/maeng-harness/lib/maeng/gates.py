@@ -6,10 +6,10 @@ from pathlib import Path
 
 from . import canon, ghcmd, guard, readonly, receipts, remotecfg
 from . import tree as treelib
-from .common import canonical, git, git_out, home_dir, read_json, sha256
+from .common import cache_dir, canonical, git, git_out, home_dir, read_json, sha256
 from .evidence import Verifier
 from .ghcmd import classify_gh, parse_gh  # noqa: F401  (re-exported)
-from .shellparse import ENV_ASSIGN, ParseError, RISKY, program, split_segments
+from .shellparse import ENV_ASSIGN, SHELLS, ParseError, RISKY, program, split_segments
 
 SHA_RE = canon.SHA_RE
 LEASE_RE = canon.LEASE_RE
@@ -98,19 +98,96 @@ def g3_path(path, cwd, ctx, what):
     return None
 
 
+STATE_REASON = ("maeng: {what} writes into the harness state directory ({root}); harness state (receipts, Notion "
+                "registry/journal, session state, caches) is written only by the maeng CLIs and hooks.")
+
+
+def harness_state_root(path, cwd):
+    """-> the harness state root (MAENG_HOME / MAENG_CACHE_DIR) the path resolves into, symlinks followed, or ''."""
+    target = os.path.realpath(_abs(path, cwd))
+    for root in (home_dir(), cache_dir()):
+        r = os.path.realpath(str(root))
+        if target == r or target.startswith(r.rstrip("/") + "/"):
+            return r
+    return ""
+
+
 def g3_edit(tool_name, tool_input, ctx):
     path = tool_input.get("file_path") or tool_input.get("notebook_path") or tool_input.get("path")
     if not path:
         return Decision()
     cwd = ctx.cwd
+    root = harness_state_root(path, cwd)
+    if root:
+        return deny(STATE_REASON.format(what=tool_name, root=root))
     return g3_path(path, cwd, ctx, tool_name) or Decision()
 
 
 # ---- G1/G3 Bash ----------------------------------------------------------
 
-SWITCH_ASSIGN = re.compile(r"^(?:MAENG_(?:TEST_FIXTURES|GIT|GH|CLAUDE|CODEX|HOME|ETA_ROOT|VAULT|NOTION_DBS|"
-                           r"REVIEW_BACKEND|CACHE_DIR))=", re.I)
+# Every MAENG_* variable is harness configuration (test switches, binary overrides, state dirs, session id, reviewer
+# backend): the agent's shell may read it but never set, export, unset or declare it. The harness CLIs and the live
+# runner set these in their own subprocess environments, not through the agent's Bash tool.
+SWITCH_ASSIGN = re.compile(r"^MAENG_\w*\+?=", re.I)
+SWITCH_NAME = re.compile(r"^MAENG_\w*$", re.I)
+SWITCH_BUILTINS = {"export", "unset", "declare", "typeset", "readonly", "local", "read", "mapfile", "readarray",
+                   "for", "select", "getopts"}
 GIT_RETARGET = re.compile(r"^(?:GIT_DIR|GIT_WORK_TREE|GIT_COMMON_DIR)=")
+
+
+def _switch_override(tokens):
+    """-> the MAENG_* name a segment assigns, exports, unsets or declares, else ''."""
+    prog, toks = program(tokens)
+    if prog in SWITCH_BUILTINS:
+        for a in toks[1:]:
+            if SWITCH_NAME.match(a.partition("=")[0]):
+                return a.partition("=")[0]
+    if prog == "printf" and "-v" in toks[1:-1] and SWITCH_NAME.match(toks[toks.index("-v") + 1]):
+        return toks[toks.index("-v") + 1]
+    for i, t in enumerate(tokens):
+        if SWITCH_ASSIGN.match(t):
+            return t.partition("=")[0].rstrip("+")
+        if os.path.basename(t) == "env":
+            j = i + 1
+            while j < len(tokens):
+                a = tokens[j]
+                if a in ("-u", "--unset"):
+                    if j + 1 < len(tokens) and SWITCH_NAME.match(tokens[j + 1]):
+                        return tokens[j + 1]
+                    j += 2
+                    continue
+                for pre in ("--unset=", "-u"):
+                    if a.startswith(pre) and SWITCH_NAME.match(a[len(pre):]):
+                        return a[len(pre):]
+                if not (a.startswith("-") or ENV_ASSIGN.match(a)):
+                    break
+                j += 1
+    return ""
+
+
+def _switch_override_deep(segs, depth=0):
+    """The override check over every segment, including the payload of `sh -c '...'` / `eval '...'`."""
+    for s_ in segs:
+        name = _switch_override(s_.tokens)
+        if name:
+            return name
+        prog, toks = program(s_.tokens)
+        payload = None
+        if prog in SHELLS:
+            for k, t in enumerate(toks[1:4], 1):
+                if re.fullmatch(r"-[a-zA-Z]*c[a-zA-Z]*", t) and k + 1 < len(toks):
+                    payload = toks[k + 1]
+                    break
+        elif prog == "eval":
+            payload = " ".join(toks[1:])
+        if payload and depth < 3:
+            try:
+                name = _switch_override_deep(split_segments(payload), depth + 1)
+            except ParseError:  # undecidable: deny only when the wrapped text mentions a MAENG_* name at all
+                name = "MAENG_* (in a wrapped command the gate cannot parse)" if "MAENG_" in payload.upper() else ""
+            if name:
+                return name
+    return ""
 
 
 def check_bash(command, ctx):
@@ -121,11 +198,11 @@ def check_bash(command, ctx):
     except ParseError:
         return deny("maeng: cannot parse this command; use a simpler form (no unusual heredoc delimiters / deep "
                     "nesting)")
-    for s_ in segs:
-        for t in s_.tokens:
-            if SWITCH_ASSIGN.match(t):
-                return deny(f"maeng G3: assigning `{t.partition('=')[0]}` in a command is denied; the maeng test/override "
-                            f"switches are set by the test harness, never from the agent's shell.")
+    name = _switch_override_deep(segs)
+    if name:
+        return deny(f"maeng G3: setting, exporting or unsetting `{name}` in a command is denied; MAENG_* variables "
+                    f"are harness configuration set by the user's environment or the test harness, never from the "
+                    f"agent's shell (reading them is allowed).")
     if canon.route_mentions(segs, command):
         form, why = canon.canonical_command(command, segs)
         if not form:
@@ -192,6 +269,70 @@ index-pack pack-objects unpack-objects update-server-info multi-pack-index for-e
 fmt-merge-msg diagnose gitk""".split())
 # `git lfs` is an external command: only its read subcommands are allowed
 GIT_LFS_READS = {"ls-files", "status", "env", "version"}
+
+
+# Builtins that execute a caller-supplied command: denied in every world (the command is opaque to the gate and can
+# be `git push`, `gh pr merge`, ...). sub -> (long options, short option letters, short letters that take a glued
+# value and end a cluster). Long options also match their unambiguous-prefix abbreviations (git parse-options).
+GIT_EXEC_OPTIONS = {
+    "rebase": ({"--exec"}, "x", "sXCS"),
+    "difftool": ({"--extcmd", "--tool"}, "xt", "OSGUl"),
+    "mergetool": ({"--tool"}, "t", "O"),
+    "grep": ({"--open-files-in-pager"}, "O", "eABCmf"),
+    "fetch": ({"--upload-pack"}, "", ""),
+    "pull": ({"--upload-pack"}, "", ""),
+    "clone": ({"--upload-pack"}, "u", "obcj"),
+    "ls-remote": ({"--upload-pack"}, "", ""),
+    "archive": ({"--exec"}, "", "o"),
+    "send-email": ({"--to-cmd", "--cc-cmd", "--header-cmd", "--sendmail-cmd", "--smtp-server"}, "", ""),
+}
+# `git <sub> <action>`: the action runs a command; filter-branch is denied as a whole (every filter is a command).
+GIT_EXEC_ACTIONS = {"submodule": {"foreach"}, "bisect": {"run"}}
+GIT_EXEC_SUBS = {"filter-branch"}
+# Config keys whose value git runs as a program (or that pull in other config). Setting one, by `git config` or by
+# `git clone -c/--config`, makes later ordinary git commands run an arbitrary command; reads and unsets stay allowed.
+GIT_EXEC_CONFIG = re.compile(
+    r"^(?:core\.(?:sshcommand|fsmonitor|pager|editor|hookspath|askpass|gitproxy|alternaterefscommand)|"
+    r"sequence\.editor|diff\.external|(?:diff|difftool|mergetool|merge|filter)\..+\."
+    r"(?:command|textconv|cmd|driver|clean|smudge|process)|credential\.(?:.+\.)?helper|gpg\.(?:.+\.)?program|"
+    r"pager\..+|alias\..+|remote\..+\.(?:uploadpack|receivepack)|uploadpack\.packobjectshook|protocol\..*allow|"
+    r"include\.path|includeif\..+|init\.templatedir)$", re.I)
+GIT_CONFIG_READS = {"--get", "--get-all", "--get-regexp", "--get-urlmatch", "--list", "-l", "--unset", "--unset-all",
+                    "get", "list", "unset", "--show-origin", "--show-scope", "--name-only", "--null", "-z"}
+
+
+def git_exec_route(sub, args):
+    """-> why `git <sub> <args>` runs an arbitrary command, else ''."""
+    if sub == "config" and not any(a in GIT_CONFIG_READS or a.startswith("--get") for a in args):
+        key = next((a for a in args if GIT_EXEC_CONFIG.match(a)), None)
+        if key:
+            return f"`git config {key}` (git runs its value as a command)"
+    if sub == "clone":
+        for i, a in enumerate(args):
+            kv = a[len("--config="):] if a.startswith("--config=") else \
+                args[i + 1] if a in ("-c", "--config") and i + 1 < len(args) else a[2:] if a.startswith("-c") else ""
+            if kv and GIT_EXEC_CONFIG.match(kv.partition("=")[0]):
+                return f"`git clone -c {kv.partition('=')[0]}` (git runs its value as a command)"
+    if sub in GIT_EXEC_SUBS:
+        return f"`git {sub}`"
+    if sub in GIT_EXEC_ACTIONS:
+        action = next((a for a in args if not a.startswith("-")), None)
+        return f"`git {sub} {action}`" if action in GIT_EXEC_ACTIONS[sub] else ""
+    longs, shorts, valued = GIT_EXEC_OPTIONS.get(sub, ((), "", ""))
+    for a in args:
+        if a == "--":
+            break
+        if a.startswith("--"):
+            name = a.partition("=")[0]
+            if len(name) > 2 and any(full.startswith(name) for full in longs):
+                return f"`git {sub} {name}`"
+        elif a.startswith("-") and len(a) > 1:
+            for c in a[1:]:
+                if c in shorts:
+                    return f"`git {sub} -{c}`"
+                if c in valued:
+                    break
+    return ""
 
 
 def git_alias(cwd, sub):
@@ -322,6 +463,28 @@ def token_taint(seg, cwd, ctx):
     return None
 
 
+def state_taint(seg, cwd):
+    """-> (token, root) for the first token of a non-read-only segment that resolves into MAENG_HOME /
+    MAENG_CACHE_DIR (cp/mv/rm/tee/... targets; the gate cannot tell a write operand from a read operand, so any
+    operand under the state directory denies a mutating segment), else None."""
+    for tok in seg.tokens:
+        if unresolved(tok):
+            continue  # an unresolved token is denied by token_taint / the redirect check
+        for v in _variants(tok):
+            if not v or v.startswith("-"):
+                continue
+            expanded = os.path.expandvars(v)
+            m = GLOB_CUT.search(expanded)
+            if m:
+                expanded = expanded[:m.start()] or "."
+            if not _resolvable(expanded):
+                continue
+            root = harness_state_root(expanded, cwd)
+            if root:
+                return tok, root
+    return None
+
+
 def readonly_invocation(prog, toks):
     """True only for the closed read-only allowlist."""
     if not prog or prog in ("cd", "pushd", "popd"):
@@ -338,6 +501,9 @@ def check_taint(seg, prog, toks, cwd, ctx):
     """The G3 authority: deny a non-read-only segment that is tainted or runs in an eta/unknown directory."""
     if readonly_invocation(prog, toks):
         return None
+    hit = state_taint(seg, cwd) if not isinstance(cwd, UndecidableDir) else None
+    if hit:
+        return deny(STATE_REASON.format(what=f"`{prog}` (operand `{hit[0]}`)", root=hit[1]))
     if ctx.unknown:
         return deny(UNKNOWN_REASON)
     w = world_of_path(".", cwd, ctx)
@@ -357,6 +523,9 @@ def check_segment(seg, cwd, ctx):
     for target in seg.redirects:  # every output target, relative to this segment's effective directory
         if isinstance(cwd, UndecidableDir) and not unresolved(target) and not os.path.isabs(os.path.expanduser(target)):
             return deny("maeng G3: redirect in a directory the gate cannot determine; use a literal path."), cwd
+        root = harness_state_root(os.path.expandvars(target), cwd) if not unresolved(target) else ""
+        if root:
+            return deny(STATE_REASON.format(what=f"redirect to `{target}`", root=root)), cwd
         d = g3_path(target, cwd, ctx, "redirect") if not unresolved(target) else None
         if d:
             return d, cwd
@@ -412,6 +581,10 @@ def check_git(toks, cwd, ctx):
     elif sub not in GIT_BUILTINS:
         return deny(f"maeng G3: unknown git subcommand `{sub}` (git subtree/svn/p4/town/extras can push without a "
                     f"`push` subcommand); run a builtin form.")
+    why = git_exec_route(sub, args)
+    if why:
+        return deny(f"maeng G1: {why} runs an arbitrary command, which the gate cannot inspect (it can push, merge "
+                    f"or publish); denied in every mode. Run the command directly instead.")
     if not ro:
         blocked = _cwd_gate(cwd, ctx, "git " + sub, True)
         if blocked:
@@ -787,7 +960,7 @@ def check_mcp_notion(tool, tool_input, ctx, tool_use_id=""):
     if name not in NOTION_READS | NOTION_GATED_WRITES | NOTION_OTHER_WRITES:
         return deny(f"maeng G2: Notion tool `{name}` is not on the allowlist; denied because the gate cannot tell "
                     f"what it writes.")
-    if ctx.unknown and NOTION_WRITE.match(tool.split("__", 2)[-1]):
+    if ctx.unknown and name not in NOTION_READS:  # every known write (calendar/comment/view/... included)
         return deny(UNKNOWN_REASON)
     try:
         scope = notion_scope(tool, tool_input)

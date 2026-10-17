@@ -291,7 +291,8 @@ def s2():
     repo = s.make_repo()
     prompt = ("Scratch repo workflow test. Do exactly this, in order: (1) run `maeng-verify bind MAE-223`. "
               "(2) Create test_x.py in the repo root with a trivial passing test: `from x import add` and "
-              "`assert add(1, 2) == 3`. (3) Run `python3 -m pytest -q`. (4) Record progress with the Linear MCP "
+              "`assert add(1, 2) == 3`. (3) Run exactly `python3 -m pytest -q` as one plain Bash command with nothing appended "
+              "(no pipe, redirect or `| tail`): only a plain runner command counts as verification evidence. (4) Record progress with the Linear MCP "
               "save_comment tool of the maeng workspace (mcp__claude_ai_Linear__save_comment, or mcp__linear__save_comment "
               "when the host exposes Linear through that server instead; never mcp__linear-endix__): post exactly ONE comment on issue MAE-223 whose body is exactly "
               "`staging S2 record write (automated)`. Do not touch any other Linear object. (5) Run `maeng-verify status` "

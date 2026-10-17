@@ -518,7 +518,7 @@ Sonnet implements, Opus reviews each step, and Codex reviews the PR (Sol xhigh p
 - Isolation file in every eta checkout. **Open for the user to veto.**
 - Child-task PR review: Sol xhigh (user, 2026-10-17).
 - Review backend: Codex first; Claude fallback after 3 failed codex runs, Fable medium only for parent integration (user, 2026-10-17).
-- PR #38 reviews run with `MAENG_REVIEW_BACKEND=claude` on the user's request ("일단 claude로 해줘", 2026-10-17; Codex quota nearly used up): parent integration Fable medium, child PR Opus medium.
+- PR #38 reviews run with `MAENG_REVIEW_BACKEND=claude` on the user's request ("일단 claude로 해줘", 2026-10-17; Codex quota nearly used up): parent integration Fable medium, child PR Opus medium. The variable is set in the review job's environment, not through the agent's Bash tool: the harness denies every `MAENG_*` assignment, export, unset and `env` form there (round-9 fix).
 - Phase 2 adoptions per `MAE-216-phase2-adoption.md` (§5.9).
 - Cold storage tier: OneDrive archive + Google Drive backup/search, eta allowed (§3.5, user).
 - **Open: final approval of this revision (Q1).**

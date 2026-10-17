@@ -107,6 +107,35 @@ class MoveTests(Base):
         self.assertIn("/maeng-archive/eta/", r["destination"])
         self.assertIn("world: eta", (self.vault / "eta/n.md").read_text())
 
+    def test_personal_stub_carries_world_personal(self):
+        self.note("raw/p.md", "hello\n")
+        r = A.cmd_move("raw/p.md", "onedrive", "personal", False)
+        self.assertIn("/maeng-archive/personal/", r["destination"])
+        self.assertIn("world: personal", (self.vault / "raw/p.md").read_text())
+
+    def test_world_path_mismatch_rejected(self):
+        self.note("raw/p.md", "hello\n")
+        self.note("eta/n.md", "hello\n")
+        for rel, world in (("raw/p.md", "eta"), ("eta/n.md", "personal")):
+            for dry in (True, False):
+                with self.assertRaisesRegex(A.ArchiveError, "world/path mismatch"):
+                    A.cmd_move(rel, "onedrive", world, dry)
+        self.assertEqual((self.vault / "raw/p.md").read_text(), "hello\n")
+        self.assertEqual((self.vault / "eta/n.md").read_text(), "hello\n")
+        self.assertEqual(list(self.od.rglob("*")), [])
+
+    def test_frontmatter_world_mismatch_rejected(self):
+        self.note("raw/w.md", "---\nworld: eta\n---\nbody\n")
+        with self.assertRaisesRegex(A.ArchiveError, "world mismatch"):
+            A.cmd_move("raw/w.md", "onedrive", "personal", False)
+        self.assertEqual(list(self.od.rglob("*")), [])
+
+    def test_world_mismatch_cli_exit_nonzero(self):
+        self.note("eta/n.md", "hello\n")
+        with mock.patch("sys.stdout"), mock.patch("sys.stderr"):
+            self.assertEqual(A.main(["move", "eta/n.md", "--world", "personal"]), 1)
+            self.assertEqual(A.main(["move", "eta/n.md", "--world", "eta", "--dry-run"]), 0)
+
 
 class MovePrivateTests(Base):
     def test_move_refuses_private_note(self):
