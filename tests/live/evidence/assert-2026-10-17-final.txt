@@ -59,6 +59,15 @@
   [PASS] merge tree == verified tree == feat tree
   [PASS] no hook deny along the flow
   [PASS] feat branch untouched on remote
+== S9
+  [PASS] init plugins include eta-rules and eta-craft (team checkout loads eta plugins)
+  [PASS] init does NOT list linear (personal synced plugin off)
+  [PASS] at most one SessionStart line, single-line
+  [PASS] no other hook produced output (no block/deny/context)
+  [PASS] no personal record writes (temp MAENG_HOME and vault empty)
+  [PASS] no Stop feedback
+  [PASS] dev/contracts git status and HEAD unchanged
+  [PASS] session answered OK
 == GF1
   [PASS] git push blocked through Claude Code
   [PASS] remote has no feat branch

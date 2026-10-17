@@ -280,6 +280,48 @@
    "detail": ""
   }
  ],
+ "S9": [
+  {
+   "check": "init plugins include eta-rules and eta-craft (team checkout loads eta plugins)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "init does NOT list linear (personal synced plugin off)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "at most one SessionStart line, single-line",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "no other hook produced output (no block/deny/context)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "no personal record writes (temp MAENG_HOME and vault empty)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "no Stop feedback",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "dev/contracts git status and HEAD unchanged",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "session answered OK",
+   "pass": true,
+   "detail": ""
+  }
+ ],
  "GF1": [
   {
    "check": "git push blocked through Claude Code",
