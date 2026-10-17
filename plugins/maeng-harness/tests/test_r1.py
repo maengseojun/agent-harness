@@ -214,7 +214,7 @@ class R1_11_ReviewPromptAndEvidence(HarnessCase):
         spec = importlib.util.spec_from_loader("maeng_review_mod", loader)
         mod = importlib.util.module_from_spec(spec)
         loader.exec_module(mod)
-        for needle in ("cooperative", "not a security boundary", "disguised", "known", "fail closed"):
+        for needle in ("cooperative", "seatbelt", "disguised", "Out of scope and NOT findings", "in-scope path"):
             self.assertIn(needle, mod.PROMPT)
 
 

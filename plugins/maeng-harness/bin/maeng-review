@@ -28,14 +28,18 @@ DISABLE_FAMILIES = ("apps", "browser", "computer_use", "hooks", "plugin", "memor
                     "skill", "view_image")
 PROMPT = """You are an independent, adversarial reviewer. Review ONLY the bundle below.
 Rules: you are read-only; do not use skills, plugins, browsers or any tool that needs approval.
-Threat model (user decision): the agent is cooperative. Hooks and gates are guardrails against mistakes and
-convenience shortcuts, not a security boundary; a deliberately disguised route (for example a script with an
-innocuous name that pushes) is out of scope and is not a finding. Judge against that model: every KNOWN,
-non-disguised route must still be gated, and every gate must fail closed when it cannot decide. Report a gap in
-a known route or a gate that fails open; do not report out-of-scope disguised bypasses.
+Threat model (user decision 2026-10-18, MAE-237): the agent is cooperative. The gate is a seatbelt against the
+common mistakes an agent actually makes on the everyday paths: `git push` (explicit, implicit through upstream /
+push config / -c overrides, matching `:`, globs, --all/--mirror), `gh pr merge|update-branch`, `gh repo sync`,
+`gh api` merge/ref/contents writes and merge mutations (a graphql query it cannot read is denied), simple git/gh
+aliases, `sh -c`/`eval` wrappers, GitHub MCP merges and default-branch file writes. Out of scope and NOT findings:
+git plumbing and extensions (send-pack, http-push, subtree, town), curl/wget to the GitHub API, alias chains,
+GIT_CONFIG_* env overrides, xargs/find -exec wrappers, option abbreviations, refspec DWIM, a remote whose default
+branch git cannot report (main/master/trunk and protected_branches still deny), and deliberately disguised
+routes. Report a gap only on an in-scope path.
 Gating is SLIM by design (user decision 2026-10-18, MAE-237): the PreToolUse gate blocks only (1) a push whose
 destination is the default branch (main/master/trunk, the remote's HEAD, policy protected_branches, --all/--mirror,
-implicit destinations resolved through upstream/push config), (2) every known merge route other than
+implicit destinations resolved through upstream/push config), (2) the in-scope merge routes other than
 `maeng-ship merge <N>` (gh pr merge/update-branch, gh api merge/ref-write endpoints and merge mutations, git/gh
 aliases expanding to these, GitHub MCP merge/update-branch and file writes to the default branch), (3) Bash setting
 the harness test/override switches (MAENG_TEST_FIXTURES, MAENG_GIT, MAENG_GH, MAENG_HOME, MAENG_CACHE_DIR), and

@@ -8,7 +8,7 @@ from . import canon, ghcmd, guard, readonly, receipts, remotecfg
 from . import tree as treelib
 from .common import cache_dir, git, git_out, home_dir
 from .evidence import Verifier
-from .shellparse import ParseError, program, split_segments
+from .shellparse import SHELLS, ParseError, program, split_segments
 
 _parse_git_globals = canon.parse_git_globals
 DEFAULT_BRANCHES = {"main", "master", "trunk"}
@@ -84,12 +84,15 @@ def check_edit(tool_name, tool_input, ctx):
 PUSH_VALUE_OPTS = {"--repo", "-o", "--push-option", "--receive-pack", "--exec"}
 
 
-def _config(cwd, key):
+def _config(cwd, key, cfg=None):
+    """-> the values of a git config key; `git -c` overrides (cfg, lowercased keys) win over stored config."""
+    if cfg and key.lower() in cfg:
+        return list(cfg[key.lower()])
     rc, out, _ = git(cwd, "config", "--get-all", key)
     return out.split() if rc == 0 else []
 
 
-def push_targets(args, cwd):
+def push_targets(args, cwd, cfg=None):
     """-> (remote, [destination branch names]) of `git push <args>`; ['*'] for --all/--mirror, [''] when an
     implicit destination cannot be determined (detached HEAD, unknown directory)."""
     pos, skip, every = [], False, False
@@ -104,27 +107,32 @@ def push_targets(args, cwd):
             pos.append(a)
     current = git_out(cwd, "symbolic-ref", "--short", "-q", "HEAD") or ""
     remote, specs = (pos[0], pos[1:]) if pos else \
-        ((_config(cwd, f"branch.{current}.pushRemote") or _config(cwd, f"branch.{current}.remote") or ["origin"])[0], [])
-    if every:
+        ((_config(cwd, f"branch.{current}.pushRemote", cfg) or _config(cwd, "remote.pushDefault", cfg)
+          or _config(cwd, f"branch.{current}.remote", cfg) or ["origin"])[0], [])
+    if every or _config(cwd, f"remote.{remote}.mirror", cfg) == ["true"]:
         return remote, ["*"]
     if not specs:  # implicit: the current branch, its upstream, and any configured remote.<r>.push refspecs
-        upstream = [m.removeprefix("refs/heads/") for m in _config(cwd, f"branch.{current}.merge")]
-        specs = [current, *upstream, *_config(cwd, f"remote.{remote}.push")]
+        if _config(cwd, "push.default", cfg) == ["matching"]:
+            return remote, ["*"]
+        upstream = [m.removeprefix("refs/heads/") for m in _config(cwd, f"branch.{current}.merge", cfg)]
+        specs = [current, *upstream, *_config(cwd, f"remote.{remote}.push", cfg)]
     out = []
     for s in specs:
         dst = s.lstrip("+").rpartition(":")[2] or s.lstrip("+")
         dst = dst.removeprefix("refs/heads/")
-        out.append(current if dst == "HEAD" else dst)
+        # `:` pushes every matching branch; a glob may match the default branch
+        out.append("*" if dst == ":" or "*" in dst else current if dst in ("HEAD", "@") else dst)
     return remote, out
 
 
 def check_push(toks, cwd, ctx):
     form, _ = canon.parse_canonical_push(toks)
-    if form and form["form"] == "lease":  # the maeng-ship merge push
-        return check_merge_push(form, cwd, ctx)
-    _, args, _, _ = _parse_git_globals(toks)
-    remote, dsts = push_targets(args, cwd)
     policy = treelib.load_policy(treelib.toplevel(cwd) or cwd)
+    if form and form["form"] == "lease" and \
+            is_default_branch(form["ref"].removeprefix("refs/heads/"), cwd, form["remote"], policy):
+        return check_merge_push(form, cwd, ctx)  # the maeng-ship merge push; a feature-branch lease is a plain push
+    _, args, _, cfg = _parse_git_globals(toks)
+    remote, dsts = push_targets(args, cwd, cfg)
     for dst in dsts:
         if not dst:
             return deny("maeng G1: cannot tell where this push goes (no current branch); name the remote and branch.")
@@ -167,15 +175,15 @@ def check_merge_push(lease, cwd, ctx):
 SWITCHES = r"MAENG_(?:TEST_FIXTURES|GIT|GH|HOME|CACHE_DIR)\b"
 SWITCH_SET = re.compile(rf"\b{SWITCHES}\+?=|\b(?:export|unset|declare|typeset|readonly|local|read|env)\b[^;&|\n]*\b{SWITCHES}")
 SHIP_TEXT = re.compile(r"\bgit\b.*\bpush\b|\bgh\b.*\b(?:pr|api|alias)\b|--force-with-lease|maeng-ship", re.S)
-GH_API_MERGE = re.compile(r"/pulls/\d+/(?:merge|update-branch)\b|/merges\b|/git/refs\b")
+GH_API_MERGE = re.compile(r"/pulls/\d+/(?:merge|update-branch)\b|/merges\b|/merge-upstream\b|/git/refs\b")
 GH_GRAPHQL_MERGE = re.compile(r"mergePullRequest|updatePullRequestBranch|mergeBranch|updateRefs?\b|createRef\b|"
-                              r"enablePullRequestAutoMerge", re.I)
+                              r"enablePullRequestAutoMerge|enqueuePullRequest|createCommitOnBranch", re.I)
 
 
 def check_gh(toks):
     info = ghcmd.parse_gh(toks)
     pos = info["pos"]
-    if pos[:2] in (["pr", "merge"], ["pr", "update-branch"]):
+    if pos[:2] in (["pr", "merge"], ["pr", "update-branch"], ["repo", "sync"]):
         return deny(f"maeng G1: `gh {' '.join(pos[:2])}` is denied; {MERGE_HINT}")
     if pos[:1] and pos[0] in ghcmd.gh_aliases():
         return deny(f"maeng G1: `gh {pos[0]}` is a gh alias, which can hide a merge; run the underlying command.")
@@ -184,6 +192,14 @@ def check_gh(toks):
         writes = info["method"] not in (None, "GET") or info["fields"] or info["input"]
         if (writes and GH_API_MERGE.search(text)) or GH_GRAPHQL_MERGE.search(text):
             return deny(f"maeng G1: this `gh api` call merges or moves a branch ref; {MERGE_HINT}")
+        if writes and "/contents/" in text and not any(
+                f.startswith("branch=") and f[7:] not in DEFAULT_BRANCHES for f in info["fields"]):
+            return deny("maeng G1: a contents-API write without a feature `branch=` commits to the default branch.")
+        query = [f for f in info["fields"] if f.startswith("query=")]
+        if pos[1:2] == ["graphql"] and (info["input"] or any(f[6:].startswith(("@", "$")) or "$(" in f or "`" in f
+                                                             for f in query)):
+            return deny("maeng G1: a `gh api graphql` query from a file, --input or a variable cannot be checked for "
+                        "a merge mutation; pass the query as a literal -f query='...'.")
     return Decision()
 
 
@@ -212,6 +228,13 @@ def check_bash(command, ctx):
     cwd, effects = ctx.cwd, []
     for seg in segs:
         prog, toks = program(seg.tokens)
+        payload = " ".join(toks[1:]) if prog == "eval" else \
+            next((toks[i + 1] for i, t in enumerate(toks[1:4], 1)
+                  if re.fullmatch(r"-[a-zA-Z]*c[a-zA-Z]*", t) and i + 1 < len(toks)), None) if prog in SHELLS else None
+        if payload:  # `sh -c '...'` / `eval '...'`: check the wrapped command too
+            d = check_bash(payload, Ctx(cwd, ctx.state, ctx.world))
+            if not d.allow:
+                return d
         if prog in ("cd", "pushd") and len(toks) > 1:
             cwd = _abs(os.path.expandvars(toks[1]), cwd)
         elif prog in ("git", "gh"):
@@ -238,7 +261,9 @@ def check_mcp_github(tool, tool_input, ctx):
 
 def evaluate(tool_name, tool_input, ctx, tool_use_id=""):
     tool_input = tool_input if isinstance(tool_input, dict) else {}
-    if tool_name == "Bash" and isinstance(tool_input.get("command"), str):
+    if tool_name == "Bash":
+        if not isinstance(tool_input.get("command"), str):
+            return deny("maeng gate: the Bash command is missing or not a string; denied because it cannot be read.")
         return check_bash(tool_input["command"], ctx)
     if tool_name in ("Edit", "Write", "NotebookEdit", "MultiEdit"):
         return check_edit(tool_name, tool_input, ctx)

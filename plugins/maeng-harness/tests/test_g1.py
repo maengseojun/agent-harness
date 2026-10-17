@@ -77,6 +77,21 @@ class SlimGate(ShipBase):
         self.assertDenied("git push", "cannot tell")
         self.assertAllowed("gh api repos/o/r/pulls/1")
 
+    def test_round2_common_routes(self):
+        self.git(self.repo, "checkout", "-q", "main")
+        for cmd in ("git push origin :", "git push origin +:", "git push origin @", "git push origin 'refs/heads/ma*'",
+                    "git -c remote.origin.push=HEAD:refs/heads/main push origin", "git -c push.default=matching push",
+                    "gh repo sync", "gh api -X POST repos/o/r/merge-upstream -f branch=main",
+                    "gh api -X PUT repos/o/r/contents/f -f message=m -f content=x",
+                    "gh api graphql -F query=@m.graphql", "sh -c 'git push origin main'", "eval 'gh pr merge 1'"):
+            denied, reason = self.bash_pre(self.repo, cmd)
+            self.assertTrue(denied, f"expected deny: {cmd} ({reason})")
+        self.assertTrue(self.pre(self.repo, "Bash", {"command": 123})[0])
+        self.git(self.repo, "checkout", "-q", "feat")
+        sha = self.git(self.repo, "rev-parse", "HEAD").stdout.strip()
+        self.assertAllowed(f"git push --force-with-lease=refs/heads/feat:{sha} origin {sha}:refs/heads/feat")
+        self.assertAllowed("gh api -X PUT repos/o/r/contents/f -f branch=feat -f message=m -f content=x")
+
     def test_mcp_merge_is_denied_and_other_mcp_writes_allowed(self):
         for tool, tin in (("mcp__github__merge_pull_request", {"owner": "o", "repo": "r", "pull_number": 1}),
                           ("mcp__github__push_files", {"owner": "o", "repo": "r", "branch": "main"}),
