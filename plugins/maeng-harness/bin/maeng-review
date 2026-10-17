@@ -157,6 +157,34 @@ def read_evidence_files(paths):
     return out
 
 
+DRAFT_FOCUS = {
+    "research": "Devil's-advocate review of a research draft: find the strongest reason its judgment is wrong; check "
+                "every claim-to-source link against the attached source notes; check what was excluded and whether the "
+                "stated confidence is earned. Code-shipping rules above do not apply to this bundle.",
+    "docs": "Review of a design/rules document: find contradictions, unstated assumptions, missing decisions and "
+            "rules that cannot be enforced as written. Code-shipping rules above apply only where the document "
+            "specifies them.",
+}
+
+
+def draft_bundle(a):
+    """-> (bundle, subject) for a docs/research draft review; the subject binds the exact draft text by digest."""
+    missing, text = [], ""
+    if not a.draft:
+        missing.append("draft (--draft)")
+    else:
+        try:
+            text = Path(a.draft).read_text(encoding="utf-8")
+        except OSError as exc:
+            missing.append(f"draft unreadable: {exc}")
+    bundle = {"kind": a.kind, "review_focus": DRAFT_FOCUS[a.kind], "draft_path": a.draft, "draft": text,
+              "sources": read_evidence_files(a.source), "evidence_files": read_evidence_files(a.evidence),
+              "missing": missing}
+    subject = {"kind": a.kind, "repo": None, "pr": None, "base": None, "head": None, "criteria_rev": None,
+               "digest": sha256(text) if text else None, "destination": None, "op": "review"}
+    return bundle, subject
+
+
 def code_bundle(a, cwd, st):
     missing = []
     base, head = a.base, a.head
@@ -291,6 +319,8 @@ def run_review(a, cwd):
             bundle["missing"].append(f"bundle is {total} bytes (> --max-bytes {a.max_bytes})")
         subject = {"kind": "notion", "repo": None, "pr": None, "base": None, "head": None, "criteria_rev": None,
                    "digest": digest, "destination": receipts.nid(a.destination), "op": a.op}
+    elif a.kind == "research" or (a.kind == "docs" and a.draft):
+        bundle, subject = draft_bundle(a)
     else:
         bundle = code_bundle(a, cwd, st)
         diff_digest = sha256(bundle.get("diff", ""))

@@ -11,7 +11,7 @@
       "required": ["kind", "repo", "pr", "base", "head", "criteria_rev", "digest", "destination", "op"],
       "additionalProperties": false,
       "properties": {
-        "kind": {"enum": ["code", "parent", "docs", "notion"]},
+        "kind": {"enum": ["code", "parent", "docs", "research", "notion"]},
         "repo": {"type": ["string", "null"]},
         "pr": {"type": ["integer", "string", "null"]},
         "base": {"type": ["string", "null"]},

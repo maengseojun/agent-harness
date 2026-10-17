@@ -521,3 +521,44 @@ class EtaIsolate(HarnessCase):
         r = self.isolate("--apply")
         self.assertIn("cannot merge", r.stdout)
         self.assertEqual((self.eta_root / ".claude/settings.local.json").read_text(), "{broken")
+
+
+class DraftReview(ReviewRunFixture):
+    """docs/research drafts are reviewed as the draft text itself (bound by digest), never as a code diff."""
+
+    fake_claude = ClaudeBackend.fake_claude
+
+    def draft_review(self, kind, *extra):
+        fake, log, stdin_log = self.fake_claude(model="claude-opus-5-5")
+        r = self.cli("maeng-review", ["run", "--kind", kind, *extra], self.repo,
+                     extra_env={"MAENG_REVIEW_BACKEND": "claude", "MAENG_CLAUDE": str(fake)})
+        return r, log, stdin_log
+
+    def test_research_draft_bundle_carries_draft_sources_and_lens(self):
+        draft, src = self.tmp / "DRAFT-MAE-1-x.md", self.tmp / "S-x.md"
+        draft.write_text("Judgment: X holds [S-x].\n")
+        src.write_text("source note: X holds\n")
+        r, log, stdin_log = self.draft_review("research", "--draft", str(draft), "--source", str(src))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        argv, sent = json.loads(log.read_text()), stdin_log.read_text()
+        self.assertEqual((argv[argv.index("--model") + 1], argv[argv.index("--effort") + 1]),
+                         ("claude-opus-5-5", "high"))
+        for needle in ("Judgment: X holds [S-x].", "source note: X holds", "Devil's-advocate"):
+            self.assertIn(needle, sent)
+        self.assertNotIn('"diff"', sent)
+        rec = json.loads(next(receipts.receipts_dir().glob("*.json")).read_text())
+        s = rec["verdict"]["subject"]
+        self.assertEqual((s["kind"], s["op"], s["digest"]), ("research", "review", sha256(draft.read_text())))
+
+    def test_research_without_draft_is_blocked(self):
+        r, log, _ = self.draft_review("research")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("draft (--draft)", r.stdout)
+        self.assertFalse(log.exists(), "no reviewer runs on an incomplete bundle")
+
+    def test_docs_with_draft_reviews_the_document(self):
+        doc = self.tmp / "design.md"
+        doc.write_text("# Design\nRule: every push is gated.\n")
+        r, _, stdin_log = self.draft_review("docs", "--draft", str(doc))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("Rule: every push is gated.", stdin_log.read_text())
