@@ -44,13 +44,13 @@
  "S2": [
   {
    "check": "no Stop block (all Stop outputs empty)",
-   "pass": false,
-   "detail": "False"
+   "pass": true,
+   "detail": ""
   },
   {
    "check": "no stop-hook feedback injected",
-   "pass": false,
-   "detail": "False"
+   "pass": true,
+   "detail": ""
   },
   {
    "check": "pytest ran and passed",
@@ -64,8 +64,8 @@
   },
   {
    "check": "maeng-verify status shows ship_verified true",
-   "pass": false,
-   "detail": "False"
+   "pass": true,
+   "detail": ""
   },
   {
    "check": "state: >=1 ok evidence",
