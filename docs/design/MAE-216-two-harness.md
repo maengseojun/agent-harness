@@ -234,13 +234,16 @@ The vault is the **hot** tier (what the LLM reads). Google Drive and OneDrive (b
 
 `codex exec` uses the ChatGPT-bundled CLI v0.163; the npm one is broken. Both models were verified live.
 
-| Subject | Reviewer | Effort | Selection rule |
-|---|---|---|---|
-| **Child-task PR** of a structured implementation | Astra `gpt-6-astra` | **medium** (user, 2026-10-17) | The bound issue has a parent, and the task has a Plan with `AC-n` |
-| **Parent integration / boundary review** (child tasks meeting) | Astra | **xhigh** | Bound to a parent issue whose children are merged; reviews the combined diff against the parent Spec/Plan and child contracts |
-| Architecture / rules / design docs | Astra | high | Document review |
-| **Small implementation** (no task tree) | Sol `gpt-6.1-sol` | **xhigh** | No parent/child structure |
-| Notion outcome payload | Sol | medium | §3.4 |
+| Subject | Codex reviewer | Effort | Claude fallback | Selection rule |
+|---|---|---|---|---|
+| **Child-task PR** of a structured implementation | Sol `gpt-6.1-sol` | **xhigh** (user, 2026-10-17) | Opus medium | The bound issue has a parent, and the task has a Plan with `AC-n` |
+| **Parent integration / boundary review** (child tasks meeting) | Astra `gpt-6-astra` | **high** | **Fable medium** | Bound to a parent issue whose children are merged; reviews the combined diff against the parent Spec/Plan and child contracts |
+| Architecture / rules / design docs | Astra | medium | Opus high | Document review |
+| **Small implementation** (no task tree) | Sol | **high** | Opus high | No parent/child structure |
+| Notion outcome payload | Sol | medium | Opus medium | §3.4 |
+| Research draft (`aside-research`, `--kind research`) | Sol | **xhigh** | Opus high | Devil's-advocate lens |
+
+**Codex first, Claude fallback** (user, 2026-10-17; D-9). Codex is always tried first. Only after 3 consecutive failed codex runs (e.g. usage exhausted) does `maeng-review` switch to an isolated headless `claude -p` reviewer (no settings sources, no MCP, no tools) at the fallback tier above, recording `reviewer.fallback_from`. Fable runs only for parent integration, at medium; its effort changes (`MAENG_FABLE_EFFORT`) only on the user's request. `MAENG_REVIEW_BACKEND=claude` skips codex and is set only on the user's request.
 
 **Reviewer configuration** (`maeng-review`; probed 2026-10-17): `--ignore-user-config --ignore-rules`, feature disables (apps, browser, computer_use, hooks, plugins, memories, multi_agent, image), `--sandbox read-only`, `-c approval_policy="never"`, `--ephemeral`, `--output-schema`.
 
@@ -395,7 +398,7 @@ Shipping stays blocked by G1 until a tree is ship-verified.
    - **decision IDs `D-n`** that link each task to the decision it implements.
 6. **`maeng-verify bind`** for each task.
 7. The **implementer** (Sonnet) builds each child, then verifies (§5.3) and records (§5.4). The architect reviews falsify-first, like the gsd-core verifier: it starts from "goal not achieved".
-8. **Review tier** (§4): child PR → Astra medium; parent integration → Astra xhigh; small work → Sol xhigh.
+8. **Review tier** (§4): child PR → Sol xhigh; parent integration → Astra high; small work → Sol high; Claude fallback (Opus; Fable medium for parent integration) only after 3 failed codex runs.
 9. **Merge** with a matching receipt.
 10. **Outcome:** Obsidian ADR/session, then a Notion record via Sol medium, then the link to the user.
 
@@ -466,7 +469,7 @@ Filesystem and state effects are asserted separately from hook events.
     - In the eta world, notes are tagged `world: eta`.
   - **`aside-research` (리서치, research).**
     - Triggers: "리서치", "조사해서 판단", "분석", "research", "assess".
-    - **Collection plus judgment:** scope (question, criteria) → collection via `aside-collect` → the researcher verifies each claim against its source → synthesis with an explicit judgment and confidence → draft → Sol/Astra review with a devil's-advocate lens → at most 2 revise loops (leftovers become Limitations) → finalize (Notion via Sol medium in the personal world; eta Docs via eta rules in the eta world).
+    - **Collection plus judgment:** scope (question, criteria) → collection via `aside-collect` → the researcher verifies each claim against its source → synthesis with an explicit judgment and confidence → draft → Sol xhigh review with a devil's-advocate lens → at most 2 revise loops (leftovers become Limitations) → finalize (Notion via Sol medium in the personal world; eta Docs via eta rules in the eta world).
   - Phase 4 starts with one manual `aside exec` smoke run (output shape and session ids are unverified). Both skills live in maeng-tools.
 - **Global `~/.claude/CLAUDE.md`** (new, ≤30 lines, world-neutral): think before coding (ask when ambiguity is material), simplicity, surgical changes, goal-driven success criteria. It loads in eta_v1 too, so nothing world-specific goes in it.
 - **Vault retrieval** works in three layers: compact index, then timeline, then fetch by id. Before a vault write, apply the `<private>` tag and opt-in regex redaction (both from claude-mem).
@@ -479,7 +482,7 @@ Filesystem and state effects are asserted separately from hook events.
 - **Everything else is not installed** (global hooks, skills or CLAUDE.md writes). See the table.
 
 ## 6. Phase 4 build order
-Sonnet implements, Opus reviews each step, and Astra reviews the PR (medium per child PR; xhigh for the final integration).
+Sonnet implements, Opus reviews each step, and Codex reviews the PR (Sol xhigh per child PR; Astra high for the final integration).
 
 1. Scaffold + `claude plugin validate`.
 2. Reconcile and move skills.
@@ -513,7 +516,8 @@ Sonnet implements, Opus reviews each step, and Astra reviews the PR (medium per 
 - Review tiers as in §4. Notion uses Sol medium.
 - Entry gate retired.
 - Isolation file in every eta checkout. **Open for the user to veto.**
-- Child-task PR review: Astra medium (user).
+- Child-task PR review: Sol xhigh (user, 2026-10-17).
+- Review backend: Codex first; Claude fallback after 3 failed codex runs, Fable medium only for parent integration (user, 2026-10-17).
 - Phase 2 adoptions per `MAE-216-phase2-adoption.md` (§5.9).
 - Cold storage tier: OneDrive archive + Google Drive backup/search, eta allowed (§3.5, user).
 - **Open: final approval of this revision (Q1).**

@@ -9,6 +9,7 @@ Commands (tier is picked from the bound issue; see the table below):
 | Child-task PR / small work | `maeng-review run --kind code --pr <N>` |
 | Parent integration | `maeng-review run --kind parent --pr <N>` |
 | Design / rules doc | `maeng-review run --kind docs --draft <path>` |
+| Research draft | `maeng-review run --kind research --draft <path>` |
 | Notion outcome payload | `maeng-review run --kind notion --payload publish/<id>.json --destination <db-or-page-id> --op create\|update --draft wiki/drafts/DRAFT-….md` |
 | Uncertain outcome | `maeng-review reconcile` (add `--notion` for Notion journal entries) |
 
@@ -16,12 +17,12 @@ Store payloads under the session repo's `publish/` directory (`publish/<id>.json
 
 | Subject | Codex reviewer | Effort | Claude fallback | Use when |
 |---|---|---|---|---|
-| Child-task PR in a structured implementation | Astra | medium | Opus medium | the bound issue has a parent and the task has a Plan with `AC-n` |
+| Child-task PR in a structured implementation | Sol | xhigh | Opus medium | the bound issue has a parent and the task has a Plan with `AC-n` |
 | Parent integration / boundary (children meet) | Astra | high | Fable medium | children merged; review the combined diff against the parent Spec/Plan and child contracts |
 | Architecture, rules, design documents | Astra | medium | Opus high | document review |
 | Small implementation without a task tree | Sol | high | Opus high | no parent/child structure |
 | Notion outcome payload | Sol | medium | Opus medium | `work-records` flow |
-| Research draft | per subject kind above | per tier | Opus | `aside-research`, with a devil's-advocate lens |
+| Research draft | Sol | xhigh | Opus high | `aside-research`, with a devil's-advocate lens |
 
 ## Bundle (reviewer reports `blocked` if anything is missing)
 

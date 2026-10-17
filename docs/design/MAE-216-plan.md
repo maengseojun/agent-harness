@@ -28,8 +28,9 @@ Children: MAE-218 to MAE-225.
 - D-1: two plugins. maeng-tools is ON everywhere; maeng-harness is OFF in the eta world.
 - D-2: cooperative threat model with local guardrails (no server-side protection on a free private repo).
 - D-3: merges go only through `maeng-ship merge` (a lease-guarded fast-forward).
-- D-4: review tiers: child PR → Astra medium; parent integration → Astra xhigh; small → Sol xhigh; Notion → Sol medium.
+- D-4: review tiers (user, 2026-10-17): child PR → Sol xhigh; parent integration → Astra high; design/rules docs → Astra medium; small → Sol high; Notion → Sol medium; research draft → Sol xhigh.
 - D-5: cold storage is OneDrive archive plus Google Drive/OneDrive backups.
+- D-9: Codex is always the first reviewer. After 3 failed codex runs, fall back to Claude: Fable medium for parent integration, Opus for everything else (docs, small and research high; child PR and Notion medium).
 
 ## Acceptance criteria
 - AC-1: both plugins and the marketplace pass `claude plugin validate`.

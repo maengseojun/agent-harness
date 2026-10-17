@@ -24,12 +24,13 @@ class ReviewConfig(HarnessCase):
     def test_tier_selection(self):
         rv = load_bin("maeng-review")
         child = {"parent": "MAE-216", "criteria": ["AC-1"]}
-        self.assertEqual(rv.tier_for("code", child), ("gpt-6-astra", "medium"))
+        self.assertEqual(rv.tier_for("code", child), ("gpt-6.1-sol", "xhigh"))
         self.assertEqual(rv.tier_for("code", {"criteria": ["AC-1"]}), ("gpt-6.1-sol", "high"))
         self.assertEqual(rv.tier_for("code", None), ("gpt-6.1-sol", "high"))
         self.assertEqual(rv.tier_for("parent", child), ("gpt-6-astra", "high"))
         self.assertEqual(rv.tier_for("docs", None), ("gpt-6-astra", "medium"))
         self.assertEqual(rv.tier_for("notion", None), ("gpt-6.1-sol", "medium"))
+        self.assertEqual(rv.tier_for("research", None), ("gpt-6.1-sol", "xhigh"))
 
     def test_fallback_tier_is_fable_medium_for_parent_and_opus_otherwise(self):
         rv = load_bin("maeng-review")
@@ -39,6 +40,7 @@ class ReviewConfig(HarnessCase):
         self.assertEqual(rv.fallback_tier("code", None), ("claude-opus-5-5", "high"))
         self.assertEqual(rv.fallback_tier("docs", None), ("claude-opus-5-5", "high"))
         self.assertEqual(rv.fallback_tier("notion", None), ("claude-opus-5-5", "medium"))
+        self.assertEqual(rv.fallback_tier("research", None), ("claude-opus-5-5", "high"))
 
     def test_feature_names_come_from_codex_features_list(self):
         rv = load_bin("maeng-review")
@@ -109,8 +111,8 @@ class ReviewRun(ReviewRunFixture):
         r = self.review()
         self.assertEqual(r.returncode, 0, r.stderr)
         argv = json.loads(self.log.read_text())
-        self.assertEqual(argv[argv.index("-m") + 1], "gpt-6-astra")
-        self.assertIn('model_reasoning_effort="medium"', argv)
+        self.assertEqual(argv[argv.index("-m") + 1], "gpt-6.1-sol")
+        self.assertIn('model_reasoning_effort="xhigh"', argv)
         for flag in ("--ignore-user-config", "--ignore-rules", "--ephemeral"):
             self.assertIn(flag, argv)
         disabled = [argv[i + 1] for i, a in enumerate(argv) if a == "--disable"]
@@ -124,7 +126,7 @@ class ReviewRun(ReviewRunFixture):
         s = rec["verdict"]["subject"]
         self.assertEqual((s["base"], s["head"], s["destination"], s["op"]), (self.base, self.h, "refs/heads/main", "merge"))
         self.assertEqual(rec["verdict"]["reviewer"],
-                         {"model": "gpt-6-astra", "effort": "medium", "provenance": "review-run"})
+                         {"model": "gpt-6.1-sol", "effort": "xhigh", "provenance": "review-run"})
         self.assertTrue(s["criteria_rev"])
 
     def test_fail_verdict_stores_no_receipt(self):
@@ -265,7 +267,7 @@ class ClaudeBackend(ReviewRunFixture):
         self.assertTrue(self.log.exists())
         self.assertFalse(log.exists(), "claude must not run while codex works")
         rec = receipts.load(json.loads(r.stdout)["receipt"])
-        self.assertEqual(rec["verdict"]["reviewer"]["model"], "gpt-6-astra")
+        self.assertEqual(rec["verdict"]["reviewer"]["model"], "gpt-6.1-sol")
         self.assertNotIn("fallback_from", rec["verdict"]["reviewer"])
 
     def test_codex_failing_three_times_falls_back_to_claude(self):
@@ -287,7 +289,7 @@ class ClaudeBackend(ReviewRunFixture):
         self.assertTrue(log.exists())
         rev = receipts.load(json.loads(r.stdout)["receipt"])["verdict"]["reviewer"]
         self.assertEqual((rev["model"], rev["effort"]), ("claude-opus-5-5", "medium"))
-        self.assertEqual(rev["fallback_from"], {"model": "gpt-6-astra", "effort": "medium", "attempts": 3})
+        self.assertEqual(rev["fallback_from"], {"model": "gpt-6.1-sol", "effort": "xhigh", "attempts": 3})
 
     def test_codex_backend_stays_selectable(self):
         fake, log, _ = self.fake_claude()

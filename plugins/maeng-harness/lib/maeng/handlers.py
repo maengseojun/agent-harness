@@ -353,7 +353,7 @@ def post_bash(sid, cwd, st0, tin, tuid, failed, interrupted, payload):
 
 def review_reminder(binding):
     if binding and binding.get("parent"):
-        tier = "Astra gpt-6-astra, medium (child-task PR)"
+        tier = "Sol gpt-6.1-sol, xhigh (child-task PR)"
     else:
         tier = "Sol gpt-6.1-sol, high (small implementation)"
     return f"PR created. Next: run `maeng-review` ({tier}) before `maeng-ship merge`."

@@ -84,7 +84,7 @@ def tier_for(kind, binding):
 def fallback_tier(kind, binding):
     if kind == "parent":
         return FABLE, FABLE_EFFORT
-    if kind == "docs":
+    if kind in ("docs", "research"):
         return OPUS, "high"
     if kind == "notion":
         return OPUS, "medium"
@@ -107,8 +107,10 @@ def _codex_tier(kind, binding):
         return ASTRA, "medium"
     if kind == "notion":
         return SOL, "medium"
+    if kind == "research":
+        return SOL, "xhigh"
     if binding and binding.get("parent") and binding.get("criteria"):
-        return ASTRA, "medium"
+        return SOL, "xhigh"
     return SOL, "high"
 
 
@@ -376,7 +378,7 @@ def main(argv=None):
     p.add_argument("--session")
     sub = p.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run")
-    r.add_argument("--kind", choices=["code", "parent", "docs", "notion"], default="code")
+    r.add_argument("--kind", choices=["code", "parent", "docs", "research", "notion"], default="code")
     r.add_argument("--pr"); r.add_argument("--base"); r.add_argument("--head"); r.add_argument("--base-ref")
     r.add_argument("--payload"); r.add_argument("--destination"); r.add_argument("--op")
     r.add_argument("--draft"); r.add_argument("--source", action="append")
