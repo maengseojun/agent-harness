@@ -1,0 +1,13 @@
+{
+  "verdict": "pass",
+  "receipt": "code-54bcc13a781ea61e4049898b",
+  "findings": [
+    {
+      "body": "Backup names now end in a random suffix, but retention still sorts filenames lexicographically. For two backups within the same second with --keep 1, a second suffix that sorts below the first causes _prune to delete the newly verified backup and retain the older snapshot. The command then reports status=ok with a zip path that no longer exists. The overwrite finding is resolved, but retention must order snapshots chronologically and protect the current backup. Add a regression test with a fixed timestamp, descending suffixes, and changed source content.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": 445,
+      "severity": "medium",
+      "title": "Retention can immediately delete the newest same-second backup"
+    }
+  ]
+}

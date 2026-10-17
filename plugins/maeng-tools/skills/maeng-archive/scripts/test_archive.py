@@ -260,6 +260,16 @@ class BackupSafetyTests(Base):
         self.assertNotEqual(z1, z2)
         self.assertTrue(Path(z1).exists() and Path(z2).exists())
 
+    def test_keep_one_retains_the_newest_same_second_backup(self):
+        self.note("a.md", "A")
+        fixed = A.now()
+        with mock.patch.object(A, "now", return_value=fixed):
+            A.cmd_backup(["onedrive"], 1, False)
+            r2 = A.cmd_backup(["onedrive"], 1, False)
+        newest = Path(r2["stores"]["onedrive"]["zip"])
+        self.assertTrue(newest.exists(), "retention deleted the backup it just created")
+        self.assertEqual(sorted(p.name for p in newest.parent.glob("maeng-*.zip")), [newest.name])
+
     def test_exclusive_copy_never_overwrites(self):
         src = Path(self.td.name) / "src.bin"
         src.write_bytes(b"new")

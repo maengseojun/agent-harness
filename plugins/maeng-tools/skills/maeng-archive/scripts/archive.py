@@ -395,7 +395,9 @@ def verify_backup(zip_path: Path, manifest: dict) -> None:
 
 def cmd_backup(targets: list[str], keep: int, dry_run: bool) -> dict:
     # Unique identity per run: two backups in the same second must never share a name.
-    stamp = now().strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(3)
+    # Microseconds keep lexicographic order == creation order (retention sorts by name); the random
+    # suffix only disambiguates identical timestamps.
+    stamp = now().strftime("%Y%m%d-%H%M%S-%f") + "-" + secrets.token_hex(3)
     name = f"maeng-{stamp}"
     result: dict = {"name": name, "stores": {}}
     vault = vault_root()
@@ -453,7 +455,7 @@ def cmd_backup(targets: list[str], keep: int, dry_run: bool) -> dict:
 
 
 def _prune(bdir: Path, keep: int) -> list[str]:
-    zips = sorted(bdir.glob("maeng-*.zip"))
+    zips = sorted(bdir.glob("maeng-*.zip"), key=lambda p: (p.stat().st_mtime_ns, p.name))  # oldest first
     old = zips[:-keep] if keep > 0 and len(zips) > keep else []
     gone = []
     for z in old:

@@ -40,6 +40,8 @@ class HarnessCase(unittest.TestCase):
             "GIT_AUTHOR_NAME": "T", "GIT_AUTHOR_EMAIL": "t@example.com",
             "GIT_COMMITTER_NAME": "T", "GIT_COMMITTER_EMAIL": "t@example.com",
             "MAENG_NOTION_DBS": "db111111111111111111111111111111",
+            # Existing review tests exercise the codex backend with a fake binary; claude-backend tests opt in.
+            "MAENG_REVIEW_BACKEND": "codex",
         }
         patcher = unittest.mock.patch.dict(os.environ, self.env, clear=True)
         patcher.start()

@@ -63,7 +63,27 @@ BUNDLE:
 """
 
 
+# Review backend (design D-9): "claude" (default; headless isolated `claude -p`) or "codex" (Astra/Sol).
+CLAUDE_REVIEWER = os.environ.get("MAENG_CLAUDE_REVIEWER", "claude-fable-5-1")  # differs from the authors' models
+
+
+def backend():
+    return os.environ.get("MAENG_REVIEW_BACKEND", "claude")
+
+
 def tier_for(kind, binding):
+    model, effort = _codex_tier(kind, binding)
+    return (CLAUDE_REVIEWER, effort) if backend() == "claude" else (model, effort)
+
+
+def claude_command(model, effort, schema_json):
+    """Isolated reviewer: no user/project settings (hooks, plugins), no MCP servers, no tools."""
+    claude = os.environ.get("MAENG_CLAUDE") or "claude"
+    return [claude, "-p", "--setting-sources", "", "--strict-mcp-config", "--tools", "",
+            "--model", model, "--effort", effort, "--output-format", "json", "--json-schema", schema_json]
+
+
+def _codex_tier(kind, binding):
     if kind == "parent":
         return ASTRA, "xhigh"
     if kind == "docs":
@@ -180,6 +200,25 @@ def code_bundle(a, cwd, st):
             "evidence": ev, "evidence_binding": evidence_binding, "ship_verified": ok, "ship_verified_reasons": reasons, "missing": missing}
 
 
+def run_claude(model, effort, out_schema, prompt_text, cwd):
+    proc = subprocess.run(claude_command(model, effort, json.dumps(out_schema)), cwd=cwd,
+                          input=prompt_text, capture_output=True, text=True)
+    out = proc.stdout.strip()
+    try:
+        envelope = json.loads(out)
+    except ValueError:
+        die(f"reviewer failed (rc={proc.returncode}): not JSON: ..." + (proc.stderr.strip() or out)[-2000:])
+    if proc.returncode != 0 or envelope.get("is_error"):
+        die(f"reviewer failed (rc={proc.returncode}): {str(envelope.get('result') or proc.stderr)[-2000:]}")
+    used = list((envelope.get("modelUsage") or {}).keys())
+    if used and not any(u.startswith(model) for u in used):
+        die(f"reviewer ran on {used}, not the requested {model}")
+    result = envelope.get("structured_output")
+    if not isinstance(result, dict):
+        die("reviewer returned no structured output")
+    return result
+
+
 def run_review(a, cwd):
     require_personal(cwd)
     sid = a.session or state.find_session(cwd)
@@ -209,6 +248,11 @@ def run_review(a, cwd):
         if not a.base_ref:
             bundle.setdefault("missing", []).append("base ref name (--base-ref)")
     model, effort = tier_for(a.kind, st.get("binding"))
+    prompt_text = PROMPT + json.dumps(bundle, indent=1)
+    if len(prompt_text) > a.max_bytes:  # the exact text sent to codex, not an estimate
+        bundle.setdefault("missing", []).append(
+            f"prompt is {len(prompt_text)} characters (> --max-bytes {a.max_bytes}); split the review with "
+            f"--path/--delegate or attach fewer --evidence files")
     if bundle["missing"]:
         verdict = {"verdict": "blocked", "subject": subject, "reviewer": {"model": model, "effort": effort},
                    "findings": [{"severity": "high", "title": "bundle incomplete", "body": ", ".join(bundle["missing"]),
@@ -220,16 +264,19 @@ def run_review(a, cwd):
     with tempfile.TemporaryDirectory(prefix="maeng-review-") as d:
         schema_path, out_path = Path(d, "schema.json"), Path(d, "out.json")
         write_json(schema_path, out_schema)
-        proc = subprocess.run(codex_command(model, effort, schema_path, out_path), cwd=cwd,
-                              input=PROMPT + json.dumps(bundle, indent=1), capture_output=True, text=True)
-        if proc.returncode != 0 or not out_path.exists():
-            err = proc.stderr.strip()
-            die(f"reviewer failed (rc={proc.returncode}): ..." + err[-2000:] if len(err) > 2000 else
-                f"reviewer failed (rc={proc.returncode}): {err}")  # the cause is at the end of codex output
-        try:
-            result = json.loads(out_path.read_text())
-        except ValueError:
-            die("reviewer output is not JSON")
+        if backend() == "claude":
+            result = run_claude(model, effort, out_schema, prompt_text, cwd)
+        else:
+            proc = subprocess.run(codex_command(model, effort, schema_path, out_path), cwd=cwd,
+                                  input=prompt_text, capture_output=True, text=True)
+            if proc.returncode != 0 or not out_path.exists():
+                err = proc.stderr.strip()
+                die(f"reviewer failed (rc={proc.returncode}): ..." + err[-2000:] if len(err) > 2000 else
+                    f"reviewer failed (rc={proc.returncode}): {err}")  # the cause is at the end of codex output
+            try:
+                result = json.loads(out_path.read_text())
+            except ValueError:
+                die("reviewer output is not JSON")
     errors = schema.validate(result, out_schema)
     if errors:
         die("reviewer output violates schema: " + "; ".join(errors))
@@ -281,7 +328,8 @@ def main(argv=None):
     r.add_argument("--exclusion-reason", help="why excluded files need no review (shown to the reviewer)")
     r.add_argument("--remote", default="origin", help="remote whose repository the receipt is bound to")
     r.add_argument("--evidence", action="append", help="file whose contents are embedded as evidence_files (repeatable)")
-    r.add_argument("--max-bytes", type=int, default=1_500_000, help="bundle size limit; larger bundles are blocked")
+    r.add_argument("--max-bytes", type=int, default=1_000_000,
+                   help="prompt size limit in characters (Codex rejects input over 1,048,576); larger bundles are blocked")
     c = sub.add_parser("reconcile"); c.add_argument("--repo"); c.add_argument("--notion")
     c.add_argument("--page-id"); c.add_argument("--absent", action="store_true")
     s = sub.add_parser("store"); s.add_argument("verdict_file")

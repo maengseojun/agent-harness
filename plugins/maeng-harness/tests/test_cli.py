@@ -139,6 +139,19 @@ class ReviewRun(HarnessCase):
             # A verified head must have at least one evidence tree with no relevant difference.
             self.assertTrue(any(b["relevant_differences"] == [] for b in bundle["evidence_binding"]))
 
+    def test_prompt_over_limit_is_blocked_before_codex(self):
+        big = self.tmp / "big-evidence.txt"
+        big.write_text("x" * 50_000)
+        r = self.review("--evidence", str(big), "--max-bytes", "40000")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("characters", json.loads(r.stdout)["findings"][0]["body"])
+        self.assertFalse(self.log.exists())
+
+    def test_default_limit_is_below_codex_input_cap(self):
+        rv = load_bin("maeng-review")
+        import argparse, inspect
+        self.assertIn("default=1_000_000", inspect.getsource(rv))
+
     def test_oversized_bundle_is_blocked_without_calling_reviewer(self):
         r = self.review("--max-bytes", "10")
         self.assertEqual(r.returncode, 2)
@@ -177,6 +190,58 @@ class ReviewRun(HarnessCase):
         self.assertIn('model_reasoning_effort="medium"', argv)
         rec, problem = receipts.find_notion(sha256(canonical(payload)), "db111111111111111111111111111111", "create")
         self.assertIsNotNone(rec, problem)
+
+
+class ClaudeBackend(ReviewRun):
+    """D-9: the default reviewer is an isolated headless `claude -p` (different model from the authors)."""
+
+    def fake_claude(self, verdict="pass", model="claude-fable-5-1", is_error=False):
+        log, stdin_log = self.tmp / "claude-argv.json", self.tmp / "claude-stdin.txt"
+        fake = self.tmp / "fake-claude"
+        fake.write_text(
+            f"#!{sys.executable}\nimport json, sys\n"
+            f"open({str(log)!r}, 'w').write(json.dumps(sys.argv[1:]))\n"
+            f"open({str(stdin_log)!r}, 'w').write(sys.stdin.read())\n"
+            f"print(json.dumps({{'is_error': {is_error!r}, 'modelUsage': {{{model!r}: {{}}}},"
+            f" 'structured_output': {{'verdict': {verdict!r}, 'findings': []}}}}))\n")
+        fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+        return fake, log, stdin_log
+
+    def run_claude_review(self, fake):
+        return self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
+                                         "--base-ref", "main"], self.repo,
+                        extra_env={"MAENG_REVIEW_BACKEND": "claude", "MAENG_CLAUDE": str(fake)})
+
+    def test_claude_backend_is_isolated_and_records_the_real_model(self):
+        fake, log, stdin_log = self.fake_claude()
+        r = self.run_claude_review(fake)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        argv = json.loads(log.read_text())
+        self.assertEqual(argv[:1], ["-p"])
+        for pair in (["--setting-sources", ""], ["--tools", ""]):
+            i = argv.index(pair[0])
+            self.assertEqual(argv[i:i + 2], pair)
+        self.assertIn("--strict-mcp-config", argv)
+        self.assertEqual(argv[argv.index("--model") + 1], "claude-fable-5-1")
+        self.assertEqual(argv[argv.index("--effort") + 1], "medium")  # child-task tier
+        self.assertIn("--json-schema", argv)
+        self.assertIn("AC-1 feature works", stdin_log.read_text())
+        receipt_files = list(receipts.receipts_dir().glob("*.json"))
+        self.assertTrue(receipt_files)
+        rec = json.loads(receipt_files[0].read_text())
+        self.assertEqual(rec["verdict"]["reviewer"]["model"], "claude-fable-5-1")  # never labelled Astra
+
+    def test_claude_reviewer_on_wrong_model_is_rejected(self):
+        fake, _, _ = self.fake_claude(model="claude-haiku-4-5")
+        r = self.run_claude_review(fake)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("not the requested", r.stderr)
+
+    def test_claude_error_is_reported_not_stored(self):
+        fake, _, _ = self.fake_claude(is_error=True)
+        r = self.run_claude_review(fake)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertEqual(list(receipts.receipts_dir().glob("*.json")) if receipts.receipts_dir().exists() else [], [])
 
 
 class VerifyCli(HarnessCase):

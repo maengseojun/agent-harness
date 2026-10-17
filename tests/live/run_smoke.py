@@ -79,7 +79,7 @@ class Scn:
         e = dict(os.environ)
         e.update({
             "MAENG_HOME": str(self.home), "MAENG_VAULT": str(self.vault), "MAENG_CACHE_DIR": str(self.cache),
-            "MAENG_GH": str(self.fakebin / "gh"), "MAENG_CODEX": str(self.codex), "FAKE_GH_LOG": str(self.gh_log), "FAKE_GH_JSON": str(self.pr_json),
+            "MAENG_GH": str(self.fakebin / "gh"), "MAENG_CODEX": str(self.codex), "MAENG_REVIEW_BACKEND": "codex", "FAKE_GH_LOG": str(self.gh_log), "FAKE_GH_JSON": str(self.pr_json),
             "PATH": f"{self.fakebin}:{os.environ['PATH']}", "GIT_CONFIG_GLOBAL": str(self.gitcfg),
             "GIT_CONFIG_NOSYSTEM": "1", "GIT_OPTIONAL_LOCKS": "0",
             "MAENG_NOTION_DBS": "db111111111111111111111111111111",
