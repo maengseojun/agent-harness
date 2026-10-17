@@ -50,6 +50,25 @@ class ReviewConfig(HarnessCase):
         self.assertEqual(rv.features_to_disable(str(fake)), ["apps", "browser_use", "image_generation"])
         self.assertEqual(rv.features_to_disable("/nonexistent/codex"), [])
 
+    def test_tool_reference_commands_follow_the_allowlists(self):
+        rv = load_bin("maeng-review")
+        cmds = {" ".join(c) for c in rv.tool_reference_commands()}
+        for sub in rv.gates.READONLY_GIT:
+            self.assertIn(f"git {sub} -h", cmds)
+        for group, acts in rv.ghcmd.GH_ALLOWED.items():
+            self.assertIn(f"gh {group} --help", cmds)
+            for act in acts or ():
+                self.assertIn(f"gh {group} {act} --help", cmds)
+        for must in ("git push -h", "gh pr create --help", "gh api --help", "git --version", "gh --version"):
+            self.assertIn(must, cmds)
+
+    def test_tool_reference_reports_unrunnable_commands(self):
+        rv = load_bin("maeng-review")
+        rv.tool_reference_commands = lambda: [["/nonexistent/gh", "--help"], [sys.executable, "-c", "import sys; sys.exit(3)"]]
+        ref = rv.tool_reference()
+        self.assertEqual(ref["help"], {})
+        self.assertEqual(len(ref["unavailable"]), 2)
+
     def test_isolated_flags_and_default_binary(self):
         rv = load_bin("maeng-review")
         rv.features_to_disable = lambda codex: ["apps", "browser_use", "hooks"]  # real names come from `features list`
@@ -155,6 +174,23 @@ class ReviewRun(ReviewRunFixture):
         self.assertTrue(bundle["ship_verified"], bundle.get("ship_verified_reasons"))
         # A verified head must have at least one evidence tree with no relevant difference.
         self.assertTrue(any(b["relevant_differences"] == [] for b in bundle["evidence_binding"]))
+
+    def test_bundle_carries_installed_tool_reference(self):
+        r = self.review()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        sent = self.stdin_log.read_text()
+        ref = json.loads(sent[sent.index("\n{") + 1:])["tool_reference"]
+        self.assertIn("git push", ref["help"]["git push -h"])  # git is always installed where the harness runs
+        rv = load_bin("maeng-review")
+        every = {" ".join(c) for c in rv.tool_reference_commands()}
+        accounted = set(ref["help"]) | {u.partition(":")[0] for u in ref["unavailable"]}
+        self.assertEqual(accounted, every)  # each command is either documented or reported unavailable
+
+    def test_no_tool_ref_omits_it(self):
+        r = self.review("--no-tool-ref")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        sent = self.stdin_log.read_text()
+        self.assertIsNone(json.loads(sent[sent.index("\n{") + 1:])["tool_reference"])
 
     def test_prompt_over_limit_is_blocked_before_codex(self):
         big = self.tmp / "big-evidence.txt"

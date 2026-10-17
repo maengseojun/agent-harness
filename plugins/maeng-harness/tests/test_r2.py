@@ -675,5 +675,6 @@ class R2_J_ReviewerPrompt(HarnessCase):
         mod = importlib.util.module_from_spec(spec)
         loader.exec_module(mod)
         for needle in ("ALLOWLIST of canonical forms", "denied by design", "allowlist is closed", "canonical form",
-                       "git push [-u] <remote>", "gh pr create", "maeng-ship merge <N>", "files_delegated"):
+                       "git push [-u] <remote>", "gh pr create", "maeng-ship merge <N>", "files_delegated",
+                       "tool_reference", "needs-external-check"):
             self.assertIn(needle, mod.PROMPT)

@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
 
-from maeng import evidence, guard, receipts, schema, state  # noqa: E402
+from maeng import evidence, gates, ghcmd, guard, receipts, schema, state  # noqa: E402
 from maeng import tree as treelib  # noqa: E402
 from maeng.cli_common import checked_load, die, require_personal  # noqa: E402
 from maeng.common import canonical, git, git_out, home_dir, sha256, write_json  # noqa: E402
@@ -56,6 +56,11 @@ canonical form is fully checked (remote configuration, default branch, verified 
 repository binding, eta isolation).
 Files listed as delegated (files_delegated / scope.delegated_files) are OUT of this review's scope but are NOT
 covered by it: they still need their own passing review. Files listed as excluded are exempt.
+tool_reference holds the --version and help output of the git and gh installed where the bundle was built
+(collected before the review, not fetched by you). Judge option and subcommand semantics against it, not against
+memory; an option or subcommand it shows that the allowlist does not handle is a finding. When a judgment depends on
+tool behavior that tool_reference does not show (listed as unavailable, or not covered by help text), do not guess:
+report a finding with severity medium titled "needs-external-check: <what must be checked>".
 Start from the assumption that the change is wrong; try to falsify it against the acceptance criteria (AC-n).
 Answer with JSON matching the supplied schema. verdict=pass only if no critical/high finding remains and every AC is met.
 Use verdict=blocked if the bundle lacks something required.
@@ -185,6 +190,44 @@ def draft_bundle(a):
     return bundle, subject
 
 
+TOOL_ENV = {"PAGER": "cat", "GH_PAGER": "cat", "GIT_PAGER": "cat", "MANPAGER": "cat", "NO_COLOR": "1",
+            "GH_NO_UPDATE_NOTIFIER": "1", "GH_PROMPT_DISABLED": "1", "GIT_TERMINAL_PROMPT": "0", "LC_ALL": "C"}
+
+
+def tool_reference_commands():
+    """Help commands for every shipping and read-only git/gh route the gates allowlist, derived from the allowlists
+    themselves so a newly allowed subcommand is documented without editing this list."""
+    cmds = [["git", "--version"], ["gh", "--version"], ["git", "push", "-h"]]
+    cmds += [["git", sub, "-h"] for sub in sorted(gates.READONLY_GIT)]
+    cmds += [["gh", "pr", "create", "--help"], ["gh", "api", "--help"]]
+    for group in sorted(ghcmd.GH_ALLOWED):
+        cmds.append(["gh", group, "--help"])  # lists every subcommand, including ones the allowlist does not name
+        cmds += [["gh", group, act, "--help"] for act in sorted(ghcmd.GH_ALLOWED[group] or ())]
+    return cmds
+
+
+def tool_reference():
+    """Help text of the installed git/gh, run in a neutral directory with pagers and prompts off. A command that
+    cannot run is listed as unavailable, never guessed; the reviewer reports what it cannot check."""
+    helps, unavailable = {}, []
+    full_env = {**os.environ, **TOOL_ENV}
+    with tempfile.TemporaryDirectory(prefix="maeng-toolref-") as d:
+        for cmd in tool_reference_commands():
+            key = " ".join(cmd)
+            try:
+                proc = subprocess.run(cmd, cwd=d, env=full_env, capture_output=True, text=True, timeout=15,
+                                      stdin=subprocess.DEVNULL)
+            except (OSError, subprocess.SubprocessError) as exc:
+                unavailable.append(f"{key}: {exc}")
+                continue
+            text = (proc.stdout or "") + (proc.stderr or "")  # `git <sub> -h` prints usage and exits 129
+            if not text.strip() or (proc.returncode not in (0, 129)):
+                unavailable.append(f"{key}: rc={proc.returncode} {text.strip()[-300:]}")
+                continue
+            helps[key] = text
+    return {"collected_in": "neutral temp directory, pagers off", "help": helps, "unavailable": unavailable}
+
+
 def code_bundle(a, cwd, st):
     missing = []
     base, head = a.base, a.head
@@ -232,12 +275,14 @@ def code_bundle(a, cwd, st):
     elif not plan_text(binding):
         missing.append("Spec/Plan text (bind with --plan <file>)")
     evidence_files = read_evidence_files(a.evidence)
+    tool_ref = None if a.no_tool_ref else tool_reference()
     size = len(diff) + sum(len(v) for v in contents.values()) + sum(len(v) for v in evidence_files.values())
+    size += sum(len(v) for v in (tool_ref or {}).get("help", {}).values())
     if size > a.max_bytes:
         missing.append(f"bundle is {size} bytes (> --max-bytes {a.max_bytes}); narrow it with --path/--exclude")
     remote_url = git_out(cwd, "remote", "get-url", "--push", a.remote)
     return {"kind": a.kind, "repo": guard.normalize_repo(remote_url), "pr": a.pr, "files_reviewed": files,
-            "evidence_files": evidence_files,
+            "evidence_files": evidence_files, "tool_reference": tool_ref,
             "scope": {"paths": a.path or [], "exclude": a.exclude or [], "excluded_files": excluded,
                       "delegate": delegate, "delegated_files": delegated,
                       "exclusion_reason": a.exclusion_reason},
@@ -419,6 +464,9 @@ def main(argv=None):
     r.add_argument("--exclusion-reason", help="why excluded files need no review (shown to the reviewer)")
     r.add_argument("--remote", default="origin", help="remote whose repository the receipt is bound to")
     r.add_argument("--evidence", action="append", help="file whose contents are embedded as evidence_files (repeatable)")
+    r.add_argument("--no-tool-ref", action="store_true",
+                   help="omit the git/gh help text (tool_reference) from a code bundle; the reviewer then reports "
+                        "tool-dependent judgments as needs-external-check")
     r.add_argument("--max-bytes", type=int, default=1_000_000,
                    help="prompt size limit in characters (Codex rejects input over 1,048,576); larger bundles are blocked")
     c = sub.add_parser("reconcile"); c.add_argument("--repo"); c.add_argument("--notion")
