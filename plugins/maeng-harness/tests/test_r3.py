@@ -35,7 +35,7 @@ class R3_1_GhEffectiveRepository(ShipBase):
         self.alias_origin()
         denied, reason = self.bash_pre(self.repo, "gh pr create --head feat --title t --body b")
         self.assertTrue(denied)
-        self.assertIn("gh pr create --repo <owner/repo", reason)
+        self.assertIn("gh pr create --repo|-R <owner/repo", reason)
         self.assertIn("--repo", reason)
         self.assertFalse(self.bash_pre(self.repo, "gh pr create --repo o/r --head feat --title t --body b")[0])
 

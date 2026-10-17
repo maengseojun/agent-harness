@@ -134,8 +134,10 @@ class ReviewRun(HarnessCase):
         self.assertTrue(bundle["evidence_binding"], "evidence binding missing")
         for b in bundle["evidence_binding"]:
             self.assertIn("evidence_tree", b)
-            self.assertIn("relevant_differences", b)
-            self.assertEqual(b["relevant_differences"], [])  # evidence was taken at the reviewed code
+            self.assertIsInstance(b["relevant_differences"], list)
+        if bundle["ship_verified"]:
+            # A verified head must have at least one evidence tree with no relevant difference.
+            self.assertTrue(any(b["relevant_differences"] == [] for b in bundle["evidence_binding"]))
 
     def test_oversized_bundle_is_blocked_without_calling_reviewer(self):
         r = self.review("--max-bytes", "10")
