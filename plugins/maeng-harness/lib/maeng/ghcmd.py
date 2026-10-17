@@ -198,9 +198,10 @@ STRICT_READ = {"pr": {"view", "list", "diff", "checks", "status"}, "issue": {"vi
 def readonly_strict(toks):
     """The closed read-only gh allowlist used under G3 taint: pr/issue view|list|diff|checks|status, repo view and
     `gh api` GET without -f/-F/--input/-X non-GET, plus run/release/workflow view|list. Anything else is not read-only."""
+    from .readonly import gh_options_ok
     info = parse_gh(toks)
     pos = info["pos"]
-    if not pos:
+    if not pos or not gh_options_ok(info):
         return False
     if pos[0] == "api":
         if info["fields"] or info["input"]:

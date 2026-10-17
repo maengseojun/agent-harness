@@ -523,13 +523,23 @@ def cmd_restore(path: str, apply: bool, target: str | None) -> dict:
         raise ArchiveError(f"{kept} already exists")
     if not apply:
         return {"action": "dry-run", **plan}
-    tmp = orig.with_name(f".tmp-restore-{orig.name}")
-    copy_file(arch, tmp)
-    if sha256_file(tmp) != meta["sha256"]:
-        tmp.unlink()
-        raise ArchiveError("hash mismatch after restore copy; nothing changed")
-    os.replace(p, kept)
-    os.replace(tmp, orig)
+    orig.parent.mkdir(parents=True, exist_ok=True)
+    # Unique temp path allocated by mkstemp (O_EXCL): never a fixed name, so a
+    # pre-existing file can never be overwritten or moved. Only this temp is cleaned.
+    fd, tmp = tempfile.mkstemp(dir=orig.parent, prefix=".tmp-restore-")
+    try:
+        with os.fdopen(fd, "wb") as out, open(arch, "rb") as inp:
+            shutil.copyfileobj(inp, out, 1 << 20)
+            out.flush()
+            os.fsync(out.fileno())
+        if sha256_file(Path(tmp)) != meta["sha256"]:
+            raise ArchiveError("hash mismatch after restore copy; nothing changed")
+        os.replace(p, kept)
+        os.replace(tmp, orig)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
     return {"action": "restored", **plan}
 
 

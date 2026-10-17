@@ -176,7 +176,12 @@ def main(argv=None):
         print(f'refusing to parse/write: {e}', file=sys.stderr)
         return 3
     if a.clean:
-        with open(a.clean, 'w', encoding='utf-8') as fh:
+        try:
+            fh = open(a.clean, 'x', encoding='utf-8')  # exclusive: raw captures are immutable
+        except FileExistsError:
+            print(f'refusing to overwrite existing capture: {a.clean}', file=sys.stderr)
+            return 2
+        with fh:
             fh.write(clean)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result['parse_status'] not in ('parse_failed', 'no_final_answer', 'aside_failed') else 2

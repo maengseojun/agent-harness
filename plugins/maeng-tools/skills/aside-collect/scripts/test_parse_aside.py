@@ -147,6 +147,21 @@ class PrivateFilter(unittest.TestCase):
             self.assertEqual(res['private_spans_removed'], 2)
             self.assertEqual(len(res['items']), 1)
 
+    def test_clean_refuses_existing_destination(self):
+        import os, subprocess, sys, tempfile
+        with tempfile.TemporaryDirectory() as d:
+            src, out = os.path.join(d, 'o.txt'), os.path.join(d, 'raw.md')
+            open(src, 'w').write(final(ITEM2))
+            args = [src, '--nonce', NONCE, '--exit-code', '0', '--clean', out]
+            self.assertEqual(pa.main(args), 0)
+            first = open(out).read()
+            self.assertEqual(pa.main(args), 2)
+            self.assertEqual(open(out).read(), first)
+            r = subprocess.run([sys.executable, pa.__file__] + args, capture_output=True, text=True)
+            self.assertEqual(r.returncode, 2)
+            self.assertIn('refusing to overwrite', r.stderr)
+            self.assertEqual(open(out).read(), first)
+
     def test_refuses_without_filter(self):
         import os, tempfile
         orig = pa.FILTER_PATH

@@ -85,7 +85,9 @@ FORGE_VALUES = {f"--{p}match-{k}": VALUE_RE for p in ("", "no-") for k in ("test
 CARGO_BOOLS = ("--all", "--workspace", "--all-features", "--release", "-q")
 CARGO_VALUES = {"-p": NAME_RE_, "--package": NAME_RE_}
 GO_BOOLS = ("-v", "-race", "-json")
-GO_VALUES = {"-run": VALUE_RE, "-count": R(r"^\d+$")}
+# -count=0 (and `-run` patterns that cannot select a test) make `go test` exit 0 without running any test
+GO_RUN_RE = R(r"^(?=.*[A-Za-z0-9_])(?!.*[^|(/]\^)[A-Za-z0-9_|()./*+?\[\]^-]+$")
+GO_VALUES = {"-run": GO_RUN_RE, "-count": R(r"^[1-9]\d*$")}
 SCRIPTS = ("lint", "build", "typecheck")
 
 
@@ -200,6 +202,41 @@ def _module_runner(mod, rest):
             return _result("ruff check", "check", rest[1:])
     return None
 
+
+
+# Default mode ("some passing tests") only accepts an UNFILTERED suite run: selectors such as pytest -k/-m or
+# paths, go -run or package lists, forge --match-*, unittest -p/names and playwright paths/--project can
+# select nothing and still exit 0. Filtered runs satisfy only an explicit Plan requirement with that filter.
+_UNFILTERED_ARGS = {
+    "pytest": re.compile(r"^(-x|--exitfirst|--maxfail=\d+|-n|\d+|-p|no:cacheprovider|--tb=\w+)$"),
+    "unittest": re.compile(r"^(discover|-s|-t|-q|-v|--quiet|--verbose|[\w./-]+)$"),
+    "go test": re.compile(r"^(\./\.\.\.|-race|-v|-json|-count=[1-9]\d*)$"),
+    "cargo test": re.compile(r"^(--all|--workspace|--all-features|--release|-q|--quiet)$"),
+    "forge test": re.compile(r"^-v+$"),
+}
+
+
+def unfiltered(identity):
+    """True when a test identity runs the whole suite (no selector that could match nothing)."""
+    if "@" in identity:
+        return False  # run from a subdirectory: only part of the suite
+    base = identity
+    if base.startswith("playwright test"):
+        return base == "playwright test"  # paths, --project or --grep select a subset
+    for name, ok in _UNFILTERED_ARGS.items():
+        if base == name or base.startswith(name + " "):
+            rest = base[len(name):].split()
+            if name == "unittest":
+                # Only `discover` with -s/-t directories (no -p pattern, no module or test names).
+                if not rest:
+                    return True
+                if rest[0] != "discover" or "-p" in rest:
+                    return False
+                flags = rest[1:]
+                return all(t in ("-q", "-v", "--quiet", "--verbose") or flags[i - 1] in ("-s", "-t") or t in ("-s", "-t")
+                           for i, t in enumerate(flags))
+            return all(ok.match(t) for t in rest)
+    return True  # make test/check, npm|pnpm|yarn test, playwright without args: no selector accepted
 
 def recognize(command):
     """-> {'checks': [(name, kind, identity)], 'cd': dir|None} or None (also for background/compound)."""
@@ -336,9 +373,10 @@ def _norm_dir(path):
 
 
 def parse_requirement(pat):
-    """A required-check string -> [(identity, dir)], ALL of which must be satisfied. `a && b` / `a; b` are
-    compound; `cd X &&` scopes later constituents to X (relative to the repository root)."""
-    literal = [(norm_identity(pat).lower(), "")]
+    """A required-check string -> [(identity, dir, is_runner)], ALL of which must be satisfied. `a && b` / `a; b` are
+    compound; `cd X &&` scopes later constituents to X (relative to the repository root). A constituent that parses as
+    a recognized runner invocation (is_runner) is satisfied only by runner evidence, never by a declaration."""
+    literal = [(norm_identity(pat).lower(), "", False)]
     if "`" in pat or "$(" in pat:
         return literal
     try:
@@ -355,11 +393,11 @@ def parse_requirement(pat):
             continue
         r = _runner(seg.tokens)
         if r:
-            out.append((r[2].lower(), cur))
+            out.append((r[2].lower(), cur, True))
         elif len(segs) == 1:
             return literal
         else:
-            out.append((norm_identity(" ".join(seg.tokens)).lower(), cur))
+            out.append((norm_identity(" ".join(seg.tokens)).lower(), cur, False))
     return out or literal
 
 
@@ -372,7 +410,8 @@ def _ev_ident(ev):
 
 def requirement_met(good, pat):
     return all(any(_ev_ident(e)[1] == d and (_ev_ident(e)[0] == p or fnmatch.fnmatchcase(_ev_ident(e)[0], p))
-                   for e in good) for p, d in parse_requirement(pat))
+                   and (not runner or e.get("source") == "runner") for e in good)
+               for p, d, runner in parse_requirement(pat))
 
 
 class Verifier:
@@ -412,10 +451,10 @@ class Verifier:
                 and self.eq(e["tree_finish"], tree)]
         mode, pats = self.required()
         if mode == "default":
-            if not any(e["kind"] == TEST_KINDS for e in good):
+            if not any(e["kind"] == TEST_KINDS and unfiltered(e.get("identity") or "") for e in good):
                 reasons.append("no passing test-runner evidence for this tree (evidence counts only for a recognized "
                                "test runner run as one plain command, e.g. `python3 -m pytest -q`; pipes, `;` and `&&` "
-                               "hide its exit status)")
+                               "hide its exit status; filtered runs such as `-k`, `-run` or test paths do not count here)")
         else:
             for p in pats:
                 if not requirement_met(good, p):

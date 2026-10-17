@@ -1,0 +1,55 @@
+{
+  "verdict": "fail",
+  "receipt": null,
+  "findings": [
+    {
+      "body": "The MCP create_pull_request path supplies repo_spec but leaves must_be_origin false, so this branch ignores errors from plain_remote. With an insteadOf rewrite, ls-remote can verify fork/r while the MCP creates the PR in o/r. An in-memory probe returned allow despite a remote-validation error. Validate the actual MCP destination and reject unresolved URL rewrites before checking its head.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 443,
+      "severity": "high",
+      "title": "MCP PR creation still bypasses remote-validation failures"
+    },
+    {
+      "body": "The allowlisted -count value accepts zero. go test -count=0 ./... can exit successfully without running unit tests, yet recognition classifies it as test evidence. A same-tree probe using only this evidence returned ship_verified=true. Require a positive count and reject other allowlisted values that disable execution.",
+      "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+      "line": 88,
+      "severity": "high",
+      "title": "Zero-count Go runs satisfy test verification"
+    },
+    {
+      "body": "file is considered read-only regardless of its options, but file -C -m magic compiles a magic database and writes magic.mgc. A personal-session probe allowed this command in an eta directory while correctly denying touch there. This is a normal mutation option, not a disguised executable. Validate options for every read-only program or remove programs whose modes are not checked.",
+      "file": "plugins/maeng-harness/lib/maeng/gates.py",
+      "line": 172,
+      "severity": "high",
+      "title": "The G3 read-only allowlist admits file compilation"
+    },
+    {
+      "body": "With required checks containing pytest, maeng-verify ran --ok pytest creates declared evidence that requirement_met accepts without any runner execution. A state containing only this declaration returned ship_verified=true. The recognized-runner requirement applies only in default mode, allowing an ordinary CLI shortcut around the runner allowlist. Require runner evidence for executable test requirements.",
+      "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+      "line": 420,
+      "severity": "high",
+      "title": "Declared checks bypass runner requirements"
+    },
+    {
+      "body": "Corrupt persisted JSON is silently replaced with fresh state using the current tool directory. If a personal session has moved into eta for inspection, this loses its original personal directory; on_pre then treats it as an eta session and skips every gate. A probe changed the same touch request from deny to allow solely by making state loading raise ValueError. Corrupt state must fail closed rather than redefine the session world.",
+      "file": "plugins/maeng-harness/lib/maeng/state.py",
+      "line": 33,
+      "severity": "high",
+      "title": "Corrupt session state can disable cross-world gating"
+    },
+    {
+      "body": "registry_ids does not validate page_ids. A string containing one UUID becomes a set of individual characters. For an existing registered outcome page without a journal entry, its update consequently falls outside G2 and requires no receipt. The probe denied the valid-list representation but allowed the string representation. Validate registry and journal schemas before deciding that an update is ungated.",
+      "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+      "line": 420,
+      "severity": "high",
+      "title": "Malformed Notion registry data silently removes protection"
+    },
+    {
+      "body": "S7 still expects denial messages from the old command-specific checks. The current token-taint gate rejects both tested writes earlier with different messages, making assertions B and C fail. Feeding current gate outputs into s7 reproduced both failures. Update the assertions and refresh staging evidence; the supplied passing table does not establish AC-4 for this implementation.",
+      "file": "tests/live/assert_smoke.py",
+      "line": 167,
+      "severity": "medium",
+      "title": "Required S7 assertions fail against the current gate"
+    }
+  ]
+}

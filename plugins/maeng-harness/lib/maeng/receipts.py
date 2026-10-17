@@ -1,5 +1,6 @@
 """Review verdicts, single-use receipts (pending/consume/reject/reconcile), Notion journal + registry."""
 import json
+import re
 
 from . import schema
 from .common import canonical, git, home_dir, locked, now_iso, read_json, sha256, write_json
@@ -328,14 +329,51 @@ def _notion(name):
     return home_dir() / "notion" / name
 
 
+class RegistryError(Exception):
+    """The Notion registry or journal is unreadable or malformed. Callers must treat every G2-scoped update as gated
+    (and deny) rather than guess which pages are protected."""
+
+
+def _hex32(value):
+    return isinstance(value, str) and bool(re.fullmatch(r"[0-9a-f]{32}", nid(value)))
+
+
+def _load_notion(name, default):
+    try:
+        return read_json(_notion(name), default)
+    except (ValueError, OSError) as exc:
+        raise RegistryError(f"{name} is unreadable ({type(exc).__name__})") from exc
+
+
+def _checked_journal(data):
+    if not isinstance(data, list):
+        raise RegistryError("journal.json is not a list")
+    for e in data:
+        if not (isinstance(e, dict) and isinstance(e.get("id"), str) and isinstance(e.get("status"), str)
+                and isinstance(e.get("page_ids"), list) and all(_hex32(i) for i in e["page_ids"])):
+            raise RegistryError("journal.json has an invalid entry")
+    return data
+
+
 def read_journal():
-    return read_json(_notion("journal.json"), []) or []
+    return _checked_journal(_load_notion("journal.json", []))
+
+
+def _checked_registry(data):
+    if not isinstance(data, dict):
+        raise RegistryError("registry.json is not an object")
+    if not data:
+        return []
+    ids = data.get("page_ids")
+    if not isinstance(ids, list) or not all(_hex32(i) for i in ids):
+        raise RegistryError("registry.json page_ids is not a list of 32-hex Notion ids")
+    return ids
 
 
 def journal_update(fn):
     p = _notion("journal.json")
     with locked(p):
-        entries = read_json(p, []) or []
+        entries = _checked_journal(_load_notion("journal.json", []))
         result = fn(entries)
         write_json(p, entries)
         return result
@@ -417,12 +455,25 @@ def journal_absent(entry_id):
 
 
 def registry_ids():
-    return {nid(i) for i in (read_json(_notion("registry.json"), {}) or {}).get("page_ids", [])}
+    """-> set of registered page ids; raises RegistryError when the registry is malformed."""
+    return {nid(i) for i in _checked_registry(_load_notion("registry.json", {}))}
 
 
-def registry_add(ids):
+def registry_add(ids, repair=False):
+    """Add page ids. With repair=True (explicit `maeng-review registry seed`) a malformed registry is moved aside
+    and replaced by one holding `ids`."""
     p = _notion("registry.json")
     with locked(p):
-        cur = read_json(p, {}) or {}
-        cur["page_ids"] = sorted({nid(i) for i in cur.get("page_ids", [])} | {nid(i) for i in ids})
+        try:
+            cur = _load_notion("registry.json", {})
+            known = _checked_registry(cur)
+        except RegistryError:
+            if not repair:
+                raise
+            if p.exists():
+                import os
+                import time
+                os.replace(p, p.with_name(f"{p.name}.invalid-{time.strftime('%Y%m%dT%H%M%S')}"))
+            cur, known = {}, []
+        cur["page_ids"] = sorted({nid(i) for i in known} | {nid(i) for i in ids})
         write_json(p, cur)

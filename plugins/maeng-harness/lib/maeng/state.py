@@ -27,14 +27,67 @@ def fresh(session_id, cwd=""):
             "stub": None, "started_at": None}
 
 
-def load(session_id, cwd=""):
-    try:
-        data = read_json(path_for(session_id))
-    except ValueError:
-        data = None
+class StateCorrupt(Exception):
+    """An existing session state file cannot be trusted. It is never replaced by fresh state: fresh state would
+    redefine the session's world (its original cwd) and could disable cross-world gating."""
+
+    def __init__(self, path, why=""):
+        self.path, self.why = Path(path), why
+        super().__init__(f"session state {path} is unreadable{': ' + why if why else ''}")
+
+    def message(self):
+        return (f"maeng: session state {self.path} is unreadable; move it aside (maeng-verify state --quarantine) "
+                f"and restart")
+
+
+_FIELD_TYPES = {"seq": int, "turn": int, "last_change_seq": int, "last_record_seq": int, "evidence": list,
+                "skips": list, "plan_records": list, "decisions": list, "pending": dict}
+
+
+def _validate(data):
+    """-> reason string when the decoded state does not match the schema, else None."""
     if not isinstance(data, dict):
+        return "not a JSON object"
+    for key, typ in _FIELD_TYPES.items():
+        if key in data and (not isinstance(data[key], typ) or isinstance(data[key], bool)):
+            return f"`{key}` is not a {typ.__name__}"
+    for key in ("evidence", "skips", "plan_records", "decisions"):
+        if any(not isinstance(x, dict) for x in data.get(key, [])):
+            return f"`{key}` has a non-object entry"
+    if "cwd" in data and not isinstance(data["cwd"], str):
+        return "`cwd` is not a string"
+    if data.get("binding") is not None and not isinstance(data.get("binding"), dict):
+        return "`binding` is not an object"
+    return None
+
+
+def load(session_id, cwd=""):
+    p = path_for(session_id)
+    try:
+        data = read_json(p)
+    except (ValueError, OSError) as exc:
+        raise StateCorrupt(p, f"{type(exc).__name__}") from exc
+    if data is None:  # no file yet: fresh state
         return fresh(session_id, cwd)
+    why = _validate(data)
+    if why:
+        raise StateCorrupt(p, why)
     return {**fresh(session_id, cwd), **data}
+
+
+def quarantine(session_id):
+    """Rename a corrupt state file aside -> new path, or None when the file is absent or readable."""
+    import time
+    p = path_for(session_id)
+    with locked(p):
+        try:
+            load(session_id)
+            return None
+        except StateCorrupt:
+            pass
+        dest = p.with_name(f"{p.name}.corrupt-{time.strftime('%Y%m%dT%H%M%S')}-{os.getpid()}")
+        os.replace(p, dest)
+    return dest
 
 
 def update(session_id, fn, cwd=""):

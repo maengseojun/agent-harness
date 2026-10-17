@@ -40,12 +40,14 @@ Children: MAE-218 to MAE-225.
 - AC-6: in eta_v1 (S5), maeng-harness is absent, there are zero personal hook events, and eta_v1 is unchanged.
 
 ## Verification
-- AC-1: plugin validate
-- AC-2: maeng-harness unittest
-- AC-3: skill script unittests
+- AC-1: claude plugin validate plugins/maeng-tools && claude plugin validate plugins/maeng-harness && claude plugin validate .
+- AC-2: python3 -m unittest discover -s plugins/maeng-harness/tests -t plugins/maeng-harness
+- AC-3: python3 -m unittest discover -s plugins/maeng-tools/skills/maeng-archive/scripts -t plugins/maeng-tools/skills/maeng-archive/scripts && python3 -m unittest discover -s plugins/maeng-tools/skills/aside-collect/scripts -t plugins/maeng-tools/skills/aside-collect/scripts && python3 -m unittest discover -s plugins/maeng-tools/skills/graphify-repository/scripts -t plugins/maeng-tools/skills/graphify-repository/scripts
 - AC-4: live staging smoke
 - AC-5: check_models S4
 - AC-6: staging S5 plugin-controlled checks
+
+AC-1 to AC-3 are runner invocations recorded with `maeng-verify exec -- <command>` (real executions, tree-bound). AC-4 to AC-6 are declared checks for the custom live runner (`tests/live/run_smoke.py`, `tests/live/assert_smoke.py`); their full assertion output is attached as evidence.
 
 **Known and dispositioned outside this PR:**
 - S5 user-level agent and loose skills → retirement at release (MAE-224).

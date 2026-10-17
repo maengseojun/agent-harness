@@ -329,6 +329,16 @@ class RestoreTests(Base):
         self.assertEqual(stub.read_text(), "hello\n")
         self.assertTrue((self.vault / "n.restored.md").exists())
 
+    def test_restore_keeps_preexisting_tmp_file(self):
+        self.note("n.md", "hello\n")
+        A.cmd_move("n.md", "onedrive", "personal", False)
+        pre = self.vault / ".tmp-restore-n.md"
+        pre.write_bytes(b"precious\x00bytes")
+        A.cmd_restore(str(self.vault / "n.md"), True, None)
+        self.assertEqual(pre.read_bytes(), b"precious\x00bytes")
+        self.assertEqual((self.vault / "n.md").read_text(), "hello\n")
+        self.assertEqual(sorted(x.name for x in self.vault.glob(".tmp-restore-*")), [".tmp-restore-n.md"])
+
     def test_restore_non_md_stub(self):
         (self.vault / "x.bin").write_bytes(b"\x00\x01")
         A.cmd_move("x.bin", "onedrive", "personal", False)

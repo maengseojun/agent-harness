@@ -6,7 +6,11 @@ The hooks track this for you; know the rules so you satisfy them on the first tr
 
 A recognized command (pytest, `python -m unittest`, npm/pnpm/yarn test|lint|build|typecheck, forge, cargo, go test, make test|check, ruff, mypy, tsc, `claude plugin validate`, playwright test) produces evidence `{cmd, ok, tree_start, tree_finish}` only if the working tree did not change during the run. Do not edit files while a check runs; background commands produce no evidence.
 
-For checks that are not recognized runners (screenshot, dry-run, manual probe) declare them: `maeng-verify ran --ok|--fail "<what>"`. Record an AC result: `maeng-verify plan --met AC-1,AC-2 --unmet AC-3 "<notes>"`. `maeng-verify skip "<reason>"` records a skip.
+Prefer `maeng-verify exec -- <runner ...>` (e.g. `maeng-verify exec -- python3 -m pytest -q`): the CLI itself runs the allowlisted runner (no shell, current directory), streams its output, exits with its exit code, and records runner evidence with the same identity as the hook path. Anything that is not an allowlisted runner is refused (exit 2). Runner evidence also counts only when the tree is unchanged during the run, and options that disable execution (`go test -count=0`, `-run '^$'`, empty `-k`/`-m`) are not evidence.
+
+A declaration never satisfies a runner requirement: if a required check is itself a recognized runner command (`pytest`, `go test ./...`, ...), only runner evidence (hook-recorded or `maeng-verify exec`) satisfies it. For free-text checks that are not runners (screenshot, dry-run, manual probe) declare them: `maeng-verify ran --ok|--fail "<what>"`. Record an AC result: `maeng-verify plan --met AC-1,AC-2 --unmet AC-3 "<notes>"`. `maeng-verify skip "<reason>"` records a skip.
+
+If the session state file becomes unreadable, gates deny (the file is never replaced by fresh state) until you run `maeng-verify state --quarantine` and restart the session.
 
 ## Required checks (precedence)
 

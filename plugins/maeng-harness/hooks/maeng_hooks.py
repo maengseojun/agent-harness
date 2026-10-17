@@ -7,7 +7,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib"))
 
-from maeng import handlers  # noqa: E402
+from maeng import handlers, state  # noqa: E402
 
 
 def fail_closed(reason):
@@ -38,6 +38,13 @@ def main():
         return 0
     try:
         out = handler(payload)
+    except state.StateCorrupt as exc:
+        # fail closed for gates; trackers do nothing and the file is left untouched
+        if event == "PreToolUse":
+            out = handlers.deny_out(exc.message())
+        else:
+            print(f"maeng-harness: {event}: {exc.message()}; no state was recorded", file=sys.stderr)
+            return 0
     except Exception as exc:
         print(f"maeng-harness: {event} handler failed: {type(exc).__name__}: {exc}", file=sys.stderr)
         # Gates fail closed; trackers and context fail open.

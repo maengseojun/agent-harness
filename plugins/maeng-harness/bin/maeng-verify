@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """maeng-verify: bind a session to an issue/plan and record verification facts."""
 import argparse
+import hashlib
 import json
 import os
+import shlex
+import subprocess
 import sys
+import time
+import uuid
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
 
@@ -11,6 +16,7 @@ from maeng import evidence, state  # noqa: E402
 from maeng import tree as treelib  # noqa: E402
 from maeng.cli_common import die, load_state, require_personal, session_for  # noqa: E402
 from maeng.common import atomic_write, home_dir, read_json  # noqa: E402
+from maeng.shellparse import ENV_ASSIGN  # noqa: E402
 
 
 def need_tree(cwd):
@@ -41,7 +47,63 @@ def cmd_ran(a, cwd):
     sid = session_for(cwd, a.session)
     ok = a.ok
     state.update(sid, lambda st: evidence.add_evidence(st, a.what, "declared", a.what, ok, tree, tree, common, "declared"), cwd)
+    if evidence.recognize(a.what):
+        print("note: this is a runner command; a declaration never satisfies a runner requirement. "
+              "Run it with `maeng-verify exec -- <runner ...>` to record runner evidence.", file=sys.stderr)
     print(f"recorded {'ok' if ok else 'FAIL'}: {a.what} at tree {tree[:10]}")
+
+
+def cmd_exec(a, cwd):
+    argv = list(a.command)
+    if argv[:1] == ["--"]:
+        argv = argv[1:]
+    rec = evidence.recognize(shlex.join(argv)) if argv else None
+    if not rec or rec["cd"] or len(rec["checks"]) != 1 or ENV_ASSIGN.match(argv[0]):
+        die("not an allowlisted runner: `maeng-verify exec` runs only one recognized test/check runner invocation "
+            "(e.g. `python3 -m pytest -q`), as argv without a shell", 2)
+    tree_start, common = need_tree(cwd)
+    sid = session_for(cwd, a.session)
+    key = "exec-" + uuid.uuid4().hex[:12]
+    command = shlex.join(argv)
+    rel = evidence.rel_dir(cwd, treelib.toplevel(cwd))
+    state.update(sid, lambda st: evidence.pre_runner(st, key, command, rec, tree_start, common, rel), cwd)
+    digest, t0, rc = hashlib.sha256(), time.monotonic(), None
+    try:
+        proc = subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        for chunk in iter(lambda: proc.stdout.read1(65536), b""):
+            digest.update(chunk)
+            sys.stdout.buffer.write(chunk)
+            sys.stdout.buffer.flush()
+        rc = proc.wait()
+    except OSError as exc:
+        state.update(sid, lambda st: st["pending"].pop(key, None), cwd)
+        die(f"cannot execute {argv[0]}: {exc}", 127)
+    except KeyboardInterrupt:
+        state.update(sid, lambda st: st["pending"].pop(key, None), cwd)
+        raise
+    duration = round(time.monotonic() - t0, 3)
+    tree_finish, _ = treelib.tree_id(cwd)
+
+    def finish(st):
+        for ev in evidence.post_runner(st, key, rc == 0, tree_finish):
+            ev.update(exit_code=rc, duration_s=duration, output_sha256=digest.hexdigest())
+    state.update(sid, finish, cwd)
+    print(f"maeng-verify exec: exit {rc} in {duration}s; output sha256 {digest.hexdigest()[:12]}", file=sys.stderr)
+    sys.exit(rc)
+
+
+def cmd_state(a, cwd):
+    sid = session_for(cwd, a.session)
+    p = state.path_for(sid)
+    if a.quarantine:
+        dest = state.quarantine(sid)
+        print(f"moved {p} to {dest}; restart the session" if dest else f"{p} is absent or readable; nothing to quarantine")
+        return
+    try:
+        state.load(sid, cwd)
+        print(f"{p}: ok" if p.exists() else f"{p}: absent")
+    except state.StateCorrupt as exc:
+        die(exc.message())
 
 
 def cmd_skip(a, cwd):
@@ -97,11 +159,16 @@ def main(argv=None):
     pl = sub.add_parser("plan"); pl.add_argument("--met"); pl.add_argument("--unmet"); pl.add_argument("notes", nargs="?")
     d = sub.add_parser("decision"); d.add_argument("text")
     sub.add_parser("status")
+    e = sub.add_parser("exec"); e.add_argument("command", nargs=argparse.REMAINDER)
+    stt = sub.add_parser("state"); stt.add_argument("--quarantine", action="store_true")
     a = p.parse_args(argv)
     cwd = os.getcwd()
     require_personal(cwd)
-    {"bind": cmd_bind, "ran": cmd_ran, "skip": cmd_skip, "plan": cmd_plan, "decision": cmd_decision,
-     "status": cmd_status}[a.cmd](a, cwd)
+    try:
+        {"bind": cmd_bind, "ran": cmd_ran, "skip": cmd_skip, "plan": cmd_plan, "decision": cmd_decision,
+         "status": cmd_status, "exec": cmd_exec, "state": cmd_state}[a.cmd](a, cwd)
+    except state.StateCorrupt as exc:
+        die(exc.message())
 
 
 if __name__ == "__main__":

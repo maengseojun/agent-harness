@@ -22,6 +22,13 @@ def session_for(cwd, explicit=None):
     return sid
 
 
+def checked_load(sid, cwd):
+    try:
+        return state.load(sid, cwd)
+    except state.StateCorrupt as exc:
+        die(exc.message())
+
+
 def load_state(cwd, explicit=None):
     sid = session_for(cwd, explicit)
-    return sid, state.load(sid, cwd)
+    return sid, checked_load(sid, cwd)

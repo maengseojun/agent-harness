@@ -1,0 +1,27 @@
+{
+  "verdict": "blocked",
+  "receipt": null,
+  "findings": [
+    {
+      "body": "AC-6 has passing test output, but every evidence entry names `skill script unittests` rather than an actual allowlisted runner invocation. The attached log also omits invocation commands and working directories. Under the requested runner-invocation rule, this does not establish qualifying verification for the reviewed head. Supply the exact commands, directories, exit results and tree binding. The three round-4 fixes are present in the supplied code and regression tests, but their execution cannot be certified from this evidence.",
+      "file": null,
+      "line": null,
+      "severity": "high",
+      "title": "AC-6 lacks qualifying runner invocation evidence"
+    },
+    {
+      "body": "Restoring `n.md` uses the fixed vault path `.tmp-restore-n.md`. `copy_file` replaces that path unconditionally, so an existing file there is overwritten and subsequently moved away without being backed up. This violates the archive's no-loss contract on an ordinary restore. Allocate a unique temporary path and clean up only the file created by this invocation.",
+      "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+      "line": 523,
+      "severity": "medium",
+      "title": "Restore overwrites an existing temporary-path file"
+    },
+    {
+      "body": "The capture name uses a minute-resolution timestamp plus slug, while `parse_aside.py --clean` opens its destination with `w`. Two collections of the same topic within one minute therefore overwrite the earlier raw capture, despite the explicit immutability requirement, and existing source-note provenance now points at different bytes. Include the per-run nonce in capture and sidecar names and refuse an existing destination.",
+      "file": "plugins/maeng-tools/skills/aside-collect/SKILL.md",
+      "line": 42,
+      "severity": "medium",
+      "title": "Same-minute collections overwrite immutable raw evidence"
+    }
+  ]
+}

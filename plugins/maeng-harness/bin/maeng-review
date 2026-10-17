@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -12,7 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..
 
 from maeng import evidence, guard, receipts, schema, state  # noqa: E402
 from maeng import tree as treelib  # noqa: E402
-from maeng.cli_common import die, require_personal  # noqa: E402
+from maeng.cli_common import checked_load, die, require_personal  # noqa: E402
 from maeng.common import canonical, git, git_out, home_dir, sha256, write_json  # noqa: E402
 
 CODEX_CANDIDATES = (  # verified live 2026-10-17; the npm codex install on this Mac is broken
@@ -170,7 +171,7 @@ def code_bundle(a, cwd, st):
 def run_review(a, cwd):
     require_personal(cwd)
     sid = a.session or state.find_session(cwd)
-    st = state.load(sid, cwd) if sid else state.fresh("none", cwd)
+    st = checked_load(sid, cwd) if sid else state.fresh("none", cwd)
     if a.kind == "notion":
         payload = json.loads(Path(a.payload).read_text())
         digest = sha256(canonical(payload))
@@ -280,7 +281,11 @@ def main(argv=None):
     if a.cmd == "store":
         print(receipts.store_verdict(json.loads(Path(a.verdict_file).read_text())))
     if a.cmd == "registry":
-        receipts.registry_add([i.replace("-", "").lower() for i in a.ids])
+        ids = [i.replace("-", "").lower() for i in a.ids]
+        bad = [i for i in ids if not re.fullmatch(r"[0-9a-f]{32}", i)]
+        if bad:
+            die("not a 32-hex Notion id: " + ", ".join(bad), 2)
+        receipts.registry_add(ids, repair=True)
 
 
 if __name__ == "__main__":

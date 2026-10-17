@@ -4,7 +4,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from . import canon, ghcmd, guard, receipts, remotecfg
+from . import canon, ghcmd, guard, readonly, receipts, remotecfg
 from . import tree as treelib
 from .common import canonical, git, git_out, home_dir, read_json, sha256
 from .evidence import Verifier
@@ -79,10 +79,7 @@ def _verify_or_deny(ctx, cwd, commit, what):
 
 # ---- G3 local ------------------------------------------------------------
 
-READONLY_PROGS = {"cat", "ls", "head", "tail", "grep", "rg", "find", "wc", "stat", "file", "diff", "less", "more",
-                  "echo", "pwd", "which", "test", "[", "du", "df", "tree", "realpath", "dirname", "basename", "cd",
-                  "pushd", "popd", "true", "false", "sort", "uniq", "cut", "tr", "printf", "env", "date", "jq",
-                  "sha256sum", "shasum", "md5", "readlink"}
+READONLY_PROGS = readonly.PROGS
 READONLY_GIT = {"status", "log", "diff", "show", "rev-parse", "ls-files", "ls-tree", "cat-file", "blame", "describe",
                 "grep", "shortlog", "rev-list", "name-rev", "merge-base", "ls-remote", "check-ignore"}
 
@@ -177,7 +174,7 @@ def mutating_options(prog, toks):
 
 def git_readonly(sub, args):
     if sub in READONLY_GIT:
-        return not any(a == "--output" or a.startswith("--output=") for a in args)
+        return not any(a == "--output" or a.startswith("--output=") for a in args) and readonly.git_options_ok(args)
     if sub == "branch":
         return bool(args) and all(a in ("--list", "-l", "-a", "-r", "--all", "--remotes", "--show-current", "-v", "-vv")
                                   for a in args)
@@ -274,7 +271,7 @@ def readonly_invocation(prog, toks):
         return sub is None or git_readonly(sub, args)
     if prog == "gh":
         return ghcmd.readonly_strict(toks)
-    return prog in READONLY_PROGS and not mutating_options(prog, toks)
+    return prog in READONLY_PROGS and not mutating_options(prog, toks) and readonly.program_readonly(prog, toks)
 
 
 def check_taint(seg, prog, toks, cwd, ctx):
@@ -437,7 +434,7 @@ def check_pr_head(ctx, cwd, head, repo_spec, must_be_origin=False):
         rid = guard.normalize_repo(repo_spec)
         _, raw, _ = git(cwd, "config", "--get", "remote.origin.url")
         if rid not in (guard.normalize_repo(origin_url), guard.normalize_repo(raw.strip())):
-            return deny(f"maeng G1: `gh pr create --repo {repo_spec}` must name origin's repository "
+            return deny(f"maeng G1: PR creation for `{repo_spec}` must name origin's repository "
                         f"({guard.normalize_repo(origin_url)}); the PR head is verified on origin only.")
         url = origin_url
     elif repo_spec:
@@ -516,7 +513,9 @@ def check_mcp_github(tool, tool_input, ctx):
         return deny(f"maeng G1: {name} is denied; merge only through `maeng-ship merge <PR>`.")
     cwd = ctx.cwd
     if name == "create_pull_request":
-        return check_pr_head(ctx, cwd, str(tool_input.get("head", "")), slug)
+        if not (tool_input.get("owner") and tool_input.get("repo")):
+            return deny("maeng G1: create_pull_request needs an explicit owner and repo equal to origin.")
+        return check_pr_head(ctx, cwd, str(tool_input.get("head", "")), slug, must_be_origin=True)
     return Decision()
 
 
@@ -537,6 +536,9 @@ NOTION_ID_RE = re.compile(r"^[0-9a-f]{32}$")
 NOTION_CONFIG_REASON = ("maeng G2: invalid Notion gate configuration ({why}); Notion create/update writes are denied "
                         "until MAENG_NOTION_DBS / $MAENG_HOME/config.json notion_databases / the shipped "
                         "config/notion-databases.json is a non-empty list of 32-hex Notion ids.")
+
+
+REGISTRY_REASON = "maeng G2: invalid Notion registry; run maeng-review registry seed"
 
 
 def _nid(value):
@@ -593,6 +595,7 @@ def notion_scope(tool, tool_input):
         return ("create", dest) if dest in dbs else None
     if name == "notion-update-page":
         pid = _nid(tool_input.get("page_id"))
+        # a malformed registry/journal raises RegistryError: protection cannot be decided, so every update is gated
         journaled = {_nid(i) for e in receipts.read_journal() for i in e["page_ids"]}
         return ("update", pid) if pid in receipts.registry_ids() | journaled else None
     if name == "notion-update-data-source":
@@ -609,12 +612,15 @@ def check_mcp_notion(tool, tool_input, ctx, tool_use_id=""):
         return deny(UNKNOWN_REASON)
     try:
         scope = notion_scope(tool, tool_input)
+        if scope:
+            stuck = receipts.unresolved_entries()
     except NotionConfigError as exc:
         return deny(NOTION_CONFIG_REASON.format(why=exc))
+    except receipts.RegistryError as exc:
+        return deny(f"{REGISTRY_REASON} ({exc})")
     if not scope:
         return Decision()
     op, dest = scope
-    stuck = receipts.unresolved_entries()
     if stuck:
         return deny("maeng G2: an earlier Notion write has no confirmed readback "
                     f"(journal {stuck[0]['id']}); run `maeng-review reconcile --notion` first.")
