@@ -250,6 +250,26 @@ class BackupSafetyTests(Base):
         self.assertEqual(r["stores"]["onedrive"]["status"], "ok")
         self.assertFalse(r["harness_root"]["present"])
 
+    def test_same_second_backups_both_kept(self):
+        self.note("a.md", "A")
+        fixed = A.now()
+        with mock.patch.object(A, "now", return_value=fixed):
+            r1 = A.cmd_backup(["onedrive"], 10, False)
+            r2 = A.cmd_backup(["onedrive"], 10, False)
+        z1, z2 = r1["stores"]["onedrive"]["zip"], r2["stores"]["onedrive"]["zip"]
+        self.assertNotEqual(z1, z2)
+        self.assertTrue(Path(z1).exists() and Path(z2).exists())
+
+    def test_exclusive_copy_never_overwrites(self):
+        src = Path(self.td.name) / "src.bin"
+        src.write_bytes(b"new")
+        dst = Path(self.td.name) / "dst.bin"
+        dst.write_bytes(b"old")
+        with self.assertRaises(FileExistsError):
+            A.copy_file(src, dst, exclusive=True)
+        self.assertEqual(dst.read_bytes(), b"old")
+        self.assertEqual([p for p in dst.parent.iterdir() if p.name.startswith(".tmp-archive-")], [])
+
     def test_private_files_excluded_from_zip_and_listed(self):
         self.note("ok.md", "fine")
         sec = self.note("secret.md", "x <PRIVATE>hide</private> y")

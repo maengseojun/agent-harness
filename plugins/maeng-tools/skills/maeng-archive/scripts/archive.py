@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import shutil
 import sys
 import tempfile
@@ -72,8 +73,10 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def copy_file(src: Path, dst: Path) -> None:
-    """Copy via temp file in the destination directory, fsync, then atomic rename."""
+def copy_file(src: Path, dst: Path, exclusive: bool = False) -> None:
+    """Copy via temp file in the destination directory, fsync, then atomic rename.
+
+    exclusive=True never replaces an existing destination (link-then-unlink is atomic and fails on EEXIST)."""
     dst.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=dst.parent, prefix=".tmp-archive-")
     try:
@@ -81,7 +84,11 @@ def copy_file(src: Path, dst: Path) -> None:
             shutil.copyfileobj(inp, out, 1 << 20)
             out.flush()
             os.fsync(out.fileno())
-        os.replace(tmp, dst)
+        if exclusive:
+            os.link(tmp, dst)  # raises FileExistsError instead of overwriting
+            os.unlink(tmp)
+        else:
+            os.replace(tmp, dst)
     except BaseException:
         if os.path.exists(tmp):
             os.unlink(tmp)
@@ -387,7 +394,8 @@ def verify_backup(zip_path: Path, manifest: dict) -> None:
 
 
 def cmd_backup(targets: list[str], keep: int, dry_run: bool) -> dict:
-    stamp = now().strftime("%Y%m%d-%H%M%S")
+    # Unique identity per run: two backups in the same second must never share a name.
+    stamp = now().strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(3)
     name = f"maeng-{stamp}"
     result: dict = {"name": name, "stores": {}}
     vault = vault_root()
@@ -426,7 +434,7 @@ def cmd_backup(targets: list[str], keep: int, dry_run: bool) -> dict:
             bdir = root / BACKUP_DIR
             dest = bdir / f"{name}.zip"
             try:
-                copy_file(tmp_zip, dest)
+                copy_file(tmp_zip, dest, exclusive=True)
                 if sha256_file(dest) != local_hash:
                     dest.unlink()
                     raise ArchiveError("copied zip hash mismatch")
@@ -435,7 +443,7 @@ def cmd_backup(targets: list[str], keep: int, dry_run: bool) -> dict:
                 if bad:
                     dest.unlink()
                     raise ArchiveError(f"corrupt zip member: {bad}")
-                copy_file(tmp_manifest, bdir / f"{name}.manifest.json")
+                copy_file(tmp_manifest, bdir / f"{name}.manifest.json", exclusive=True)
             except (ArchiveError, OSError, zipfile.BadZipFile) as e:
                 result["stores"][t] = {"status": "failed", "reason": str(e)}
                 continue

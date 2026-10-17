@@ -36,7 +36,7 @@ a known route or a gate that fails open; do not report out-of-scope disguised by
 Shipping and cross-world gating is an ALLOWLIST of canonical forms, by design: a Bash command that mentions a
 shipping route is allowed only as one plain single command in one of these forms: `git push [-u] <remote>
 <branch>`, `git push [-u] <remote> <branch-or-sha>:<refs/heads/name|name>`, maeng-ship's exact lease push
-(`git push --force-with-lease=refs/heads/<base>:<sha> <remote> <sha>:refs/heads/<base>`), `gh pr create --repo <owner/repo>` (the
+(`git push --force-with-lease=refs/heads/<base>:<sha> <remote> <sha>:refs/heads/<base>`), `gh pr create --repo|-R <owner/repo>` (the
 repo must equal origin) with only --base/--head/--title/--body/--body-file/--draft/--repo, `maeng-ship merge <N>`,
 read-only gh commands, and gh pr/issue writes (comment/edit/review/ready/close, issue *) that carry an explicit
 `-R <owner/repo>` (never eta). gh checkout/clone/download commands are local writes gated by the effective directory.
@@ -146,6 +146,18 @@ def code_bundle(a, cwd, st):
     top, common = treelib.toplevel(cwd), treelib.common_dir(cwd)
     ok, reasons = evidence.Verifier(st, top, common).ship_verified(tree)
     ev = [e for e in st.get("evidence", []) if e.get("common") == common]
+    # Show how each evidence tree relates to the reviewed head: every differing path and whether it is
+    # verification-relevant under the repo policy (.maeng/verify.json), so the reviewer can check the binding.
+    policy = treelib.load_policy(top) if top else None
+    evidence_binding = []
+    for t in sorted({e.get("tree_finish") for e in ev if e.get("tree_finish")}):
+        paths = treelib.changed_paths(top, t, tree) if (top and tree) else None
+        evidence_binding.append({
+            "evidence_tree": t, "head_tree": tree,
+            "differing_paths": paths,
+            "relevant_differences": None if paths is None else [p for p in paths if treelib.is_relevant(p, policy)],
+            "non_code_globs": policy and policy.get("non_code_globs"),
+        })
     if not ev:
         missing.append("verification evidence")
     if binding.get("criteria") is None or not binding.get("criteria"):
@@ -165,7 +177,7 @@ def code_bundle(a, cwd, st):
             "base": base, "head": head, "diff": diff, "changed_files": contents,
             "criteria": binding.get("criteria"), "criteria_rev": binding.get("plan_updated_at"),
             "plan_text": plan_text(binding), "required_checks": binding.get("checks"),
-            "evidence": ev, "ship_verified": ok, "ship_verified_reasons": reasons, "missing": missing}
+            "evidence": ev, "evidence_binding": evidence_binding, "ship_verified": ok, "ship_verified_reasons": reasons, "missing": missing}
 
 
 def run_review(a, cwd):
@@ -211,7 +223,9 @@ def run_review(a, cwd):
         proc = subprocess.run(codex_command(model, effort, schema_path, out_path), cwd=cwd,
                               input=PROMPT + json.dumps(bundle, indent=1), capture_output=True, text=True)
         if proc.returncode != 0 or not out_path.exists():
-            die(f"reviewer failed (rc={proc.returncode}): {proc.stderr.strip()[:500]}")
+            err = proc.stderr.strip()
+            die(f"reviewer failed (rc={proc.returncode}): ..." + err[-2000:] if len(err) > 2000 else
+                f"reviewer failed (rc={proc.returncode}): {err}")  # the cause is at the end of codex output
         try:
             result = json.loads(out_path.read_text())
         except ValueError:

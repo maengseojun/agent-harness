@@ -126,6 +126,17 @@ class ReviewRun(HarnessCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("schema", r.stderr)
 
+    def test_bundle_carries_evidence_binding_to_head(self):
+        r = self.review()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        sent = self.stdin_log.read_text()
+        bundle = json.loads(sent[sent.index("\n{") + 1:])
+        self.assertTrue(bundle["evidence_binding"], "evidence binding missing")
+        for b in bundle["evidence_binding"]:
+            self.assertIn("evidence_tree", b)
+            self.assertIn("relevant_differences", b)
+            self.assertEqual(b["relevant_differences"], [])  # evidence was taken at the reviewed code
+
     def test_oversized_bundle_is_blocked_without_calling_reviewer(self):
         r = self.review("--max-bytes", "10")
         self.assertEqual(r.returncode, 2)
