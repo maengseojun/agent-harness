@@ -27,7 +27,7 @@
   [PASS] main session model is opus
   [PASS] check_models: haiku/opus/sonnet for researcher/architect/implementer, >=1 call each, read-only agents used no write tool
   [PASS] negative: note.txt not created
-  [PASS] negative: researcher (2nd call) used no tools at all
+  [PASS] negative: a later researcher call used no write-capable tool
   [PASS] frontmatter of researcher/architect lists no write tool
 == S5
   [PASS] init plugins include eta-rules, eta-craft, maeng-tools
@@ -36,7 +36,7 @@
   [FAIL] no personal loose skills in init.skills (e.g. harness-run, work-records)  <- loose ~/.claude/skills still loaded (pre-retirement)
   [PASS] zero maeng hook output (no hook output mentions maeng)
   [PASS] temp MAENG_HOME/VAULT unchanged (empty)
-  [PASS] eta_v1 git status/HEAD unchanged
+  [PASS] eta team checkouts (dev, contracts, web, docs) and eta_v1 folder unchanged
   [PASS] session answered OK
 == S6
   [PASS] exactly one SessionStart warning line
@@ -46,11 +46,11 @@
   [PASS] no Stop feedback
   [PASS] agent actions unaffected (hello.txt written, HEAD unchanged)
 == S7
-  [PASS] A read-only git -C real eta_v1 status allowed and returned output
+  [PASS] A read-only git -C on a real eta checkout allowed and returned output
   [PASS] B git -C eta-classified repo commit denied by G3
   [PASS] C gh pr create -R endix-foundation-v1/x denied by G3
   [PASS] eta-classified repo HEAD unchanged
-  [PASS] real eta_v1 git status unchanged
+  [PASS] eta team checkouts and eta_v1 folder unchanged
   [PASS] fake gh not invoked for pr create
 == S8
   [PASS] maeng-ship merge succeeded

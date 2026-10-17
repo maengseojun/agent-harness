@@ -1,11 +1,11 @@
 {
  "ok": true,
- "session": "05e742ba-81e6-4d31-b4f2-f6dba6b12635",
- "transcript": "/Users/maengseojun/.claude/projects/-private-tmp-maeng-smoke-S4-repo/05e742ba-81e6-4d31-b4f2-f6dba6b12635.jsonl",
+ "session": "9e7a221b-53be-4731-870e-fa02325b1410",
+ "transcript": "/Users/maengseojun/.claude/projects/-private-tmp-maeng-smoke-S4-repo/9e7a221b-53be-4731-870e-fa02325b1410.jsonl",
  "calls": [
   {
    "subagent_type": "maeng-tools:researcher",
-   "tool_use_id": "toolu_01AHDVWyfDjRLoDZ8MLb7wbC",
+   "tool_use_id": "toolu_011FMDP7nVdkhy7qSmmAuQRU",
    "models": [
     "claude-haiku-5-5"
    ],
@@ -17,7 +17,7 @@
   },
   {
    "subagent_type": "maeng-tools:architect",
-   "tool_use_id": "toolu_01SsirG14mDpjKL9xnE8g31y",
+   "tool_use_id": "toolu_01Kf29a3TfKxSCB3csfNWTGF",
    "models": [
     "claude-opus-5-5"
    ],
@@ -29,7 +29,7 @@
   },
   {
    "subagent_type": "maeng-tools:implementer",
-   "tool_use_id": "toolu_01SBCJzvsFL1L4VEmURZJEjC",
+   "tool_use_id": "toolu_01H1a5kQSV8poGiSJQsrHHCk",
    "models": [
     "claude-sonnet-5-5"
    ],
@@ -37,13 +37,14 @@
    "tools_used": [
     "Bash",
     "Grep",
+    "Read",
     "Write"
    ],
    "expected": "sonnet"
   },
   {
    "subagent_type": "maeng-tools:researcher",
-   "tool_use_id": "toolu_0196LkWDMh15W7e57AuRnJxG",
+   "tool_use_id": "toolu_01TgeutFNvweh8V5PGcL6Pxf",
    "models": [
     "claude-haiku-5-5"
    ],
@@ -53,17 +54,17 @@
   }
  ],
  "frontmatter_tools": {
+  "maeng-tools:architect": [
+   "Read",
+   "Grep",
+   "Glob"
+  ],
   "maeng-tools:researcher": [
    "Read",
    "Grep",
    "Glob",
    "WebFetch",
    "WebSearch"
-  ],
-  "maeng-tools:architect": [
-   "Read",
-   "Grep",
-   "Glob"
   ]
  },
  "errors": []

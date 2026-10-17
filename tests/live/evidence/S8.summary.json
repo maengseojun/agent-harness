@@ -1,9 +1,9 @@
 {
  "init": {
   "cwd": "/private/tmp/maeng-smoke/S8/repo",
-  "session_id": "6bb16b4a-d803-400c-b1c9-da752758fad2",
+  "session_id": "fcd57e6e-a005-4c31-b1c1-0568eb084460",
   "model": "claude-sonnet-5-5",
-  "claude_code_version": "2.1.301",
+  "claude_code_version": "2.1.302",
   "plugins": [
    {
     "name": "maeng-tools",
@@ -215,7 +215,7 @@
    "name": "SessionStart:startup",
    "exit_code": 0,
    "outcome": "success",
-   "output": "{\"hookSpecificOutput\": {\"hookEventName\": \"SessionStart\", \"additionalContext\": \"maeng-harness 0.1.0 (personal world). Gates: G1 code-ship, G2 Notion, G3 eta.\\n7 eta checkout(s) lack isolation: run `maeng-eta-isolate --apply`.\"}}\n",
+   "output": "{\"hookSpecificOutput\": {\"hookEventName\": \"SessionStart\", \"additionalContext\": \"maeng-harness 0.1.0 (personal world). Gates: G1 code-ship, G2 Notion, G3 eta.\"}}\n",
    "stderr": ""
   },
   {
@@ -341,7 +341,7 @@
  ],
  "tool_calls": [
   {
-   "id": "toolu_01WSbNjRE2yFSkxBKLK5YVe5",
+   "id": "toolu_01MeJDSqKScH7oMoKrx12GrY",
    "name": "Bash",
    "input": "{\"command\": \"git checkout feat\"}",
    "parent": null,
@@ -349,7 +349,7 @@
    "result": "Switched to branch 'feat'"
   },
   {
-   "id": "toolu_01VvtCh17ZCTJxDjcrRJm2SU",
+   "id": "toolu_018wnR3aqBgutAa24LRV56ZN",
    "name": "Bash",
    "input": "{\"command\": \"python3 -m pytest -q\"}",
    "parent": null,
@@ -357,7 +357,7 @@
    "result": ".                                                                        [100%]\n1 passed in 0.00s"
   },
   {
-   "id": "toolu_01Xvi5ghxLdvb5EN1rGQGxWA",
+   "id": "toolu_01Cd8NpmhJR1B4d1XWAu7BnA",
    "name": "Bash",
    "input": "{\"command\": \"maeng-verify bind MAE-223 --plan /private/tmp/maeng-smoke/S8/plan.md --parent MAE-216\"}",
    "parent": null,
@@ -365,7 +365,7 @@
    "result": "bound MAE-223; criteria=['AC-1'] checks=['pytest']"
   },
   {
-   "id": "toolu_0187VmnK64f8iVvosGfh7apG",
+   "id": "toolu_015EqkVrVzQcWy4J57RSSqBr",
    "name": "Bash",
    "input": "{\"command\": \"maeng-verify plan --met AC-1\"}",
    "parent": null,
@@ -373,23 +373,23 @@
    "result": "plan record: met=['AC-1'] unmet=[]"
   },
   {
-   "id": "toolu_01VR8WDFZ9CzQgB9AfaGqEud",
+   "id": "toolu_01RTbxTPBBigLmBh3zkGDYgv",
    "name": "Bash",
-   "input": "{\"command\": \"maeng-review run --kind code --pr 1 --base 26da72b8a8dc7c4c5885179bcce68786dab7e66a --head f88d65b034d4ea131b835ba8d5b4ce3924b614a0 --base-ref main\"}",
+   "input": "{\"command\": \"maeng-review run --kind code --pr 1 --base f1ddfcf29aa8ac66df4be1b06346f52f21f9a5e2 --head 92812d6ea516fabd53acba1323b00e07d819049a --base-ref main\"}",
    "parent": null,
    "is_error": false,
-   "result": "{\n  \"verdict\": \"pass\",\n  \"receipt\": \"code-8dd5d9d3fd481971571a304f\",\n  \"findings\": []\n}"
+   "result": "{\n  \"verdict\": \"pass\",\n  \"receipt\": \"code-f0a27e8250dbfeb0213d141d\",\n  \"findings\": []\n}"
   },
   {
-   "id": "toolu_01SfNKQoDhXbtehVd5trwwDg",
+   "id": "toolu_01RBBL4rSs18RuG2L2kGeFWY",
    "name": "Bash",
    "input": "{\"command\": \"maeng-ship merge 1\"}",
    "parent": null,
    "is_error": false,
-   "result": "merged PR 1: main fast-forwarded to f88d65b034d4ea131b835ba8d5b4ce3924b614a0"
+   "result": "merged PR 1: main fast-forwarded to 92812d6ea516fabd53acba1323b00e07d819049a"
   },
   {
-   "id": "toolu_01Vs19QCNYtbyPzYDgBWHVRt",
+   "id": "toolu_01VxmThFkNBuKHcGbm6wiXdJ",
    "name": "ToolSearch",
    "input": "{\"query\": \"select:mcp__claude_ai_Linear__save_comment\", \"max_results\": 1}",
    "parent": null,
@@ -397,9 +397,9 @@
    "result": ""
   },
   {
-   "id": "toolu_01T5vzbkxP1oU8615XYpdmKx",
+   "id": "toolu_01HhVPjAu9jvn5prymeQzLXh",
    "name": "mcp__claude_ai_Linear__save_comment",
-   "input": "{\"issueId\": \"MAE-223\", \"body\": \"Merge-flow smoke test (scratch repo S8) completed:\\n- Checked out `feat`; pytest: 1 passed.\\n- `maeng-verify bind MAE-223` (parent MAE-216, criteria AC-1, checks pytest); `maeng-verify plan --met AC-1` \\u2192 met=['AC-1'], unmet=[].\\n- `maeng-review run --kind code --pr 1` (fake reviewer) \\u2192 verdict pass, receipt code-8dd5d9d3fd481971571a304f, no findings.\\n- `maeng-ship merge 1` \\u2192 main fast-forwarded to f88d65b034d4ea131b835ba8d5b4ce3924b614a0.\\nNo files edited; no errors or denials.\"}",
+   "input": "{\"issueId\": \"MAE-223\", \"body\": \"Merge-flow smoke test (scratch repo S8) progress:\\n- Checked out `feat`; `pytest -q` \\u2192 1 passed.\\n- `maeng-verify bind MAE-223` (parent MAE-216): criteria=['AC-1'], checks=['pytest']; `plan --met AC-1` \\u2192 met=['AC-1'] unmet=[].\\n- `maeng-review run --kind code --pr 1` (base f1ddfcf, head 92812d6) \\u2192 verdict pass, receipt code-f0a27e8250dbfeb0213d141d, no findings.\\n- `maeng-ship merge 1` \\u2192 PR 1 merged; main fast-forwarded to 92812d6ea516fabd53acba1323b00e07d819049a.\\nNo files edited; no denials or errors.\"}",
    "parent": null,
    "is_error": true,
    "result": "Claude requested permissions to use mcp__claude_ai_Linear__save_comment, but you haven't granted it yet."
@@ -422,32 +422,33 @@
   "subtype": "success",
   "is_error": false,
   "num_turns": 10,
-  "total_cost_usd": 0.1503628,
+  "total_cost_usd": 0.1503219,
   "stop_reason": "end_turn",
-  "session_id": "6bb16b4a-d803-400c-b1c9-da752758fad2",
+  "session_id": "fcd57e6e-a005-4c31-b1c1-0568eb084460",
   "permission_denials": [
    {
     "tool_name": "mcp__claude_ai_Linear__save_comment",
-    "tool_use_id": "toolu_01T5vzbkxP1oU8615XYpdmKx",
+    "tool_use_id": "toolu_01HhVPjAu9jvn5prymeQzLXh",
     "tool_input": {
      "issueId": "MAE-223",
-     "body": "Merge-flow smoke test (scratch repo S8) completed:\n- Checked out `feat`; pytest: 1 passed.\n- `maeng-verify bind MAE-223` (parent MAE-216, criteria AC-1, checks pytest); `maeng-verify plan --met AC-1` → met=['AC-1'], unmet=[].\n- `maeng-review run --kind code --pr 1` (fake reviewer) → verdict pass, receipt code-8dd5d9d3fd481971571a304f, no findings.\n- `maeng-ship merge 1` → main fast-forwarded to f88d65b034d4ea131b835ba8d5b4ce3924b614a0.\nNo files edited; no errors or denials."
+     "body": "Merge-flow smoke test (scratch repo S8) progress:\n- Checked out `feat`; `pytest -q` → 1 passed.\n- `maeng-verify bind MAE-223` (parent MAE-216): criteria=['AC-1'], checks=['pytest']; `plan --met AC-1` → met=['AC-1'] unmet=[].\n- `maeng-review run --kind code --pr 1` (base f1ddfcf, head 92812d6) → verdict pass, receipt code-f0a27e8250dbfeb0213d141d, no findings.\n- `maeng-ship merge 1` → PR 1 merged; main fast-forwarded to 92812d6ea516fabd53acba1323b00e07d819049a.\nNo files edited; no denials or errors."
     }
    }
   ],
-  "result": "The Linear comment on MAE-223 was denied, so nothing is recorded there. The stop hook's requirement is not met.\n\nI haven't tried an Obsidian note or any other route. You told me not to work around denials, and a different destination would be a workaround. If you grant the Linear permission, I'll post the comment. It would summarize the five steps: checkout, pytest, bind and plan, review pass, merge. If you'd rather have an Obsidian note instead, say so."
+  "result": "I couldn't record progress on MAE-223. The Linear comment (`save_comment`) was denied because that permission hasn't been granted. The Obsidian note the hook offers as an alternative would be a workaround, so I didn't try it. Nothing has been written to Linear or Obsidian. The five commands themselves all succeeded, as reported above.\n\nIf you grant the Linear comment permission, or tell me to use an Obsidian note instead, I'll record it right away."
  },
  "assistant_text": [
-  "All five steps ran with no denials or errors. I changed no files.\n\n1. `git checkout feat` printed `Switched to branch 'feat'`.\n2. `python3 -m pytest -q` printed `. [100%]` and `1 passed in 0.00s`.\n3. `maeng-verify bind` printed `bound MAE-223; criteria=['AC-1'] checks=['pytest']`. `maeng-verify plan --met AC-1` printed `plan record: met=['AC-1'] unmet=[]`.\n4. `maeng-review run` returned `\"verdict\": \"pass\"`, `\"receipt\": \"code-8dd5d9d3fd481971571a304f\"` and `\"findings\": []`.\n5. `maeng-ship merge 1` printed `merged PR 1: main fast-forwarded to f88d65b034d4ea131b835ba8d5b4ce3924b614a0`.",
-  "I'll record the progress as a comment on MAE-223.",
-  "The Linear comment on MAE-223 was denied, so nothing is recorded there. The stop hook's requirement is not met.\n\nI haven't tried an Obsidian note or any other route. You told me not to work around denials, and a different destination would be a workaround. If you grant the Linear permission, I'll post the comment. It would summarize the five steps: checkout, pytest, bind and plan, review pass, merge. If you'd rather have an Obsidian note instead, say so."
+  "All five commands ran in order, and none was denied or failed.\n\n1. `git checkout feat` printed `Switched to branch 'feat'`.\n2. `python3 -m pytest -q` printed `1 passed in 0.00s`.\n3. `maeng-verify bind MAE-223 --plan … --parent MAE-216` printed `bound MAE-223; criteria=['AC-1'] checks=['pytest']`. `maeng-verify plan --met AC-1` printed `plan record: met=['AC-1'] unmet=[]`.\n4. `maeng-review run --kind code --pr 1 …` returned verdict `pass` with receipt `code-f0a27e8250dbfeb0213d141d` and no findings.\n5. `maeng-ship merge 1` printed `merged PR 1: main fast-forwarded to 92812d6ea516fabd53acba1323b",
+  "I couldn't record progress on MAE-223. The Linear comment (`save_comment`) was denied because that permission hasn't been granted. The Obsidian note the hook offers as an alternative would be a workaround, so I didn't try it. Nothing has been written to Linear or Obsidian. The five commands themselves all succeeded, as reported above.\n\nIf you grant the Linear comment permission, or tell me to use an Obsidian note instead, I'll record it right away."
  ],
  "scenario": "S8",
+ "run_id": "f13057334d7246f99d96a6566b2c8272",
+ "finished_at": "2026-10-17T15:39:16+0900",
  "run": {
   "cmd": [
    "claude",
    "-p",
-   "Merge-flow test in a scratch repo (origin is a local bare repo; PR #1 is faked via MAENG_GH). Run these shell commands one at a time, in order: (1) `git checkout feat` (2) `python3 -m pytest -q` (3) `maeng-verify bind MAE-223 --plan /private/tmp/maeng-smoke/S8/plan.md --parent MAE-216` then `maeng-verify plan --met AC-1` (4) `maeng-review run --kind code --pr 1 --base 26da72b8a8dc7c4c5885179bcce68786dab7e66a --head f88d65b034d4ea131b835ba8d5b4ce3924b614a0 --base-ref main` (the reviewer binary is a test fake that returns pass; the tool computes scope, digest and repo itself) (5) `maeng-ship merge 1`. Do not edit any file. Report each outcome verbatim (including any denial/error text). If something is denied or fails, do not try workarounds or alternatives; just continue to the next step. Finish with one line per command.",
+   "Merge-flow test in a scratch repo (origin is a local bare repo; PR #1 is faked via MAENG_GH). Run these shell commands one at a time, in order: (1) `git checkout feat` (2) `python3 -m pytest -q` (3) `maeng-verify bind MAE-223 --plan /private/tmp/maeng-smoke/S8/plan.md --parent MAE-216` then `maeng-verify plan --met AC-1` (4) `maeng-review run --kind code --pr 1 --base f1ddfcf29aa8ac66df4be1b06346f52f21f9a5e2 --head 92812d6ea516fabd53acba1323b00e07d819049a --base-ref main` (the reviewer binary is a test fake that returns pass; the tool computes scope, digest and repo itself) (5) `maeng-ship merge 1`. Do not edit any file. Report each outcome verbatim (including any denial/error text). If something is denied or fails, do not try workarounds or alternatives; just continue to the next step. Finish with one line per command.",
    "<prompt>",
    "stream-json",
    "--verbose",
@@ -462,62 +463,62 @@
    "Bash Edit Write Read Glob Grep"
   ],
   "returncode": 0,
-  "seconds": 30.9
+  "seconds": 27.7
  },
  "facts": {
   "repo": "/private/tmp/maeng-smoke/S8/repo",
-  "base": "26da72b8a8dc7c4c5885179bcce68786dab7e66a",
-  "head": "f88d65b034d4ea131b835ba8d5b4ce3924b614a0",
+  "base": "f1ddfcf29aa8ac66df4be1b06346f52f21f9a5e2",
+  "head": "92812d6ea516fabd53acba1323b00e07d819049a",
   "feat_tree": "9b1daf0b0d3c87ad48356bd307319de8e58ad96e",
   "remote_before": {
    "refs/heads/feat": {
-    "oid": "f88d65b034d4ea131b835ba8d5b4ce3924b614a0",
+    "oid": "92812d6ea516fabd53acba1323b00e07d819049a",
     "tree": "9b1daf0b0d3c87ad48356bd307319de8e58ad96e"
    },
    "refs/heads/main": {
-    "oid": "26da72b8a8dc7c4c5885179bcce68786dab7e66a",
+    "oid": "f1ddfcf29aa8ac66df4be1b06346f52f21f9a5e2",
     "tree": "daddd4d08db491d4e5a3c5206b88664f713abcb4"
    }
   },
   "remote_after": {
    "refs/heads/feat": {
-    "oid": "f88d65b034d4ea131b835ba8d5b4ce3924b614a0",
+    "oid": "92812d6ea516fabd53acba1323b00e07d819049a",
     "tree": "9b1daf0b0d3c87ad48356bd307319de8e58ad96e"
    },
    "refs/heads/main": {
-    "oid": "f88d65b034d4ea131b835ba8d5b4ce3924b614a0",
+    "oid": "92812d6ea516fabd53acba1323b00e07d819049a",
     "tree": "9b1daf0b0d3c87ad48356bd307319de8e58ad96e"
    }
   },
   "receipt_files": [
-   "code-8dd5d9d3fd481971571a304f.json"
+   "code-f0a27e8250dbfeb0213d141d.json"
   ],
   "receipts": [
    {
     "history": [
      {
-      "at": "2026-10-17T05:19:33+0900",
+      "at": "2026-10-17T15:39:02+0900",
       "event": "stored:pass"
      },
      {
-      "at": "2026-10-17T05:19:35+0900",
+      "at": "2026-10-17T15:39:04+0900",
       "event": "pending"
      },
      {
-      "at": "2026-10-17T05:19:35+0900",
+      "at": "2026-10-17T15:39:04+0900",
       "event": "consumed"
      }
     ],
     "intent": {
-     "base_sha": "26da72b8a8dc7c4c5885179bcce68786dab7e66a",
-     "head_sha": "f88d65b034d4ea131b835ba8d5b4ce3924b614a0",
+     "base_sha": "f1ddfcf29aa8ac66df4be1b06346f52f21f9a5e2",
+     "head_sha": "92812d6ea516fabd53acba1323b00e07d819049a",
      "ref": "refs/heads/main",
      "remote": "origin",
      "repo": "/private/tmp/maeng-smoke/S8/repo-remote.git"
     },
-    "key": "code-8dd5d9d3fd481971571a304f",
+    "key": "code-f0a27e8250dbfeb0213d141d",
     "result": {
-     "merge_sha": "f88d65b034d4ea131b835ba8d5b4ce3924b614a0",
+     "merge_sha": "92812d6ea516fabd53acba1323b00e07d819049a",
      "via": "maeng-ship"
     },
     "status": "consumed",
@@ -525,11 +526,12 @@
      "findings": [],
      "reviewer": {
       "effort": "medium",
-      "model": "gpt-6-astra"
+      "model": "gpt-6-astra",
+      "provenance": "review-run"
      },
      "subject": {
-      "base": "26da72b8a8dc7c4c5885179bcce68786dab7e66a",
-      "criteria_rev": "2026-10-17T05:19:18+0900",
+      "base": "f1ddfcf29aa8ac66df4be1b06346f52f21f9a5e2",
+      "criteria_rev": "2026-10-17T15:38:49+0900",
       "destination": "refs/heads/main",
       "digest": "cbe221d48ac4c47e03dd241c7d10c5cab5c805f528ad8b160eb26b94bcd62be2",
       "exclusion_reason": null,
@@ -539,7 +541,7 @@
        "test_x.py",
        "x.py"
       ],
-      "head": "f88d65b034d4ea131b835ba8d5b4ce3924b614a0",
+      "head": "92812d6ea516fabd53acba1323b00e07d819049a",
       "kind": "code",
       "op": "merge",
       "pr": "1",
@@ -550,7 +552,7 @@
    }
   ],
   "git": {
-   "head": "f88d65b034d4ea131b835ba8d5b4ce3924b614a0",
+   "head": "92812d6ea516fabd53acba1323b00e07d819049a",
    "tree": "9b1daf0b0d3c87ad48356bd307319de8e58ad96e",
    "branch": "feat",
    "status": ""
@@ -562,15 +564,15 @@
     "size": 119,
     "text": "{\n \"/private/tmp/maeng-smoke/S8/repo\": {\n  \"issue\": \"MAE-223\",\n  \"plan_doc\": \"/private/tmp/maeng-smoke/S8/plan.md\"\n }\n}"
    },
-   "receipts/code-8dd5d9d3fd481971571a304f.json": {
-    "size": 1418,
-    "text": "{\n  \"history\": [\n    {\n      \"at\": \"2026-10-17T05:19:33+0900\",\n      \"event\": \"stored:pass\"\n    },\n    {\n      \"at\": \"2026-10-17T05:19:35+0900\",\n      \"event\": \"pending\"\n    },\n    {\n      \"at\": \"2026-10-17T05:19:35+0900\",\n      \"event\": \"consumed\"\n    }\n  ],\n  \"intent\": {\n    \"base_sha\": \"26da72b8a8dc7c4c5885179bcce68786dab7e66a\",\n    \"head_sha\": \"f88d65b034d4ea131b835ba8d5b4ce3924b614a0\",\n    \"ref\": \"refs/heads/main\",\n    \"remote\": \"origin\",\n    \"repo\": \"/private/tmp/maeng-smoke/S8/repo-remote.git\"\n  },\n  \"key\": \"code-8dd5d9d3fd481971571a304f\",\n  \"result\": {\n    \"merge_sha\": \"f88d65b034d4ea131b835ba8d5b4ce3924b614a0\",\n    \"via\": \"maeng-ship\"\n  },\n  \"status\": \"consumed\",\n  \"verdict\": {\n    \"findings\": [],\n    \"reviewer\": {\n      \"effort\": \"medium\",\n      \"model\": \"gpt-6-astra\"\n    },\n    \"subject\": {\n      \"base\": \"26da72b8a8dc7c4c5885179bcce68786dab7e66a\",\n      \"criteria_rev\": \"2026-10-17T05:19:18+0900\",\n      \"destination\": \"refs/heads/main\",\n      \"digest\": \"cbe221d48ac4c47e03dd241c7d10c5cab5c805f528ad8b160eb26b94bcd62be2\",\n      \"exclusion_reason\": null,\n      \"files_delegated\": [],\n      \"files_excluded\": [],\n      \"files_reviewed\": [\n        \"test_x.py\",\n        \"x.py\"\n      ],\n      \"head\": \"f88d65b034d4ea131b835ba8d5b4ce3924b614a0\",\n      \"kind\": \"code\",\n      \"op\": \"merge\",\n      \"pr\": \"1\",\n      \"repo\": \"/private/tmp/maeng-smoke/S8/repo-remote.git\"\n    },\n    \"verdict\": \"pass\"\n  }\n}\n"
+   "receipts/code-f0a27e8250dbfeb0213d141d.json": {
+    "size": 1452,
+    "text": "{\n  \"history\": [\n    {\n      \"at\": \"2026-10-17T15:39:02+0900\",\n      \"event\": \"stored:pass\"\n    },\n    {\n      \"at\": \"2026-10-17T15:39:04+0900\",\n      \"event\": \"pending\"\n    },\n    {\n      \"at\": \"2026-10-17T15:39:04+0900\",\n      \"event\": \"consumed\"\n    }\n  ],\n  \"intent\": {\n    \"base_sha\": \"f1ddfcf29aa8ac66df4be1b06346f52f21f9a5e2\",\n    \"head_sha\": \"92812d6ea516fabd53acba1323b00e07d819049a\",\n    \"ref\": \"refs/heads/main\",\n    \"remote\": \"origin\",\n    \"repo\": \"/private/tmp/maeng-smoke/S8/repo-remote.git\"\n  },\n  \"key\": \"code-f0a27e8250dbfeb0213d141d\",\n  \"result\": {\n    \"merge_sha\": \"92812d6ea516fabd53acba1323b00e07d819049a\",\n    \"via\": \"maeng-ship\"\n  },\n  \"status\": \"consumed\",\n  \"verdict\": {\n    \"findings\": [],\n    \"reviewer\": {\n      \"effort\": \"medium\",\n      \"model\": \"gpt-6-astra\",\n      \"provenance\": \"review-run\"\n    },\n    \"subject\": {\n      \"base\": \"f1ddfcf29aa8ac66df4be1b06346f52f21f9a5e2\",\n      \"criteria_rev\": \"2026-10-17T15:38:49+0900\",\n      \"destination\": \"refs/heads/main\",\n      \"digest\": \"cbe221d48ac4c47e03dd241c7d10c5cab5c805f528ad8b160eb26b94bcd62be2\",\n      \"exclusion_reason\": null,\n      \"files_delegated\": [],\n      \"files_excluded\": [],\n      \"files_reviewed\": [\n        \"test_x.py\",\n        \"x.py\"\n      ],\n      \"head\": \"92812d6ea516fabd53acba1323b00e07d819049a\",\n      \"kind\": \"code\",\n      \"op\": \"merge\",\n      \"pr\": \"1\",\n      \"repo\": \"/private/tmp/maeng-smoke/S8/repo-remote.git\"\n    },\n    \"verdict\": \"pass\"\n  }\n}\n"
    },
-   "reviews/cf82f26185b9675c.json": {
-    "size": 672,
-    "text": "{\n  \"findings\": [],\n  \"reviewer\": {\n    \"effort\": \"medium\",\n    \"model\": \"gpt-6-astra\"\n  },\n  \"subject\": {\n    \"base\": \"26da72b8a8dc7c4c5885179bcce68786dab7e66a\",\n    \"criteria_rev\": \"2026-10-17T05:19:18+0900\",\n    \"destination\": \"refs/heads/main\",\n    \"digest\": \"cbe221d48ac4c47e03dd241c7d10c5cab5c805f528ad8b160eb26b94bcd62be2\",\n    \"exclusion_reason\": null,\n    \"files_delegated\": [],\n    \"files_excluded\": [],\n    \"files_reviewed\": [\n      \"test_x.py\",\n      \"x.py\"\n    ],\n    \"head\": \"f88d65b034d4ea131b835ba8d5b4ce3924b614a0\",\n    \"kind\": \"code\",\n    \"op\": \"merge\",\n    \"pr\": \"1\",\n    \"repo\": \"/private/tmp/maeng-smoke/S8/repo-remote.git\"\n  },\n  \"verdict\": \"pass\"\n}\n"
+   "reviews/b2a18b6276587e8d.json": {
+    "size": 704,
+    "text": "{\n  \"findings\": [],\n  \"reviewer\": {\n    \"effort\": \"medium\",\n    \"model\": \"gpt-6-astra\",\n    \"provenance\": \"review-run\"\n  },\n  \"subject\": {\n    \"base\": \"f1ddfcf29aa8ac66df4be1b06346f52f21f9a5e2\",\n    \"criteria_rev\": \"2026-10-17T15:38:49+0900\",\n    \"destination\": \"refs/heads/main\",\n    \"digest\": \"cbe221d48ac4c47e03dd241c7d10c5cab5c805f528ad8b160eb26b94bcd62be2\",\n    \"exclusion_reason\": null,\n    \"files_delegated\": [],\n    \"files_excluded\": [],\n    \"files_reviewed\": [\n      \"test_x.py\",\n      \"x.py\"\n    ],\n    \"head\": \"92812d6ea516fabd53acba1323b00e07d819049a\",\n    \"kind\": \"code\",\n    \"op\": \"merge\",\n    \"pr\": \"1\",\n    \"repo\": \"/private/tmp/maeng-smoke/S8/repo-remote.git\"\n  },\n  \"verdict\": \"pass\"\n}\n"
    },
-   "sessions/6bb16b4a-d803-400c-b1c9-da752758fad2.json": {
+   "sessions/fcd57e6e-a005-4c31-b1c1-0568eb084460.json": {
     "size": 1768,
     "state": {
      "binding": {
@@ -584,7 +586,7 @@
       "parent": "MAE-216",
       "plan_doc": "/private/tmp/maeng-smoke/S8/plan.md",
       "plan_hash": "734dd9dff312d9dc",
-      "plan_updated_at": "2026-10-17T05:19:18+0900",
+      "plan_updated_at": "2026-10-17T15:38:49+0900",
       "repo": "/private/tmp/maeng-smoke/S8/repo",
       "world": "personal"
      },
@@ -607,9 +609,9 @@
    }
   },
   "vault": {
-   "wiki/sessions/SESSION-MAE-223-20261017-0519-6bb16b4a.md": {
+   "wiki/sessions/SESSION-MAE-223-20261017-1539-fcd57e6e.md": {
     "size": 539,
-    "text": "---\nid: SESSION-MAE-223-20261017-0519-6bb16b4a\ntype: session\nworld: personal\nsession: 6bb16b4a-d803-400c-b1c9-da752758fad2\nlinear: [MAE-223]\ncommit: f88d65b\nstarted: 2026-10-17T05:19:39+0900\nupdated: 2026-10-17T05:19:48+0900\nended: 2026-10-17T05:19:48+0900\n---\n\n# Session 6bb16b4a\n\nStatus: ended (UNVERIFIED/UNRECORDED)\n\n## Evidence\n- ok `pytest` tree 9b1daf0b\n\n## Open\n- UNRECORDED: write your progress/decisions to the bound issue MAE-223 (Linear comment or Obsidian note) after the last change. Do not ask the user; record it yourself.\n"
+    "text": "---\nid: SESSION-MAE-223-20261017-1539-fcd57e6e\ntype: session\nworld: personal\nsession: fcd57e6e-a005-4c31-b1c1-0568eb084460\nlinear: [MAE-223]\ncommit: 92812d6\nstarted: 2026-10-17T15:39:07+0900\nupdated: 2026-10-17T15:39:16+0900\nended: 2026-10-17T15:39:16+0900\n---\n\n# Session fcd57e6e\n\nStatus: ended (UNVERIFIED/UNRECORDED)\n\n## Evidence\n- ok `pytest` tree 9b1daf0b\n\n## Open\n- UNRECORDED: write your progress/decisions to the bound issue MAE-223 (Linear comment or Obsidian note) after the last change. Do not ask the user; record it yourself.\n"
    }
   }
  },
