@@ -3,3 +3,4 @@ node_modules/
 artifacts/
 .harness/
 __pycache__/
+publish/
