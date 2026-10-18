@@ -265,7 +265,7 @@ def check_bash(command, ctx, moved=False):
         while words and words[0] in SHELL_KEYWORDS:  # `if git push ...; then` runs the condition too
             words.pop(0)
         prog, toks = program(words)
-        payload = " ".join(toks[1:]) if prog == "eval" else \
+        payload = " ".join(toks[2:] if toks[1:2] == ["--"] else toks[1:]) if prog == "eval" else \
             next((toks[i + 1] for i, t in enumerate(toks[1:4], 1)
                   if re.fullmatch(r"-[a-zA-Z]*c[a-zA-Z]*", t) and i + 1 < len(toks)), None) if prog in SHELLS else None
         if payload:  # `sh -c '...'` / `eval '...'`: check the wrapped command too
