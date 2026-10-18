@@ -550,6 +550,15 @@ class RestoreTests(Base):
             A.cmd_restore(str(stub), True, None)
         self.assertIn("leaves the archive root", str(cm.exception))
 
+    def test_crlf_note_keeps_its_frontmatter_in_the_stub(self):
+        p = self.vault / "crlf.md"
+        p.write_bytes(b"---\r\ntitle: Kept\r\ntags: [a]\r\n---\r\nbody\r\n")
+        A.cmd_move("crlf.md", "onedrive", "personal", False)
+        stub = p.read_text(encoding="utf-8")
+        self.assertIn("title: Kept", stub)
+        self.assertIn("status: archived", stub)
+        self.assertEqual(stub.count("---\n"), 2, stub)  # one frontmatter block, not an appended second one
+
     def test_restore_keeps_preexisting_tmp_file(self):
         self.note("n.md", "hello\n")
         A.cmd_move("n.md", "onedrive", "personal", False)

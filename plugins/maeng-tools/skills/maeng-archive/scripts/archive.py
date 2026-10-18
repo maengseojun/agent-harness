@@ -400,7 +400,9 @@ def cmd_move(rel: str, store: str, world: str, dry_run: bool) -> dict:
         if not reuse:
             dest.unlink()
         raise ArchiveError(f"{rel} changed during the move (edit after copy); original left untouched, nothing archived")
-    original_text = original_bytes.decode("utf-8", errors="replace") if is_md else None
+    # universal newlines, as read_text gives: split_frontmatter expects "---\n", so a CRLF note would lose its frontmatter
+    original_text = (original_bytes.decode("utf-8", errors="replace").replace("\r\n", "\n").replace("\r", "\n")
+                     if is_md else None)
     stub = build_stub(original_text, meta, world, rel_posix)
     write_text_atomic(stub_path, stub)
     if not is_md:
