@@ -150,6 +150,8 @@ class SlimGate(ShipBase):
         self.assertDenied("git push origin # publish current branch", "default branch")
         self.git(self.repo, "checkout", "-q", "feat")
         self.assertDenied("git checkout main && git push origin", "own command")
+        self.assertDenied("git checkout main && sh -c 'git push origin'", "own command")
+        self.assertDenied("gh api graphql -F=query=@m.graphql", "cannot be checked")
         self.assertAllowed("git status && git push origin feat")
         self.git(self.repo, "checkout", "-q", "main")
         self.assertDenied("gh pr \\\n  merge 45", "maeng-ship merge")

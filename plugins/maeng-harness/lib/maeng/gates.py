@@ -242,7 +242,7 @@ def check_git(toks, cwd, ctx):
     return check_push(toks, cwd, ctx) if sub == "push" else Decision()
 
 
-def check_bash(command, ctx):
+def check_bash(command, ctx, moved=False):
     if SWITCH_SET.search(command):
         return deny("maeng G1: setting MAENG_TEST_FIXTURES / MAENG_GIT / MAENG_GH / MAENG_HOME / MAENG_CACHE_DIR from "
                     "Bash is denied; they switch maeng-ship to test fixtures or fake binaries.")
@@ -253,7 +253,7 @@ def check_bash(command, ctx):
             return deny("maeng G1: cannot parse this command and it mentions a push or merge; run that step as a "
                         "simpler command.")
         return Decision()
-    cwd, effects, moved = ctx.cwd, [], False
+    cwd, effects = ctx.cwd, []
     expands = bool(re.search(r"\$[A-Za-z_{]", re.sub(r"'[^']*'", "", command)))
     for seg in segs:
         words = list(seg.tokens)
@@ -264,7 +264,7 @@ def check_bash(command, ctx):
             next((toks[i + 1] for i, t in enumerate(toks[1:4], 1)
                   if re.fullmatch(r"-[a-zA-Z]*c[a-zA-Z]*", t) and i + 1 < len(toks)), None) if prog in SHELLS else None
         if payload:  # `sh -c '...'` / `eval '...'`: check the wrapped command too
-            d = check_bash(payload, Ctx(cwd, ctx.state, ctx.world))
+            d = check_bash(payload, Ctx(cwd, ctx.state, ctx.world), moved)
             if not d.allow:
                 return d
             effects += d.effects
