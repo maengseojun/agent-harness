@@ -156,8 +156,18 @@ def codex_command(model, effort, schema_path, out_path):
     return cmd
 
 
+def committed_plan(cwd, head, path):
+    """Binding-like criteria from a Spec/Plan file as committed at the reviewed head. No session binding is needed:
+    the receipt pins the head, so a changed plan is a new head and a new review (criteria_rev stays None)."""
+    text = git_out(cwd, "show", f"{head}:{path}") or ""
+    ids = sorted(set(re.findall(r"\bAC-\d+\b", text)), key=lambda x: int(x[3:]))
+    return {"criteria": ids, "plan_text": text} if ids else {}
+
+
 def plan_text(binding):
     """Full Spec/Plan text so the reviewer can judge each AC-n, not just its id."""
+    if binding.get("plan_text"):
+        return binding["plan_text"]
     doc = binding.get("plan_doc")
     if doc and Path(doc).is_file():
         return Path(doc).read_text(encoding="utf-8", errors="replace")
@@ -264,6 +274,8 @@ def code_bundle(a, cwd, st):
         if rc == 0:
             contents[f] = out
     binding = st.get("binding") or {}
+    if not binding.get("criteria") and a.plan:
+        binding = committed_plan(cwd, head, a.plan)
     tree = treelib.commit_tree(cwd, head)
     top, common = treelib.toplevel(cwd), treelib.common_dir(cwd)
     ok, reasons = evidence.Verifier(st, top, common).ship_verified(tree)
@@ -519,6 +531,8 @@ def main(argv=None):
                    help="include the installed git/gh help text (tool_reference) in a code bundle; without it "
                         "tool_reference is null and the reviewer reports tool-dependent judgments as needs-external-check")
     r.add_argument("--no-tool-ref", action="store_true", help=argparse.SUPPRESS)  # old no-op: null is the default
+    r.add_argument("--plan", help="repo path of the Spec/Plan file, read at --head; used when the session has no "
+                                  "binding (background or dots-run sessions)")
     r.add_argument("--max-rounds", type=int, default=4,
                    help="review runs allowed per PR (user rule 2026-10-18); raise only on the user's word")
     r.add_argument("--max-bytes", type=int, default=1_000_000,

@@ -6,7 +6,7 @@ Commands (tier is picked from the bound issue; see the table below):
 
 | Subject | Command |
 |---|---|
-| Child-task PR / small work | `maeng-review run --kind code --pr <N>` |
+| Child-task PR / small work | `maeng-review run --kind code --pr <N>`; with no session binding (background or dots-run sessions) add `--plan docs/design/MAE-<n>-plan.md`, which reads the `AC-n` from that file as committed at `--head` |
 | Parent integration | `maeng-review run --kind parent --pr <N>` |
 | Design / rules doc | `maeng-review run --kind docs --draft <path>` |
 | Research draft | `maeng-review run --kind research --draft <path> --source <S- note>` (one `--source` per cited note) |

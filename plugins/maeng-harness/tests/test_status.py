@@ -126,6 +126,44 @@ class StatusUnits(StatusBase):
         self.assertTrue(status.post_review_status("github.com/o/r", "b" * 40, "fail", self.repo))
 
 
+class CommittedPlan(StatusBase):
+    """MAE-243: without a session binding, `--plan` reads the criteria from the plan file at the reviewed head."""
+
+    def missing(self, *extra):
+        base = self.head(self.repo)
+        (self.repo / "docs").mkdir()
+        (self.repo / "docs/plan.md").write_text("- **AC-2** two\n- **AC-1** one, see AC-1\n")
+        (self.repo / "notes.md").write_text("no criteria here\n")
+        head = self.commit_all(self.repo)
+        r = self.cli("maeng-review", ["run", "--pr", "9", "--base", base, "--head", head, "--base-ref", "main", *extra],
+                     self.repo)
+        return json.loads(r.stdout)["findings"][0]["body"]
+
+    def test_plan_at_head_supplies_criteria(self):
+        self.start(self.repo)
+        self.assertNotIn("criteria", self.missing("--plan", "docs/plan.md"))
+
+    def test_without_plan_or_without_ids_criteria_are_missing(self):
+        self.start(self.repo)
+        self.assertIn("AC-n criteria", self.missing())
+
+    def test_plan_without_ids_is_missing(self):
+        self.start(self.repo)
+        self.assertIn("AC-n criteria", self.missing("--plan", "notes.md"))
+
+    def test_ids_are_unique_and_ordered(self):
+        import importlib.machinery
+        import importlib.util
+        from .helpers import BIN
+        loader = importlib.machinery.SourceFileLoader("maeng_review_mod", str(BIN / "maeng-review"))
+        spec = importlib.util.spec_from_loader("maeng_review_mod", loader)
+        mod = importlib.util.module_from_spec(spec)
+        loader.exec_module(mod)
+        (self.repo / "p.md").write_text("AC-10 AC-2 AC-1 AC-2\n")
+        head = self.commit_all(self.repo)
+        self.assertEqual(mod.committed_plan(self.repo, head, "p.md")["criteria"], ["AC-1", "AC-2", "AC-10"])
+
+
 class RoundCap(StatusBase):
     def seed(self, n, repo, pr="7"):
         d = self.maeng_home / "reviews"
