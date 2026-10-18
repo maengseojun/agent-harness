@@ -142,8 +142,9 @@ def check_push(toks, cwd, ctx):
     _, args, _, cfg = _parse_git_globals(toks)
     remote, dsts = push_targets(args, cwd, cfg)
     for dst in dsts:
-        if not dst:
-            return deny("maeng G1: cannot tell where this push goes (no current branch); name the remote and branch.")
+        if not dst or "$" in dst or "$" in remote:  # the parser keeps `$var` unexpanded
+            return deny("maeng G1: cannot tell where this push goes (no current branch, or a shell variable); name "
+                        "the remote and branch literally.")
         if dst == "*" or is_default_branch(dst, cwd, remote, policy):
             return deny(f"maeng G1: pushing to the default branch (`{dst}`) is denied; push a feature branch and "
                         f"{MERGE_HINT}")
@@ -188,7 +189,8 @@ GH_GRAPHQL_MERGE = re.compile(r"mergePullRequest|updatePullRequestBranch|mergeBr
                               r"enablePullRequestAutoMerge|enqueuePullRequest|createCommitOnBranch", re.I)
 
 
-def check_gh(toks, cwd):
+def check_gh(toks, cwd, expands=False):
+    """expands: the raw command has a `$` outside single quotes, so a `$` in a value may be a shell expansion."""
     info = ghcmd.parse_gh(toks)
     pos = info["pos"]
     if pos[:2] in (["pr", "merge"], ["pr", "update-branch"], ["repo", "sync"]):
@@ -201,15 +203,15 @@ def check_gh(toks, cwd):
         if (writes and GH_API_MERGE.search(text)) or GH_GRAPHQL_MERGE.search(text):
             return deny(f"maeng G1: this `gh api` call merges or moves a branch ref; {MERGE_HINT}")
         branches = [f[7:].removeprefix("refs/heads/") for f in info["fields"] if f.startswith("branch=")]
-        if any(b.startswith("@") or "{" in b for b in branches):  # gh expands these; the gate cannot see the value
-            return deny("maeng G1: a contents-API `branch=` from a file or a {placeholder} cannot be checked; name the "
+        if any(b.startswith("@") or "{" in b or "$" in b for b in branches):  # gh expands these; the gate cannot see the value
+            return deny("maeng G1: a contents-API `branch=` from a file, a {placeholder} or a variable cannot be checked; name the "
                         "feature branch literally.")
         policy = treelib.load_policy(treelib.toplevel(cwd) or cwd)
         if writes and "/contents/" in text and (info["input"] or not branches or any(
                 is_default_branch(b, cwd, "origin", policy) for b in branches)):
             return deny("maeng G1: a contents-API write without a literal feature `branch=` field (or with --input) can commit to the default branch.")
         query = [f for f in info["fields"] if f.startswith("query=")]
-        if pos[1:2] == ["graphql"] and (info["input"] or any(f[6:].startswith(("@", "$")) or "$(" in f or "`" in f
+        if pos[1:2] == ["graphql"] and (info["input"] or any(f[6:].startswith(("@", "$")) or "$(" in f or "`" in f or (expands and "$" in f)
                                                              for f in query)):
             return deny("maeng G1: a `gh api graphql` query from a file, --input or a variable cannot be checked for "
                         "a merge mutation; pass the query as a literal -f query='...'.")
@@ -243,6 +245,7 @@ def check_bash(command, ctx):
                         "simpler command.")
         return Decision()
     cwd, effects = ctx.cwd, []
+    expands = bool(re.search(r"\$[A-Za-z_{]", re.sub(r"'[^']*'", "", command)))
     for seg in segs:
         prog, toks = program(seg.tokens)
         payload = " ".join(toks[1:]) if prog == "eval" else \
@@ -256,7 +259,7 @@ def check_bash(command, ctx):
         if prog in ("cd", "pushd") and len(toks) > 1:
             cwd = _abs(os.path.expandvars(toks[1]), cwd)
         elif prog in ("git", "gh"):
-            d = check_git(toks, cwd, ctx) if prog == "git" else check_gh(toks, cwd)
+            d = check_git(toks, cwd, ctx) if prog == "git" else check_gh(toks, cwd, expands)
             if not d.allow:
                 return d
             effects += d.effects
