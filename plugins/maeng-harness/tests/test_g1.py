@@ -159,6 +159,10 @@ class SlimGate(ShipBase):
         self.assertAllowed("gh api -X GET repos/o/r/contents/f -f ref=feat")
         self.assertDenied('gh api graphql -f "$QUERY_FIELD"', "cannot be checked")
         self.assertDenied("eval -- 'git push origin main'", "default branch")
+        self.assertDenied("bash --noprofile --norc -e -c 'git push origin main'", "default branch")
+        self.git(self.repo, "config", "alias.co", "!git checkout")
+        self.assertDenied("git co main && git push origin", "own command")
+        self.git(self.repo, "config", "--unset", "alias.co")
         url = self.git(self.repo, "remote", "get-url", "origin").stdout.strip()
         self.git(self.repo, "remote", "set-head", "origin", "feat")
         self.assertDenied(f"git push {url} HEAD:refs/heads/feat", "default branch")  # the URL is origin
