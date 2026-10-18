@@ -52,7 +52,7 @@ The Plan's `Sub-tasks` table is the ledger and survives compaction. Tick a row o
 
 - Expected values come from the Spec or an independent source, never from running the code under test.
 - Rows run their targeted tests. The full suite, the Codex review and the CEO brief happen once, at the parent, judged against the Spec `AC-n` and not only the ticks.
-- A failing row gets the repair cycles in Failure handling, each with a concrete change; then split it, or drop it and say so in the CEO brief. Decide and record rulings instead of waiting, except on the stop list.
+- A failing row gets the repair cycles in Failure handling, each with a concrete change; then split it, or drop it and say so in the CEO brief. Decide and record rulings instead of waiting, except on the stop list and the questions Failure handling says to ask.
 
 ## Autonomy and the CEO
 
@@ -84,7 +84,7 @@ Do not ask mid-task what a sensible default or the Spec already answers; note th
 ## Failure handling
 
 - Verification fails: fix within scope and re-run; at most three repair cycles on the same failure, then record the blocker in Linear and split that work smaller, or drop it and name the drop in the CEO brief. Never mark an unmet `AC-n` as met.
-- A page is silent or two sources disagree: stop that step and ask, as a Middleman question if it is a code question.
+- A page is silent or two sources disagree: when the answer changes what ships (a Spec meaning, an interface others use, anything on the stop list), stop that step and ask, as a Middleman question if it is a code question; otherwise decide, record the ruling in Linear and the CEO brief, and continue.
 - Review `fail` or `blocked`: fix, then request a new review of the new head. A receipt is single use and bound to the exact base/head/criteria.
 - Uncertain write (timeout, lost response): read back before retrying; never retry blindly or create a duplicate.
 - Hooks are guardrails against mistakes, not a security boundary; do not look for ways around a denial. Use the sanctioned route (for merges, `maeng-ship merge`).

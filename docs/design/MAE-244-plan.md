@@ -12,7 +12,7 @@ The "ETA-1042 build" session relayed a user rule: one parent task per PR, 3-7 su
 - **AC-2** Each sub-task row records Do, Writes, Interfaces, Done and Fails-if. Done is a command with its expected output for code, or a review item for judgment work. Fails-if includes a vacuous pass (a mutation the tests do not catch), required for logic only.
 - **AC-3** Read-only work may fan out. Code-writing work runs one task after another by default, and in parallel only when the tasks share no file and no interface.
 - **AC-4** The coordinator re-runs every Done; a sub-agent's report is not evidence. Rows run their targeted tests. The full suite, the Codex review and the CEO brief happen once at the parent, which is judged against the Spec AC.
-- **AC-5** A failing row gets the existing three repair cycles, each with a concrete change. After that it is split smaller, or dropped and named in the CEO brief. Rulings are decided and recorded instead of waiting, except on the stop list.
+- **AC-5** A failing row gets the existing three repair cycles, each with a concrete change. After that it is split smaller, or dropped and named in the CEO brief. Rulings are decided and recorded instead of waiting, except on the stop list and when a silent page or conflicting sources would change what ships (a Spec meaning, an interface others use); those are still asked, as a Middleman question for code.
 - **AC-6** The Plan's Sub-tasks table, in Linear or in `docs/design/MAE-n-plan.md`, is the ledger. Linear issues stay for parent and child work items; sub-tasks never become Linear issues.
 - **AC-7** Release 0.3.1. It also ships `maeng-review --plan` from MAE-243.
 
