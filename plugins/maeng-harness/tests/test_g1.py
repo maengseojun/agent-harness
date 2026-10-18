@@ -115,6 +115,8 @@ class SlimGate(ShipBase):
 
     def test_round4_option_operands(self):
         self.assertDenied("git -c remote.up.mirror=true push --repo=up", "default branch")
+        self.assertDenied("git -c remote.origin.mirror push origin", "default branch")  # value-less -c is true
+        self.assertDenied("gh api -X PUT repos/o/r/contents/f --input p.json -f branch=feat", "default branch")
         self.assertDenied("gh api --preview corsair graphql --input m.json", "cannot be checked")
         for b in ("{branch}", "@b.txt"):
             self.assertDenied(f"gh api -X PUT repos/o/r/contents/f -F branch={b} -f message=m", "cannot be checked")
