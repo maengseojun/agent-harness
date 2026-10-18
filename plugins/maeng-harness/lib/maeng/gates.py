@@ -283,8 +283,9 @@ def check_bash(command, ctx, moved=False):
             return deny("maeng G1: this push follows a checkout/switch/config change in the same command, so its "
                         "destination cannot be checked beforehand; run the push as its own command.")
         elif prog in ("git", "gh"):
-            sub = _parse_git_globals(toks)[0] if prog == "git" else None
-            moved = moved or sub in ("checkout", "switch", "config") or bool(sub and _config(cwd, f"alias.{sub}"))
+            sub, _, _, gcfg = _parse_git_globals(toks) if prog == "git" else (None, [], [], {})
+            moved = moved or sub in ("checkout", "switch", "config") or bool(sub and (
+                f"alias.{sub.lower()}" in gcfg or _config(cwd, f"alias.{sub}")))
             d = check_git(toks, cwd, ctx) if prog == "git" else check_gh(toks, cwd, expands)
             if not d.allow:
                 return d

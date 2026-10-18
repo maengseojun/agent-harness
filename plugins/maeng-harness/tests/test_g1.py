@@ -163,6 +163,7 @@ class SlimGate(ShipBase):
         self.git(self.repo, "config", "alias.co", "!git checkout")
         self.assertDenied("git co main && git push origin", "own command")
         self.git(self.repo, "config", "--unset", "alias.co")
+        self.assertDenied("git -c alias.co='!git checkout' co main && git push origin", "own command")
         url = self.git(self.repo, "remote", "get-url", "origin").stdout.strip()
         self.git(self.repo, "remote", "set-head", "origin", "feat")
         self.assertDenied(f"git push {url} HEAD:refs/heads/feat", "default branch")  # the URL is origin
