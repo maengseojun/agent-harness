@@ -91,8 +91,9 @@ def parse_gh(toks):
             info["raw" if t in ("-f", "--raw-field") or name == "--raw-field" else "typed"].append(v)
             i += 0 if eq else 1
         elif t.startswith(("-f", "-F")) and len(t) > 2 and t[2] != "-":
-            info["fields"].append(t[2:])
-            info["raw" if t.startswith("-f") else "typed"].append(t[2:])
+            v = t[2:].removeprefix("=")  # pflag accepts -Fk=v and -F=k=v
+            info["fields"].append(v)
+            info["raw" if t.startswith("-f") else "typed"].append(v)
         elif name == "--input" or t == "--input":
             info["input"] = True; i += 0 if eq else 1
         elif t.startswith("-"):
