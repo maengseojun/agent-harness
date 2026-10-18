@@ -250,7 +250,8 @@ def check_git(toks, cwd, ctx):
             if a.startswith("!") else Decision()  # git appends the invocation's arguments
         if not d.allow:
             return d
-    if sub == "push" and any("$" in (v or "") for vals in cfg.values() for v in vals):
+    if sub == "push" and any("$" in (v or "") for k, vals in cfg.items() for v in vals
+                             if k.startswith(("remote.", "branch.", "push.", "alias.", "url."))):
         return deny("maeng G1: a push whose -c value is a shell variable cannot be checked; give the value literally.")
     if sub == "push" and any(kind != "C" for kind, _ in dirs):
         return deny("maeng G1: a push with --git-dir/--work-tree is not checked; use `git -C <dir> push ...`.")
@@ -260,7 +261,7 @@ def check_git(toks, cwd, ctx):
 def _state_dependent_push(toks):
     """A push whose destination depends on the current branch or config: implicit, or a HEAD/@ refspec."""
     sub, args, _, _ = _parse_git_globals(toks)
-    pos = [a for a in args if not a.startswith("-")]
+    pos = [a for i, a in enumerate(args) if not a.startswith("-") and not (i and args[i - 1] in PUSH_VALUE_OPTS)]
     dsts = [p.lstrip("+").rpartition(":")[2] for p in pos[1:]]
     return sub == "push" and (not dsts or any(d in ("", "@") or d.startswith("HEAD") for d in dsts))
 
