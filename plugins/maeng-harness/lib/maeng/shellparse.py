@@ -76,9 +76,12 @@ def split_segments(command, _depth=0):
     while i < n:
         c = command[i]
         if c == "\\":
-            if i + 1 < n:
+            if i + 1 < n and command[i + 1] != "\n":  # backslash-newline is a line continuation: dropped
                 cur.append(command[i + 1]); have = True
             i += 2
+        elif c == "#" and not have:  # a comment runs to the end of the line
+            j = command.find("\n", i)
+            i = n if j < 0 else j
         elif c == "'":
             j = command.find("'", i + 1)
             if j < 0:
@@ -96,7 +99,7 @@ def split_segments(command, _depth=0):
                     i += 1
                     break
                 if d == "\\" and i + 1 < n:
-                    cur.append(command[i + 1]); i += 2
+                    cur.append(command[i + 1] if command[i + 1] != "\n" else ""); i += 2
                 elif d == "$" and command[i + 1:i + 2] == "(":
                     end = substitution(i + 2, "(", ")")
                     cur.append(command[i:end]); i = end
