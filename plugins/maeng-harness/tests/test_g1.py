@@ -121,6 +121,11 @@ class SlimGate(ShipBase):
         for b in ("{branch}", "@b.txt"):
             self.assertDenied(f"gh api -X PUT repos/o/r/contents/f -F branch={b} -f message=m", "cannot be checked")
         self.assertAllowed("git push --recurse-submodules on-demand origin")
+        for cmd in ('b=main; git push origin "$b"', 'gh api -X PUT repos/o/r/contents/f -f "branch=$b" -f message=m',
+                    'gh api graphql -f "query=mutation { $fields }"'):
+            denied, reason = self.bash_pre(self.repo, cmd)
+            self.assertTrue(denied, f"expected deny: {cmd} ({reason})")
+        self.assertAllowed("gh api graphql -f query='query($o: String!) { repository(owner: $o, name: \"r\") { id } }'")
         self.git(self.repo, "config", "alias.ub", "!gh pr update-branch 1")
         self.assertDenied("git ub", "alias")
         self.git(self.repo, "config", "alias.rs", "!gh repo sync")
