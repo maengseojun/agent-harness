@@ -10,13 +10,15 @@ Read the supplied brief and applicable repository guidance. Inspect the relevant
 Apply [work-records — Project/task workflow](../work-records/SKILL.md#projecttask-workflow)
 before execution/resumption: read task → Spec/Plan → Architecture/Rules → dependencies.
 Use its criteria, lead/handoff, change and offline rules; keep acceptance evidence
-current and leave Linear Done for user confirmation. Scale standalone tasks down.
+current and close the Linear issue yourself (Done) once AC are met, review passed and records are linked. Scale standalone tasks down.
 
 Select additional skills only for a concrete need. Prefer available repository tools, APIs, and connectors for structured work; use computer interaction when the UI itself matters or other interfaces do not cover the task. Do not install tools, introduce orchestration, or delegate simply because they are available.
 
 For web UI creation or refinement requiring design judgment, consider the available
-`frontend-guidance` advisory skill. A requested dithered motion style belongs to
-`dither-motion-landing`; an HTML deck belongs to `frontend-slides`. The user's
+`frontend-guidance` advisory skill. A requested dithered motion style also goes
+through `frontend-guidance`, which recovers the archived `dither-motion-landing`
+guidance from the MAE-127 archive (it is not an installed skill); an HTML deck
+belongs to `frontend-slides`. The user's
 design requirements outrank optional aesthetic advice. Skip guidance already
 covered by the brief or existing implementation.
 

@@ -80,7 +80,7 @@ recommendation mandatory or override the user's style and scope.
 | Request or action | Existing owner | Optional addition and overlap decision |
 | --- | --- | --- |
 | General website or app UI, including a named style | frontend-guidance | Read selected Impeccable guidance or acquire its reviewed skill folder when justified; bundled runtime/hook execution is separate. |
-| Dithered artwork and purposeful motion | dither-motion-landing | Keep its asset and motion guidance; frontend-guidance only for a distinct design question. |
+| Dithered artwork and purposeful motion | frontend-guidance | `dither-motion-landing` is archived (MAE-127); frontend-guidance recovers its asset and motion guidance from the archive when needed. |
 | HTML presentation | frontend-slides | Keep deck-specific layout; do not substitute general web rules. |
 | UI compliance audit | web-design-guidelines | Keep the existing reviewer; avoid a duplicate Impeccable audit. |
 | Clarify an assignment | task-brief | [Grilling](https://github.com/mattpocock/skills/blob/c55ee46073ed923f86ce59a5eb3b6d895095d1b7/skills/productivity/grilling/SKILL.md) can inform questions; omit exhaustive interviews and confirmation gates unless requested. |

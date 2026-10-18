@@ -21,7 +21,7 @@ observed correction is reusable in that skill's context.
 | [interactive-explainer](interactive-explainer/SKILL.md) | Choose the view first, then add useful table/tree/path exploration or parameter simulation; static summaries need no app. |
 | [tutorial-video](tutorial-video/SKILL.md) | Produce requested tutorial scripts or videos with visual tutoring and authorized ElevenLabs narration. |
 | [execute-code-brief](execute-code-brief/SKILL.md) | Implement an agreed coding brief. |
-| [dither-motion-landing](dither-motion-landing/SKILL.md) | Build landing pages with original dithered imagery and purposeful motion. |
+| dither-motion-landing (archived, MAE-127) | Not installed; `frontend-guidance` recovers its guidance from the archive for a dithered motion landing page. |
 | [hangul-wrap](hangul-wrap/SKILL.md) | Measure and fix Korean word splits and overflow in HTML at multiple widths; other document formats require their own rendered checks. |
 | [frontend-guidance](frontend-guidance/SKILL.md) | Optional guidance for general website and app UI design; preserves requested aesthetics and links selected Impeccable references. |
 | [prepare-work-deliverable](prepare-work-deliverable/SKILL.md) | Produce a substantial report, pitch or presentation from an agreed brief. |
