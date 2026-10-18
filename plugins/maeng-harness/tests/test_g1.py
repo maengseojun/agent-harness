@@ -157,6 +157,7 @@ class SlimGate(ShipBase):
         self.assertDenied("gh api -X=PUT repos/o/r/pulls/45/merge", "maeng-ship merge")
         self.assertDenied("git --git-dir=.git push origin feat", "--git-dir")
         self.assertAllowed("gh api -X GET repos/o/r/contents/f -f ref=feat")
+        self.assertDenied('gh api graphql -f "$QUERY_FIELD"', "cannot be checked")
         url = self.git(self.repo, "remote", "get-url", "origin").stdout.strip()
         self.git(self.repo, "remote", "set-head", "origin", "feat")
         self.assertDenied(f"git push {url} HEAD:refs/heads/feat", "default branch")  # the URL is origin
