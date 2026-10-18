@@ -114,6 +114,9 @@ def push_targets(args, cwd, cfg=None):
     remote, specs = (pos[0], pos[1:]) if pos else (repo, []) if repo else \
         ((_config(cwd, f"branch.{current}.pushRemote", cfg) or _config(cwd, "remote.pushDefault", cfg)
           or _config(cwd, f"branch.{current}.remote", cfg) or ["origin"])[0], [])
+    rc, urls, _ = git(cwd, "config", "--get-regexp", r"^remote\..*\.url$")
+    remote = next((k[7:-4] for k, _, u in (ln.partition(" ") for ln in urls.splitlines() if rc == 0)
+                   if u == remote), remote)  # a URL operand that is a configured remote's URL is that remote
     if every or _config(cwd, f"remote.{remote}.mirror", cfg, boolean=True) == ["true"]:
         return remote, ["*"]
     if not specs:  # implicit: the current branch, its upstream, and any configured remote.<r>.push refspecs
@@ -206,7 +209,7 @@ def check_gh(toks, cwd, expands=False):
         return deny(f"maeng G1: `gh {pos[0]}` is a gh alias, which can hide a merge; run the underlying command.")
     if pos[:1] == ["api"]:
         text = " ".join(toks)
-        writes = info["method"] not in (None, "GET") or info["fields"] or info["input"]
+        writes = info["method"] not in (None, "GET") or (info["method"] is None and (info["fields"] or info["input"]))
         if (writes and GH_API_MERGE.search(text)) or GH_GRAPHQL_MERGE.search(text):
             return deny(f"maeng G1: this `gh api` call merges or moves a branch ref; {MERGE_HINT}")
         branches = [f[7:].removeprefix("refs/heads/") for f in info["fields"] if f.startswith("branch=")]
