@@ -213,7 +213,7 @@ def check_gh(toks, cwd, expands=False, command=""):
         if (writes and GH_API_MERGE.search(text)) or GH_GRAPHQL_MERGE.search(text):
             return deny(f"maeng G1: this `gh api` call merges or moves a branch ref; {MERGE_HINT}")
         branches = [f[7:].removeprefix("refs/heads/") for f in info["fields"] if f.startswith("branch=")]
-        if any(b.startswith("@") or "{" in b or "$" in b for b in branches):  # gh expands these; the gate cannot see the value
+        if writes and "/contents/" in text and any(b.startswith("@") or "{" in b or "$" in b for b in branches):  # gh expands these; the gate cannot see the value
             return deny("maeng G1: a contents-API `branch=` from a file, a {placeholder} or a variable cannot be checked; name the "
                         "feature branch literally.")
         policy = treelib.load_policy(treelib.toplevel(cwd) or cwd)
@@ -289,8 +289,10 @@ def check_bash(command, ctx, moved=False):
             sub, gargs, _, gcfg = _parse_git_globals(toks) if prog == "git" else (None, [], [], {})
             reads = sub == "config" and (gargs[:1] in (["get"], ["list"]) or any(
                 a in ("--get", "--get-all", "--get-regexp", "--list", "-l") for a in gargs))
-            moved = moved or (sub in ("checkout", "switch", "config") and not reads) or bool(sub and (
-                f"alias.{sub.lower()}" in gcfg or _config(cwd, f"alias.{sub}")))
+            expansion = " ".join(v for v in gcfg.get(f"alias.{sub.lower()}", []) if v) or \
+                " ".join(_config(cwd, f"alias.{sub}")) if sub else ""
+            moved = moved or (sub in ("checkout", "switch", "config") and not reads) or \
+                bool(re.search(r"\b(?:checkout|switch|config)\b", expansion))
             d = check_git(toks, cwd, ctx) if prog == "git" else check_gh(toks, cwd, expands, command)
             if not d.allow:
                 return d
