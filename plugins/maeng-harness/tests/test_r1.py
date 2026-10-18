@@ -152,6 +152,7 @@ class R1_7_EvidenceIdentity(ShipBase):
         self.assertEqual(ident("python3 -m pytest -vv tests/unit"), "pytest tests/unit")
         self.assertEqual(ident("uv run pytest  -k  foo"), "pytest -k foo")
         self.assertEqual(evidence.recognize("cd packages && cd api && pytest")["cd"], "packages/api")
+        self.assertIsNone(evidence.recognize("mypy @args.txt"))
         self.assertEqual(evidence.parse_requirement("cd packages && cd api && pytest")[0][1], "packages/api")
 
     def test_glob_requirement_accepts_matching_identity(self):

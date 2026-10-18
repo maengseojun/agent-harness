@@ -23,7 +23,7 @@ PY_RE = re.compile(r"^python[\d.]*$")
 
 BENIGN_FLAG = re.compile(r"^(?:-v+|-q+|--verbose|--quiet)$")
 PYTEST_BENIGN = re.compile(r"^(?:-v+|-q+|-s|-x|--verbose|--quiet|--no-header|-r[aAsSxXfFpPEeQw]+|--color=\S+|--tb=\S+)$")
-PATH_RE = re.compile(r"^[A-Za-z0-9_./:\[\]@+,%-]+$")
+PATH_RE = re.compile(r"^(?!@)[A-Za-z0-9_./:\[\]@+,%-]+$")  # a leading @ is a response file
 VALUE_RE = re.compile(r"^[^\s$`-][^$`]*$")
 NAME_RE_ = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]*$")
 UNSAFE_ENV = re.compile(r"ADDOPTS|FLAGS|OVERRIDES|_OPTIONS$|^(?:PATH|PYTHON\w*|LD_\w+|DYLD_\w+|PYTEST_\w+)$", re.I)
