@@ -346,6 +346,6 @@ class R2_J_ReviewerPrompt(HarnessCase):
         spec = importlib.util.spec_from_loader("maeng_review_mod2", loader)
         mod = importlib.util.module_from_spec(spec)
         loader.exec_module(mod)
-        for needle in ("SLIM by design", "audit the gate only when", "state changed earlier in the same command", "MAENG_TEST_FIXTURES", "maeng-ship merge <N>", "files_delegated",
+        for needle in ("SLIM by design", "audit the gate only when", "state changed earlier in the same command", "AFTER THE FACT", "MAENG_TEST_FIXTURES", "maeng-ship merge <N>", "files_delegated",
                        "tool_reference", "needs-external-check", "--tool-ref", "tool_reference is null"):
             self.assertIn(needle, mod.PROMPT)
