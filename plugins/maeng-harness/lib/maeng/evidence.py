@@ -289,7 +289,7 @@ def recognize(command):
             return None
         prog, toks = program(seg.tokens)
         if prog == "cd" and len(toks) == 2 and not checks:
-            cd = toks[1]
+            cd = posixpath.join(cd, toks[1]) if cd else toks[1]  # `cd a && cd b` runs in a/b
             continue
         r = _runner(seg.tokens)
         if r is None:
@@ -428,7 +428,7 @@ def parse_requirement(pat):
     for seg in segs:
         prog, toks = program(seg.tokens)
         if prog == "cd" and len(toks) == 2:
-            cur = _norm_dir(toks[1])
+            cur = _norm_dir(posixpath.join(cur, toks[1]))
             continue
         r = _runner(seg.tokens)
         if r:
