@@ -34,7 +34,10 @@ push config / -c overrides, matching `:`, globs, --all/--mirror), `gh pr merge|u
 `gh api` merge/ref/contents writes and merge mutations (a graphql query it cannot read is denied), simple git/gh
 aliases, `sh -c`/`eval` wrappers, GitHub MCP merges and default-branch file writes. Out of scope and NOT findings:
 git plumbing and extensions (send-pack, http-push, subtree, town), curl/wget to the GitHub API, alias chains,
-GIT_CONFIG_* env overrides, the default branch of a repository other than the checkout's origin (-R / MCP owner+repo), xargs/find -exec wrappers, option abbreviations, refspec DWIM, a remote whose default
+GIT_CONFIG_* env overrides, the default branch of a repository other than the checkout's origin (-R / MCP owner+repo),
+state changed earlier in the same command line (gh pr checkout, gh alias set, subshell `cd`, files written then
+read; only `git checkout|switch|config` followed by a push is in scope: the gate checks each command against the
+repository state before the command runs), xargs/find -exec wrappers, option abbreviations, refspec DWIM, a remote whose default
 branch git cannot report (main/master/trunk and protected_branches still deny), and deliberately disguised
 routes. Report a gap only on an in-scope path.
 Gating is SLIM by design (user decision 2026-10-18, MAE-237): the PreToolUse gate blocks only (1) a push whose
