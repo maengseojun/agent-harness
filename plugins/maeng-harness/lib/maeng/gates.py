@@ -266,8 +266,9 @@ def check_bash(command, ctx, moved=False):
             words.pop(0)
         prog, toks = program(words)
         payload = " ".join(toks[2:] if toks[1:2] == ["--"] else toks[1:]) if prog == "eval" else \
-            next((toks[i + 1] for i, t in enumerate(toks[1:4], 1)
-                  if re.fullmatch(r"-[a-zA-Z]*c[a-zA-Z]*", t) and i + 1 < len(toks)), None) if prog in SHELLS else None
+            next((toks[i + 1] for i, t in enumerate(toks[1:], 1)
+                  if re.fullmatch(r"-[a-zA-Z]*c[a-zA-Z]*", t) and i + 1 < len(toks)
+                  and all(o.startswith("-") for o in toks[1:i])), None) if prog in SHELLS else None
         if payload:  # `sh -c '...'` / `eval '...'`: check the wrapped command too
             d = check_bash(payload, Ctx(cwd, ctx.state, ctx.world), moved)
             if not d.allow:
@@ -282,8 +283,8 @@ def check_bash(command, ctx, moved=False):
             return deny("maeng G1: this push follows a checkout/switch/config change in the same command, so its "
                         "destination cannot be checked beforehand; run the push as its own command.")
         elif prog in ("git", "gh"):
-            moved = moved or _parse_git_globals(toks)[0] in ("checkout", "switch", "config") \
-                if prog == "git" else moved
+            sub = _parse_git_globals(toks)[0] if prog == "git" else None
+            moved = moved or sub in ("checkout", "switch", "config") or bool(sub and _config(cwd, f"alias.{sub}"))
             d = check_git(toks, cwd, ctx) if prog == "git" else check_gh(toks, cwd, expands)
             if not d.allow:
                 return d
