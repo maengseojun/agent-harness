@@ -147,6 +147,10 @@ class SlimGate(ShipBase):
         self.assertDenied("gh pr create --base feat --fill", "default branch")
         self.assertDenied("gh pr new --base feat --fill", "default branch")
         self.assertDenied("if git push origin main; then echo pushed; fi", "default branch")
+        self.assertDenied("git push origin # publish current branch", "default branch")
+        self.assertDenied("gh pr \\\n  merge 45", "maeng-ship merge")
+        self.assertDenied("git \\\n  push origin main", "default branch")
+        self.assertAllowed("echo '#x' && git push origin feat # done")
         self.assertDenied('PR=1; gh api -X PUT "repos/o/r/pulls/$PR/merge"', "maeng-ship merge")
         self.assertAllowed("gh pr create --base feat --head feat --fill")
 
