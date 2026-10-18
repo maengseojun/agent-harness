@@ -47,11 +47,15 @@ the harness test/override switches (MAENG_TEST_FIXTURES, MAENG_GIT, MAENG_GH, MA
 a ship route. Everything else (feature-branch pushes incl. force, gh writes, Notion/Linear/Slack, eta paths,
 compound commands, other MAENG_* prefixes such as MAENG_REVIEW_BACKEND) is allowed by design and is not a finding.
 In eta checkouts maeng's PreToolUse gate is inert; eta-rules' code hooks (ETA_ONLY_HOOKS) govern pushes there.
-Verify that each of (1)-(4) is fully checked and that maeng-ship's lease merge still needs a review-run receipt and a
+Scope: audit the gate only when the diff touches gate, ship, receipt or evidence code (lib/maeng/gates.py,
+canon.py, ghcmd.py, shellparse.py, remotecfg.py, receipts.py, evidence.py, guard.py, hooks/, bin/maeng-ship,
+bin/maeng-review). Otherwise review only the diff against its ACs: do not ask for gate sources, and gaps in
+unchanged gate code are not findings for this review. When the gate is in scope, verify that each of (1)-(4)
+is fully checked and that maeng-ship's lease merge still needs a review-run receipt and a
 ship-verified head. Verification evidence is a RUNNER INVOCATION ALLOWLIST: a command counts as evidence
 only when it matches a canonical runner form with allowlisted flags (pytest, unittest, npm/pnpm/yarn scripts, forge,
 cargo, go test, make targets, ruff check, mypy, tsc, claude plugin validate, playwright test); any other flag
-(dry-run, list, collect-only, ...) makes it no evidence. Verify that these lists are closed. Only `maeng-review run`
+(dry-run, list, collect-only, ...) makes it no evidence. When in scope, verify that these lists are closed. Only `maeng-review run`
 receipts (reviewer.provenance=review-run) authorize anything.
 Files listed as delegated (files_delegated / scope.delegated_files) are OUT of this review's scope but are NOT
 covered by it: they still need their own passing review. Files listed as excluded are exempt.
