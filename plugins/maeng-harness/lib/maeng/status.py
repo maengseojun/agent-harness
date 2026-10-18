@@ -41,13 +41,12 @@ def outcome(text):
 
 
 def verify_state(evidence, tree, unverified):
-    """pass / fail: a check ran on this exact tree; not_run: code changed without one; none: nothing to verify."""
+    """pass: a check passed on this tree and the Stop hook found no UNVERIFIED obligation. With that obligation: fail
+    when a run on the tree failed, else not_run (a filtered pass does not count). none: no code change to verify."""
     runs = [e for e in evidence if tree and e.get("tree_finish") == tree]
-    if any(e.get("ok") for e in runs):
-        return "pass"
-    if runs:
-        return "fail"
-    return "not_run" if unverified else "none"
+    if unverified:
+        return "fail" if any(not e.get("ok") for e in runs) else "not_run"
+    return "pass" if any(e.get("ok") for e in runs) else "none"
 
 
 def read(task_id):

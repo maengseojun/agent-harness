@@ -92,8 +92,9 @@ class StatusUnits(StatusBase):
 
     def test_verify_state(self):
         ev = [{"tree_finish": "t1", "ok": False}, {"tree_finish": "t2", "ok": True}]
-        self.assertEqual([status.verify_state(ev, t, u) for t, u in (("t2", True), ("t1", True), ("t3", True), ("t3", False))],
-                         ["pass", "fail", "not_run", "none"])
+        cases = (("t2", False), ("t2", True), ("t1", True), ("t3", True), ("t3", False))
+        # (t2, True): a passing run the gate does not count (e.g. filtered) on an UNVERIFIED tree is not a pass (MAE-246)
+        self.assertEqual([status.verify_state(ev, t, u) for t, u in cases], ["pass", "not_run", "fail", "not_run", "none"])
 
     def test_corrupt_status_file_is_rewritten(self):
         self.sdir.mkdir(parents=True)
