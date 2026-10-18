@@ -273,7 +273,9 @@ def check_bash(command, ctx, moved=False):
             moved = moved or bool(re.search(r"\bgit\b.*\b(?:checkout|switch|config)\b", payload))
         if prog in ("cd", "pushd") and len(toks) > 1:
             cwd = _abs(os.path.expandvars(toks[1]), cwd)
-        elif prog == "git" and moved and _parse_git_globals(toks)[0] == "push":
+        elif moved and ((prog == "git" and _parse_git_globals(toks)[0] == "push") or (
+                prog == "gh" and ghcmd.parse_gh(toks)["pos"][:2] in (["pr", "create"], ["pr", "new"])
+                and not ({"-H", "--head"} & {t.partition("=")[0] for t in toks}))):
             return deny("maeng G1: this push follows a checkout/switch/config change in the same command, so its "
                         "destination cannot be checked beforehand; run the push as its own command.")
         elif prog in ("git", "gh"):
