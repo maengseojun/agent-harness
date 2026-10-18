@@ -249,6 +249,14 @@ def check_git(toks, cwd, ctx):
     return check_push(toks, cwd, ctx) if sub == "push" else Decision()
 
 
+def _state_dependent_push(toks):
+    """A push whose destination depends on the current branch or config: implicit, or a HEAD/@ refspec."""
+    sub, args, _, _ = _parse_git_globals(toks)
+    pos = [a for a in args if not a.startswith("-")]
+    return sub == "push" and (len(pos) < 2 or any("HEAD" in p or p.split(":")[-1].lstrip("+") in ("@", "")
+                                                   for p in pos[1:]))
+
+
 def check_bash(command, ctx, moved=False):
     if SWITCH_SET.search(command):
         return deny("maeng G1: setting MAENG_TEST_FIXTURES / MAENG_GIT / MAENG_GH / MAENG_HOME / MAENG_CACHE_DIR from "
@@ -269,9 +277,7 @@ def check_bash(command, ctx, moved=False):
         prog, toks = program(words)
         payload = " ".join(toks[2:] if toks[1:2] == ["--"] else toks[1:]) if prog == "eval" else \
             next((toks[i + 1] for i, t in enumerate(toks[1:], 1)
-                  if re.fullmatch(r"-[a-zA-Z]*c[a-zA-Z]*", t) and i + 1 < len(toks)
-                  and all(o.startswith(("-", "+")) or toks[j - 1] in ("-o", "+o", "-O", "+O")
-                          for j, o in enumerate(toks[1:i], 1))), None) if prog in SHELLS else None
+                  if re.fullmatch(r"-[a-zA-Z]*c[a-zA-Z]*", t) and i + 1 < len(toks)), None) if prog in SHELLS else None
         if payload:  # `sh -c '...'` / `eval '...'`: check the wrapped command too
             d = check_bash(payload, Ctx(cwd, ctx.state, ctx.world), moved)
             if not d.allow:
@@ -280,7 +286,7 @@ def check_bash(command, ctx, moved=False):
             moved = moved or bool(re.search(r"\bgit\b.*\b(?:checkout|switch|config)\b", payload))
         if prog in ("cd", "pushd") and len(toks) > 1:
             cwd = _abs(os.path.expandvars(toks[1]), cwd)
-        elif moved and ((prog == "git" and _parse_git_globals(toks)[0] == "push") or (
+        elif moved and ((prog == "git" and _state_dependent_push(toks)) or (
                 prog == "gh" and ghcmd.parse_gh(toks)["pos"][:2] in (["pr", "create"], ["pr", "new"])
                 and not ({"-H", "--head"} & {t.partition("=")[0] for t in toks}))):
             return deny("maeng G1: this push follows a checkout/switch/config change in the same command, so its "
