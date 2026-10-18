@@ -147,6 +147,11 @@ class CommittedPlan(StatusBase):
         self.start(self.repo)
         self.assertIn("AC-n criteria", self.missing())
 
+    def test_existing_binding_wins_even_without_criteria(self):
+        self.start(self.repo)
+        self.cli("maeng-verify", ["bind", "MAE-9"], self.repo, check=True)
+        self.assertIn("AC-n criteria", self.missing("--plan", "docs/plan.md"))
+
     def test_plan_without_ids_is_missing(self):
         self.start(self.repo)
         self.assertIn("AC-n criteria", self.missing("--plan", "notes.md"))

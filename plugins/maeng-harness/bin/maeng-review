@@ -274,7 +274,7 @@ def code_bundle(a, cwd, st):
         if rc == 0:
             contents[f] = out
     binding = st.get("binding") or {}
-    if not binding.get("criteria") and a.plan:
+    if not st.get("binding") and a.plan:  # an existing binding wins, even an incomplete one (it stays blocked)
         binding = committed_plan(cwd, head, a.plan)
     tree = treelib.commit_tree(cwd, head)
     top, common = treelib.toplevel(cwd), treelib.common_dir(cwd)
