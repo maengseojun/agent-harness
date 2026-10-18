@@ -261,7 +261,7 @@ def check_bash(command, ctx, moved=False):
                         "simpler command.")
         return Decision()
     cwd, effects = ctx.cwd, []
-    expands = bool(re.search(r"\$[A-Za-z_{]", re.sub(r"'[^']*'", "", command)))
+    expands = bool(re.search(r"\$[A-Za-z0-9_{@*#?!$-]", re.sub(r"'[^']*'", "", command)))
     for seg in segs:
         words = list(seg.tokens)
         while words and words[0] in SHELL_KEYWORDS:  # `if git push ...; then` runs the condition too
