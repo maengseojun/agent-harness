@@ -8,4 +8,5 @@ Plan: guard.session_root(cwd, first) = CLAUDE_PROJECT_DIR, else `first` only whi
 - AC-2: with CLAUDE_PROJECT_DIR on an eta checkout, hooks treat the session as eta and maeng-verify refuses the same way (test_eta_project_dir_env_decides_world).
 - AC-3: a personal project whose state cwd lies outside any checkout still blocks at Stop (test_personal_project_with_state_cwd_outside_checkout_still_blocks).
 - AC-4: already-wrong state needs no migration: the next hook call ignores a recorded cwd outside a checkout (covered by AC-1, which writes such state first).
-- AC-5: full suite passes (314 passed).
+- AC-5: full suite passes.
+- AC-6: SessionStart checks isolation on the session root, not the hook cwd (test_session_start_checks_isolation_of_the_project_not_the_cwd).

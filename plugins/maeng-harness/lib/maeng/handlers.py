@@ -73,10 +73,11 @@ def build_context(cwd):
 def on_session_start(payload):
     cwd, sid = payload.get("cwd", os.getcwd()), payload.get("session_id", "")
     state.clear_quarantine(sid)  # a (re)started session begins with fresh state
-    world = guard.classify(guard.session_root(cwd))
+    root = guard.session_root(cwd)
+    world = guard.classify(root)
     if world == guard.ETA:
         try:
-            top = guard.project_root(cwd)
+            top = guard.project_root(root)
             missing = top is None or guard.isolation_missing(top)
         except Exception:
             missing = True

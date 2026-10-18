@@ -289,6 +289,15 @@ class SessionRootOutsideCheckout(HarnessCase):
         rc = self.cli("maeng-verify", ["skip", "x"], self.tmp)
         self.assertIn("classifies as eta", rc.stderr)  # maeng-verify agrees with the hooks
 
+    def test_session_start_checks_isolation_of_the_project_not_the_cwd(self):
+        from maeng import guard
+        repo = self._eta_repo()
+        (repo / ".claude").mkdir()
+        (repo / ".claude/settings.local.json").write_text(json.dumps({"enabledPlugins": guard.DESIRED_PLUGINS,
+                                                                           "env": guard.DESIRED_ENV}))
+        self.env["CLAUDE_PROJECT_DIR"] = str(repo)
+        self.assertIsNone(self.hook("SessionStart", self.tmp, source="startup")[1])
+
     def test_personal_project_with_state_cwd_outside_checkout_still_blocks(self):
         out = self._session(self.make_repo())
         self.assertEqual(out["decision"], "block")
