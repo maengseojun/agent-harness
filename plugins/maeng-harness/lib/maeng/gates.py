@@ -306,7 +306,8 @@ def check_bash(command, ctx, moved=False):
                 a in ("--get", "--get-all", "--get-regexp", "--list", "-l") for a in gargs))
             expansion = " ".join(v for v in gcfg.get(f"alias.{sub.lower()}", []) if v) or \
                 " ".join(_config(cwd, f"alias.{sub}")) if sub else ""
-            moved = moved or (sub in ("checkout", "switch", "config") and not reads) or \
+            restores = sub == "checkout" and "--" in gargs  # `git checkout -- file` leaves HEAD alone
+            moved = moved or (sub in ("checkout", "switch", "config") and not reads and not restores) or \
                 bool(re.search(r"\b(?:checkout|switch|config)\b", expansion))
             d = check_git(toks, cwd, ctx) if prog == "git" else check_gh(toks, cwd, expands, command)
             if not d.allow:

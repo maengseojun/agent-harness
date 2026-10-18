@@ -1,5 +1,6 @@
 """Regression tests for Astra review R1 (PR #38): one test class per finding."""
 import json
+import os
 import threading
 import uuid
 
@@ -153,6 +154,7 @@ class R1_7_EvidenceIdentity(ShipBase):
         self.assertEqual(ident("uv run pytest  -k  foo"), "pytest -k foo")
         self.assertEqual(evidence.recognize("cd packages && cd api && pytest")["cd"], "packages/api")
         self.assertIsNone(evidence.recognize("mypy @args.txt"))
+        self.assertEqual(evidence.recognize("cd /tmp && cd ~/p && pytest")["cd"], os.path.expanduser("~/p"))
         self.assertIsNone(evidence.recognize("(pytest) &"))
         self.assertIsNone(evidence.recognize("# Don't wait\n(pytest >/tmp/t.log 2>&1) &\n# It's running"))
         self.assertIsNotNone(evidence.recognize("pytest 2>&1"))
