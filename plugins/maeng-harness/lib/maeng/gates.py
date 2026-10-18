@@ -253,7 +253,7 @@ def check_bash(command, ctx):
             return deny("maeng G1: cannot parse this command and it mentions a push or merge; run that step as a "
                         "simpler command.")
         return Decision()
-    cwd, effects = ctx.cwd, []
+    cwd, effects, moved = ctx.cwd, [], False
     expands = bool(re.search(r"\$[A-Za-z_{]", re.sub(r"'[^']*'", "", command)))
     for seg in segs:
         words = list(seg.tokens)
@@ -270,7 +270,12 @@ def check_bash(command, ctx):
             effects += d.effects
         if prog in ("cd", "pushd") and len(toks) > 1:
             cwd = _abs(os.path.expandvars(toks[1]), cwd)
+        elif prog == "git" and moved and _parse_git_globals(toks)[0] == "push":
+            return deny("maeng G1: this push follows a checkout/switch/config change in the same command, so its "
+                        "destination cannot be checked beforehand; run the push as its own command.")
         elif prog in ("git", "gh"):
+            moved = moved or _parse_git_globals(toks)[0] in ("checkout", "switch", "config") \
+                if prog == "git" else moved
             d = check_git(toks, cwd, ctx) if prog == "git" else check_gh(toks, cwd, expands)
             if not d.allow:
                 return d
