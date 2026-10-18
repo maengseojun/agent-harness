@@ -268,6 +268,7 @@ def check_bash(command, ctx, moved=False):
             if not d.allow:
                 return d
             effects += d.effects
+            moved = moved or bool(re.search(r"\bgit\b.*\b(?:checkout|switch|config)\b", payload))
         if prog in ("cd", "pushd") and len(toks) > 1:
             cwd = _abs(os.path.expandvars(toks[1]), cwd)
         elif prog == "git" and moved and _parse_git_globals(toks)[0] == "push":

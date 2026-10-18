@@ -80,8 +80,8 @@ def parse_gh(toks):
         if t in ("-R", "--repo") or name == "--repo":
             info["repo"] = val if eq else (args[i + 1] if i + 1 < len(args) else None)
             i += 0 if eq else 1
-        elif re.match(r"^-X[A-Za-z]+$", t):
-            info["method"] = t[2:].upper()
+        elif re.match(r"^-X=?[A-Za-z]+$", t):
+            info["method"] = t[2:].lstrip("=").upper()
         elif t in ("-X", "--method") or name == "--method":
             v = val if eq else (args[i + 1] if i + 1 < len(args) else "")
             info["method"] = v.upper(); i += 0 if eq else 1
