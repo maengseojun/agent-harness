@@ -58,12 +58,13 @@ Scope: audit the gate only when the diff touches gate, ship, receipt or evidence
 canon.py, ghcmd.py, shellparse.py, remotecfg.py, receipts.py, evidence.py, guard.py, hooks/, bin/maeng-ship,
 bin/maeng-review). Otherwise review only the diff against its ACs: do not ask for gate sources, and gaps in
 unchanged gate code are not findings for this review. When the gate is in scope, verify that each of (1)-(4)
-is fully checked and that maeng-ship's lease merge still needs a review-run receipt and a
+is fully checked and that maeng-ship's lease merge still needs a review-run receipt (or, by user decision 2026-10-18, a single-use
+user-approval receipt that only the UserPromptSubmit hook writes from the user's own `승인 #N` message) and a
 ship-verified head. Verification evidence is a RUNNER INVOCATION ALLOWLIST: a command counts as evidence
 only when it matches a canonical runner form with allowlisted flags (pytest, unittest, npm/pnpm/yarn scripts, forge,
 cargo, go test, make targets, ruff check, mypy, tsc, claude plugin validate, playwright test); any other flag
 (dry-run, list, collect-only, ...) makes it no evidence. When in scope, verify that these lists are closed. Only `maeng-review run`
-receipts (reviewer.provenance=review-run) authorize anything.
+receipts (reviewer.provenance=review-run) and hook-written user approvals (provenance=user-prompt) authorize anything.
 Files listed as delegated (files_delegated / scope.delegated_files) are OUT of this review's scope but are NOT
 covered by it: they still need their own passing review. Files listed as excluded are exempt.
 tool_reference is null unless the bundle was built with --tool-ref; when present it holds the --version and help

@@ -279,6 +279,12 @@ class UserApproval(MergeBase):
         self.assertEqual(self.remote_main(), self.h)
         self.assertNotEqual(self.ship().returncode, 0)            # consumed: single use
 
+    def test_pending_approval_is_listed_for_reconcile(self):
+        self.approve()
+        key = receipts.approval_key(str(self.remote.resolve()), "7", self.h)
+        receipts.begin(key, {"remote": "origin", "ref": "refs/heads/main", "base_sha": self.base, "head_sha": self.h})
+        self.assertIn(key, [r["key"] for r in receipts.pending_code()])
+
     def test_approval_is_bound_to_the_head_it_saw(self):
         self.approve("approve PR #7")
         (self.repo / "late.py").write_text("y = 2\n")

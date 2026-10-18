@@ -350,7 +350,7 @@ def find_approval(repo, pr, head):
 
 
 def pending_code():
-    return [rec for _, rec in _scan("code-") if rec and rec["status"] == PENDING]
+    return [rec for pre in ("code-", "approval-") for _, rec in _scan(pre) if rec and rec["status"] == PENDING]
 
 
 def reconcile_code(key, cwd):
