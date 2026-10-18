@@ -265,6 +265,31 @@ class MaengShipMerge(MergeBase):
         self.assertEqual(self.status(key), "pending")
 
 
+class UserApproval(MergeBase):
+    def approve(self, prompt="승인 #7"):
+        self.env.update(MAENG_GH=str(self.fake_gh), FAKE_GH_JSON=str(self.pr_json))
+        return self.hook("UserPromptSubmit", self.repo, prompt=prompt)[1]
+
+    def test_user_approval_replaces_the_review_receipt_once_for_that_head(self):
+        self.assertIn("승인 #7", self.ship().stderr)
+        self.assertIsNone(self.approve("이거 승인 #7 하지마"))     # only a message that starts with it counts
+        self.assertIn("approved PR #7", json.dumps(self.approve(), ensure_ascii=False))
+        r = self.ship()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.remote_main(), self.h)
+        self.assertNotEqual(self.ship().returncode, 0)            # consumed: single use
+
+    def test_approval_is_bound_to_the_head_it_saw(self):
+        self.approve("approve PR #7")
+        (self.repo / "late.py").write_text("y = 2\n")
+        h2 = self.commit_all(self.repo, "late")
+        self.git(self.repo, "push", "-q", "origin", "feat")
+        self.run_check(self.repo, "pytest -q")
+        self.set_pr(self.base, h2)
+        self.assertNotEqual(self.ship().returncode, 0)
+        self.assertEqual(self.remote_main(), self.base)
+
+
 class ExactLeaseThroughHook(MergeBase):
     def lease_cmd(self, base=None, head=None):
         return f"git push --force-with-lease=refs/heads/main:{base or self.base} origin {head or self.h}:refs/heads/main"

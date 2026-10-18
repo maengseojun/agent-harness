@@ -42,7 +42,7 @@ class PluginLayout(unittest.TestCase):
     def test_timeouts_follow_the_spec_table(self):
         t = {e: [h["timeout"] for g in gs for h in g["hooks"]] for e, gs in self.hooks.items()}
         self.assertEqual(t["SessionStart"], [5])
-        self.assertEqual(t["UserPromptSubmit"], [3])
+        self.assertEqual(t["UserPromptSubmit"], [10])  # `승인 #N` reads the PR head with gh
         self.assertEqual(t["PreToolUse"], [5])
         self.assertEqual(sorted(t["PostToolUse"]), [5, 10])      # 10s only for the formatter (Edit/Write) group
         self.assertEqual(t["Stop"], [10])

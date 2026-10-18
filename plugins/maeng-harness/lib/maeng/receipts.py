@@ -323,6 +323,32 @@ def reject(key, note):
     return _mutate(key, f)
 
 
+# The user's own approval of a PR head, written only by the UserPromptSubmit hook from the user's message (an agent
+# cannot author a user prompt). maeng-ship accepts it in place of review receipts for exactly that head.
+APPROVE = re.compile(r"\s*(?:승인|approve)\s+(?:PR\s*)?#(\d+)\b", re.I)
+
+
+def approval_key(repo, pr, head):
+    return "approval-" + sha256(f"{repo}|{pr}|{head}")[:24]
+
+
+def store_approval(repo, pr, head, prompt):
+    key = approval_key(repo, str(pr), head)
+    p = _path(key)
+    with locked(p):
+        rec = read_json(p) or {"key": key, "status": UNCONSUMED, "history": []}
+        rec["verdict"] = {"verdict": "pass", "reviewer": {"provenance": "user-prompt", "prompt": prompt[:200]},
+                          "subject": {"kind": "user-approval", "repo": repo, "pr": str(pr), "head": head}}
+        rec["history"].append({"at": now_iso(), "event": "approved"})
+        write_json(p, rec)
+    return key
+
+
+def find_approval(repo, pr, head):
+    rec = load(approval_key(repo, str(pr), head))
+    return rec if rec and rec["status"] == UNCONSUMED else None
+
+
 def pending_code():
     return [rec for _, rec in _scan("code-") if rec and rec["status"] == PENDING]
 

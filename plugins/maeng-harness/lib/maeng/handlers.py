@@ -106,6 +106,7 @@ def on_prompt(payload):
     st = state.load(sid, cwd)
     if world_of(payload, st) != guard.PERSONAL:
         return None
+    out = record_approval(payload.get("prompt") or "", cwd)
     tree, _ = treelib.tree_id(cwd)
     def mark(s):
         s["turn"] += 1
@@ -114,7 +115,30 @@ def on_prompt(payload):
             s["baseline_tree"] = s["baseline_tree"] or tree
             s["last_tree"] = tree
     state.update(sid, mark, cwd)
-    return None
+    return out
+
+
+def record_approval(prompt, cwd):
+    """`승인 #N` / `approve #N` from the user: approve PR N at its current head for maeng-ship."""
+    m = receipts.APPROVE.match(prompt)
+    if not m:
+        return None
+    pr = m.group(1)
+    try:
+        proc = subprocess.run([os.environ.get("MAENG_GH", "gh"), "pr", "view", pr, "--json", "headRefOid,url"],
+                              cwd=cwd, capture_output=True, text=True, timeout=8)
+        info = json.loads(proc.stdout) if proc.returncode == 0 else {}
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        info = {}
+    head = info.get("headRefOid")
+    repo = guard.normalize_repo(re.sub(r"/pull/\d+/?$", "", str(info.get("url") or "")))
+    if not head or not repo:
+        return context_out("UserPromptSubmit", f"maeng: could not read PR #{pr} with gh, so the approval was NOT "
+                                               f"recorded; tell the user.")
+    receipts.store_approval(repo, pr, head, prompt)
+    return context_out("UserPromptSubmit", f"maeng: the user approved PR #{pr} at head {head[:10]}. "
+                                           f"`maeng-ship merge {pr}` accepts this approval in place of a review "
+                                           f"receipt, for this head only.")
 
 
 # ---- PreToolUse ----------------------------------------------------------
