@@ -194,7 +194,7 @@ GH_GRAPHQL_MERGE = re.compile(r"mergePullRequest|updatePullRequestBranch|mergeBr
                               r"enablePullRequestAutoMerge|enqueuePullRequest|createCommitOnBranch", re.I)
 
 
-def check_gh(toks, cwd, expands=False):
+def check_gh(toks, cwd, expands=False, command=""):
     """expands: the raw command has a `$` outside single quotes, so a `$` in a value may be a shell expansion."""
     info = ghcmd.parse_gh(toks)
     pos = info["pos"]
@@ -221,7 +221,7 @@ def check_gh(toks, cwd, expands=False):
                 is_default_branch(b, cwd, "origin", policy) for b in branches)):
             return deny("maeng G1: a contents-API write without a literal feature `branch=` field (or with --input) can commit to the default branch.")
         query = [f for f in info["fields"] if f.startswith("query=")]
-        if pos[1:2] == ["graphql"] and (info["input"] or not query or any(f.startswith("$") for f in info["fields"]) or any(f[6:].startswith(("@", "$")) or "$(" in f or "`" in f or (expands and "$" in f)
+        if pos[1:2] == ["graphql"] and (info["input"] or not query or any(f.startswith("$") for f in info["fields"]) or any(f[6:].startswith(("@", "$")) or "$(" in f or "`" in f or (expands and "$" in f and f"'{f}'" not in command and f"'{f[6:]}'" not in command)
             or (f in info["typed"] and re.search(r"\{(?:owner|repo|branch)\}", f))
                                                              for f in query)):
             return deny("maeng G1: a `gh api graphql` query from a file, --input or a variable cannot be checked for "
@@ -286,10 +286,12 @@ def check_bash(command, ctx, moved=False):
             return deny("maeng G1: this push follows a checkout/switch/config change in the same command, so its "
                         "destination cannot be checked beforehand; run the push as its own command.")
         elif prog in ("git", "gh"):
-            sub, _, _, gcfg = _parse_git_globals(toks) if prog == "git" else (None, [], [], {})
-            moved = moved or sub in ("checkout", "switch", "config") or bool(sub and (
+            sub, gargs, _, gcfg = _parse_git_globals(toks) if prog == "git" else (None, [], [], {})
+            reads = sub == "config" and (gargs[:1] in (["get"], ["list"]) or any(
+                a in ("--get", "--get-all", "--get-regexp", "--list", "-l") for a in gargs))
+            moved = moved or (sub in ("checkout", "switch", "config") and not reads) or bool(sub and (
                 f"alias.{sub.lower()}" in gcfg or _config(cwd, f"alias.{sub}")))
-            d = check_git(toks, cwd, ctx) if prog == "git" else check_gh(toks, cwd, expands)
+            d = check_git(toks, cwd, ctx) if prog == "git" else check_gh(toks, cwd, expands, command)
             if not d.allow:
                 return d
             effects += d.effects
