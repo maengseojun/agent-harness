@@ -223,7 +223,8 @@ def check_gh(toks, cwd, expands=False, command=""):
                 is_default_branch(b, cwd, "origin", policy) for b in branches)):
             return deny("maeng G1: a contents-API write without a literal feature `branch=` field (or with --input) can commit to the default branch.")
         query = [f for f in info["fields"] if f.startswith("query=")]
-        if pos[1:2] == ["graphql"] and (info["input"] or not query or any(f.startswith("$") for f in info["fields"]) or any(f[6:].startswith(("@", "$")) or "$(" in f or "`" in f or (expands and "$" in f and f"'{f}'" not in command and f"'{f[6:]}'" not in command)
+        if pos[1:2] == ["graphql"] and (info["input"] or not query or any(f.startswith("$") for f in info["fields"]) or any(f[6:].startswith(("@", "$")) or "$(" in f or "`" in f or (expands and "$" in f and f"'{f}'" not in command and f"'{f[6:]}'" not in command
+                and f.replace("$", "\\$") not in command)
             or (f in info["typed"] and re.search(r"\{(?:owner|repo|branch)\}", f))
                                                              for f in query)):
             return deny("maeng G1: a `gh api graphql` query from a file, --input or a variable cannot be checked for "
