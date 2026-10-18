@@ -186,6 +186,21 @@ def _classify(path):
     return _classify_repo(p, paths)
 
 
+def session_root(cwd, first=None):
+    """The session's project root: CLAUDE_PROJECT_DIR, else the first recorded cwd while it is a checkout, else cwd.
+    A first cwd outside any checkout (a desktop side session's notes folder) never decides the world."""
+    env = os.environ.get("CLAUDE_PROJECT_DIR")
+    if env:
+        return env
+    try:
+        p = _nearest_dir(first) if first else None
+        if p is not None and (_under(p, eta_root()) or _repo_paths(p) is not None):
+            return str(p)
+    except Exception:  # undecidable first cwd: fall back to the hook's cwd
+        pass
+    return cwd
+
+
 def classify(path):
     """Never raises: any failure to decide is `unknown`."""
     try:

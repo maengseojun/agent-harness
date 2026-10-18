@@ -35,9 +35,8 @@ def context_out(event, text):
 
 
 def world_of(payload, st=None):
-    """Session world: the cwd the session started in when known, else the hook's cwd."""
-    cwd = (st or {}).get("cwd") or payload.get("cwd") or os.getcwd()
-    return guard.classify(cwd)
+    """Session world: the world of the session's project root (guard.session_root), not of the hook's cwd."""
+    return guard.classify(guard.session_root(payload.get("cwd") or os.getcwd(), (st or {}).get("cwd")))
 
 
 # ---- SessionStart --------------------------------------------------------
@@ -74,7 +73,7 @@ def build_context(cwd):
 def on_session_start(payload):
     cwd, sid = payload.get("cwd", os.getcwd()), payload.get("session_id", "")
     state.clear_quarantine(sid)  # a (re)started session begins with fresh state
-    world = guard.classify(cwd)
+    world = guard.classify(guard.session_root(cwd))
     if world == guard.ETA:
         try:
             top = guard.project_root(cwd)
