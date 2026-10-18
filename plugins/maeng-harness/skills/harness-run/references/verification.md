@@ -30,7 +30,8 @@ Write the tier into the Plan (`Verification tier:` line, see spec-plan.md) and n
 
 - Review rounds: fix findings with the affected tests, then run the ship check once before asking for the next review (the receipt binds the exact head anyway). Do not re-run the full suite for each finding.
 - A lightened check is a Plan change: update the Spec and the Plan together, and say what was not re-run.
-- Evidence matches the Plan's check text literally: a Plan naming `python3 -m pytest -q -n auto plugins/maeng-harness/tests` (parallel, needs `requirements-dev.txt`) is not satisfied by a serial run, and the other way round. Name the form you will run. Without a bound Plan, only an unfiltered runner command counts (a test path operand makes it filtered).
+- Evidence matches the Plan's check text literally: a Plan naming `python3 -m pytest -q -n 8` (parallel, needs `requirements-dev.txt`) is not satisfied by a serial run, and the other way round. Name the form you will run. Without a bound Plan, only an unfiltered runner command counts: a test path operand, `-n auto` or a run from a subdirectory makes it partial.
+- This repo's ship check is `python3 -m pytest -q` from the repo root; the root `pytest.ini` limits it to `plugins/maeng-harness/tests`.
 
 ## States
 
