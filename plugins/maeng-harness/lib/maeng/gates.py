@@ -236,10 +236,12 @@ def check_git(toks, cwd, ctx):
     for kind, d in dirs:  # git applies -C cumulatively
         if kind == "C":
             cwd = _abs(d, cwd)
-    for kind, d in dirs if len({k for k, _ in dirs} - {"C"}) == 1 else []:  # a checkout's own .git dir or work tree
-        if kind == "work-tree" or (kind == "git-dir" and os.path.basename(os.path.normpath(d)) == ".git"):
-            cwd, dirs = _abs(d, cwd) if kind == "work-tree" else os.path.dirname(_abs(d, cwd)), \
-                [x for x in dirs if x != (kind, d)]
+    if not any(k == "git-dir" for k, _ in dirs):
+        dirs = [x for x in dirs if x[0] != "work-tree"]  # git still finds the repository (and branch) from cwd
+    elif [x[0] for x in dirs if x[0] != "C"] == ["git-dir"]:
+        d = next(d for k, d in dirs if k == "git-dir")
+        if os.path.basename(os.path.normpath(d)) == ".git":  # a checkout's own .git dir is that checkout
+            cwd, dirs = os.path.dirname(_abs(d, cwd)), [x for x in dirs if x[0] == "C"]
     alias = [v for k, vals in cfg.items() if sub and k == f"alias.{sub.lower()}" for v in vals if v] or (_config(cwd, f"alias.{sub}") if sub else [])
     if any(re.search(r"\bpush\b|\bmerge\b|\bupdate-branch\b|\brepo\s+sync\b", a) for a in alias):
         return deny(f"maeng G1: `git {sub}` is an alias that pushes or merges; run the underlying command.")
@@ -275,7 +277,7 @@ def check_bash(command, ctx, moved=False):
                         "simpler command.")
         return Decision()
     cwd, effects = ctx.cwd, []
-    expands = bool(re.search(r"\$[A-Za-z0-9_{@*#?!$-]", re.sub(r"'[^']*'", "", command)))
+    expands = bool(re.search(r"\$[A-Za-z0-9_{@*#?!$-]", re.sub(r"'[^']*'|\\\$", "", command)))
     for seg in segs:
         words = list(seg.tokens)
         while words and words[0] in SHELL_KEYWORDS:  # `if git push ...; then` runs the condition too

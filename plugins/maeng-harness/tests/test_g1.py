@@ -148,6 +148,8 @@ class SlimGate(ShipBase):
         self.assertDenied("gh pr new --base feat --fill", "default branch")
         self.assertAllowed("gh pr create --help")
         self.assertAllowed("gh api graphql --help")
+        self.assertAllowed('gh api graphql -f "query=query(\\$id: ID!) { node(id: \\$id) { id } }" -f id=x')
+        self.assertDenied("git --work-tree=/elsewhere push origin main", "default branch")
         self.assertDenied("git --git-dir=/a/.git --work-tree=. push origin HEAD", "--git-dir")
         self.assertDenied("if git push origin main; then echo pushed; fi", "default branch")
         self.assertDenied("git push origin # publish current branch", "default branch")
