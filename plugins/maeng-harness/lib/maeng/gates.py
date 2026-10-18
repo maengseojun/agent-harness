@@ -90,7 +90,7 @@ def _config(cwd, key, cfg=None, multi=False, boolean=False):
     overrides = [a for k, vals in (cfg or {}).items() for v in vals for a in ("-c", f"{k}={v}")]
     rc, out, _ = git(cwd, *overrides, "config", *(["--type=bool"] if boolean else []),
                      "--get-all" if multi else "--get", key)
-    return out.split() if rc == 0 else []
+    return (out.splitlines() if multi else [out.strip()]) if rc == 0 and out.strip() else []  # values may hold spaces (aliases)
 
 
 def push_targets(args, cwd, cfg=None):
@@ -224,6 +224,10 @@ def check_git(toks, cwd, ctx):
     alias = [v for k, vals in cfg.items() if k == f"alias.{sub}" for v in vals] or (_config(cwd, f"alias.{sub}") if sub else [])
     if any(re.search(r"\bpush\b|\bmerge\b|\bupdate-branch\b|\brepo\s+sync\b", a) for a in alias):
         return deny(f"maeng G1: `git {sub}` is an alias that pushes or merges; run the underlying command.")
+    for a in alias:  # a `!` alias runs a shell command: check it like Bash (a self-recursive alias fails closed)
+        d = check_bash(a[1:], Ctx(cwd, ctx.state, ctx.world)) if a.startswith("!") else Decision()
+        if not d.allow:
+            return d
     return check_push(toks, cwd, ctx) if sub == "push" else Decision()
 
 
