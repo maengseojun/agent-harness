@@ -2,6 +2,7 @@
 that skips `maeng-ship merge` (review receipt). Everything else (gh, Notion, Linear, eta paths, env) is allowed."""
 import os
 import re
+import shlex
 from pathlib import Path
 
 from . import canon, ghcmd, guard, readonly, receipts, remotecfg
@@ -195,6 +196,11 @@ def check_gh(toks, cwd, expands=False):
     pos = info["pos"]
     if pos[:2] in (["pr", "merge"], ["pr", "update-branch"], ["repo", "sync"]):
         return deny(f"maeng G1: `gh {' '.join(pos[:2])}` is denied; {MERGE_HINT}")
+    if pos[:2] == ["pr", "create"] and not ({"-H", "--head"} & {t.partition("=")[0] for t in toks}) and \
+            is_default_branch(git_out(cwd, "symbolic-ref", "--short", "-q", "HEAD") or "", cwd, "origin",
+                              treelib.load_policy(treelib.toplevel(cwd) or cwd)):
+        return deny("maeng G1: `gh pr create` on the default branch can push it; create the PR from a feature branch "
+                    "or pass --head.")
     if pos[:1] and pos[0] in ghcmd.gh_aliases():
         return deny(f"maeng G1: `gh {pos[0]}` is a gh alias, which can hide a merge; run the underlying command.")
     if pos[:1] == ["api"]:
@@ -212,6 +218,7 @@ def check_gh(toks, cwd, expands=False):
             return deny("maeng G1: a contents-API write without a literal feature `branch=` field (or with --input) can commit to the default branch.")
         query = [f for f in info["fields"] if f.startswith("query=")]
         if pos[1:2] == ["graphql"] and (info["input"] or any(f[6:].startswith(("@", "$")) or "$(" in f or "`" in f or (expands and "$" in f)
+            or (f in info["typed"] and re.search(r"\{(?:owner|repo|branch)\}", f))
                                                              for f in query)):
             return deny("maeng G1: a `gh api graphql` query from a file, --input or a variable cannot be checked for "
                         "a merge mutation; pass the query as a literal -f query='...'.")
@@ -219,7 +226,7 @@ def check_gh(toks, cwd, expands=False):
 
 
 def check_git(toks, cwd, ctx):
-    sub, _, dirs, cfg = _parse_git_globals(toks)
+    sub, args, dirs, cfg = _parse_git_globals(toks)
     for kind, d in dirs:  # git applies -C cumulatively
         if kind == "C":
             cwd = _abs(d, cwd)
@@ -227,7 +234,8 @@ def check_git(toks, cwd, ctx):
     if any(re.search(r"\bpush\b|\bmerge\b|\bupdate-branch\b|\brepo\s+sync\b", a) for a in alias):
         return deny(f"maeng G1: `git {sub}` is an alias that pushes or merges; run the underlying command.")
     for a in alias:  # a `!` alias runs a shell command: check it like Bash (a self-recursive alias fails closed)
-        d = check_bash(a[1:], Ctx(cwd, ctx.state, ctx.world)) if a.startswith("!") else Decision()
+        d = check_bash(" ".join([a[1:], *map(shlex.quote, args)]), Ctx(cwd, ctx.state, ctx.world)) \
+            if a.startswith("!") else Decision()  # git appends the invocation's arguments
         if not d.allow:
             return d
     return check_push(toks, cwd, ctx) if sub == "push" else Decision()

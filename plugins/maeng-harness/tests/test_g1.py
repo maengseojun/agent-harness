@@ -132,6 +132,11 @@ class SlimGate(ShipBase):
         self.assertDenied("git rs", "alias")
         self.git(self.repo, "config", "alias.ref", "!gh api -X PATCH repos/o/r/git/refs/heads/main -f sha=1")
         self.assertDenied("git ref", "maeng-ship merge")
+        self.git(self.repo, "config", "alias.pr", "!gh pr")
+        self.assertDenied("git pr merge 1", "maeng-ship merge")  # git appends the arguments to a ! alias
+        self.assertAllowed("git pr view 1")
+        self.assertDenied("gh api graphql -F 'query={branch}'", "cannot be checked")
+        self.assertAllowed("gh pr create --fill")  # on feat
         (self.repo / ".maeng").mkdir(exist_ok=True)
         (self.repo / ".maeng/verify.json").write_text('{"protected_branches": ["release"]}')
         self.assertTrue(self.pre(self.repo, "mcp__github__push_files", {"branch": "release"})[0])
@@ -139,6 +144,8 @@ class SlimGate(ShipBase):
         (self.repo / ".maeng/verify.json").unlink()
         self.git(self.repo, "checkout", "-q", "main")
         self.assertDenied("git push --recurse-submodules on-demand origin", "default branch")
+        self.assertDenied("gh pr create --base feat --fill", "default branch")
+        self.assertAllowed("gh pr create --base feat --head feat --fill")
 
     def test_mcp_merge_is_denied_and_other_mcp_writes_allowed(self):
         for tool, tin in (("mcp__github__merge_pull_request", {"owner": "o", "repo": "r", "pull_number": 1}),
