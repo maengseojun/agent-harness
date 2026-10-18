@@ -17,8 +17,8 @@ def parse_git_globals(toks):
         if t == "-C" and i + 1 < len(toks):
             dirs.append(("C", toks[i + 1])); i += 2
         elif t == "-c" and i + 1 < len(toks):
-            k, _, v = toks[i + 1].partition("=")
-            cfg.setdefault(k.lower(), []).append(v); i += 2
+            k, sep, v = toks[i + 1].partition("=")
+            cfg.setdefault(k.lower(), []).append(v if sep else None); i += 2  # None: value-less `-c k` (git: true)
         elif t.startswith("--git-dir=") or t.startswith("--work-tree="):
             kind, _, v = t[2:].partition("=")
             dirs.append((kind, v)); i += 1

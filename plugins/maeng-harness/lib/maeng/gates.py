@@ -87,7 +87,7 @@ PUSH_VALUE_OPTS = {"--repo", "-o", "--push-option", "--receive-pack", "--exec", 
 def _config(cwd, key, cfg=None, multi=False, boolean=False):
     """-> git's effective value(s) of a config key, with the command's `-c` overrides applied by git itself
     (last value wins for single-valued keys; -c values are appended to multi-valued ones)."""
-    overrides = [a for k, vals in (cfg or {}).items() for v in vals for a in ("-c", f"{k}={v}")]
+    overrides = [a for k, vals in (cfg or {}).items() for v in vals for a in ("-c", k if v is None else f"{k}={v}")]
     rc, out, _ = git(cwd, *overrides, "config", *(["--type=bool"] if boolean else []),
                      "--get-all" if multi else "--get", key)
     return (out.splitlines() if multi else [out.strip()]) if rc == 0 and out.strip() else []  # values may hold spaces (aliases)
@@ -205,9 +205,9 @@ def check_gh(toks, cwd):
             return deny("maeng G1: a contents-API `branch=` from a file or a {placeholder} cannot be checked; name the "
                         "feature branch literally.")
         policy = treelib.load_policy(treelib.toplevel(cwd) or cwd)
-        if writes and "/contents/" in text and (not branches or any(
+        if writes and "/contents/" in text and (info["input"] or not branches or any(
                 is_default_branch(b, cwd, "origin", policy) for b in branches)):
-            return deny("maeng G1: a contents-API write without a feature `branch=` commits to the default branch.")
+            return deny("maeng G1: a contents-API write without a literal feature `branch=` field (or with --input) can commit to the default branch.")
         query = [f for f in info["fields"] if f.startswith("query=")]
         if pos[1:2] == ["graphql"] and (info["input"] or any(f[6:].startswith(("@", "$")) or "$(" in f or "`" in f
                                                              for f in query)):
@@ -221,7 +221,7 @@ def check_git(toks, cwd, ctx):
     for kind, d in dirs:  # git applies -C cumulatively
         if kind == "C":
             cwd = _abs(d, cwd)
-    alias = [v for k, vals in cfg.items() if k == f"alias.{sub}" for v in vals] or (_config(cwd, f"alias.{sub}") if sub else [])
+    alias = [v for k, vals in cfg.items() if k == f"alias.{sub}" for v in vals if v] or (_config(cwd, f"alias.{sub}") if sub else [])
     if any(re.search(r"\bpush\b|\bmerge\b|\bupdate-branch\b|\brepo\s+sync\b", a) for a in alias):
         return deny(f"maeng G1: `git {sub}` is an alias that pushes or merges; run the underlying command.")
     for a in alias:  # a `!` alias runs a shell command: check it like Bash (a self-recursive alias fails closed)
