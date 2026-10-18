@@ -35,6 +35,9 @@ Store payloads under the session repo's `publish/` directory (`publish/<id>.json
 
 Verdict `{verdict, subject, reviewer, findings[]}` is stored per subject. Route it to a Linear comment on the bound issue and to `wiki/reviews/REV-<MAE>-<YYYYMMDD-HHMM>-<digest7>.md`. On `fail`: fix each finding, re-verify, request a new review (new head means a new subject).
 
+- **Round cap.** `maeng-review run --pr N` refuses once the repo and PR already have 4 stored review runs (`--max-rounds`, raised only on the user's word). Before another round, sort the findings into: caused by this diff, pre-existing, real approval bypass; only the first group blocks. At the cap, send the CEO brief and ask for `승인 #N`.
+- **Commit status.** On a GitHub repo every code review posts commit status `maeng/review` (success on pass, failure otherwise) on the reviewed head; a posting failure is a warning only. Nothing requires it yet; once rulesets are enabled (eta by its owners, personal repos after a plan upgrade), make `maeng/review` a required check. maeng-ship then has to merge through `gh pr merge` instead of a direct push, because rulesets that require a PR reject that push.
+
 ## Receipts
 
 Single use. Only `maeng-review run` writes usable receipts (`reviewer.provenance: review-run`); `maeng-review store` and fixture receipts exist for the test suite only (`MAENG_TEST_FIXTURES=1`) and the gates reject them otherwise. A `pass` receipt is consumed only when the gated action succeeded (merge push accepted). A rejected action leaves it unconsumed. A changed head, base, criteria or digest needs a new review. If the client failed but the remote may have changed, the receipt stays `pending` until `maeng-review reconcile`.

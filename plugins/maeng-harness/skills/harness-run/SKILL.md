@@ -32,8 +32,28 @@ Scale it down for small work: a small task can skip the interview and tree but k
 8. **Verify** per [verification.md](references/verification.md): run the checks the Plan names after the last edit, declare any non-test check with `maeng-verify ran`, and record the plan result with `maeng-verify plan --met ... --unmet ...`. A tree is *ship-verified* only with every required check ok at an unchanged tree and every `AC-n` met. A skip never ships; it only satisfies Stop.
 9. **Self-record** (verification.md): after the last substantive change, write the progress, decision or result to the bound Linear issue or an Obsidian note whose `linear` key includes it. Do it yourself; never ask the user.
 10. **Review tier** (`maeng-review`; details in [review-and-ship.md](references/review-and-ship.md)): Codex always comes first. Tiers: child-task PR, Sol xhigh; parent integration, Astra high; design/rules docs, Astra medium; small work without a tree, Sol high; Notion outcome payload, Sol medium; research draft (`--kind research`), Sol xhigh. Only after 3 failed codex attempts (e.g. usage exhausted) does it fall back to Claude: parent integration, Fable medium; everything else, Opus (docs, research and small work high; child-task PRs and Notion medium). Architect review of a task is falsify-first: start from "goal not achieved" and look for the proof.
-11. **Merge** only with `maeng-ship merge <PR>` and a matching `pass` receipt. If the base moved: update, re-verify, re-review.
+11. **Merge** only with `maeng-ship merge <PR>` and a matching `pass` receipt. If the base moved: update, re-verify, re-review. `maeng-review` refuses a fifth review run on the same PR; then, or whenever the user's approval is needed, send the CEO brief (below) and wait for `승인 #N`.
 12. **Outcome records.** Obsidian ADR/session note, then the Notion record through `work-records` (Sol medium), then give the user the link only. Then close the Linear issue yourself (Done) once every `AC-n` is met, the review passed and the records are linked; the user never manages Linear.
+
+## Autonomy and the CEO
+
+The user is the CEO: they set purpose and direction, the agents work on their own, and the user judges once, before final approval. Decide by reversibility:
+
+| Act without asking | Stop for the CEO |
+|---|---|
+| Reading, research, code on a feature branch, tests, PRs, Linear and Obsidian records, Slack reports to `#maestro-claude` | Merge to the default branch, deploys, deleting data, real money, messages to other people or teams, anything the Spec marks as a stop |
+
+Do not ask mid-task what a sensible default or the Spec already answers; note the assumption and keep going.
+
+**CEO brief.** Before every approval request, post one brief to Slack `#maestro-claude` and the bound Linear issue:
+1. **Intent**: the purpose in one line, and the `AC-n` it serves.
+2. **Candidates**: the options considered and why the chosen one won.
+3. **Result**: what changed (PR, files), what it does now.
+4. **Evidence**: checks run with results, review verdict, backend and rounds, open findings with severity.
+5. **Risk and rollback**: what could break, and how to undo it.
+6. **The decision**: one question, e.g. `승인 #N`, or a choice between named options.
+
+**dots and Slack.** dots (Slack bot `seojunmaeng-maestro`) injects work by running the local `claude` CLI through its Mac Work task, passing `MAENG_TASK_ID` or a `task_id: X` line. Slack `@Claude` mentions do not reach local sessions: read and post Slack yourself (`slack-maeng`). The hooks keep `~/Documents/maeng-harness/status/<task_id>.json` and `manifest.json` current for dots; end a run's last reply with one marker line (`result:`, `needs input:` or `failed:`), because the Stop hook reads it into the status file.
 
 ## Choosing helpers
 

@@ -7,9 +7,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import evidence, gates, guard, receipts, state, stub
+from . import evidence, gates, guard, receipts, state, status, stub
 from . import tree as treelib
-from .common import home_dir, now_iso, read_json, sha256, vault_dir
+from .common import git_out, home_dir, now_iso, read_json, sha256, vault_dir
 from .shellparse import ParseError, program, split_segments
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
@@ -108,14 +108,37 @@ def on_prompt(payload):
         return None
     out = record_approval(payload.get("prompt") or "", cwd)
     tree, _ = treelib.tree_id(cwd)
+    new_task = not st.get("task_id")
     def mark(s):
         s["turn"] += 1
         s["cwd"] = s.get("cwd") or cwd
+        s["task_id"] = s.get("task_id") or status.task_id_for(sid, payload.get("prompt"))
         if tree:
             s["baseline_tree"] = s["baseline_tree"] or tree
             s["last_tree"] = tree
-    state.update(sid, mark, cwd)
+        return s
+    st = state.update(sid, mark, cwd)
+    note = task_running(st, new_task)
+    if note:
+        prev = (out or {}).get("hookSpecificOutput", {}).get("additionalContext")
+        out = context_out("UserPromptSubmit", "\n".join(filter(None, [prev, note])))
     return out
+
+
+def task_running(st, new_task):
+    """Mark the task running (the intake ack dots reads); on a session's first prompt, name a live other owner."""
+    tid = st["task_id"]
+    try:
+        other = status.owner_conflict(tid, st["session_id"]) if new_task else None
+        status.write(tid, st["session_id"], state="running", cwd=st.get("cwd"),
+                     task_name=(st.get("binding") or {}).get("issue"), blocker=None, next_action=None)
+    except (OSError, ValueError) as exc:
+        warn(f"status file failed: {exc}")
+        return None
+    if other:
+        return (f"maeng: task {tid} is already running in session {other}. Continue here only if the user meant to "
+                f"hand it over; otherwise stop and say so.")
+    return None
 
 
 def record_approval(prompt, cwd):
@@ -484,15 +507,43 @@ def on_stop(payload):
         if not missing and tree:
             s["baseline_tree"] = tree
         try:
-            stub.write(s, "UNVERIFIED/UNRECORDED" if missing else "ok", missing)
+            note = stub.write(s, "UNVERIFIED/UNRECORDED" if missing else "ok", missing)
         except OSError as exc:
+            note = None
             warn(f"session stub failed: {exc}")
+        task_stopped(s, payload, missing, tree, work_cwd, note)
     state.update(sid, mark, cwd)
     if not missing:
         return None
     if payload.get("stop_hook_active"):
         return {"systemMessage": "UNVERIFIED / UNRECORDED: " + " | ".join(missing)}
     return {"decision": "block", "reason": "Before stopping, resolve:\n- " + "\n- ".join(missing)}
+
+
+def task_stopped(st, payload, missing, tree, cwd, note):
+    """Status at a stop: a blocked stop keeps running, a yielded one is blocked, else the reply's marker line."""
+    if not st.get("task_id"):
+        return
+    if missing and not payload.get("stop_hook_active"):
+        state_, summary = "running", None
+    elif missing:
+        state_, summary = "blocked", None
+    else:
+        state_, summary = status.outcome(payload.get("last_assistant_message"))
+    vstate = status.verify_state(st.get("evidence", []), tree, any(m.startswith("UNVERIFIED") for m in missing))
+    head = git_out(cwd, "rev-parse", "HEAD")
+    clean = tree and git_out(cwd, "rev-parse", "HEAD^{tree}") == tree
+    try:
+        status.write(st["task_id"], st["session_id"], state=state_, cwd=cwd,
+                     task_name=(st.get("binding") or {}).get("issue"),
+                     result_summary=summary if state_ in ("done", "failed") else None,
+                     next_action=summary if state_ == "needs_input" else None,
+                     blocker=" | ".join(missing) if state_ == "blocked" else None,
+                     head_sha=head, tree_sha=tree, verify_state=vstate,
+                     verified_head_sha=head if vstate == "pass" and clean else None,
+                     artifact_paths=[str(note)] if note else [])
+    except (OSError, ValueError) as exc:
+        warn(f"status file failed: {exc}")
 
 
 def last_assistant_text(payload):
@@ -530,9 +581,17 @@ def on_subagent_stop(payload):
 def on_session_end(payload):
     sid, cwd = payload.get("session_id", ""), payload.get("cwd", os.getcwd())
     st = state.load(sid, cwd)
-    if world_of(payload, st) != guard.PERSONAL or not st.get("stub"):
+    if world_of(payload, st) != guard.PERSONAL:
         return None
-    state.update(sid, lambda s: stub.write(s, "ended", ended=True), cwd)
+    if st.get("stub"):
+        state.update(sid, lambda s: stub.write(s, "ended", ended=True), cwd)
+    tid = st.get("task_id")
+    try:
+        cur = status.read(tid) if tid else {}
+        if cur.get("session_id") == sid and cur.get("state") in ("running", "idle"):
+            status.write(tid, sid, state="ended")
+    except (OSError, ValueError) as exc:
+        warn(f"status file failed: {exc}")
     return None
 
 

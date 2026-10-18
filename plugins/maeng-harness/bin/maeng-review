@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
 
-from maeng import evidence, gates, ghcmd, guard, receipts, schema, state  # noqa: E402
+from maeng import evidence, gates, ghcmd, guard, receipts, schema, state, status  # noqa: E402
 from maeng import tree as treelib  # noqa: E402
 from maeng.cli_common import checked_load, die, require_personal  # noqa: E402
 from maeng.common import canonical, git, git_out, home_dir, sha256, write_json  # noqa: E402
@@ -393,6 +393,11 @@ def run_review(a, cwd):
                 subject[k] = st["binding"][k]
         if not a.base_ref:
             bundle.setdefault("missing", []).append("base ref name (--base-ref)")
+        rounds = prior_rounds(subject["repo"], a.pr) if subject["repo"] and a.pr else 0
+        if rounds >= a.max_rounds:
+            die(f"review round cap: PR #{a.pr} already had {rounds} review runs (max {a.max_rounds}). Stop reviewing: "
+                f"post the CEO brief with the open findings (harness-run, Approval) and ask the user for `승인 #{a.pr}`. "
+                f"Raise --max-rounds only on the user's word.", 2)
     model, effort = tier_for(a.kind, st.get("binding"))
     prompt_text = PROMPT + json.dumps(bundle, indent=1)
     if len(prompt_text) > a.max_bytes:  # the exact text sent to codex, not an estimate
@@ -440,8 +445,39 @@ def run_review(a, cwd):
         receipts.revoke_passes(subject, verdict["verdict"])  # a failed re-review revokes earlier unconsumed passes
     reviews = home_dir() / "reviews"
     write_json(reviews / f"{sha256(canonical(verdict))[:16]}.json", verdict)
+    report_review(a, cwd, st, subject, verdict, verdict_key)
     print(json.dumps({"verdict": verdict["verdict"], "receipt": verdict_key, "findings": verdict["findings"]}, indent=2))
     return 0 if verdict["verdict"] == "pass" else 1
+
+
+def prior_rounds(repo, pr):
+    """Review runs already stored for this repository and PR (every run writes reviews/<hash>.json)."""
+    n = 0
+    for f in (home_dir() / "reviews").glob("*.json"):
+        try:
+            s = json.loads(f.read_text()).get("subject") or {}
+        except (OSError, ValueError, AttributeError):
+            continue
+        n += s.get("repo") == repo and str(s.get("pr")) == str(pr)
+    return n
+
+
+def report_review(a, cwd, st, subject, verdict, verdict_key):
+    """Outside signals: `maeng/review` commit status on the head, and the review fields of the task status file."""
+    if subject.get("repo") and a.head:
+        err = status.post_review_status(subject["repo"], git_out(cwd, "rev-parse", a.head + "^{commit}"),
+                                        verdict["verdict"], cwd)
+        if err:
+            print(f"warning: maeng/review commit status not posted: {err}", file=sys.stderr)
+    if st.get("task_id"):
+        r = verdict["reviewer"]
+        via = "claude" if backend() == "claude" or r.get("fallback_from") else "codex"
+        try:
+            status.write(st["task_id"], st["session_id"], pr=a.pr, review_verdict=verdict["verdict"],
+                         review_backend=f"{via}:{r['model']}",
+                         receipt_path=str(receipts._path(verdict_key)) if verdict_key else None)
+        except (OSError, ValueError) as exc:
+            print(f"warning: status file not updated: {exc}", file=sys.stderr)
 
 
 def reconcile(a, cwd):
@@ -483,6 +519,8 @@ def main(argv=None):
                    help="include the installed git/gh help text (tool_reference) in a code bundle; without it "
                         "tool_reference is null and the reviewer reports tool-dependent judgments as needs-external-check")
     r.add_argument("--no-tool-ref", action="store_true", help=argparse.SUPPRESS)  # old no-op: null is the default
+    r.add_argument("--max-rounds", type=int, default=4,
+                   help="review runs allowed per PR (user rule 2026-10-18); raise only on the user's word")
     r.add_argument("--max-bytes", type=int, default=1_000_000,
                    help="prompt size limit in characters (Codex rejects input over 1,048,576); larger bundles are blocked")
     c = sub.add_parser("reconcile"); c.add_argument("--repo"); c.add_argument("--notion")
