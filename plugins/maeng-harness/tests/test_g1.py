@@ -152,6 +152,8 @@ class SlimGate(ShipBase):
         self.assertDenied("git checkout main && git push origin", "own command")
         self.assertDenied("git checkout main && sh -c 'git push origin'", "own command")
         self.assertDenied("eval 'git checkout main' && git push origin", "own command")
+        self.assertDenied("git checkout main && gh pr create --base feat --fill", "own command")
+        self.assertAllowed("git checkout feat && gh pr create --base main --head feat --fill")
         self.assertDenied("gh api -X=PUT repos/o/r/pulls/45/merge", "maeng-ship merge")
         self.assertDenied("git --git-dir=.git push origin feat", "--git-dir")
         self.git(self.repo, "checkout", "-q", "-b", "Feature")
