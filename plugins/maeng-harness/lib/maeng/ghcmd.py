@@ -33,7 +33,7 @@ GH_WRITES = frozenset((g, a) for g, acts in GH_ALLOWED.items() for a in acts or 
 GH_GATED = frozenset({("pr", "create")})
 GH_READS = frozenset((g, a) for g, acts in GH_ALLOWED.items() for a in acts or ()) - GH_WRITES - LOCAL_WRITES
 REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
-GH_VALUE_FLAGS = {"-X", "--method", "-H", "--header", "-f", "-F", "--field", "--raw-field", "-q", "--jq", "-t",
+GH_VALUE_FLAGS = {"--preview", "-X", "--method", "-H", "--header", "-f", "-F", "--field", "--raw-field", "-q", "--jq", "-t",
                   "--template", "--hostname", "--cache", "--input", "-B", "--base", "-H", "--head", "-t", "--title",
                   "-b", "--body", "-F", "--body-file", "-a", "--assignee", "-l", "--label", "-m", "--milestone",
                   "-r", "--reviewer", "-p", "--project", "--jq", "-D", "--dir", "-O", "--output", "-A", "--archive",

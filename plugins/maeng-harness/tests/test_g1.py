@@ -113,6 +113,15 @@ class SlimGate(ShipBase):
         (self.repo / ".maeng/verify.json").write_text("{broken")
         self.assertDenied("git push origin feat", "pushes are denied")
 
+    def test_round4_option_operands(self):
+        self.assertDenied("git -c remote.up.mirror=true push --repo=up", "default branch")
+        self.assertDenied("gh api --preview corsair graphql --input m.json", "cannot be checked")
+        for b in ("{branch}", "@b.txt"):
+            self.assertDenied(f"gh api -X PUT repos/o/r/contents/f -F branch={b} -f message=m", "cannot be checked")
+        self.assertAllowed("git push --recurse-submodules on-demand origin")
+        self.git(self.repo, "checkout", "-q", "main")
+        self.assertDenied("git push --recurse-submodules on-demand origin", "default branch")
+
     def test_mcp_merge_is_denied_and_other_mcp_writes_allowed(self):
         for tool, tin in (("mcp__github__merge_pull_request", {"owner": "o", "repo": "r", "pull_number": 1}),
                           ("mcp__github__push_files", {"owner": "o", "repo": "r", "branch": "main"}),

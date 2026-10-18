@@ -81,7 +81,7 @@ def check_edit(tool_name, tool_input, ctx):
 
 # ---- git push ------------------------------------------------------------
 
-PUSH_VALUE_OPTS = {"--repo", "-o", "--push-option", "--receive-pack", "--exec"}
+PUSH_VALUE_OPTS = {"--repo", "-o", "--push-option", "--receive-pack", "--exec", "--recurse-submodules"}
 
 
 def _config(cwd, key, cfg=None, multi=False, boolean=False):
@@ -96,18 +96,21 @@ def _config(cwd, key, cfg=None, multi=False, boolean=False):
 def push_targets(args, cwd, cfg=None):
     """-> (remote, [destination branch names]) of `git push <args>`; ['*'] for --all/--mirror, [''] when an
     implicit destination cannot be determined (detached HEAD, unknown directory)."""
-    pos, skip, every = [], False, False
+    pos, skip, every, repo = [], None, False, None
     for a in args:
         if skip:
-            skip = False
+            repo = a if skip == "--repo" else repo
+            skip = None
         elif a in PUSH_VALUE_OPTS:
-            skip = True
+            skip = a
+        elif a.startswith("--repo="):
+            repo = a[7:]
         elif a in ("--all", "--mirror", "--branches"):
             every = True
         elif not a.startswith("-"):
             pos.append(a)
     current = git_out(cwd, "symbolic-ref", "--short", "-q", "HEAD") or ""
-    remote, specs = (pos[0], pos[1:]) if pos else \
+    remote, specs = (pos[0], pos[1:]) if pos else (repo, []) if repo else \
         ((_config(cwd, f"branch.{current}.pushRemote", cfg) or _config(cwd, "remote.pushDefault", cfg)
           or _config(cwd, f"branch.{current}.remote", cfg) or ["origin"])[0], [])
     if every or _config(cwd, f"remote.{remote}.mirror", cfg, boolean=True) == ["true"]:
@@ -198,6 +201,9 @@ def check_gh(toks, cwd):
         if (writes and GH_API_MERGE.search(text)) or GH_GRAPHQL_MERGE.search(text):
             return deny(f"maeng G1: this `gh api` call merges or moves a branch ref; {MERGE_HINT}")
         branches = [f[7:].removeprefix("refs/heads/") for f in info["fields"] if f.startswith("branch=")]
+        if any(b.startswith("@") or "{" in b for b in branches):  # gh expands these; the gate cannot see the value
+            return deny("maeng G1: a contents-API `branch=` from a file or a {placeholder} cannot be checked; name the "
+                        "feature branch literally.")
         policy = treelib.load_policy(treelib.toplevel(cwd) or cwd)
         if writes and "/contents/" in text and (not branches or any(
                 is_default_branch(b, cwd, "origin", policy) for b in branches)):
