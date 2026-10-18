@@ -10,7 +10,7 @@ def die(msg, code=1):
 
 
 def require_personal(cwd):
-    world = guard.classify(cwd)
+    world = guard.classify(guard.session_root(cwd))  # same root the hooks classify
     if world != guard.PERSONAL:
         die(f"this checkout classifies as {world}; maeng-harness tools run only in the personal world", 2)
 

@@ -259,6 +259,41 @@ class EtaAndUnknown(HarnessCase):
         self.git(repo, "remote", "add", "origin", "https://github.com/maengseojun/eta_v1.git")
         return repo
 
+class SessionRootOutsideCheckout(HarnessCase):
+    """A desktop side session's first hook cwd can be its notes folder (outside any checkout): the state then records
+    that folder as the session cwd. The session's world must still follow its project."""
+
+    def _session(self, repo):
+        notes = self.tmp / "side-session-notes" / "local_x"
+        notes.mkdir(parents=True)
+        self.hook("UserPromptSubmit", notes, prompt="go")  # before the fix this recorded notes/ as a personal session
+        self.assertEqual(self.load_state()["cwd"], str(notes))
+        (repo / "app.py").write_text("print('changed')\n")
+        self.hook("PostToolUse", repo, tool_name="Edit", tool_input={"file_path": str(repo / "app.py")},
+                  tool_response={})
+        return self.hook("Stop", repo, stop_hook_active=False)[1]
+
+    def _eta_repo(self):
+        repo = self.make_repo("eta-clone", with_remote=False)
+        self.git(repo, "remote", "add", "origin", "https://github.com/maengseojun/eta_v1.git")
+        return repo
+
+    def test_eta_project_with_state_cwd_outside_checkout_does_not_block(self):
+        self.assertIsNone(self._session(self._eta_repo()))
+
+    def test_eta_project_dir_env_decides_world(self):
+        repo = self._eta_repo()
+        self.env["CLAUDE_PROJECT_DIR"] = str(repo)
+        self.hook("UserPromptSubmit", self.tmp, prompt="go")
+        self.assertIsNone(self.hook("Stop", self.tmp, stop_hook_active=False)[1])
+        rc = self.cli("maeng-verify", ["skip", "x"], self.tmp)
+        self.assertIn("classifies as eta", rc.stderr)  # maeng-verify agrees with the hooks
+
+    def test_personal_project_with_state_cwd_outside_checkout_still_blocks(self):
+        out = self._session(self.make_repo())
+        self.assertEqual(out["decision"], "block")
+
+
 class DispatcherFailureModes(HarnessCase):
     def run_main(self, stdin_text, handlers):
         import importlib.util
