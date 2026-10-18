@@ -242,6 +242,8 @@ def check_git(toks, cwd, ctx):
             if a.startswith("!") else Decision()  # git appends the invocation's arguments
         if not d.allow:
             return d
+    if sub == "push" and any("$" in (v or "") for vals in cfg.values() for v in vals):
+        return deny("maeng G1: a push whose -c value is a shell variable cannot be checked; give the value literally.")
     if sub == "push" and any(kind != "C" for kind, _ in dirs):
         return deny("maeng G1: a push with --git-dir/--work-tree is not checked; use `git -C <dir> push ...`.")
     return check_push(toks, cwd, ctx) if sub == "push" else Decision()
@@ -268,7 +270,8 @@ def check_bash(command, ctx, moved=False):
         payload = " ".join(toks[2:] if toks[1:2] == ["--"] else toks[1:]) if prog == "eval" else \
             next((toks[i + 1] for i, t in enumerate(toks[1:], 1)
                   if re.fullmatch(r"-[a-zA-Z]*c[a-zA-Z]*", t) and i + 1 < len(toks)
-                  and all(o.startswith("-") for o in toks[1:i])), None) if prog in SHELLS else None
+                  and all(o.startswith(("-", "+")) or toks[j - 1] in ("-o", "+o", "-O", "+O")
+                          for j, o in enumerate(toks[1:i], 1))), None) if prog in SHELLS else None
         if payload:  # `sh -c '...'` / `eval '...'`: check the wrapped command too
             d = check_bash(payload, Ctx(cwd, ctx.state, ctx.world), moved)
             if not d.allow:
