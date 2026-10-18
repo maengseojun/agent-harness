@@ -231,7 +231,7 @@ def check_git(toks, cwd, ctx):
     for kind, d in dirs:  # git applies -C cumulatively
         if kind == "C":
             cwd = _abs(d, cwd)
-    alias = [v for k, vals in cfg.items() if k == f"alias.{sub}" for v in vals if v] or (_config(cwd, f"alias.{sub}") if sub else [])
+    alias = [v for k, vals in cfg.items() if sub and k == f"alias.{sub.lower()}" for v in vals if v] or (_config(cwd, f"alias.{sub}") if sub else [])
     if any(re.search(r"\bpush\b|\bmerge\b|\bupdate-branch\b|\brepo\s+sync\b", a) for a in alias):
         return deny(f"maeng G1: `git {sub}` is an alias that pushes or merges; run the underlying command.")
     for a in alias:  # a `!` alias runs a shell command: check it like Bash (a self-recursive alias fails closed)
@@ -239,6 +239,8 @@ def check_git(toks, cwd, ctx):
             if a.startswith("!") else Decision()  # git appends the invocation's arguments
         if not d.allow:
             return d
+    if sub == "push" and any(kind != "C" for kind, _ in dirs):
+        return deny("maeng G1: a push with --git-dir/--work-tree is not checked; use `git -C <dir> push ...`.")
     return check_push(toks, cwd, ctx) if sub == "push" else Decision()
 
 

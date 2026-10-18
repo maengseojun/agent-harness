@@ -9,6 +9,13 @@ BRANCH_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
 
 # ---- git ------------------------------------------------------------------
 
+def _cfg_key(k):
+    """git config keys: section and name are case-insensitive, a subsection is case-sensitive."""
+    sec, _, rest = k.partition(".")
+    sub, dot, name = rest.rpartition(".")
+    return f"{sec.lower()}.{sub}.{name.lower()}" if dot else f"{sec.lower()}.{rest.lower()}" if rest else k.lower()
+
+
 def parse_git_globals(toks):
     """-> (subcommand, args_after, dirs, config_overrides); dirs = [(kind, path)] kind in C|git-dir|work-tree."""
     i, dirs, cfg = 1, [], {}
@@ -18,7 +25,7 @@ def parse_git_globals(toks):
             dirs.append(("C", toks[i + 1])); i += 2
         elif t == "-c" and i + 1 < len(toks):
             k, sep, v = toks[i + 1].partition("=")
-            cfg.setdefault(k.lower(), []).append(v if sep else None); i += 2  # None: value-less `-c k` (git: true)
+            cfg.setdefault(_cfg_key(k), []).append(v if sep else None); i += 2  # None: value-less `-c k` (git: true)
         elif t.startswith("--git-dir=") or t.startswith("--work-tree="):
             kind, _, v = t[2:].partition("=")
             dirs.append((kind, v)); i += 1
@@ -26,10 +33,10 @@ def parse_git_globals(toks):
             dirs.append((t[2:], toks[i + 1])); i += 2
         elif t in ("--namespace", "--super-prefix", "--exec-path", "--config-env") and i + 1 < len(toks):
             if t == "--config-env":
-                cfg.setdefault(toks[i + 1].partition("=")[0].lower(), []).append("<env>")
+                cfg.setdefault(_cfg_key(toks[i + 1].partition("=")[0]), []).append("<env>")
             i += 2
         elif t.startswith("--config-env="):
-            cfg.setdefault(t.split("=", 1)[1].partition("=")[0].lower(), []).append("<env>"); i += 1
+            cfg.setdefault(_cfg_key(t.split("=", 1)[1].partition("=")[0]), []).append("<env>"); i += 1
         elif t.startswith("-"):
             i += 1
         else:

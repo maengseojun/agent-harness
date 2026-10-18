@@ -38,7 +38,7 @@ GIT_CONFIG_* env overrides, the default branch of a repository other than the ch
 state changed earlier in the same command line (gh pr checkout, gh alias set, subshell `cd`, files written then
 read; only `git checkout|switch|config` followed by a push is in scope: the gate checks each command against the
 repository state before the command runs), xargs/find -exec wrappers, option abbreviations, refspec DWIM, a remote whose default
-branch git cannot report (main/master/trunk and protected_branches still deny), and deliberately disguised
+branch git cannot report or whose cached refs/remotes/<r>/HEAD is stale (main/master/trunk and protected_branches still deny), and deliberately disguised
 routes. Report a gap only on an in-scope path.
 Gating is SLIM by design (user decision 2026-10-18, MAE-237): the PreToolUse gate blocks only (1) a push whose
 destination is the default branch (main/master/trunk, the remote's HEAD, policy protected_branches, --all/--mirror,
