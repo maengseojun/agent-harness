@@ -283,6 +283,8 @@ def recognize(command):
         segs = split_segments(command)
     except ParseError:
         return None
+    if re.search(r"(?<![&>|])&(?![&>])", re.sub(r"'[^']*'|\"[^\"]*\"", "", command)):
+        return None  # backgrounded: the shell's status is not the runner's
     checks, cd = [], None
     for seg in segs:
         if seg.op_after not in ("&&", ""):
