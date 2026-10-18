@@ -234,6 +234,10 @@ def check_git(toks, cwd, ctx):
     for kind, d in dirs:  # git applies -C cumulatively
         if kind == "C":
             cwd = _abs(d, cwd)
+    for kind, d in dirs:  # a checkout's own .git dir or work tree is that checkout
+        if kind == "work-tree" or (kind == "git-dir" and os.path.basename(os.path.normpath(d)) == ".git"):
+            cwd, dirs = _abs(d, cwd) if kind == "work-tree" else os.path.dirname(_abs(d, cwd)), \
+                [x for x in dirs if x != (kind, d)]
     alias = [v for k, vals in cfg.items() if sub and k == f"alias.{sub.lower()}" for v in vals if v] or (_config(cwd, f"alias.{sub}") if sub else [])
     if any(re.search(r"\bpush\b|\bmerge\b|\bupdate-branch\b|\brepo\s+sync\b", a) for a in alias):
         return deny(f"maeng G1: `git {sub}` is an alias that pushes or merges; run the underlying command.")
@@ -253,8 +257,8 @@ def _state_dependent_push(toks):
     """A push whose destination depends on the current branch or config: implicit, or a HEAD/@ refspec."""
     sub, args, _, _ = _parse_git_globals(toks)
     pos = [a for a in args if not a.startswith("-")]
-    return sub == "push" and (len(pos) < 2 or any("HEAD" in p or p.split(":")[-1].lstrip("+") in ("@", "")
-                                                   for p in pos[1:]))
+    dsts = [p.lstrip("+").rpartition(":")[2] for p in pos[1:]]
+    return sub == "push" and (not dsts or any(d in ("", "@") or d.startswith("HEAD") for d in dsts))
 
 
 def check_bash(command, ctx, moved=False):
