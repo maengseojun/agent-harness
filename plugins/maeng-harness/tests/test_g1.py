@@ -119,6 +119,13 @@ class SlimGate(ShipBase):
         for b in ("{branch}", "@b.txt"):
             self.assertDenied(f"gh api -X PUT repos/o/r/contents/f -F branch={b} -f message=m", "cannot be checked")
         self.assertAllowed("git push --recurse-submodules on-demand origin")
+        self.git(self.repo, "config", "alias.ub", "!gh pr update-branch 1")
+        self.assertDenied("git ub", "alias")
+        (self.repo / ".maeng").mkdir(exist_ok=True)
+        (self.repo / ".maeng/verify.json").write_text('{"protected_branches": ["release"]}')
+        self.assertTrue(self.pre(self.repo, "mcp__github__push_files", {"branch": "release"})[0])
+        self.assertFalse(self.pre(self.repo, "mcp__github__push_files", {"branch": "feat"})[0])
+        (self.repo / ".maeng/verify.json").unlink()
         self.git(self.repo, "checkout", "-q", "main")
         self.assertDenied("git push --recurse-submodules on-demand origin", "default branch")
 

@@ -222,7 +222,7 @@ def check_git(toks, cwd, ctx):
         if kind == "C":
             cwd = _abs(d, cwd)
     alias = [v for k, vals in cfg.items() if k == f"alias.{sub}" for v in vals] or (_config(cwd, f"alias.{sub}") if sub else [])
-    if any(re.search(r"\bpush\b|\bmerge\b", a) for a in alias):
+    if any(re.search(r"\bpush\b|\bmerge\b|\bupdate-branch\b|\brepo\s+sync\b", a) for a in alias):
         return deny(f"maeng G1: `git {sub}` is an alias that pushes or merges; run the underlying command.")
     return check_push(toks, cwd, ctx) if sub == "push" else Decision()
 
@@ -271,7 +271,8 @@ def check_mcp_github(tool, tool_input, ctx):
         return deny(f"maeng G1: {name} is denied; {MERGE_HINT}")
     if name in ("push_files", "create_or_update_file", "delete_file"):
         branch = str(tool_input.get("branch") or "").removeprefix("refs/heads/")
-        if not branch or branch in DEFAULT_BRANCHES or branch == remotecfg.default_head(ctx.cwd, "origin"):
+        policy = treelib.load_policy(treelib.toplevel(ctx.cwd) or ctx.cwd)
+        if not branch or is_default_branch(branch, ctx.cwd, "origin", policy):
             return deny(f"maeng G1: {name} to the default branch (or with no branch) is denied; write to a feature "
                         f"branch.")
     return Decision()
