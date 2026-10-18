@@ -196,6 +196,8 @@ GH_GRAPHQL_MERGE = re.compile(r"mergePullRequest|updatePullRequestBranch|mergeBr
 
 def check_gh(toks, cwd, expands=False, command=""):
     """expands: the raw command has a `$` outside single quotes, so a `$` in a value may be a shell expansion."""
+    if "--help" in toks or "-h" in toks:
+        return Decision()
     info = ghcmd.parse_gh(toks)
     pos = info["pos"]
     if pos[:2] in (["pr", "merge"], ["pr", "update-branch"], ["repo", "sync"]):
@@ -234,7 +236,7 @@ def check_git(toks, cwd, ctx):
     for kind, d in dirs:  # git applies -C cumulatively
         if kind == "C":
             cwd = _abs(d, cwd)
-    for kind, d in dirs:  # a checkout's own .git dir or work tree is that checkout
+    for kind, d in dirs if len({k for k, _ in dirs} - {"C"}) == 1 else []:  # a checkout's own .git dir or work tree
         if kind == "work-tree" or (kind == "git-dir" and os.path.basename(os.path.normpath(d)) == ".git"):
             cwd, dirs = _abs(d, cwd) if kind == "work-tree" else os.path.dirname(_abs(d, cwd)), \
                 [x for x in dirs if x != (kind, d)]
