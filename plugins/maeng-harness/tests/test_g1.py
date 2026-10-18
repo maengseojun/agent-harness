@@ -145,6 +145,9 @@ class SlimGate(ShipBase):
         self.git(self.repo, "checkout", "-q", "main")
         self.assertDenied("git push --recurse-submodules on-demand origin", "default branch")
         self.assertDenied("gh pr create --base feat --fill", "default branch")
+        self.assertDenied("gh pr new --base feat --fill", "default branch")
+        self.assertDenied("if git push origin main; then echo pushed; fi", "default branch")
+        self.assertDenied('PR=1; gh api -X PUT "repos/o/r/pulls/$PR/merge"', "maeng-ship merge")
         self.assertAllowed("gh pr create --base feat --head feat --fill")
 
     def test_mcp_merge_is_denied_and_other_mcp_writes_allowed(self):

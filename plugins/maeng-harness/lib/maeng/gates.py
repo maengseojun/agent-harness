@@ -185,7 +185,8 @@ def check_merge_push(lease, cwd, ctx):
 SWITCHES = r"MAENG_(?:TEST_FIXTURES|GIT|GH|HOME|CACHE_DIR)\b"
 SWITCH_SET = re.compile(rf"\b{SWITCHES}\+?=|\b(?:export|unset|declare|typeset|readonly|local|read|env)\b[^;&|\n]*\b{SWITCHES}")
 SHIP_TEXT = re.compile(r"\bgit\b.*\bpush\b|\bgh\b.*\b(?:pr|api|alias|repo)\b|--force-with-lease|maeng-ship", re.S)
-GH_API_MERGE = re.compile(r"/pulls/\d+/(?:merge|update-branch)\b|/merges\b|/merge-upstream\b|/git/refs\b")
+SHELL_KEYWORDS = {"if", "then", "elif", "else", "while", "until", "do", "!", "{"}
+GH_API_MERGE = re.compile(r"/pulls/[^/\s]+/(?:merge|update-branch)\b|/merges\b|/merge-upstream\b|/git/refs\b")
 GH_GRAPHQL_MERGE = re.compile(r"mergePullRequest|updatePullRequestBranch|mergeBranch|updateRefs?\b|createRef\b|"
                               r"enablePullRequestAutoMerge|enqueuePullRequest|createCommitOnBranch", re.I)
 
@@ -196,7 +197,7 @@ def check_gh(toks, cwd, expands=False):
     pos = info["pos"]
     if pos[:2] in (["pr", "merge"], ["pr", "update-branch"], ["repo", "sync"]):
         return deny(f"maeng G1: `gh {' '.join(pos[:2])}` is denied; {MERGE_HINT}")
-    if pos[:2] == ["pr", "create"] and not ({"-H", "--head"} & {t.partition("=")[0] for t in toks}) and \
+    if pos[:2] in (["pr", "create"], ["pr", "new"]) and not ({"-H", "--head"} & {t.partition("=")[0] for t in toks}) and \
             is_default_branch(git_out(cwd, "symbolic-ref", "--short", "-q", "HEAD") or "", cwd, "origin",
                               treelib.load_policy(treelib.toplevel(cwd) or cwd)):
         return deny("maeng G1: `gh pr create` on the default branch can push it; create the PR from a feature branch "
@@ -255,7 +256,10 @@ def check_bash(command, ctx):
     cwd, effects = ctx.cwd, []
     expands = bool(re.search(r"\$[A-Za-z_{]", re.sub(r"'[^']*'", "", command)))
     for seg in segs:
-        prog, toks = program(seg.tokens)
+        words = list(seg.tokens)
+        while words and words[0] in SHELL_KEYWORDS:  # `if git push ...; then` runs the condition too
+            words.pop(0)
+        prog, toks = program(words)
         payload = " ".join(toks[1:]) if prog == "eval" else \
             next((toks[i + 1] for i, t in enumerate(toks[1:4], 1)
                   if re.fullmatch(r"-[a-zA-Z]*c[a-zA-Z]*", t) and i + 1 < len(toks)), None) if prog in SHELLS else None
