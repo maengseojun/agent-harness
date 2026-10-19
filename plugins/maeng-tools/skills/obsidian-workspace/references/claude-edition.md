@@ -8,7 +8,7 @@ Reading the whole vault is allowed in both worlds. When the session is in the **
 
 - every note you write has `world: eta`;
 - file it under `hubs/projects/P-ETA.md` and `wiki/sessions/` (or the matching wiki folder), linked from that hub;
-- never promote it to personal Notion and never link it from personal Linear (use the eta issue in eta's own tools, by eta rules);
+- never promote it to personal Notion. A personal Linear issue may link it as a reference (user decision 2026-10-19), but the eta work record stays in eta's own tools, by eta rules;
 - no personal record flows (work-records, personal Notion) run in the eta world.
 
 In the personal world write `world: personal`. If you cannot tell which world you are in, ask or write nothing.

@@ -59,7 +59,7 @@ This repo becomes the marketplace `maeng` (`.claude-plugin/marketplace.json`). I
 **obsidian-workspace world rule.** When the guard classifies the session as eta:
 - notes get `world: eta`;
 - they are filed under `hubs/projects/P-ETA.md` → `wiki/sessions/`;
-- they are never promoted to personal Notion and never linked from personal Linear.
+- they are never promoted to personal Notion. (Amended 2026-10-19, MAE-251: a personal Linear issue may link them as a reference.)
 
 Reading the whole vault is allowed in both worlds.
 
@@ -199,7 +199,7 @@ eta work logs and knowledge may be written to the personal vault under P-ETA wit
 
 **Recorded conflict.** eta rule OPS-A1-12 (read live 2026-10-17) says "Nothing about eta is kept in a private page or outside the teamspace." The user co-owns that rule ("Henry or 서준") and chose full local logs. The authoritative eta record stays in eta Docs and eta Linear.
 
-eta notes are never promoted to personal Notion and never linked from personal Linear.
+eta notes are never promoted to personal Notion. Amended 2026-10-19 (MAE-251, user decision): a personal Linear issue may link eta notes as a reference; eta's work record stays in eta Linear and eta Docs.
 
 ### 3.4 Notion: SSOT for final outcomes (personal world)
 **Databases:** Runs & Evaluations (outcomes) and Knowledge & Skills (policies).
