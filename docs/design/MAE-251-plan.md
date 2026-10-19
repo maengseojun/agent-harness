@@ -17,6 +17,10 @@ User, 2026-10-19: "개인 linear에 연결해도 될 것 같아" ("linking it fr
   - The Middleman locator stays "never use for eta". It is a personal code-question convention, not a reference link.
 - **AC-3** The MAE-216 design doc records the amendment at both places that stated the old rule. Archived copies under `archive/` stay as historical text.
 
+## Verification
+
+Verification tier: docs-only. This session has no earlier evidence, so the ship check is the default check, run once at the final tree: `python3 -m pytest -q`.
+
 ## Done
 
 - `grep -rn -iE "linked from personal|link from personal|link it from personal|touch personal Linear" plugins docs/design/MAE-216-two-harness.md` prints nothing.
