@@ -26,7 +26,7 @@ One studio folder per company, a git repo outside this harness. Ask for its path
 
 ## HyperFrames rules (verified 2026-10-20, hyperframes 0.8.181)
 
-- Run every command as `HYPERFRAMES_SKIP_SKILLS=1 npx --yes hyperframes@<pin> <cmd>`. Without the variable, `init` and `render` refresh HyperFrames' skills in the global skill folders, where they would claim every video request in every repo, the eta world included. Take `<pin>` from the project's `package.json` after `init`.
+- Run every command as `HYPERFRAMES_SKIP_SKILLS=1 npx --yes hyperframes@<pin> <cmd>`. Without the variable, `init` and `render` refresh HyperFrames' skills in the global skill folders, where they would claim every video request in every repo, the eta world included. The first `init` of a film uses `hyperframes@latest`; `init` writes that version into the project's `package.json` scripts, and every later command, the second project's `init` included, uses that recorded version as `<pin>`.
 - Read HyperFrames docs from GitHub when you need them, never from memory: `gh api repos/heygen-com/hyperframes/contents/skills/<skill>/SKILL.md --jq .content | base64 -d`. Read `hyperframes-core` before writing composition HTML.
 - A project has exactly one root composition (`multiple_root_compositions` is a lint error), and a different aspect is a different project. Build `wide/` and `vertical/` as siblings with their own layout, type sizes and element counts. Never crop one into the other.
 - Put each beat in its own sub-composition (`compositions/NN-<beat>.html`, mounted with `data-composition-src`). Lint asks for it, and it lets a fix touch one beat.
