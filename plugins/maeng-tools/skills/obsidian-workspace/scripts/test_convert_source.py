@@ -190,8 +190,9 @@ class ConversionTests(unittest.TestCase):
             drive.mkdir()
             (vault / "raw").mkdir(parents=True)
             (drive / "raw").symlink_to(vault / "raw")
-            with self.assertRaises(ValueError):
-                conversion.vault_drive.store("raw/file.pdf", b"%PDF", drive)
+            for target in ("raw/file.pdf", "raw/new/file.pdf"):
+                with self.assertRaises(ValueError):
+                    conversion.vault_drive.store(target, b"%PDF", drive)
             self.assertEqual(list((vault / "raw").iterdir()), [])
 
     def test_drive_url_is_absolute_for_relative_root(self):

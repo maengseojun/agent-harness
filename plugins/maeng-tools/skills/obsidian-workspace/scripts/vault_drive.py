@@ -38,9 +38,10 @@ def store(relative, data, drive=DRIVE_ROOT):
         raise FileNotFoundError(f"Drive vault-offload is not available, nothing written: {drive}")
     digest = hashlib.sha256(data).hexdigest()
     dst = drive / Path(*rel.parts)
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    if dst.is_symlink() or not dst.parent.resolve().is_relative_to(drive):
+    # Check every existing component before mkdir, so a symlink cannot make us create folders outside Drive.
+    if any((drive / Path(*rel.parts[:i])).is_symlink() for i in range(1, len(rel.parts) + 1)):
         raise ValueError(f"destination leaves the Drive root through a symlink: {relative}")
+    dst.parent.mkdir(parents=True, exist_ok=True)
     if dst.exists():
         if hashlib.sha256(dst.read_bytes()).hexdigest() != digest:
             raise FileExistsError(f"refusing to replace a different Drive file: {dst}")
