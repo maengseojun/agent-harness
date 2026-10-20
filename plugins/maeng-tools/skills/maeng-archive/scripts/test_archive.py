@@ -529,11 +529,13 @@ class BackupTests(Base):
 class GdriveDetectionTests(Base):
     def test_gdrive_prefers_school_account(self):
         cs = self.home / "Library" / "CloudStorage"
-        other = cs / "GoogleDrive-0other@example.com" / "My Drive"
+        other = cs / "GoogleDrive-0other@example.com" / "내 드라이브"
         other.mkdir(parents=True)
         with mock.patch.dict(os.environ, {"HOME": str(self.home)}):
             os.environ.pop("MAENG_ARCHIVE_GDRIVE")
             self.assertEqual(A.store_root("gdrive"), other)  # school absent -> glob fallback
+            (cs / "GoogleDrive-zother@example.com" / "My Drive").mkdir(parents=True)
+            self.assertEqual(A.store_root("gdrive"), other)  # sorted by account across both folder names
             school = cs / A.DEFAULT_GDRIVE / "내 드라이브"
             school.mkdir(parents=True)
             self.assertEqual(A.store_root("gdrive"), school)  # sorted-first other dir loses

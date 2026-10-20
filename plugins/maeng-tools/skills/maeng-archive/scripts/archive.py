@@ -61,11 +61,8 @@ def store_root(name: str) -> Path | None:
     for sub in ("My Drive", "내 드라이브"):
         if (base / DEFAULT_GDRIVE / sub).is_dir():
             return base / DEFAULT_GDRIVE / sub
-    for pat in ("GoogleDrive-*/My Drive", "GoogleDrive-*/내 드라이브"):
-        found = sorted(glob.glob(str(base / pat)))
-        if found:
-            return Path(found[0])
-    return None
+    found = sorted(glob.glob(str(base / "GoogleDrive-*/My Drive")) + glob.glob(str(base / "GoogleDrive-*/내 드라이브")))
+    return Path(found[0]) if found else None
 
 
 # ---------- file helpers ----------
