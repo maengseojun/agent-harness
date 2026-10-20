@@ -74,6 +74,10 @@ Obsidian notes carry `audience` tags (claude-edition.md): `ceo` (CEO), `director
 | 팀장~대리 | the task's Spec/Plan, Owns, dependency results | the hub |
 | 신입 | the brief and the files it names | anything else the task needs |
 
+## Internal only
+
+Ranks, rank names and the `[rank→recipient]` head are internal working language. Use them only between the CEO and agents: delegation prompts, agent reports, personal Linear, the vault, Slack `#maestro-claude`. Never use them in eta work or in anything other people read: final deliverables, Notion outcome records, documents, messages to others, and PR or commit text. Write those in plain roles ("reviewer", "implementer") or none.
+
 ## Records
 
 Every CEO-approved decision becomes an Obsidian ADR (work-records). Finished projects are archived on the CEO's yes (work-records, Project archive).
