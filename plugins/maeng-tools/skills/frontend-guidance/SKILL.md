@@ -13,6 +13,7 @@ For general design craft (hierarchy, type, layout, motion, avoiding generic AI l
 - **Korean UI:** run `hangul-wrap` before shipping so words do not split mid-syllable-group; do not claim a fix without its measurement.
 - **Verify the rendered result,** not the code: relevant desktop and mobile widths, keyboard focus, text overflow, reduced motion when anything moves. Report what was actually checked and what was not. Optional style advice never waives accessibility or correctness checks.
 - **HTML deck:** use `frontend-slides`; do not apply responsive page rules to a fixed slide canvas.
+- **Cinematic landing page** (references, generated hero image or video background, built in stages): use `cinematic-site`.
 - **Dithered/stippled motion landing page:** recover the archived `dither-motion-landing` guidance from the MAE-127 GitHub archive when needed; do not silently reinstall it.
 - **UI compliance audit** (former `web-design-guidelines`): only when asked or concretely needed, follow [UI audit](references/ui-audit.md). Do not stack equivalent reviews.
 

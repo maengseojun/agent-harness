@@ -29,6 +29,8 @@ Fields: site and URL; useful situations; user-stated liked feature; date added; 
 | Site | Useful situations | User-stated liked feature | Added | Last check / access |
 | --- | --- | --- | --- | --- |
 | [Admire The Web](https://admiretheweb.com) | Homepage and website references | Not specified | 2026-10-07 | Not checked |
+| [SEESAW](https://www.seesaw.website) | Curated sites by category (AI, agency, dev tools); detail pages show a large hero still | Not specified | 2026-10-20 | 2026-10-20: home and detail pages captured with headless Chrome |
+| [Land-book](https://land-book.com) | Landing page gallery | Not specified | 2026-10-20 | 2026-10-20: Cloudflare bot check blocked headless Chrome; open in a normal browser |
 
 ## Link preview images
 
