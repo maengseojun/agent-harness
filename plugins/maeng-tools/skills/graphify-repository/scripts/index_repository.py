@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 
 CODE = {'.py', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.go', '.rs',
-        '.java', '.c', '.h', '.cpp', '.hpp', '.rb', '.cs', '.kt', '.swift', '.lua'}
+        '.java', '.c', '.h', '.cpp', '.hpp', '.rb', '.cs', '.kt', '.swift', '.lua', '.sol'}
 SKIP = {'.git', '.agents', '.codex', '.aws', '.ssh', '.venv', 'node_modules',
         '__pycache__', 'vendor', 'dist', 'build'}
 # TODO(MAE-222): the pin stays at 0.9.85. Bumping to 0.9.91 is a separate task that

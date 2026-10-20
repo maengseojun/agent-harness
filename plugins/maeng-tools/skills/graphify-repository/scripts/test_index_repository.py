@@ -141,6 +141,12 @@ class IndexRepository(unittest.TestCase):
         with self.assertRaises(ValueError):
             ir.select(self.repo, ['link'], [])
 
+    def test_select_admits_solidity(self):
+        # The pinned graphify 0.9.85 extracts .sol (extract_solidity), so Solidity sources are in scope.
+        (self.repo / 'src' / 'Vault.sol').write_text('contract Vault {}\n')
+        files, _ = ir.select(self.repo, ['src'], [])
+        self.assertIn(self.repo / 'src' / 'Vault.sol', files)
+
 
 class VerifyRuntime(unittest.TestCase):
     def make_runtime(self, extra=b''):
