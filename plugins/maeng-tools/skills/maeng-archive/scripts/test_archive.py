@@ -526,6 +526,21 @@ class BackupTests(Base):
         self.assertFalse(st["stores"]["gdrive"]["found"])
 
 
+class GdriveDetectionTests(Base):
+    def test_gdrive_prefers_personal_account(self):
+        cs = self.home / "Library" / "CloudStorage"
+        school = cs / "GoogleDrive-2025131619@korea.ac.kr" / "My Drive"
+        school.mkdir(parents=True)
+        with mock.patch.dict(os.environ, {"HOME": str(self.home)}):
+            os.environ.pop("MAENG_ARCHIVE_GDRIVE")
+            self.assertEqual(A.store_root("gdrive"), school)  # personal absent -> glob fallback
+            personal = cs / A.PERSONAL_GDRIVE / "내 드라이브"
+            personal.mkdir(parents=True)
+            self.assertEqual(A.store_root("gdrive"), personal)  # sorted-first school dir loses
+            os.environ["MAENG_ARCHIVE_GDRIVE"] = str(self.gd)
+            self.assertEqual(A.store_root("gdrive"), self.gd)  # env override still wins
+
+
 class RestoreTests(Base):
     def test_restore_stub_dry_then_apply(self):
         self.note("n.md", "hello\n")

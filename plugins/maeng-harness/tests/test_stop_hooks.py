@@ -1,4 +1,5 @@
 import json
+from datetime import date, timedelta
 from pathlib import Path
 
 from .helpers import HOOK, HarnessCase
@@ -206,6 +207,22 @@ class SubagentAndStart(StopBase):
         self.assertLessEqual(len(ctx.encode()), 2048)
         self.assertIn("maeng-harness", ctx)
         self.assertIn(f"MAENG_SESSION_ID={self.sid}", env_file.read_text())
+
+    def test_session_start_lists_archive_candidates(self):
+        def ago(n):
+            return (date.today() - timedelta(days=n)).isoformat()
+        hubs = self.vault / "hubs/projects"
+        hubs.mkdir(parents=True)
+        for stem, closed, status in (("P-OLD", ago(20), "closed"), ("P-EDGE", f'"{ago(14)}"', "closed"),
+                                     ("P-FRESH", ago(13), "closed"), ("P-DONE", ago(20), '"archived"'),
+                                     ("P-BAD", "not-a-date", "closed"), ("P-OPEN", None, "active")):
+            fm = [f"status: {status}"] + ([f"closed: {closed}"] if closed else [])
+            (hubs / f"{stem}.md").write_text("---\n" + "\n".join(fm) + "\n---\n# body\n")
+        rc, out, _ = self.hook("SessionStart", self.repo, source="startup")
+        lines = out["hookSpecificOutput"]["additionalContext"].splitlines()
+        self.assertIn("Ranks and approval lines: harness-run references/org-chart.md.", lines)
+        self.assertIn("Archive candidates (closed 14+ days, ask the CEO before maeng-archive): "
+                      f"P-EDGE ({ago(14)}), P-OLD ({ago(20)})", lines)
 
     def test_session_start_lists_unisolated_eta_checkouts(self):
         self.eta_root.mkdir()

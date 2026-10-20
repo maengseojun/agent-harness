@@ -50,6 +50,21 @@ The same Sol flow covers a policy page and a factual refresh of an already saved
 
 If a review cannot pass after a good-faith fix loop, leave the draft in the vault, comment the blocker on the Linear issue and report it. Do not publish unreviewed.
 
+## CEO decisions
+
+Every decision the CEO approves (`승인 #N`, a named option, a direction set in chat or relayed by another of their sessions) becomes an ADR in `wiki/decisions/` (`ADR-<MAE-id>-<slug>`) with `audience: [ceo, exec]`, the CEO's words quoted, the date and the Linear issue. Write it in the same turn the decision arrives.
+
+## Project archive
+
+When the CEO says a project is finished, or the Linear parent of a project goes Done, set `closed: <YYYY-MM-DD>` in its hub's frontmatter. SessionStart lists hubs closed 14 or more days ago (`Archive candidates`). For each one:
+
+1. Ask the CEO, once, with the hub and the files that would move. Nothing moves without a yes.
+2. On yes, run `maeng-archive` (`status`, then `move --store gdrive --dry-run`, then `move`) for the project's notes and raw files. The gdrive store is the personal Drive `googledrive-maeng` (seojunmaeng@gmail.com), folder `maeng-archive/`. Fill every stub summary.
+3. Keep the hub in the vault as the index: set `status: archived`, and list each moved file with its stub link and one line on what it held.
+4. Record the archive on the Linear parent (comment) and in an ADR (step "CEO decisions").
+
+On "later", set `closed` to today (asked again in 14 days); on "no", remove `closed`. Note the answer in the hub either way.
+
 ## Review and refine
 
 A saved draft, a reviewed record and final writing are distinct states. After publishing, reread the saved page against the evidence and correct stale facts through the same flow. Keep one canonical result page per outcome and preserve history across revisions.

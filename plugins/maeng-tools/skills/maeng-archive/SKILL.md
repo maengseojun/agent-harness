@@ -5,7 +5,7 @@ description: Move old or bulky vault material to cold storage (OneDrive archive,
 
 # maeng-archive
 
-The Obsidian vault is the **hot** tier: what the LLM reads. OneDrive and Google Drive (Korea University accounts) are the **cold** tier: kept, never loaded into context. This skill moves material between them without losing anything.
+The Obsidian vault is the **hot** tier: what the LLM reads. OneDrive (Korea University) and Google Drive (the personal seojunmaeng@gmail.com account, `googledrive-maeng`) are the **cold** tier: kept, never loaded into context. This skill moves material between them without losing anything.
 
 Script: `scripts/archive.py` (stdlib, Python 3.11+). Run it as `python3 <skill-dir>/scripts/archive.py <command>`. Add `--json` for machine output.
 
@@ -17,7 +17,7 @@ Script: `scripts/archive.py` (stdlib, Python 3.11+). Run it as `python3 <skill-d
 | Cold archive | OneDrive `maeng-archive/<world>/<YYYY>/<vault-relative path>` | originals moved out of the vault |
 | Cold backup | Google Drive and OneDrive `maeng-backup/maeng-<timestamp>.zip` + manifest | snapshots of vault and harness state |
 
-Store roots are auto-detected (`~/Library/CloudStorage/OneDrive-*`, `GoogleDrive-*/My Drive`) and can be set with `MAENG_ARCHIVE_ONEDRIVE`, `MAENG_ARCHIVE_GDRIVE`. Harness state defaults to `~/.local/share/maeng-harness` (`MAENG_HOME`).
+Store roots are auto-detected (`~/Library/CloudStorage/OneDrive-*`; `GoogleDrive-seojunmaeng@gmail.com/My Drive` first, else the first `GoogleDrive-*/My Drive`) and can be set with `MAENG_ARCHIVE_ONEDRIVE`, `MAENG_ARCHIVE_GDRIVE`. Harness state defaults to `~/.local/share/maeng-harness` (`MAENG_HOME`).
 
 ## When to archive
 
@@ -56,7 +56,7 @@ The stub keeps the original frontmatter, adds `status: archived` and `archive: {
 
 ## Searching and reading Google Drive
 
-Cold files in Google Drive are found and read with the claude.ai Google Drive connector tools (`search_files`, `read_file_content`, `download_file_content`, `get_file_metadata`), not through the local sync folder. OneDrive archive files are read from the local sync path recorded in the stub. Summarize what you read into a note; do not paste whole files into the vault.
+Finished projects go to Google Drive with `move --store gdrive` after the CEO's yes (work-records, Project archive). Cold files in Google Drive are found and read with the Google Drive connector tools; the connector must be signed in to the account that holds them (`googledrive-maeng` for archives, `googledrive-school` for the school account) (`search_files`, `read_file_content`, `download_file_content`, `get_file_metadata`), not through the local sync folder. OneDrive archive files are read from the local sync path recorded in the stub. Summarize what you read into a note; do not paste whole files into the vault.
 
 ## Workflow
 

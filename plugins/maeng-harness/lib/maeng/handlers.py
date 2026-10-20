@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 from . import evidence, gates, guard, receipts, state, status, stub
@@ -19,6 +20,7 @@ REJECTED = re.compile(r"stale info|non-fast-forward|\[rejected\]|\[remote reject
 COMMIT_SUBS = {"commit", "merge", "rebase", "am", "cherry-pick", "revert", "pull"}
 # Linear servers whose writes count as a personal record (`linear-maeng` is the user's own workspace server)
 PERSONAL_LINEAR = ("mcp__claude_ai_Linear__", "mcp__linear__", "mcp__linear-maeng__")
+ARCHIVE_AFTER_DAYS = 14
 
 
 def warn(msg):
@@ -48,8 +50,34 @@ def plugin_version():
         return "?"
 
 
+def _archive_candidates():
+    """Project hubs whose frontmatter `closed` date is ARCHIVE_AFTER_DAYS or more days old and not yet archived."""
+    found, today = [], date.today()
+    for hub in sorted((vault_dir() / "hubs/projects").glob("*.md")):
+        try:
+            with open(hub, encoding="utf-8") as f:
+                head = f.read(4096).splitlines()  # shortcut: a frontmatter longer than 4 KB is skipped; raise it if hubs grow
+            if head[0].strip() != "---":
+                continue
+            fm = {}
+            for line in head[1:]:
+                if line.strip() == "---":
+                    break
+                key, _, val = line.partition(":")
+                fm[key] = val.strip().strip("\"'")
+            else:
+                continue  # no closing ---
+            closed = date.fromisoformat(fm.get("closed", ""))
+        except (OSError, ValueError, IndexError):
+            continue
+        if (today - closed).days >= ARCHIVE_AFTER_DAYS and fm.get("status") != "archived":
+            found.append(f"{hub.stem} ({closed})")
+    return found
+
+
 def build_context(cwd):
-    lines = [f"maeng-harness {plugin_version()} (personal world). Gate: G1 (no push to the default branch, merge only via maeng-ship)."]
+    lines = [f"maeng-harness {plugin_version()} (personal world). Gate: G1 (no push to the default branch, merge only via maeng-ship).",
+             "Ranks and approval lines: harness-run references/org-chart.md."]
     sugg = (read_json(home_dir() / "last-bindings.json", {}) or {}).get(str(Path(cwd).resolve()))
     if sugg:
         lines.append(f"Suggested binding (not active): maeng-verify bind {sugg.get('issue')} --plan {sugg.get('plan_doc', '<doc>')}")
@@ -66,6 +94,9 @@ def build_context(cwd):
     # Cheap check only (full discovery walks every eta checkout; the hook has a 5s budget).
     if guard.eta_root().is_dir() and guard.isolation_missing(guard.eta_root()):
         lines.append("eta checkouts lack isolation: run `maeng-eta-isolate --apply`.")
+    old = _archive_candidates()
+    if old:
+        lines.append(f"Archive candidates (closed {ARCHIVE_AFTER_DAYS}+ days, ask the CEO before maeng-archive): " + ", ".join(old))
     text = "\n".join(lines)
     return text.encode()[:2000].decode(errors="ignore")
 

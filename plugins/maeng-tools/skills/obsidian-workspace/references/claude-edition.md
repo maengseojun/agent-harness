@@ -29,10 +29,11 @@ The `id` equals the filename without `.md`. New files get a new id; never reuse 
 
 ## Frontmatter keys
 
-Existing keys stay. New keys: `linear` (issue ids, list), `world` (`personal` or `eta`), `notion` (published page URL), `commit` (SHA or PR URL), `session` (Claude session id). Omit keys that do not apply; do not write empty ones. The self-recording check counts an Obsidian write for a bound issue only if `linear` includes it.
+Existing keys stay. New keys: `linear` (issue ids, list), `world` (`personal` or `eta`), `notion` (published page URL), `commit` (SHA or PR URL), `session` (Claude session id), `audience` (list of reader ranks: `ceo`, `director`, `auditor`, `exec`, `team`, `junior`; see harness-run `references/org-chart.md`), `closed` (project hubs only: `YYYY-MM-DD` when the CEO declared the project finished or its Linear parent went Done). Omit keys that do not apply; do not write empty ones. The self-recording check counts an Obsidian write for a bound issue only if `linear` includes it.
 
 ## Retrieval (3 layers)
 
+0. **Your rank first:** start from `hubs/areas/A-ORG.md` and the notes whose `audience` includes your rank. `audience` orders reading; it never hides a note, so widen whenever the work needs more.
 1. **Compact index:** `wiki/index.md`, the hub, and `search_notes` / QMD results (id, title, path, one line). Do not read bodies yet.
 2. **Timeline:** for the candidates, read the frontmatter and the latest dated entries (session notes in order; `read_note_lines` for a bounded range).
 3. **Fetch by id:** read the full note only for the few ids that matter, plus the source behind a claim you will rely on.
