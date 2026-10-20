@@ -7,12 +7,16 @@ Order (user decision, 2026-10-21): GPT image through `codex exec` first, Figma W
 Codex CLI generates the image and saves the file itself; no Slack round trip.
 
 ```bash
-codex exec --skip-git-repo-check -s workspace-write -C <outdir> "<prompt> Save it as <name>.png in the current directory. Reply only with the saved path." -i <ref1.png> -i <ref2.png> < /dev/null
+cat > <outdir>/<name>.prompt.txt <<'EOF'
+<prompt>
+Save it as <name>.png in the current directory. Reply only with the saved path.
+EOF
+codex exec --skip-git-repo-check -s workspace-write -C <outdir> "$(cat <outdir>/<name>.prompt.txt)" -i <ref1.png> -i <ref2.png> < /dev/null
 sips -g pixelWidth -g pixelHeight <outdir>/<name>.png
 ```
 
 - The prompt in English: the subject, the palette from `brand/frame.md`, where to leave empty space for text, `no text, no letters, no logos`, and the aspect (`wide 16:9`, `vertical 9:16`, `square`).
-- Put the prompt before `-i`: `-i` takes every following argument as an image. `< /dev/null` stops it waiting on stdin. `--full-auto` is not a flag in codex-cli 0.163.
+- Put the prompt before `-i`: `-i` takes every following argument as an image. `< /dev/null` stops it waiting on stdin. The quoted heredoc keeps quotes in the prompt intact. `--full-auto` is not a flag in codex-cli 0.163.
 - One image takes about a minute; run batches in the background.
 - Verified 2026-10-21 (codex-cli 0.163): a square prompt gave 1254x1254, a wide prompt with one reference image gave 2048x1152.
 

@@ -4,11 +4,15 @@ Fill the `{braces}`. Write image and video prompts in English (the models follow
 
 ## 1. Image request (`codex exec`)
 
-Run from the work folder; codex generates with GPT Image and saves the file itself. The prompt goes before `-i` (`-i` takes every following argument as an image).
+Run from the work folder; codex generates with GPT Image and saves the file itself. The prompt goes before `-i` (`-i` takes every following argument as an image). The quoted heredoc keeps the prompt's own quotes intact, and the `.prompt.txt` stays as the record of what was asked.
 
 ```bash
 cd ~/Documents/maeng-harness/cinematic/{slug}
-codex exec --skip-git-repo-check -s workspace-write "{prompt} Save it as {stage}/{A}.png. Reply only with the saved path." -i refs/1-{role}.png -i refs/2-{role}.png < /dev/null
+cat > {stage}/{A}.prompt.txt <<'EOF'
+{prompt}
+Save it as {stage}/{A}.png. Reply only with the saved path.
+EOF
+codex exec --skip-git-repo-check -s workspace-write "$(cat {stage}/{A}.prompt.txt)" -i refs/1-{role}.png -i refs/2-{role}.png < /dev/null
 sips -g pixelWidth -g pixelHeight {stage}/{A}.png
 ```
 
