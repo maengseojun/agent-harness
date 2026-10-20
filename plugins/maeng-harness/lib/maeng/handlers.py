@@ -50,6 +50,14 @@ def plugin_version():
         return "?"
 
 
+def _scalar(val):
+    """A one-line YAML scalar: the text inside quotes, else the text before a ` #` comment."""
+    val = val.strip()
+    if val[:1] in ("'", '"') and val.find(val[0], 1) > 0:
+        return val[1:val.find(val[0], 1)]
+    return val.split(" #", 1)[0].strip()
+
+
 def _archive_candidates():
     """Project hubs whose frontmatter `closed` date is ARCHIVE_AFTER_DAYS or more days old and not yet archived."""
     found, today = [], date.today()
@@ -64,7 +72,7 @@ def _archive_candidates():
                 if line.strip() == "---":
                     break
                 key, _, val = line.partition(":")
-                fm[key] = val.strip().strip("\"'")
+                fm[key] = _scalar(val)
             else:
                 continue  # no closing ---
             closed = date.fromisoformat(fm.get("closed", ""))

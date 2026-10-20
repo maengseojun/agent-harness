@@ -19,12 +19,17 @@ Ranks give every agent its scope, its approval line, its reporting line and wher
 
 ## Approval lines
 
-| Rank | May decide alone | Escalates |
-|---|---|---|
-| 신입 (Haiku) | edits inside the named files | everything else; never commits |
-| 팀장~대리 (Sonnet, Sol) | commit, branch, push a feature branch, open a PR, within the task's Owns | changes to Spec, criteria or Owns |
-| 부장/차장, 상무 (Opus) | combine work into PRs (below), Linear and Obsidian records, delegation, review requests | the stop list in harness-run (merge, deploy, deleting data, money, messages to others) |
-| CEO | merge (`승인 #N`), direction, Notion `Completed`, archive | - |
+| Rank | May decide alone | Escalates | Reports to |
+|---|---|---|---|
+| CEO | merge (`승인 #N`), direction, Notion `Completed`, archive, whether a wait is needed | - | - |
+| 사외이사 (dots-maestro) | advice; which task to inject | any change to direction | CEO |
+| 사내이사 (Fable) | audit findings and recommendations; changes nothing itself | every fix it recommends | CEO |
+| 감사 (Astra) | the verdict (pass, fail, blocked) on what it reviews | - | the requester, through the receipt; 상무 puts it in the CEO brief |
+| 컨설턴트 (Astra medium) | its research conclusion and confidence | decisions that follow from it | whoever commissioned it (CEO or 상무) |
+| 리서치팀장 (Opus) | research scope, topic split, its conclusion | decisions that follow from it | 상무, or the CEO when the CEO asked |
+| 상무, 부장/차장 (Opus) | combine work into PRs (below), Linear and Obsidian records, delegation, review requests | the stop list in harness-run (merge, deploy, deleting data, money, messages to others) | CEO (부장/차장 to 상무) |
+| 팀장~대리 (Sonnet, Sol) | commit, branch, push a feature branch, open a PR, within the task's Owns | changes to Spec, criteria or Owns | whoever delegated |
+| 신입 (Haiku) | edits inside the named files | everything else; never commits | whoever delegated |
 
 Escalation goes straight to the rank that can decide, skipping the ranks in between; a junior may ask the CEO directly when only the CEO can decide.
 
@@ -34,7 +39,7 @@ Escalation goes straight to the rank that can decide, skipping the ranks in betw
 
 Ranks route decisions; they are not a chain of sign-offs. Agents gather and check fast, so waiting is the expensive part.
 
-- **Verify once.** A change gets the Plan's checks and one independent review (review-and-ship.md tiers). No rank re-runs a check another rank already ran on the same tree, and there is no junior, then manager, then executive review ladder.
+- **Verify once.** A change gets the Plan's checks and one independent review (review-and-ship.md tiers); there is no junior, then manager, then executive review ladder. A check counts when its result is on record: the coordinator's own run or the harness evidence for the tree. A sub-agent's report is a claim, so the coordinator re-runs that row's targeted Done (harness-run Sub-tasks) and nothing else; the full suite and the review run once, at the parent.
 - **Every wait earns its place.** Before adding a review round, a hand-off, a sub-agent or an approval, name what it catches that nothing else does. If nothing, skip it. If you cannot tell whether the wait is needed, ask the CEO.
 - **Every loop has an exit.** Fix the stop criterion before starting: repair cycles (at most three), review rounds (at most four), research (the question and the bar for an answer). Without a clear criterion, stop and ask instead of iterating.
 - **Name the bottleneck.** When work waited long (approval queue, review backend, a PR that must land first), say where and why in the CEO brief.
@@ -63,6 +68,8 @@ Obsidian notes carry `audience` tags (claude-edition.md): `ceo` (CEO), `director
 | 사외이사 | `~/Documents/maeng-harness/status/manifest.json`, Linear projects, CEO briefs | project hubs |
 | 사내이사 | this file, harness-run, `wiki/reviews/`, session notes across projects | Linear history |
 | 감사 | the review bundle (Spec/Plan, diff) | linked sources |
+| 컨설턴트 | the commissioning question and scope | `wiki/sources/`, `wiki/answers/`, then the web |
+| 리서치팀장 | the question, existing `wiki/answers/` and `wiki/sources/` | the web, aside collection |
 | 상무, 부장/차장 | project hub, latest session note, ADRs, Linear parent | Notion, Slack |
 | 팀장~대리 | the task's Spec/Plan, Owns, dependency results | the hub |
 | 신입 | the brief and the files it names | nothing else unless the brief says so |
