@@ -12,6 +12,8 @@ import stat
 import tempfile
 import sys
 
+import vault_drive
+
 
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 PROJECT_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -176,6 +178,8 @@ def capture_sources(source_root, vault, names):
         seen.add(rel)
         if is_sensitive(parts):
             fail("sensitive_candidate", f"known sensitive path candidate rejected: {rel}")
+        if vault_drive.is_binary(rel):
+            fail("binary_to_drive", f"binaries are kept on Drive, not in the vault; store it with vault_drive.py and link the file:// URL: {rel}")
         path = checked_path(source_root, parts, f"source {rel}", "source_unavailable", "symlink_source", "unsafe_source")
         try:
             real = path.resolve(strict=True)

@@ -173,6 +173,11 @@ class SyncProjectTests(unittest.TestCase):
         self.assertEqual(source.read_bytes(), b"same\n")
         self.assertEqual((other / "report.md").read_bytes(), b"same\n")
 
+    def test_binary_is_refused_before_any_vault_write(self):
+        (self.source / "figure.PNG").write_bytes(b"\x89PNG\r\n")
+        self.assert_error(["figure.PNG"], "binary_to_drive", apply=True)
+        self.assertFalse((self.vault / "assets").exists())
+
     def test_wrong_vault_escape_symlink_and_sensitive_candidates_are_rejected(self):
         outside = self.base / "outside.txt"
         outside.write_text("outside\n", encoding="utf-8")

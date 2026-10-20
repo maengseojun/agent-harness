@@ -15,6 +15,7 @@ import zipfile
 
 import source_snapshot as snapshot
 import sync_project
+import vault_drive
 
 
 MAX_BYTES = 50 * 1024 * 1024
@@ -32,47 +33,68 @@ def table(rows):
                      ["| " + " | ".join(row) + " |" for row in rows[1:]])
 
 
+BOILERPLATE_TAGS = {"script", "style", "nav", "footer", "noscript", "header", "aside", "form", "iframe", "svg", "button", "template", "dialog"}
+BOILERPLATE_ATTR = re.compile(r"(?i)(?:^|[\s_-])(?:nav|navbar|menu|sidebar|comments?|ads?|advert\w*|banner|promo\w*|share|social|related|cookie\w*|newsletter|subscribe|footer|breadcrumbs?)(?:$|[\s_-])")
+VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
+
+
 class LocalHTML(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.parts = []
-        self.skip = 0
+        self.body = []  # text inside <main>/<article>; used instead of parts when the page has one
+        self.skip = []  # open boilerplate tags; their contents are dropped
+        self.main = 0
         self.images = 0
         self.tables = 0
 
     def handle_starttag(self, tag, attrs):
-        if tag in {"script", "style", "nav", "footer", "noscript"}:
-            self.skip += 1
-        if self.skip:
-            return
         attrs = dict(attrs)
+        if self.skip or tag in BOILERPLATE_TAGS or BOILERPLATE_ATTR.search(" ".join(filter(None, (attrs.get("id"), attrs.get("class"), attrs.get("role"))))):
+            if tag not in VOID_TAGS:
+                self.skip.append(tag)
+            return
+        if tag in {"main", "article"}:
+            self.main += 1
         if tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
-            self.parts.append("\n\n" + "#" * int(tag[1]) + " ")
+            self.emit("\n\n" + "#" * int(tag[1]) + " ")
         elif tag in {"p", "div", "section", "article", "main", "br", "tr"}:
-            self.parts.append("\n")
+            self.emit("\n")
         elif tag == "li":
-            self.parts.append("\n- ")
+            self.emit("\n- ")
         elif tag in {"td", "th"}:
-            self.parts.append(" | ")
+            self.emit(" | ")
         elif tag == "img":
             self.images += 1
-            self.parts.append(" [image: " + attrs.get("alt", "unread") + "] ")
+            self.emit(" [image: " + attrs.get("alt", "unread") + "] ")
         elif tag == "table":
             self.tables += 1
         elif tag == "a":
             href = attrs.get("href", "")
             if href.startswith(("https://", "http://", "#", "/")):
-                self.parts.append(" [link: " + href + "] ")
+                self.emit(" [link: " + href + "] ")
 
     def handle_endtag(self, tag):
-        if tag in {"script", "style", "nav", "footer", "noscript"} and self.skip:
-            self.skip -= 1
-        if not self.skip and tag in {"p", "section", "article", "main", "table"}:
-            self.parts.append("\n")
+        if self.skip:
+            if tag in self.skip:  # tolerate unclosed inner tags
+                del self.skip[len(self.skip) - 1 - self.skip[::-1].index(tag):]
+            return
+        if tag in {"p", "section", "article", "main", "table"}:
+            self.emit("\n")
+        if tag in {"main", "article"} and self.main:
+            self.main -= 1
 
     def handle_data(self, data):
         if not self.skip:
-            self.parts.append(data)
+            self.emit(data)
+
+    def emit(self, text):
+        self.parts.append(text)
+        if self.main:
+            self.body.append(text)
+
+    def text(self):
+        return "".join(self.body or self.parts)
 
 
 def extract(raw, suffix, ocr, ocr_pages=()):
@@ -147,9 +169,9 @@ def extract(raw, suffix, ocr, ocr_pages=()):
     elif suffix in {".html", ".htm"}:
         parser = LocalHTML()
         parser.feed(raw.decode("utf-8"))
-        sections = [{"position": "HTML document order", "text": re.sub(r"\n{3,}", "\n\n", "".join(parser.parts)).strip()}]
+        sections = [{"position": "HTML document order", "text": re.sub(r"\n{3,}", "\n\n", parser.text()).strip()}]
         coverage.update(image_count=parser.images, tables=f"{parser.tables} tables as delimited cell text")
-        limits.append("Local HTML only: no JavaScript, remote fetch or asset download; boilerplate removal is limited to nav/footer/script/style. CSS-hidden text and full article isolation are not resolved.")
+        limits.append("Local HTML only: no JavaScript, remote fetch or asset download; keeps <main>/<article> when present and drops nav/header/footer/aside/form/script/style and menu/sidebar/comment/ad/share/related/cookie blocks by id/class/role. CSS-hidden text and pages without semantic markup are not fully isolated.")
     else:
         raise ValueError("Supported local formats: .docx .pptx .pdf .html .htm; native MD/body must use native capture")
     unread = [x["position"] for x in sections if not x["text"].strip()]
@@ -212,8 +234,9 @@ def main():
     parser.add_argument("--ocr-pages", nargs="+", type=int, default=[], help="Explicit 1-based PDF pages to OCR instead of embedded text; preserve both")
     parser.add_argument("--pdf-engine-config", help="Trusted installed local MinerU runtime/model manifest; never use an incoming document as runtime config")
     parser.add_argument("--pdf-pages", nargs="+", type=int, default=[], help="Explicit 1-based pages for the advanced local PDF engine")
-    parser.add_argument("--apply", action="store_true", help="Preserve raw/derived .body and receipt .json only; no notes")
+    parser.add_argument("--apply", action="store_true", help="Preserve the original on Drive, derived .body and receipt .json in the vault; no notes")
     parser.add_argument("--vault", default=str(snapshot.EXPECTED_VAULT))
+    parser.add_argument("--drive", default=str(vault_drive.DRIVE_ROOT), help="Drive vault-offload root for the original")
     args = parser.parse_args()
     try:
         raw, receipt = convert(args.source_root, args.path, args.sha256, args.origin, args.fetched_at, ocr=args.ocr, ocr_pages=args.ocr_pages, pdf_engine_config=args.pdf_engine_config, pdf_pages=args.pdf_pages)
@@ -223,7 +246,9 @@ def main():
             key = snapshot.sha256(snapshot.json_bytes(receipt))
             base = f"raw/native-captures/conversions/{receipt['source_sha256']}/{key}"
             paths = {"raw": base + "/original" + Path(args.path).suffix.lower(), "derived": base + "/converted.body", "receipt": base + "/receipt.json"}
-            for kind, data in [("raw", raw), ("derived", receipt["body"].encode()), ("receipt", snapshot.json_bytes(receipt))]:
+            # Originals (Office/PDF binaries, full web pages) live on Drive; the vault keeps only the text bundle.
+            paths["raw"] = vault_drive.store(paths["raw"], raw, args.drive)
+            for kind, data in [("derived", receipt["body"].encode()), ("receipt", snapshot.json_bytes(receipt))]:
                 snapshot.write_immutable(vault, paths[kind], data, created)
         print(json.dumps({"ok": True, "applied": args.apply, "note_writes": 0, "created": created, "paths": paths, **receipt}, ensure_ascii=False))
     except Exception as exc:

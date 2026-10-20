@@ -121,6 +121,41 @@ class ConversionTests(unittest.TestCase):
         self.assertNotIn("BAD", text)
         self.assertEqual(result["coverage"]["image_count"], 1)
 
+    def test_web_capture_keeps_body_markdown_and_sends_original_to_drive(self):
+        page = (b'<html><head><title>T</title></head><body><header>Site logo</header>'
+                b'<nav><a href="/">Home</a></nav><div class="sidebar">Popular posts</div>'
+                b'<div id="ad-slot">Buy now</div><article><h1>Real title</h1><p>Real body.</p>'
+                b'<section class="comments">First!</section></article>'
+                b'<aside>Related</aside><footer>Copyright</footer></body></html>')
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            src, vault, drive = root / "src", root / "vault", root / "drive"
+            for d in (src, vault, drive):
+                d.mkdir()
+            (src / "page.html").write_bytes(page)
+            digest = hashlib.sha256(page).hexdigest()
+            argv = ["convert_source.py", "--source-root", str(src), "--path", "page.html", "--sha256", digest,
+                    "--origin", "https://example.com/post", "--fetched-at", "2026-10-21T00:00:00Z",
+                    "--apply", "--vault", str(vault), "--drive", str(drive)]
+            out = io.StringIO()
+            with patch.object(conversion.snapshot, "EXPECTED_VAULT", vault), patch("sys.argv", argv), redirect_stdout(out):
+                self.assertEqual(conversion.main(), 0)
+            result = json.loads(out.getvalue())
+            body = result["body"]
+            self.assertIn("# Real title", body)
+            self.assertIn("Real body.", body)
+            for junk in ("Site logo", "Home", "Popular posts", "Buy now", "First!", "Related", "Copyright"):
+                self.assertNotIn(junk, body)
+            in_vault = [p for p in vault.rglob("*") if p.is_file()]
+            self.assertEqual(sorted(p.name for p in in_vault), ["converted.body", "receipt.json"])
+            self.assertTrue(result["paths"]["raw"].startswith("file://"))
+            stored = [p for p in drive.rglob("original.html")]
+            self.assertEqual(len(stored), 1)
+            self.assertEqual(hashlib.sha256(stored[0].read_bytes()).hexdigest(), digest)
+            manifest = json.loads(next(drive.glob("manifest-*.json")).read_text())
+            self.assertEqual(manifest[0]["sha256"], digest)
+            self.assertEqual(manifest[0]["path"], stored[0].relative_to(drive).as_posix())
+
     def test_hash_path_and_native_input_boundaries(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
