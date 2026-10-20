@@ -1,13 +1,13 @@
 ---
 name: cinematic-site
-description: Use when building a landing page or startup website that should look designed rather than AI-made, with a generated hero image or video background (시네마틱 랜딩, 히어로 영상 배경, 레퍼런스로 사이트 만들기, 스타트업 소개 사이트, "AI 티 안 나게"). Runs references → GPT Image mock via the Slack bot maestro → optional Weave video → staged build. Not for slides (frontend-slides), product-flow prototypes (html-prototype-interview) or small UI fixes (frontend-guidance).
+description: Use when building a landing page or startup website that should look designed rather than AI-made, with a generated hero image or video background (시네마틱 랜딩, 히어로 영상 배경, 레퍼런스로 사이트 만들기, 스타트업 소개 사이트, "AI 티 안 나게"). Runs references → GPT Image mock via `codex exec` → optional Weave video → staged build. Not for slides (frontend-slides), product-flow prototypes (html-prototype-interview) or small UI fixes (frontend-guidance).
 ---
 
 # Cinematic site
 
-A page that does not look AI-made comes from references and fixed inputs, not from a clever build prompt. This skill runs the pipeline from Viktor Oddy's tutorial (YouTube `YhF8Qg2GL80`) with this setup: images from GPT Image through maestro, video from Figma Weave, code by you. Prompts are in [prompts.md](references/prompts.md); loops and blend modes in [video-bg.md](references/video-bg.md).
+A page that does not look AI-made comes from references and fixed inputs, not from a clever build prompt. This skill runs the pipeline from Viktor Oddy's tutorial (YouTube `YhF8Qg2GL80`) with this setup: images from GPT Image through `codex exec`, video from Figma Weave, code by you. Prompts are in [prompts.md](references/prompts.md); loops and blend modes in [video-bg.md](references/video-bg.md).
 
-Work folder for everything generated: `~/Documents/maeng-harness/cinematic/{slug}/` with `refs/ mock/ plate/ video/ site/`. maestro and you both read and write there.
+Work folder for everything generated: `~/Documents/maeng-harness/cinematic/{slug}/` with `refs/ mock/ plate/ video/ site/`.
 
 ## Stages
 
@@ -21,11 +21,11 @@ Work folder for everything generated: `~/Documents/maeng-harness/cinematic/{slug
 
 seesaw.website detail pages capture well; land-book.com shows a Cloudflare bot check (open it in a browser instead, never bypass). Crop to the hero. A motif may be words when no clean still exists (animated logos capture mid-frame). Steer away from purple: it is the model default for tech.
 
-**2. Mock via maestro.** Post the request from prompts.md §1 + §2 to `#maestro-claude`, attach the refs in its thread, ask for 2-3 variants. Then wait without polling Slack by hand: run a background loop until `~/Documents/maeng-harness/status/{task_id}.json` or the expected files exist. maestro asks the user to approve a new kind of request the first time; that approval is the user's, never yours to give. In the MAE-254 demo the mocks took ~10 min and the plate ~3 min; GPT Image returned 1672x941 even when asked for more, which is enough for a 16:9 background up to that width. **Gate A: the user picks one mock.**
+**2. Mock via codex.** Run prompts.md §1 with the §2 prompt and the refs as `-i`, one call per variant (2-3 variants, in the background, ~1 min each), saving to `mock/A.png`, `mock/B.png`, ... Check each size with `sips`. A wide prompt with one reference returned 2048x1152 in a 2026-10-21 test. **Gate A: the user picks one mock.**
 
-**3. Plate.** Same thread, prompts.md §3: the chosen mock without text, buttons and logos, same framing.
+**3. Plate.** prompts.md §1 with the §3 prompt and the chosen mock as `-i`, saved to `plate/`: the mock without text, buttons and logos, same framing.
 
-**4. Video on Weave (optional; not yet run end to end).** Skip it when a still hero is enough; the plate then serves as the background image. `weave_find_model` "seedance", pick Seedance 2.0 image-to-video (or Reference when you have a motion clip). The plate must reach Weave as an asset or a public https URL; Slack and local files are neither, so call `weave_upload_asset` (a file picker the user clicks once, pointing at `plate/`). Input: the plate as first frame, 16:9, 10 s, 1080p, `generate_audio: false`, prompt from §4. `weave_run_model` without `acknowledgedCost` only quotes; show that quote with AskUserQuestion (Approve/Cancel) and run only on Approve, every run. Generate two, keep the spare for a section card. Then `scripts/pingpong.sh` it into `site/assets/` (loop, webm, poster). Without Weave, a free stand-in clip made from the plate (video-bg.md) still gives the hero gentle motion.
+**4. Video on Weave (optional; not yet run end to end).** Skip it when a still hero is enough; the plate then serves as the background image. `weave_find_model` "seedance", pick Seedance 2.0 image-to-video (or Reference when you have a motion clip). The plate must reach Weave as an asset or a public https URL; local files are neither, so call `weave_upload_asset` (a file picker the user clicks once, pointing at `plate/`). Input: the plate as first frame, 16:9, 10 s, 1080p, `generate_audio: false`, prompt from §4. `weave_run_model` without `acknowledgedCost` only quotes; show that quote with AskUserQuestion (Approve/Cancel) and run only on Approve, every run. Generate two, keep the spare for a section card. Then `scripts/pingpong.sh` it into `site/assets/` (loop, webm, poster). Without Weave, a free stand-in clip made from the plate (video-bg.md) still gives the hero gentle motion.
 
 **5. Hero only.** Build just the hero from the mock: named Google font, exact accent hex, exact background, then the video as background with no overlay (prompts.md §5-6, video-bg.md). Check it at 375 and 1440 px. **Gate B: the user accepts the hero** before anything else is built.
 

@@ -26,7 +26,7 @@ Expected: the project size, the brief's length, 30 fps unless the brief says oth
 - Poster frame per aspect (`snapshot --at <last beat midpoint>`)
 - The last contact sheet per aspect and the review notes
 - Source: both projects as they are, with the exact render command
-- `assets/SOURCES.md`: every asset with its origin (real, GPT image via dots, Weave, font license)
+- `assets/SOURCES.md`: every asset with its origin (real, GPT image via codex, Weave, font license)
 - What still needs a human look (claims, legal text, brand approval)
 
 Do not run `hyperframes publish`, `cloud` or `lambda`; those upload the project. Delivery stays in the studio folder.

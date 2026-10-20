@@ -2,26 +2,17 @@
 
 Fill the `{braces}`. Write image and video prompts in English (the models follow it best); talk to the user in their language. Source: Viktor Oddy's tutorial (YouTube `YhF8Qg2GL80`); the wording below is what worked there, adapted.
 
-## 1. maestro request (Slack `#maestro-claude`, C0CA2FBNDGR)
+## 1. Image request (`codex exec`)
 
-Post as the parent message; attach the reference images in its thread right after. maestro (`<@U0C9V9J4K53>`) generates with GPT Image, attaches the results in the thread and announces completion through the claude CLI. The `task_id` line makes the hooks write `~/Documents/maeng-harness/status/{task_id}.json`, which the session waits on.
+Run from the work folder; codex generates with GPT Image and saves the file itself. The prompt goes before `-i` (`-i` takes every following argument as an image).
 
+```bash
+cd ~/Documents/maeng-harness/cinematic/{slug}
+codex exec --skip-git-repo-check -s workspace-write "{prompt} Save it as {stage}/{A}.png. Reply only with the saved path." -i refs/1-{role}.png -i refs/2-{role}.png < /dev/null
+sips -g pixelWidth -g pixelHeight {stage}/{A}.png
 ```
-<@U0C9V9J4K53> GPT Image로 {what} {n}장 만들어줘 ({issue} cinematic-site)
 
-**레퍼런스 (로컬, 이 스레드에도 첨부)**
-- 이미지 1 = {role}: `~/Documents/maeng-harness/cinematic/{slug}/refs/1-{role}.png`
-- ...
-
-**프롬프트**
-```{prompt}```
-
-**요청**
-1. 결과 PNG를 이 스레드에 첨부하고, 같은 파일을 `~/Documents/maeng-harness/cinematic/{slug}/{stage}/{A,B,...}.png` 로도 저장해줘.
-2. 첨부가 끝나면 claude CLI로 알려줘 (첫 줄 그대로):
-task_id: {task_id}
-{stage} 첨부 완료: {paths} (slack thread 링크)
-```
+Images are numbered in `-i` order, so "image 1" in the prompt is the first `-i`.
 
 ## 2. Mock (stage 2)
 
