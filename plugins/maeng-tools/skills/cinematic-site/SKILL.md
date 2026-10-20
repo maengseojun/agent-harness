@@ -29,7 +29,7 @@ seesaw.website detail pages capture well; land-book.com shows a Cloudflare bot c
 
 **5. Hero only.** Build just the hero from the mock: named Google font, exact accent hex, exact background, then the video as background with no overlay (prompts.md §5-6, video-bg.md). Check it at 375 and 1440 px. **Gate B: the user accepts the hero** before anything else is built.
 
-**6. The rest, one step at a time.** Remaining sections (§7), then each extra page alone (§8), spare clips on cards with a blend mode chosen by screenshots (§9).
+**6. The rest, one step at a time (from the tutorial; not yet run in a demo here).** Remaining sections (§7), then each extra page alone (§8), spare clips on cards with a blend mode chosen by screenshots (§9).
 
 **7. Verify** per `frontend-guidance`: screenshots at 375 / 768 / 1440 with the video actually playing (`currentTime > 0`), reduced motion shows the poster, file sizes, `hangul-wrap` for Korean. Report what you checked and what you did not.
 

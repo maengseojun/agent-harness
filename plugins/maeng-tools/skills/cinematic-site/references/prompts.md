@@ -41,7 +41,7 @@ Attach the chosen mock.
 Create an image exactly like this one in the highest resolution you can, 16:9. Remove the text, buttons, logos and navigation. I want the exact same background and the same positions. No zoom in or zoom out.
 ```
 
-## 4. Video on Weave (stage 4)
+## 4. Video on Weave (stage 4) (not yet demo-verified)
 
 Image-to-video, first frame = the plate:
 
@@ -79,19 +79,19 @@ Name the font; models fall back to the same few fonts and that is what reads as 
 Place {assets/hero.mp4} (with hero.webm and poster hero.jpg) as the background of the hero section. Do not add any overlay or dimming; the video is already dark enough for the text. It is a pre-rendered ping-pong loop, so use a plain muted, playsinline, autoplay, loop video. Under prefers-reduced-motion show the poster instead.
 ```
 
-## 7. Rest of the landing page
+## 7. Rest of the landing page (tutorial wording; not yet demo-verified)
 
 ```
 Build the rest of the landing page with {4-5} sections: {sections, e.g. features, how it works, testimonials, portfolio cards}, plus any section you think fits. Keep the hero untouched.
 ```
 
-## 8. One more page
+## 8. One more page (tutorial wording; not yet demo-verified)
 
 ```
 In the navbar there is a "{page}" link. Build that complete page with {5-6} sections. Do not build any other pages.
 ```
 
-## 9. Second video on a card
+## 9. Second video on a card (tutorial wording; not yet demo-verified)
 
 ```
 In the {section} card "{card title}", replace the current graphic with {assets/x.mp4} as the card background. Scale it to about {150}% so it is not cropped, and blend it with mix-blend-mode: {mode} so its background disappears into the card.

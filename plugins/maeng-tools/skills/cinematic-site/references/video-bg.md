@@ -43,7 +43,7 @@ Use this only when the clip cannot be processed ahead of time (for example a vis
 
 Cost: every frame is kept as a bitmap. 10 s at 30 fps and 960x540 is 300 x ~2 MB, about 620 MB, which phones may not survive.
 
-## Matching a video's background to the page: blend modes
+## Matching a video's background to the page: blend modes (from the tutorial and blend-mode math; not yet demo-verified)
 
 A generated clip's "black" is rarely the page's black, so its edges show as a box. Options, from most to least common:
 
