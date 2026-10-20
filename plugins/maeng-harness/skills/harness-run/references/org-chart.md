@@ -31,7 +31,7 @@ Ranks give every agent its scope, its approval line, its reporting line and wher
 | 팀장~대리 (Sonnet, Sol) | commit, branch, push a feature branch, open a PR, within the task's Owns | changes to Spec, criteria or Owns | whoever delegated |
 | 신입 (Haiku) | edits inside the named files | everything else; never commits | whoever delegated |
 
-Escalation goes straight to the rank that can decide, skipping the ranks in between; a junior may ask the CEO directly when only the CEO can decide.
+Every rank is trusted to judge. When something seems to need a decision above its line, it decides for itself whether to escalate or to proceed on a stated assumption. An escalation goes straight to the rank that can decide, skipping the ranks in between, up to the CEO. Only the stop list in harness-run always waits for the CEO.
 
 **One PR by default.** Opus combines the commits of a project into one PR and waits for the CEO's approval. Split into separate PRs only when one change must be merged before another can build or run, for example an api repo bumps a version and the db repo must then reference the new version. Merge stays `maeng-ship merge` after `승인 #N`; G1 is unchanged.
 
