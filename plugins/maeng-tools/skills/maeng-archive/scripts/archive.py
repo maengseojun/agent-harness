@@ -20,7 +20,7 @@ import zipfile
 from pathlib import Path
 
 STORES = ("onedrive", "gdrive")
-PERSONAL_GDRIVE = "GoogleDrive-seojunmaeng@gmail.com"  # the school Drive sorts first, so prefer the personal account
+DEFAULT_GDRIVE = "GoogleDrive-2025131619@korea.ac.kr"  # all Drive use stays on the school account for now (MAE-257); MAENG_ARCHIVE_GDRIVE switches it
 ARCHIVE_DIR = "maeng-archive"
 BACKUP_DIR = "maeng-backup"
 EXCLUDE_DIRS = {".trash", ".cache", "__pycache__", "cache", "Cache", ".git"}
@@ -59,8 +59,8 @@ def store_root(name: str) -> Path | None:
         return p if p.is_dir() else None
     base = Path.home() / "Library" / "CloudStorage"
     for sub in ("My Drive", "내 드라이브"):
-        if (base / PERSONAL_GDRIVE / sub).is_dir():
-            return base / PERSONAL_GDRIVE / sub
+        if (base / DEFAULT_GDRIVE / sub).is_dir():
+            return base / DEFAULT_GDRIVE / sub
     for pat in ("GoogleDrive-*/My Drive", "GoogleDrive-*/내 드라이브"):
         found = sorted(glob.glob(str(base / pat)))
         if found:
