@@ -26,7 +26,18 @@ Ranks give every agent its scope, its approval line, its reporting line and wher
 | 부장/차장, 상무 (Opus) | combine work into PRs (below), Linear and Obsidian records, delegation, review requests | the stop list in harness-run (merge, deploy, deleting data, money, messages to others) |
 | CEO | merge (`승인 #N`), direction, Notion `Completed`, archive | - |
 
+Escalation goes straight to the rank that can decide, skipping the ranks in between; a junior may ask the CEO directly when only the CEO can decide.
+
 **One PR by default.** Opus combines the commits of a project into one PR and waits for the CEO's approval. Split into separate PRs only when one change must be merged before another can build or run, for example an api repo bumps a version and the db repo must then reference the new version. Merge stays `maeng-ship merge` after `승인 #N`; G1 is unchanged.
+
+## Speed and bottlenecks
+
+Ranks route decisions; they are not a chain of sign-offs. Agents gather and check fast, so waiting is the expensive part.
+
+- **Verify once.** A change gets the Plan's checks and one independent review (review-and-ship.md tiers). No rank re-runs a check another rank already ran on the same tree, and there is no junior, then manager, then executive review ladder.
+- **Every wait earns its place.** Before adding a review round, a hand-off, a sub-agent or an approval, name what it catches that nothing else does. If nothing, skip it. If you cannot tell whether the wait is needed, ask the CEO.
+- **Every loop has an exit.** Fix the stop criterion before starting: repair cycles (at most three), review rounds (at most four), research (the question and the bar for an answer). Without a clear criterion, stop and ask instead of iterating.
+- **Name the bottleneck.** When work waited long (approval queue, review backend, a PR that must land first), say where and why in the CEO brief.
 
 ## Delegation and reports
 

@@ -14,6 +14,7 @@ Decisions (CEO interview 2026-10-21, recorded on MAE-257):
 - D-5 eta world untouched.
 - D-6 Archive: when a project hub's `closed` date (the CEO said it is finished, or its Linear parent went Done) is 14 days old or more, ask the CEO; on approval move its files with `maeng-archive move --store gdrive` to the seojunmaeng@gmail.com Drive (`googledrive-maeng`), folder `maeng-archive/`, and keep the hub as the index.
 - D-7 Every CEO-approved decision is recorded in Obsidian (an ADR).
+- D-8 (CEO, 2026-10-21, mid-run) Speed over ceremony: escalate straight to the rank that can decide (skip levels, up to the CEO); verify once, no sequential rank-by-rank review; every wait must earn its place, and when unsure whether it is needed, ask the CEO; every loop has a stop criterion fixed in advance.
 
 Owns: `plugins/maeng-harness/skills/harness-run/` (SKILL.md, references/org-chart.md), `plugins/maeng-harness/skills/work-records/SKILL.md`, `plugins/maeng-harness/lib/maeng/handlers.py` (SessionStart context only) and its test, `plugins/maeng-tools/agents/*.md`, `plugins/maeng-tools/skills/obsidian-workspace/references/claude-edition.md`, `plugins/maeng-tools/skills/maeng-archive/` (SKILL.md, scripts/archive.py store detection and its test), this plan. Vault note `hubs/areas/A-ORG.md` (record, written through Obsidian MCP).
 
@@ -22,6 +23,7 @@ Exclusions: no new gate or hook enforcement of ranks or report fields (slim gate
 must_haves:
   truths:
     - T1: one document names every rank, its model/route, what it does, what it may decide, whom it reports to and where it reads first.
+    - T6: the org chart states D-8 (skip-level escalation, verify once, justify every wait or ask, loop exit criteria).
     - T2: the PR rule says "one PR by default; split only when a merge must land first for another change to build".
     - T3: the delegation and report format (D-3) appears in the org chart and in the three agent definitions.
     - T4: a SessionStart in the personal world lists project hubs whose `closed` date is 14 or more days old and not archived, and lists nothing for younger, missing, malformed or archived dates.
@@ -36,7 +38,7 @@ must_haves:
     - K3: work-records archive flow -> `maeng-archive move --store gdrive` -> gmail Drive root.
 
 Requirements -> acceptance:
-  AC-1: org-chart.md exists with all ranks of D-1, the lines of D-2 and the format of D-3, linked from harness-run.   covers T1, T2, A1, K1
+  AC-1: org-chart.md exists with all ranks of D-1, the lines of D-2, the format of D-3 and the rules of D-8, linked from harness-run.   covers T1, T2, T6, A1, K1
   AC-2: architect, implementer and researcher definitions carry the D-3 report head and Escalate/Evidence fields; implementer says a junior (Haiku) brief means no commit.   covers T3
   AC-3: claude-edition.md documents `audience` (values ceo, director, auditor, exec, team, junior) and `closed`, and the retrieval step reads the reader's audience first without hiding the rest.   covers A2
   AC-4: work-records documents D-6 and D-7.   covers A3, K3
