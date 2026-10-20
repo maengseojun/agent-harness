@@ -170,6 +170,11 @@ class ConversionTests(unittest.TestCase):
         for kept in ("Keep this item", "Inner", "Inner two"):
             self.assertIn(kept, text)
         self.assertNotIn("Share", text)
+        aria = b'<main><div role="navigation">Menu links</div><div role="complementary">Aside box</div><p>Article body</p></main>'
+        text = conversion.extract(aria, ".html", False)["sections"][0]["text"]
+        self.assertIn("Article body", text)
+        self.assertNotIn("Menu links", text)
+        self.assertNotIn("Aside box", text)
 
     def test_drive_manifest_kept_for_each_path_of_identical_bytes(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -178,6 +183,16 @@ class ConversionTests(unittest.TestCase):
             conversion.vault_drive.store("b/x.png", b"same", drive)
             paths = sorted(json.loads(m.read_text())[0]["path"] for m in drive.glob("manifest-*.json"))
             self.assertEqual(paths, ["a/x.png", "b/x.png"])
+
+    def test_drive_refuses_symlink_out_of_root(self):
+        with tempfile.TemporaryDirectory() as folder:
+            drive, vault = Path(folder) / "drive", Path(folder) / "vault"
+            drive.mkdir()
+            (vault / "raw").mkdir(parents=True)
+            (drive / "raw").symlink_to(vault / "raw")
+            with self.assertRaises(ValueError):
+                conversion.vault_drive.store("raw/file.pdf", b"%PDF", drive)
+            self.assertEqual(list((vault / "raw").iterdir()), [])
 
     def test_drive_url_is_absolute_for_relative_root(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -39,6 +39,8 @@ def store(relative, data, drive=DRIVE_ROOT):
     digest = hashlib.sha256(data).hexdigest()
     dst = drive / Path(*rel.parts)
     dst.parent.mkdir(parents=True, exist_ok=True)
+    if dst.is_symlink() or not dst.parent.resolve().is_relative_to(drive):
+        raise ValueError(f"destination leaves the Drive root through a symlink: {relative}")
     if dst.exists():
         if hashlib.sha256(dst.read_bytes()).hexdigest() != digest:
             raise FileExistsError(f"refusing to replace a different Drive file: {dst}")

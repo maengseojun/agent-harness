@@ -34,7 +34,7 @@ def table(rows):
 
 
 BOILERPLATE_TAGS = {"script", "style", "nav", "footer", "noscript", "header", "aside", "form", "iframe", "svg", "button", "template", "dialog"}
-BOILERPLATE_ATTR = re.compile(r"(?i)(?:^|[\s_-])(?:nav|navbar|menu|sidebar|comments?|ads?|advert\w*|banner|promo\w*|share|social|related|cookie\w*|newsletter|subscribe|footer|breadcrumbs?)(?:$|[\s_-])")
+BOILERPLATE_ATTR = re.compile(r"(?i)(?:^|[\s_-])(?:nav|navbar|navigation|menu|menubar|sidebar|complementary|contentinfo|comments?|ads?|advert\w*|banner|promo\w*|share|social|related|cookie\w*|newsletter|subscribe|footer|breadcrumbs?)(?:$|[\s_-])")
 VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
 BLOCK_TAGS = {"address", "article", "aside", "blockquote", "div", "dl", "fieldset", "figure", "footer", "form", "h1", "h2", "h3",
               "h4", "h5", "h6", "header", "hr", "main", "nav", "ol", "p", "pre", "section", "table", "ul"}
