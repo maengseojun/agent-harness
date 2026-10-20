@@ -59,7 +59,7 @@ Every decision the CEO approves (`승인 #N`, a named option, a direction set in
 When the CEO says a project is finished, or the Linear parent of a project goes Done, set `closed: <YYYY-MM-DD>` in its hub's frontmatter. SessionStart lists hubs closed 14 or more days ago (`Archive candidates`). For each one:
 
 1. Ask the CEO, once, with the hub and the files that would move. Nothing moves without a yes.
-2. On yes, run `maeng-archive` (`status`, then `move --store gdrive --dry-run`, then `move`) for the project's notes and raw files. The gdrive store is the personal Drive `googledrive-maeng` (seojunmaeng@gmail.com), folder `maeng-archive/`. Fill every stub summary.
+2. On yes, run `maeng-archive` (`status`, then `move <path> --store gdrive --dry-run`, then `move <path> --store gdrive`; without `--store` it goes to OneDrive) for the project's notes and raw files. The gdrive store is the personal Drive `googledrive-maeng` (seojunmaeng@gmail.com), folder `maeng-archive/`. Fill every stub summary.
 3. Keep the hub in the vault as the index: set `status: archived`, and list each moved file with its stub link and one line on what it held.
 4. Record the archive on the Linear parent (comment) and in an ADR (step "CEO decisions").
 

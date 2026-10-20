@@ -53,8 +53,10 @@ def plugin_version():
 def _scalar(val):
     """A one-line YAML scalar: the text inside quotes, else the text before a ` #` comment."""
     val = val.strip()
-    if val[:1] in ("'", '"') and val.find(val[0], 1) > 0:
-        return val[1:val.find(val[0], 1)]
+    if val[:1] in ("'", '"'):
+        end = val.find(val[0], 1)
+        rest = val[end + 1:].strip() if end > 0 else "?"
+        return val[1:end] if not rest or rest.startswith("#") else val  # junk after the quote stays malformed
     return val.split(" #", 1)[0].strip()
 
 

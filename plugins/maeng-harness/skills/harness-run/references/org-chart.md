@@ -72,7 +72,7 @@ Obsidian notes carry `audience` tags (claude-edition.md): `ceo` (CEO), `director
 | 리서치팀장 | the question, existing `wiki/answers/` and `wiki/sources/` | the web, aside collection |
 | 상무, 부장/차장 | project hub, latest session note, ADRs, Linear parent | Notion, Slack |
 | 팀장~대리 | the task's Spec/Plan, Owns, dependency results | the hub |
-| 신입 | the brief and the files it names | nothing else unless the brief says so |
+| 신입 | the brief and the files it names | anything else the task needs |
 
 ## Records
 

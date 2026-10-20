@@ -37,7 +37,7 @@ Scale it down for small work: a small task can skip the interview and tree but k
 
 ## Sub-tasks
 
-One PR is one parent task. Split it only where a reviewer could reject one part and accept its neighbour. A change of about 150 lines or less stays one task with one Done check; there is no fixed count. Why (MAE-244): fixed criteria and re-run checks catch "done" claims, but parallel writers make conflicting implicit decisions and small splits cost more than they save.
+One PR is one parent task. Split the task into Sub-task rows (never into separate PRs; PR splits follow org-chart.md) only where a reviewer could reject one part and accept its neighbour. A change of about 150 lines or less stays one task with one Done check; there is no fixed count. Why (MAE-244): fixed criteria and re-run checks catch "done" claims, but parallel writers make conflicting implicit decisions and small splits cost more than they save.
 
 The Plan's `Sub-tasks` table is the ledger and survives compaction. Tick a row only after you have re-run its Done yourself; a sub-agent's report is a claim, not evidence. This is the one re-run: the full suite and the review still run once, at the parent.
 

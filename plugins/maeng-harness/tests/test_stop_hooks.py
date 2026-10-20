@@ -217,7 +217,8 @@ class SubagentAndStart(StopBase):
                                      ("P-FRESH", ago(13), "closed"), ("P-DONE", ago(20), '"archived"'),
                                      ("P-BAD", "not-a-date", "closed"), ("P-OPEN", None, "active"),
                                      ("P-NOTE", f"{ago(15)} # finished", "closed"),
-                                     ("P-MOVED", ago(20), "archived # already moved")):
+                                     ("P-MOVED", ago(20), "archived # already moved"),
+                                     ("P-JUNK", f'"{ago(20)}" garbage', "closed")):
             fm = [f"status: {status}"] + ([f"closed: {closed}"] if closed else [])
             (hubs / f"{stem}.md").write_text("---\n" + "\n".join(fm) + "\n---\n# body\n")
         rc, out, _ = self.hook("SessionStart", self.repo, source="startup")
