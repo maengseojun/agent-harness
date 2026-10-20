@@ -33,7 +33,7 @@ def store(relative, data, drive=DRIVE_ROOT):
     rel = PurePosixPath(relative)
     if rel.is_absolute() or not rel.parts or any(p in ("", ".", "..") for p in rel.parts):
         raise ValueError(f"vault-relative path required: {relative}")
-    drive = Path(drive)
+    drive = Path(drive).resolve()  # a file:// URL needs an absolute path
     if not drive.is_dir():
         raise FileNotFoundError(f"Drive vault-offload is not available, nothing written: {drive}")
     digest = hashlib.sha256(data).hexdigest()

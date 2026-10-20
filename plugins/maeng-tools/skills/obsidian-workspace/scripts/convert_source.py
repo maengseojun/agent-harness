@@ -42,6 +42,8 @@ BLOCK_TAGS = {"address", "article", "aside", "blockquote", "div", "dl", "fieldse
 IMPLIED_END = {"p": BLOCK_TAGS, "li": {"li"}, "dt": {"dt", "dd"}, "dd": {"dt", "dd"}, "option": {"option"},
                "tr": {"tr"}, "td": {"td", "th", "tr"}, "th": {"td", "th", "tr"}}
 
+SCOPE_TAGS = {"ul", "ol", "dl", "table", "select", "main", "article", "section", "body", "html"}
+
 
 class LocalHTML(HTMLParser):
     def __init__(self):
@@ -58,8 +60,7 @@ class LocalHTML(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
-        while self.stack and tag in IMPLIED_END.get(self.stack[-1][0], ()):
-            self.stack.pop()
+        self.close_implied(tag)
         skipped = self.skip or tag in BOILERPLATE_TAGS or bool(BOILERPLATE_ATTR.search(" ".join(filter(None, (attrs.get("id"), attrs.get("class"), attrs.get("role"))))))
         if tag not in VOID_TAGS:
             self.stack.append((tag, skipped))
@@ -82,6 +83,16 @@ class LocalHTML(HTMLParser):
             href = attrs.get("href", "")
             if href.startswith(("https://", "http://", "#", "/")):
                 self.emit(" [link: " + href + "] ")
+
+    def close_implied(self, tag):
+        # Close the nearest open element this tag ends, through unclosed children, but not past a list/table/section scope.
+        for index in range(len(self.stack) - 1, -1, -1):
+            open_tag = self.stack[index][0]
+            if tag in IMPLIED_END.get(open_tag, ()):
+                del self.stack[index:]
+                return self.close_implied(tag)
+            if open_tag in SCOPE_TAGS:
+                return
 
     def handle_endtag(self, tag):
         tags = [t for t, _ in self.stack]

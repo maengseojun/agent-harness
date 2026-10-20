@@ -1,5 +1,6 @@
 import hashlib
 import io
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -164,6 +165,11 @@ class ConversionTests(unittest.TestCase):
         self.assertNotIn("Advertisement", text)
         self.assertNotIn("Tweet", text)
         self.assertNotIn("After", text)  # outside <main>
+        nested = b'<main><ul><li class="share"><p>Share<li>Keep this item<ul><li>Inner<li>Inner two</ul></ul></main>'
+        text = conversion.extract(nested, ".html", False)["sections"][0]["text"]
+        for kept in ("Keep this item", "Inner", "Inner two"):
+            self.assertIn(kept, text)
+        self.assertNotIn("Share", text)
 
     def test_drive_manifest_kept_for_each_path_of_identical_bytes(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -172,6 +178,18 @@ class ConversionTests(unittest.TestCase):
             conversion.vault_drive.store("b/x.png", b"same", drive)
             paths = sorted(json.loads(m.read_text())[0]["path"] for m in drive.glob("manifest-*.json"))
             self.assertEqual(paths, ["a/x.png", "b/x.png"])
+
+    def test_drive_url_is_absolute_for_relative_root(self):
+        with tempfile.TemporaryDirectory() as folder:
+            cwd = Path.cwd()
+            try:
+                os.chdir(folder)
+                Path("archive").mkdir()
+                url = conversion.vault_drive.store("raw/f.pdf", b"%PDF", "archive")
+            finally:
+                os.chdir(cwd)
+            self.assertTrue(url.startswith("file:///"), url)
+            self.assertTrue(url.endswith("/archive/raw/f.pdf"), url)
 
     def test_hash_path_and_native_input_boundaries(self):
         with tempfile.TemporaryDirectory() as folder:
