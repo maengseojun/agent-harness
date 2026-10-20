@@ -54,8 +54,12 @@ def store(relative, data, drive=DRIVE_ROOT):
             raise OSError(f"hash mismatch after copy: {dst}")
     entry = [{"path": rel.as_posix(), "sha256": digest, "bytes": len(data), "drive": str(dst)}]
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    with open(drive / f"manifest-{stamp}-{digest[:8]}.json", "w", encoding="utf-8") as f:
-        json.dump(entry, f, ensure_ascii=False, indent=1)
+    name = hashlib.sha256(f"{rel.as_posix()}\0{digest}".encode()).hexdigest()[:12]
+    try:
+        with open(drive / f"manifest-{stamp}-{name}.json", "x", encoding="utf-8") as f:
+            json.dump(entry, f, ensure_ascii=False, indent=1)
+    except FileExistsError:
+        pass  # same path and bytes already recorded this second
     return file_url(dst)
 
 

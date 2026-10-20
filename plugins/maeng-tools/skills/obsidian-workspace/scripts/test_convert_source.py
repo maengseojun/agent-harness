@@ -156,6 +156,23 @@ class ConversionTests(unittest.TestCase):
             self.assertEqual(manifest[0]["sha256"], digest)
             self.assertEqual(manifest[0]["path"], stored[0].relative_to(drive).as_posix())
 
+    def test_html_body_survives_implicitly_closed_boilerplate(self):
+        html = b'<main><p class="ad">Advertisement<p>Actual article text<li class="share">Tweet<li>Point</main><p>After'
+        text = conversion.extract(html, ".html", False)["sections"][0]["text"]
+        self.assertIn("Actual article text", text)
+        self.assertIn("Point", text)
+        self.assertNotIn("Advertisement", text)
+        self.assertNotIn("Tweet", text)
+        self.assertNotIn("After", text)  # outside <main>
+
+    def test_drive_manifest_kept_for_each_path_of_identical_bytes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            drive = Path(folder)
+            conversion.vault_drive.store("a/x.png", b"same", drive)
+            conversion.vault_drive.store("b/x.png", b"same", drive)
+            paths = sorted(json.loads(m.read_text())[0]["path"] for m in drive.glob("manifest-*.json"))
+            self.assertEqual(paths, ["a/x.png", "b/x.png"])
+
     def test_hash_path_and_native_input_boundaries(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

@@ -36,6 +36,11 @@ def table(rows):
 BOILERPLATE_TAGS = {"script", "style", "nav", "footer", "noscript", "header", "aside", "form", "iframe", "svg", "button", "template", "dialog"}
 BOILERPLATE_ATTR = re.compile(r"(?i)(?:^|[\s_-])(?:nav|navbar|menu|sidebar|comments?|ads?|advert\w*|banner|promo\w*|share|social|related|cookie\w*|newsletter|subscribe|footer|breadcrumbs?)(?:$|[\s_-])")
 VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
+BLOCK_TAGS = {"address", "article", "aside", "blockquote", "div", "dl", "fieldset", "figure", "footer", "form", "h1", "h2", "h3",
+              "h4", "h5", "h6", "header", "hr", "main", "nav", "ol", "p", "pre", "section", "table", "ul"}
+# HTML lets these end without a closing tag when one of the listed tags opens.
+IMPLIED_END = {"p": BLOCK_TAGS, "li": {"li"}, "dt": {"dt", "dd"}, "dd": {"dt", "dd"}, "option": {"option"},
+               "tr": {"tr"}, "td": {"td", "th", "tr"}, "th": {"td", "th", "tr"}}
 
 
 class LocalHTML(HTMLParser):
@@ -43,19 +48,23 @@ class LocalHTML(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.parts = []
         self.body = []  # text inside <main>/<article>; used instead of parts when the page has one
-        self.skip = []  # open boilerplate tags; their contents are dropped
-        self.main = 0
+        self.stack = []  # open elements as (tag, skipped); a boilerplate element skips everything inside it
         self.images = 0
         self.tables = 0
 
+    @property
+    def skip(self):
+        return bool(self.stack) and self.stack[-1][1]
+
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
-        if self.skip or tag in BOILERPLATE_TAGS or BOILERPLATE_ATTR.search(" ".join(filter(None, (attrs.get("id"), attrs.get("class"), attrs.get("role"))))):
-            if tag not in VOID_TAGS:
-                self.skip.append(tag)
+        while self.stack and tag in IMPLIED_END.get(self.stack[-1][0], ()):
+            self.stack.pop()
+        skipped = self.skip or tag in BOILERPLATE_TAGS or bool(BOILERPLATE_ATTR.search(" ".join(filter(None, (attrs.get("id"), attrs.get("class"), attrs.get("role"))))))
+        if tag not in VOID_TAGS:
+            self.stack.append((tag, skipped))
+        if skipped:
             return
-        if tag in {"main", "article"}:
-            self.main += 1
         if tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
             self.emit("\n\n" + "#" * int(tag[1]) + " ")
         elif tag in {"p", "div", "section", "article", "main", "br", "tr"}:
@@ -75,14 +84,13 @@ class LocalHTML(HTMLParser):
                 self.emit(" [link: " + href + "] ")
 
     def handle_endtag(self, tag):
-        if self.skip:
-            if tag in self.skip:  # tolerate unclosed inner tags
-                del self.skip[len(self.skip) - 1 - self.skip[::-1].index(tag):]
+        tags = [t for t, _ in self.stack]
+        if tag not in tags:
             return
-        if tag in {"p", "section", "article", "main", "table"}:
+        index = len(tags) - 1 - tags[::-1].index(tag)
+        if not self.stack[index][1] and tag in {"p", "section", "article", "main", "table"}:
             self.emit("\n")
-        if tag in {"main", "article"} and self.main:
-            self.main -= 1
+        del self.stack[index:]  # closes unclosed children too
 
     def handle_data(self, data):
         if not self.skip:
@@ -90,7 +98,7 @@ class LocalHTML(HTMLParser):
 
     def emit(self, text):
         self.parts.append(text)
-        if self.main:
+        if any(t in {"main", "article"} for t, _ in self.stack):
             self.body.append(text)
 
     def text(self):
