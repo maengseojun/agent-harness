@@ -12,7 +12,7 @@ Linear: MAE-253. Date: 2026-10-20. Single task (one new skill folder, docs only)
 
 ## S0 spike results (2026-10-20, hyperframes 0.8.181)
 
-- `HYPERFRAMES_SKIP_SKILLS=1 npx hyperframes init` scaffolded a project and left `~/.claude/skills` and `~/.agents` unchanged (directory listing diff empty).
+- `HYPERFRAMES_SKIP_SKILLS=1 npx hyperframes@latest init clip --non-interactive --example=blank` scaffolded a project whose `package.json` scripts pin the resolved version (`npx --yes hyperframes@0.8.181 ...`), and left `~/.claude/skills` and `~/.agents` unchanged (directory listing diff empty).
 - A 15 s, 5-beat Korean composition with local Pretendard `@font-face` passed `hyperframes check` (0 errors; warnings only ask for per-scene sub-compositions).
 - One root composition per project (`multiple_root_compositions` error); `hyperframes-studio` says a different aspect starts a new project. So 16:9 and 9:16 are sibling projects.
 - `hyperframes snapshot --at <beats>` writes the stills and a `contact-sheet.jpg`, so no contact-sheet script is needed.

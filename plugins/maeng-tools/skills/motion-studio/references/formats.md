@@ -15,7 +15,7 @@ Safe boxes (HyperFrames studio, Premiere defaults): everything visible inside ac
 ```bash
 HYPERFRAMES_SKIP_SKILLS=1 npx --yes hyperframes@<pin> render --quality delivery -o renders/<slug>-<aspect>.mp4
 ffprobe -v error -show_entries stream=width,height,r_frame_rate:format=duration -of csv=p=0 renders/<slug>-<aspect>.mp4
-ffmpeg -v error -ss <beat midpoint> -i renders/<slug>-<aspect>.mp4 -frames:v 1 reviews/final-<aspect>-<t>.png
+ffmpeg -v error -ss <beat midpoint> -i renders/<slug>-<aspect>.mp4 -frames:v 1 ../reviews/final-<aspect>-<t>.png
 ```
 
 Expected: the project size, the brief's length, 30 fps unless the brief says otherwise. A pulled frame must show the chosen font, not a fallback or empty boxes.
