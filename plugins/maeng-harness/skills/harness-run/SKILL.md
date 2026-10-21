@@ -5,7 +5,7 @@ description: Use when work is big enough to need a plan and a task tree - "build
 
 # harness-run (Claude edition)
 
-The user's workflow for substantial work in the personal world. The plugin hooks enforce the code gates (verification, review receipts, merge route) and nudge recording; this skill is how you work inside them. In the eta world this plugin is off and eta's own rules apply.
+The user's workflow for substantial work in the personal world. The plugin hooks enforce the code gates (verification, review receipts, merge route) and nudge recording; this skill is how you work inside them. In eta checkouts eta's own rules come first; the ranks, DRI and message formats of [org-chart.md](references/org-chart.md) still apply to local work on top of them.
 
 Records are autonomous, code is strict: write Linear and Obsidian without asking; publish to Notion only after a Sol review; push, open PRs and merge only with verification evidence bound to the exact code.
 

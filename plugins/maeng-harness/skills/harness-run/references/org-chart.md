@@ -1,6 +1,6 @@
 # Org chart (AX ranks, personal world)
 
-Ranks give every agent its scope, its approval line, its reporting line and where it reads first. They never restrict access: any rank may read anything when the work needs it. eta is out of scope; there eta's own rules apply. Decided by the CEO on 2026-10-21 (MAE-257).
+Ranks give every agent its scope, its approval line, its reporting line and where it reads first. They never restrict access: any rank may read anything when the work needs it. They apply to all local work, personal and eta: delegation prompts, agent reports and the local vault. In eta work, eta's own rules (eta-rules, its review, approval and Linear routes) come first, and the ranks, the DRI and the message formats are only a way of working on top of them. Decided by the CEO on 2026-10-21 (MAE-257; scope widened in MAE-267).
 
 ## Ranks
 
@@ -39,7 +39,7 @@ Every rank is trusted to judge. When something seems to need a decision above it
 
 The approval lines say what a rank may decide in general. The DRI (directly responsible individual) names who decides one piece of work: it decides, executes and records what was learned. Decided by the CEO on 2026-10-21 (MAE-259).
 
-- **The line.** In a task tree every parent and child Linear issue carries `DRI: <agent>` (not the Spec/Plan, which the reviewer reads). By default the parent's DRI is the Opus session and a child's is the agent that executes it, inside its Spec. A sub-agent DRI owns the how and reports what it learned; the parent's DRI passes it the earlier learnings that bear on its task, writes the learning lines and judges every `D-n` of the tree at close. Small work without a tree needs no line; the session is the DRI.
+- **The line.** In a task tree every parent and child Linear issue carries `DRI: <agent>`, a plain name such as `Opus session` without a rank (not the Spec/Plan, which the reviewer reads). By default the parent's DRI is the Opus session and a child's is the agent that executes it, inside its Spec. A sub-agent DRI owns the how and reports what it learned; the parent's DRI passes it the earlier learnings that bear on its task, writes the learning lines and judges every `D-n` of the tree at close. Small work without a tree needs no line; the session is the DRI.
 - **Three layers.** Each decision has one owner. Others give input (a finding, a `Dissent:` line, a question); the owner decides.
 
   | Layer | Covers | Owner |
@@ -137,7 +137,7 @@ When it writes a Spec's `D-n`, a DRI first reads the learnings on the same rule 
 
 ## Internal only
 
-Ranks, rank names and the `[rank→recipient]` head are internal working language. Use them only between the CEO and agents: delegation prompts, agent reports, personal Linear, the vault, Slack `#maestro-claude`. Never use them in eta work or in anything other people read: final deliverables, Notion outcome records, documents, messages to others, and PR or commit text. Write those in plain roles ("reviewer", "implementer") or none.
+Ranks, rank names and the `[rank→recipient]` head are local working language: delegation prompts, agent reports and the local vault, in personal and eta work alike. Anything written outside this machine uses plain roles ("Opus session", "reviewer", "implementer") or none: Linear (issue bodies, comments, `DRI:` lines), Slack (`#maestro-claude` included, so CEO briefs too), Notion, PR and commit text, documents, deliverables and messages to others. Linear issue bodies also reach the PR through the linkback comment (MAE-267).
 
 ## Records
 
