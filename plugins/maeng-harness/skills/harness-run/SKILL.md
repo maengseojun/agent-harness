@@ -77,7 +77,7 @@ Do not ask mid-task what a sensible default or the Spec already answers; note th
 ## Choosing helpers
 
 - Specialist skills: pick the smallest set that materially helps the deliverable (a deck needs presentation guidance, a diagram needs `diagram-explainer`), read them before applying, and say which you used. User requirements and repo constraints outrank advisory skills. Visual deliverables: [visual-artifacts.md](references/visual-artifacts.md).
-- Agents: `maeng-tools:architect` (Opus, read-only design and internal review), `maeng-tools:implementer` (Sonnet), `maeng-tools:researcher` (Haiku, read-only research). The session itself stays on Opus. Do not set `CLAUDE_CODE_SUBAGENT_MODEL`.
+- Agents: `maeng-tools:architect` (Opus, read-only design and internal review), `maeng-tools:implementer` (Sonnet), `maeng-tools:researcher` (Haiku, read-only research), `maeng-tools:design-reviewer` (Sonnet, read-only review of a rendered UI). The session itself stays on Opus. Do not set `CLAUDE_CODE_SUBAGENT_MODEL`.
 - Ranks: who does what, who may decide what (one PR by default), the delegation/report format and where each rank reads first are in [org-chart.md](references/org-chart.md).
 - Collection and research: `aside-collect` gathers, `aside-research` judges.
 - Planning or coding handoffs for another agent: the `task-brief` and `execute-code-brief` skills.

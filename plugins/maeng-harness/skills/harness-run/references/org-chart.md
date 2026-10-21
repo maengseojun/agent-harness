@@ -14,7 +14,7 @@ Ranks give every agent its scope, its approval line, its reporting line and wher
 | 리서치팀장 (research lead) | Opus | `aside-research`; splits topics to Sonnet or Sol at effort high | ordinary research |
 | 상무 (executive) | the Opus session | this session | plans, delegates, integrates, writes the CEO brief |
 | 부장/차장 (general manager) | a middle Opus | `maeng-tools:architect` for design, or an agent with `model: opus` that owns a sub-tree | only on large projects: a parent with several child PRs or more than one repo |
-| 팀장~대리 (team lead) | Sonnet; Sol 6.1 when Codex tokens are available | `maeng-tools:implementer`; Codex through `task-brief` / `execute-code-brief` | executes one task |
+| 팀장~대리 (team lead) | Sonnet; Sol 6.1 when Codex tokens are available | `maeng-tools:implementer`; Codex through `task-brief` / `execute-code-brief`; `maeng-tools:design-reviewer` for a rendered UI | executes one task, or reviews one rendered UI |
 | 신입~대리 (junior) | Haiku | `maeng-tools:researcher` (read-only); small edits through `maeng-tools:implementer` with `model: haiku` | light research and small, exact edits |
 
 ## Approval lines

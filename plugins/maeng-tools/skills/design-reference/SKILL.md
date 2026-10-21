@@ -28,6 +28,15 @@ Show actual reference images or accessible previews with direct source links. Ex
 
 When comparison helps, create two or three small, meaningfully different previews using the same representative user content. Label placeholders and omitted content. If the direction is already settled, refine it instead of generating alternatives. After selection, keep a compact brief of accepted and rejected choices, source links, and open questions.
 
+For a checklist of interview questions or of axes to vary between previews (for example variance, motion and density), the archived ui-ux-pro-max snapshot (vault note `wiki/sources/S-ui-ux-pro-max-skill.md`) lists where to look. It is reading material: never install it or run its scripts, and do not take a direction from its product-to-style tables.
+
+## Keep the direction in DESIGN.md
+
+For a product with its own repository, write the accepted brief to `DESIGN.md` at the repo root so later sessions build to the same decisions. It holds: the direction in one paragraph with its source links; tokens layered primitive → semantic → component (components use semantic tokens, never raw hex); accepted and rejected choices with the date and who decided; open questions; and one `## Page: <name>` section per page that overrides the global rules.
+
+- Read an existing `DESIGN.md` before changing it. Update the sections the new decision touches; never regenerate the file over earlier decisions. A change to an accepted choice needs the user's say-so and is recorded as a new dated line, not a silent edit.
+- A one-off artifact (a deck, a single explainer) keeps its brief in the task, not in a `DESIGN.md`.
+
 ## Produce with the relevant skill
 
 Pass the accepted brief to the appropriate presentation, document, frontend, image, or motion workflow. This skill supplies reference selection and direction, not a replacement authoring tool. Preserve the requested format and editable elements where required. Verify the actual output using that production skill's checks; distinguish a preview, a rendered artifact, and user acceptance.

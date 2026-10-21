@@ -7,11 +7,12 @@ description: Use when building or refining a website, landing page or app UI and
 
 For general design craft (hierarchy, type, layout, motion, avoiding generic AI looks) use the official `frontend-design` skill. This skill adds only these rules:
 
+- **Read the product's `DESIGN.md` first** when the repo has one (see `design-reference`): build to its tokens and accepted choices, with a page section overriding the global one. A choice that departs from it goes back into the file, not only into the code.
 - **The user's inputs win.** Requested fonts, palettes, references and aesthetics override taste-based warnings. Inspect the existing product and references first; ask only when a missing fact changes the outcome.
 - **Preserve product facts and behavior** while refining; change presentation, not content or logic.
 - **Surface decides emphasis.** An operating dashboard favors scanability; a landing page supports its message and one action.
 - **Korean UI:** run `hangul-wrap` before shipping so words do not split mid-syllable-group; do not claim a fix without its measurement.
-- **Verify the rendered result,** not the code: relevant desktop and mobile widths, keyboard focus, text overflow, reduced motion when anything moves. Report what was actually checked and what was not. Optional style advice never waives accessibility or correctness checks.
+- **Verify the rendered result,** not the code: relevant desktop and mobile widths, keyboard focus, text overflow, reduced motion when anything moves. Report what was actually checked and what was not. Optional style advice never waives accessibility or correctness checks. Before delivery, take a final pass over §1–§3 of the [UI checklist](references/ui-checklist.md); for a page or flow, have the `maeng-tools:design-reviewer` agent review the rendered result.
 - **HTML deck:** use `frontend-slides`; do not apply responsive page rules to a fixed slide canvas.
 - **Cinematic landing page** (references, generated hero image or video background, built in stages): use `cinematic-site`.
 - **Generated images** (hero, illustration, background, mock): GPT Image through `codex exec`, as in `cinematic-site` prompts §1. Never generate the real product UI, logos or data.
