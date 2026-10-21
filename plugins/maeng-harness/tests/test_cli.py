@@ -236,6 +236,19 @@ class ReviewRun(ReviewRunFixture):
         self.assertEqual(json.loads(r.stdout)["verdict"], "blocked")
         self.assertFalse(self.log.exists())
 
+    def test_unverified_head_is_blocked_before_reviewer_and_not_counted(self):
+        (self.repo / "app.py").write_text("print('fixed after verification')\n")
+        h2 = self.commit_all(self.repo, "fix")  # new head, no evidence for its tree yet
+        r = self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", h2,
+                                      "--base-ref", "main"], self.repo, extra_env={"MAENG_CODEX": str(self.codex)})
+        self.assertEqual(r.returncode, 2)
+        out = json.loads(r.stdout)
+        self.assertEqual(out["verdict"], "blocked")
+        self.assertIn("verification evidence for the reviewed head", out["findings"][0]["body"])
+        self.assertFalse(self.log.exists())
+        rv = load_bin("maeng-review")
+        self.assertEqual(rv.prior_rounds(out["subject"]["repo"], "7"), 0)  # a local block uses no review round
+
     def test_notion_review_digest_binds_the_payload(self):
         payload = {"parent": {"data_source_id": "db111111111111111111111111111111"}, "pages": [{"title": "x"}]}
         pf = self.tmp / "payload.json"

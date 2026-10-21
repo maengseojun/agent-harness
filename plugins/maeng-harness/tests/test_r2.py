@@ -191,6 +191,8 @@ class R2_G_ReviewRevocationAndDelegation(ReviewRunFixture):
         super().setUp()
         (self.repo / "lib.py").write_text("x = 1\n")
         self.h = self.commit_all(self.repo, "lib")
+        self.run_check(self.repo, "pytest -q")  # reviews need a ship-verified head
+        self.cli("maeng-verify", ["plan", "--met", "AC-1"], self.repo)
 
     def subject(self, key):
         return receipts.load(key)["verdict"]["subject"]
@@ -347,5 +349,6 @@ class R2_J_ReviewerPrompt(HarnessCase):
         mod = importlib.util.module_from_spec(spec)
         loader.exec_module(mod)
         for needle in ("SLIM by design", "audit the gate only when", "state changed earlier in the same command", "AFTER THE FACT", "MAENG_TEST_FIXTURES", "maeng-ship merge <N>", "files_delegated",
-                       "tool_reference", "needs-external-check", "--tool-ref", "tool_reference is null"):
+                       "tool_reference", "needs-external-check", "--tool-ref", "tool_reference is null",
+                       "never\nby itself a reason for fail or blocked", "not blocked."):
             self.assertIn(needle, mod.PROMPT)

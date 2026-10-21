@@ -72,10 +72,12 @@ output of the git and gh installed where the bundle was built (collected before 
 Judge option and subcommand semantics against it, not against memory; an option or subcommand it shows that the
 gate does not handle for a gated route is a finding. When tool_reference is null, or a judgment depends on tool behavior it does
 not show (listed as unavailable, or not covered by help text), do not guess:
-report a finding with severity medium titled "needs-external-check: <what must be checked>".
+report a finding with severity low titled "needs-external-check: <what must be checked>". Such a finding is never
+by itself a reason for fail or blocked: the coordinator runs the check and reports it to the user (user decision 2026-10-21).
 Start from the assumption that the change is wrong; try to falsify it against the acceptance criteria (AC-n).
 Answer with JSON matching the supplied schema. verdict=pass only if no critical/high finding remains and every AC is met.
-Use verdict=blocked if the bundle lacks something required.
+Use verdict=blocked only if the bundle lacks something required to judge an AC; a tool behavior you cannot observe
+is a needs-external-check finding, not blocked.
 
 BUNDLE:
 """
@@ -292,8 +294,11 @@ def code_bundle(a, cwd, st):
             "relevant_differences": None if paths is None else [p for p in paths if treelib.is_relevant(p, policy)],
             "non_code_globs": policy and policy.get("non_code_globs"),
         })
-    if not ev:
-        missing.append("verification evidence")
+    # Review only a head that is already ship-verified: a reviewer handed stale or absent evidence can only answer
+    # blocked, and that run would still count toward the round cap (review-rounds analysis, 2026-10-21).
+    if not ok:
+        missing.append("verification evidence for the reviewed head (run the Plan checks on this exact head first): "
+                       + "; ".join(reasons))
     if binding.get("criteria") is None or not binding.get("criteria"):
         missing.append("Spec/Plan AC-n criteria")
     elif not plan_text(binding):

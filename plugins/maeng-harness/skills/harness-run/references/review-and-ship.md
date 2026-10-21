@@ -35,6 +35,8 @@ Store payloads under the session repo's `publish/` directory (`publish/<id>.json
 
 Verdict `{verdict, subject, reviewer, findings[]}` is stored per subject. Route it to a Linear comment on the bound issue and to `wiki/reviews/REV-<MAE>-<YYYYMMDD-HHMM>-<digest7>.md`. On `fail`: fix each finding, re-verify, request a new review (new head means a new subject).
 
+- **Verify before review.** `maeng-review run` refuses locally, without calling the reviewer and without using a round, when the reviewed head is not ship-verified (the Plan checks have not passed on that exact head). After every fix commit, re-run the checks, then request the review.
+- **needs-external-check.** The reviewer reports tool behavior it cannot observe as a low finding titled `needs-external-check: …`; it never makes the verdict fail or blocked by itself. Run that check yourself and put the result in the CEO brief.
 - **Round cap.** `maeng-review run --pr N` refuses once the repo and PR already have 4 stored review runs (`--max-rounds`, raised only on the user's word). Before another round, sort the findings into: caused by this diff, pre-existing, real approval bypass; only the first group blocks. At the cap, send the CEO brief and ask for `승인 #N`.
 - **Commit status.** On a GitHub repo every code review posts commit status `maeng/review` (success on pass, failure otherwise) on the reviewed head; a posting failure is a warning only. Nothing requires it yet; once rulesets are enabled (eta by its owners, personal repos after a plan upgrade), make `maeng/review` a required check. maeng-ship then has to merge through `gh pr merge` instead of a direct push, because rulesets that require a PR reject that push.
 
