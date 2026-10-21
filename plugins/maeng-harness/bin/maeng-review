@@ -410,11 +410,6 @@ def run_review(a, cwd):
                 subject[k] = st["binding"][k]
         if not a.base_ref:
             bundle.setdefault("missing", []).append("base ref name (--base-ref)")
-        rounds = prior_rounds(subject["repo"], a.pr) if subject["repo"] and a.pr else 0
-        if rounds >= a.max_rounds:
-            die(f"review round cap: PR #{a.pr} already had {rounds} review runs (max {a.max_rounds}). Stop reviewing: "
-                f"post the CEO brief with the open findings (harness-run, Approval) and ask the user for `승인 #{a.pr}`. "
-                f"Raise --max-rounds only on the user's word.", 2)
     model, effort = tier_for(a.kind, st.get("binding"))
     prompt_text = PROMPT + json.dumps(bundle, indent=1)
     if len(prompt_text) > a.max_bytes:  # the exact text sent to codex, not an estimate
@@ -427,6 +422,13 @@ def run_review(a, cwd):
                                  "file": None, "line": None}]}
         print(json.dumps(verdict, indent=2))
         return 2
+    # The cap counts reviewer runs, so it is checked only once the bundle is complete (a local block uses no round).
+    if a.kind not in ("notion", "research") and not (a.kind == "docs" and a.draft):
+        rounds = prior_rounds(subject["repo"], a.pr) if subject["repo"] and a.pr else 0
+        if rounds >= a.max_rounds:
+            die(f"review round cap: PR #{a.pr} already had {rounds} review runs (max {a.max_rounds}). Stop reviewing: "
+                f"post the CEO brief with the open findings (harness-run, Approval) and ask the user for `승인 #{a.pr}`. "
+                f"Raise --max-rounds only on the user's word.", 2)
     full = schema.load_schema()
     out_schema = {**full["$defs"]["reviewer_output"], "$defs": full["$defs"]}
     with tempfile.TemporaryDirectory(prefix="maeng-review-") as d:
