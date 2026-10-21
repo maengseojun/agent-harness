@@ -12,7 +12,7 @@ Decisions (2026-10-21 review, recorded on MAE-258):
 - D-3 Borrow the MASTER.md + page-override idea as one `DESIGN.md` at the product repo root, written by design-reference once a direction is accepted and read first by frontend work.
 - D-4 The official `frontend-design` plugin (skills only, no hooks) is installed at user scope, since frontend-guidance already defers to it. Done outside the repo on 2026-10-21.
 
-Owns: `plugins/maeng-tools/agents/design-reviewer.md`, `plugins/maeng-tools/skills/frontend-guidance/` (SKILL.md, references/ui-checklist.md), `plugins/maeng-tools/skills/design-reference/SKILL.md`, `plugins/maeng-harness/skills/harness-run/` (SKILL.md "Choosing helpers", references/org-chart.md route cell), this plan.
+Owns: `plugins/maeng-tools/agents/design-reviewer.md`, `plugins/maeng-tools/licenses/ui-ux-pro-max-skill.LICENSE`, `plugins/maeng-tools/skills/frontend-guidance/` (SKILL.md, references/ui-checklist.md), `plugins/maeng-tools/skills/design-reference/SKILL.md`, `plugins/maeng-harness/skills/harness-run/` (SKILL.md "Choosing helpers", references/org-chart.md route cell), this plan.
 
 Exclusions: no hook or gate; no plugin version bump (release follows approval); no taste-skill rules (separate proposal); eta untouched.
 
@@ -35,6 +35,6 @@ Readiness: base `origin/feat/harness-v1` at 99fa207; branch `feat/mae-258-uiux`.
 
 Verification:
 - AC-1: `python3 -c` frontmatter parse of design-reviewer.md (name, description, model, tools present) and `grep` for `375`, `hangul-wrap`, `Escalate:`, `MIT`.
-- AC-2: the R2 grep; `grep -c '^### ' ui-checklist.md` >= 10; `grep MIT`.
+- AC-2: the R2 grep; `grep -c '^### ' ui-checklist.md` >= 10; both files reference `licenses/ui-ux-pro-max-skill.LICENSE`, which is byte-identical to the upstream LICENSE at 56ea9cf.
 - AC-3, AC-4: review items in the parent review.
 - Repo suite: `python3 -m pytest -q` (unchanged code; confirms docs-sync tests still pass).

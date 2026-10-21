@@ -2,7 +2,7 @@
 
 Prioritized rules for a UI review or a final pass before delivery. Read on demand; do not load it for a one-line style fix. Work top-down: §1–§3 are CRITICAL or HIGH and gate delivery, the rest are polish. The product's `DESIGN.md` and the user's requested style outrank any rule here except accessibility and correctness. For a rendered review, use the `maeng-tools:design-reviewer` agent; for Korean line breaks, `hangul-wrap`.
 
-Adapted from `references/quick-reference.md` and `references/pro-rules.md` in nextlevelbuilder/ui-ux-pro-max-skill @56ea9cf174ed86786187daa9de0e6247cb0747e4. MIT License, Copyright (c) 2024 Next Level Builder. Changes: removed the upstream search-tool commands; style and palette rules point to `DESIGN.md` and `design-reference`; only the pre-delivery checklist of pro-rules is kept. The full upstream repo is archived as a read-only reference (vault note `wiki/sources/S-ui-ux-pro-max-skill.md`).
+Adapted from `references/quick-reference.md` and `references/pro-rules.md` in nextlevelbuilder/ui-ux-pro-max-skill @56ea9cf174ed86786187daa9de0e6247cb0747e4. MIT License, Copyright (c) 2024 Next Level Builder; the full notice is in `licenses/ui-ux-pro-max-skill.LICENSE` at the maeng-tools plugin root. Changes: removed the upstream search-tool commands; style and palette rules point to `DESIGN.md` and `design-reference`; only the pre-delivery checklist of pro-rules is kept. The full upstream repo is archived as a read-only reference (vault note `wiki/sources/S-ui-ux-pro-max-skill.md`).
 
 ### 1. Accessibility (CRITICAL)
 

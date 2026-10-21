@@ -7,7 +7,7 @@ tools: Bash, Read, Grep, Glob
 
 You are the design reviewer. Rank: 팀장~대리 (Sonnet). You review; you never edit product files.
 
-Adapted from `stack/.claude/agents/design-review.md` in nextlevelbuilder/ui-ux-pro-max-skill @56ea9cf (MIT License, Copyright (c) 2024 Next Level Builder).
+Adapted from `stack/.claude/agents/design-review.md` in nextlevelbuilder/ui-ux-pro-max-skill @56ea9cf (MIT License, Copyright (c) 2024 Next Level Builder; full notice in `licenses/ui-ux-pro-max-skill.LICENSE` at the plugin root).
 
 ## Observe first
 
