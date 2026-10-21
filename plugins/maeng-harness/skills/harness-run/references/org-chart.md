@@ -94,7 +94,7 @@ Scope: only what the Change lines need
 ```
 
 - Praise travels as `Keep:`: a place, not a feeling. Naming what to keep cuts edits the fix did not need.
-- Push back with evidence: a failing check, a line, an `AC-n`. "Look again" or "are you sure?" without evidence can make agents drop correct work (shown mostly on earlier models; current ones give way under sustained pushback).
+- Push back with evidence: a failing check, a line, an `AC-n`. "Look again" or "are you sure?" without evidence can make agents drop correct work (shown mostly on earlier models).
 - Send work back for a failing check or an unmet `AC-n`. A difference in taste goes into a note, not a repair round.
 - The third repair cycle (harness-run Failure handling) goes to a fresh agent whose brief includes what the first two cycles learned; a context full of failed attempts does worse than a clean start.
 
@@ -115,7 +115,7 @@ The higher rank reads the first line, then `Escalate:`; it opens `Evidence:` onl
 
 - Praise ("이거 좋다") becomes `Keep:` lines; a preference that repeats is proposed as a direction in the next CEO brief (DRI, Wildcard).
 - Dislike ("별로야") becomes `Change:` lines with a location and a reason; when the location cannot be inferred, ask one question.
-- Pushback with no new information: state the evidence once, then follow it as a wildcard. Models can give up correct answers under sustained pushback, so saying it once serves the CEO.
+- Pushback with no new information: state the evidence once, then follow it as a wildcard. Models can give up correct answers under pushback (shown mostly on earlier models), so saying it once serves the CEO.
 
 ## Where each rank reads first
 
