@@ -52,7 +52,7 @@ If a review cannot pass after a good-faith fix loop, leave the draft in the vaul
 
 ## CEO decisions
 
-Every decision the CEO approves (`승인 #N`, a named option, a direction set in chat or relayed by another of their sessions) becomes an ADR in `wiki/decisions/` (`ADR-<MAE-id>-<slug>`) with `audience: [ceo, exec]`, the CEO's words quoted, the date and the Linear issue. Write it in the same turn the decision arrives.
+Every decision the CEO approves (`승인 #N`, a named option, a direction set in chat or relayed by another of their sessions) becomes an ADR in `wiki/decisions/` (`ADR-<MAE-id>-<slug>`) with `audience: [ceo, exec]`, the CEO's words quoted, the date and the Linear issue. Write it in the same turn the decision arrives. A wildcard (harness-run org-chart.md: a one-off override of a DRI) gets no ADR; its `wildcard:` line on the issue is its only record.
 
 ## Project archive
 

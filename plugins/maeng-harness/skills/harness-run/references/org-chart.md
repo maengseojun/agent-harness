@@ -39,22 +39,22 @@ Every rank is trusted to judge. When something seems to need a decision above it
 
 The approval lines say what a rank may decide in general. The DRI (directly responsible individual) names who decides one piece of work: it decides, executes and records what was learned. Decided by the CEO on 2026-10-21 (MAE-259).
 
-- **The line.** In a task tree every parent and child issue, and its Spec header, carries `DRI: <agent>`. By default the parent's DRI is the Opus session and a child's is the agent that executes it, inside its Spec. Small work without a tree needs no line; the session is the DRI.
+- **The line.** In a task tree every parent and child Linear issue carries `DRI: <agent>` (not the Spec/Plan, which the reviewer reads). By default the parent's DRI is the Opus session and a child's is the agent that executes it, inside its Spec. A sub-agent DRI owns the how and reports what it learned; the parent's DRI passes it the earlier learnings that bear on its task, writes the learning lines and judges every `D-n` of the tree at close. Small work without a tree needs no line; the session is the DRI.
 - **Three layers.** Each decision has one owner. Others give input (a finding, a `Dissent:` line, a question); the owner decides.
 
   | Layer | Covers | Owner |
   |---|---|---|
-  | Whether | merge, direction, archive, the stop list | CEO |
+  | Whether | the CEO row of the approval lines, and the stop list | CEO |
   | What | Spec, `AC-n`, the split into tasks, integration | the parent's DRI |
   | How | choices inside the Spec | the executing DRI |
 
   The auditor's authority is its verdict; how to fix a finding is the author's call, and the blocking severities stay as they are. The CEO brief asks one whether-question and reports how-choices as done, with the candidates.
-- **Accountability is learning.** Agents forget between sessions, so the learning is written down. Each `D-n` names the signal that would show it was wrong (spec-plan.md). At close the DRI judges each `D-n` held or broke and sends one learning line for each broke one through the Feedback routes in harness-run. No record blames a model or an agent; the rule changes instead.
+- **Accountability is learning.** Agents forget between sessions, so the learning is written down. Each `D-n` names the signal that would show it was wrong (spec-plan.md). At close the DRI judges each `D-n` held, broke, or open (its signal cannot be observed yet), and sends one learning line for each broke one through the Feedback routes in harness-run; a `none (...)` signal needs no judgment. No record blames a model or an agent; the rule changes instead.
 - **Wildcard.** A CEO intervention is a direction or a wildcard.
-  - A direction says "앞으로", "항상" or "이제부터", or is phrased as a general rule. Record it as an ADR or a memory.
-  - Anything else is a wildcard: it overrides the DRI for this case only. Write `wildcard: <what was overridden>` on the issue and do not turn it into a rule.
+  - A direction says "앞으로", "항상" or "이제부터", or is phrased as a general rule. Record it as an ADR (work-records, CEO decisions), and as a memory too when it changes how agents work.
+  - Anything else is a wildcard: it overrides the DRI for this case only. Write `wildcard: <rule or default overridden> - <what instead>` on the issue; that line is its only record (no ADR), so it never becomes a rule.
   - Either way the DRI states its disagreement once, with its evidence, then follows.
-  - Three wildcards in one area mean the DRI assignment or the rule is wrong: propose the change in the next CEO brief.
+  - When you record a wildcard, search personal Linear for earlier `wildcard:` lines against the same rule. The third one means the rule or the DRI assignment is wrong: propose a direction in the next CEO brief. It becomes one only on the CEO's word.
   - When the kind is unclear, ask one question at wrap-up.
 
 ## Speed and bottlenecks
@@ -68,9 +68,9 @@ Ranks route decisions; they are not a chain of sign-offs. Agents gather and chec
 
 ## Delegation and reports
 
-Ranks are a protocol for what each message carries, not a status. What changes an agent's output is information: the reason, what to keep, a concrete bar. Encouragement, politeness, tips, threats and expert or junior personas do not reliably change quality on current models (evidence: vault `wiki/answers/A-AGENT-FRAMING-EVIDENCE.md`).
+Ranks are a protocol for what each message carries, not a status. What changes an agent's output is information: the reason, what to keep, a concrete bar. Encouragement, politeness, tips, threats and expert personas do not reliably raise quality on current models, and low-knowledge personas can lower it (evidence: vault `wiki/answers/A-AGENT-FRAMING-EVIDENCE.md`).
 
-A delegation starts with `[sender rank→recipient rank] task` and states the recipient's approval line (for 신입: "edit only, do not commit"). The head routes the message; the body describes the job. It also carries:
+A delegation starts with `[sender rank→recipient rank] task` and states the recipient's approval line (for 신입: "edit only, do not commit"). The head routes the message; the body describes the job and never casts the recipient as unskilled. It also carries:
 
 - `Why:` the purpose and the `AC-n` it serves. A reason lets the agent handle cases the brief did not list.
 - When to stop: "keep going until <check> passes; stop to ask only when you cannot go on without an answer, or before a stop-list action". When two readings of the brief would produce materially different work, the recipient asks instead of guessing.
@@ -79,9 +79,9 @@ Write plainly: a reason instead of capitals, CRITICAL or MUST, which current mod
 
 | Recipient | Add | Why |
 |---|---|---|
-| Opus (부장/차장, architect) | a cap on the sub-agents it may start; no "verify with a sub-agent" step | Opus 5 delegates and verifies more than the task needs |
-| Sonnet (팀장~대리) | high effort or above: "stop when the checks pass; no review rounds of your own"; low or medium: "keep going; stop only when you cannot go on without an answer" | Sonnet 5.5 adds review rounds at high effort and checks in early at low effort |
-| Haiku (신입) | "run `<command>` and paste its result" | Haiku 5.5 can report work done without running the check |
+| Opus owning a sub-tree (부장/차장) | a cap on the sub-agents it may start; no "verify with a sub-agent" step | Opus 5 delegates and verifies more than the task needs |
+| Sonnet (팀장~대리) | xhigh or max: "stop when the checks pass; no review rounds of your own"; low or medium: "keep going; stop only when you cannot go on without an answer" | Sonnet 5.5 adds review rounds at xhigh/max and checks in early at low/medium |
+| Haiku (신입) doing edits | "run `<command>` and paste its result" | Haiku 5.5 can report work done without running the check |
 | Reviewer (감사), through the Plan's `Review focus` | what to attack, as a concrete bar; never "be conservative" or "only high severity" | reviewers follow such wording literally and report less |
 
 **Repair.** A fix handed down:
@@ -94,11 +94,11 @@ Scope: only what the Change lines need
 ```
 
 - Praise travels as `Keep:`: a place, not a feeling. Naming what to keep cuts edits the fix did not need.
-- Push back with evidence: a failing check, a line, an `AC-n`. "Look again" or "are you sure?" without evidence makes agents drop correct work.
+- Push back with evidence: a failing check, a line, an `AC-n`. "Look again" or "are you sure?" without evidence can make agents drop correct work (shown mostly on earlier models; current ones give way under sustained pushback).
 - Send work back for a failing check or an unmet `AC-n`. A difference in taste goes into a note, not a repair round.
 - The third repair cycle (harness-run Failure handling) goes to a fresh agent whose brief includes what the first two cycles learned; a context full of failed attempts does worse than a clean start.
 
-**Review requests.** The reviewer gets the diff, the Spec/Plan and the evidence, nothing about the author. Keep the author's rank, self-assessment ("solid", "bug-free") and praise out of the Plan's `Review focus` and any `--evidence` file: a claim that the code is fine, placed next to it, sharply cuts what reviewers find.
+**Review requests.** The reviewer gets the diff, the Spec/Plan and the evidence, with no author rank, self-assessment or praise. Keep the author's rank, self-assessment ("solid", "bug-free") and praise out of the Plan's `Review focus` and any `--evidence` file: a claim that the code is fine, placed next to it, sharply cuts what reviewers find.
 
 A report to a higher rank:
 
@@ -109,13 +109,13 @@ Dissent: <optional: against X because Y; proceeding as told>
 Evidence: <links or paths only; no pasted output>
 ```
 
-The higher rank reads the first line, then `Escalate:`; it opens `Evidence:` only when it needs to check. `Dissent:` never blocks, because the sender has already done what it was told; it is where a lower rank says it disagrees, since agents defer to rank labels even when they are right. The DRI rules on it and records the ruling when something changes; the same dissent is not raised again without new evidence. The implementer still ends with `Verification:` and `Unfinished:` (the SubagentStop hook checks them).
+The higher rank reads the first line, then `Escalate:`; it opens `Evidence:` only when it needs to check. `Dissent:` never blocks, because the sender has already done what it was told; it is where a lower rank says it disagrees, since agents can defer to rank labels even when they are right (shown on small models). The DRI rules on it and records every ruling as one line on the issue, `dissent: <X> -> kept|changed`; the same dissent is not raised again without new evidence. The implementer still ends with `Verification:` and `Unfinished:` (the SubagentStop hook checks them).
 
 **CEO input.** The CEO need not use this format; the executive translates before passing it down:
 
-- Praise ("이거 좋다") becomes `Keep:` lines; a preference that repeats becomes a direction (DRI, Wildcard).
+- Praise ("이거 좋다") becomes `Keep:` lines; a preference that repeats is proposed as a direction in the next CEO brief (DRI, Wildcard).
 - Dislike ("별로야") becomes `Change:` lines with a location and a reason; when the location cannot be inferred, ask one question.
-- Pushback with no new information: state the evidence once, then follow it as a wildcard. Models give up correct answers under repeated pushback, so saying it once serves the CEO.
+- Pushback with no new information: state the evidence once, then follow it as a wildcard. Models can give up correct answers under sustained pushback, so saying it once serves the CEO.
 
 ## Where each rank reads first
 
@@ -133,7 +133,7 @@ Obsidian notes carry `audience` tags (claude-edition.md): `ceo` (CEO), `director
 | 팀장~대리 | the task's Spec/Plan, Owns, dependency results | the hub |
 | 신입 | the brief and the files it names | anything else the task needs |
 
-Before a decision in its area, a DRI also reads the learnings recorded there: ADRs in `wiki/decisions/`, `wiki/reviews/`, and the held/broke judgments in earlier outcome records.
+When it writes a Spec's `D-n`, a DRI first reads the learnings on the same rule or project: ADRs in `wiki/decisions/`, `wiki/reviews/`, and the judgments in earlier outcome records. An `open` judgment whose signal can now be observed gets judged then.
 
 ## Internal only
 
@@ -141,4 +141,4 @@ Ranks, rank names and the `[rank→recipient]` head are internal working languag
 
 ## Records
 
-Every CEO-approved decision becomes an Obsidian ADR (work-records). Finished projects are archived on the CEO's yes (work-records, Project archive).
+Every CEO-approved decision except a wildcard becomes an Obsidian ADR (work-records). Finished projects are archived on the CEO's yes (work-records, Project archive).

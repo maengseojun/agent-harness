@@ -33,7 +33,7 @@ Scale it down for small work: a small task can skip the interview and tree but k
 9. **Self-record** (verification.md): after the last substantive change, write the progress, decision or result to the bound Linear issue or an Obsidian note whose `linear` key includes it. Do it yourself; never ask the user.
 10. **Review tier** (`maeng-review`; details in [review-and-ship.md](references/review-and-ship.md)): Codex always comes first. Tiers: child-task PR, Sol xhigh; parent integration, Astra high; design/rules docs, Astra medium; small work without a tree, Sol high; Notion outcome payload, Sol medium; research draft (`--kind research`), Sol xhigh. Only after 3 failed codex attempts (e.g. usage exhausted) does it fall back to Claude: parent integration, Fable medium; everything else, Opus (docs, research and small work high; child-task PRs and Notion medium). Architect review of a task is falsify-first: start from "goal not achieved" and look for the proof.
 11. **Merge** only with `maeng-ship merge <PR>` and a matching `pass` receipt. If the base moved: update, re-verify, re-review. `maeng-review` refuses a fifth review run on the same PR; then, or whenever the user's approval is needed, send the CEO brief (below) and wait for `승인 #N`.
-12. **Outcome records.** Judge each `D-n` held or broke against its signal and write the judgments into the Linear closing comment and the Obsidian ADR/session note; each broke one gets one learning line through [Feedback](#feedback). Then the Notion record through `work-records` (Sol medium), then give the user the link only. Then close the Linear issue yourself (Done) once every `AC-n` is met, the review passed and the records are linked; the user never manages Linear.
+12. **Outcome records.** Judge each `D-n` held, broke or open against its signal ([org-chart.md](references/org-chart.md) DRI) and write the judgments into the Linear closing comment and the Obsidian ADR/session note; each broke one gets one learning line through [Feedback](#feedback). Then the Notion record through `work-records` (Sol medium), then give the user the link only. Then close the Linear issue yourself (Done) once every `AC-n` is met, the review passed and the records are linked; the user never manages Linear.
 
 ## Sub-tasks
 
@@ -70,7 +70,7 @@ Do not ask mid-task what a sensible default or the Spec already answers; note th
 3. **Result**: what changed (PR, files), what it does now.
 4. **Evidence**: checks run with results, review verdict, backend and rounds, open findings with severity, wildcards used and dissent rulings (org-chart.md).
 5. **Risk and rollback**: what could break, and how to undo it.
-6. **The decision**: one whether-question (org-chart.md DRI layers), e.g. `승인 #N`, or a choice between named options; how-choices are already in Candidates and Result.
+6. **The decision**: one whether-question (org-chart.md DRI layers), e.g. `승인 #N`, or a choice between named options; how-choices are already in Candidates and Result. A proposed direction (org-chart.md Wildcard) follows as its own yes/no.
 
 **dots and Slack.** dots (Slack bot `seojunmaeng-maestro`) injects work by running the local `claude` CLI through its Mac Work task, passing `MAENG_TASK_ID` or a `task_id: X` line. Slack `@Claude` mentions do not reach local sessions: read and post Slack yourself (`slack-maeng`). The hooks keep `~/Documents/maeng-harness/status/<task_id>.json` and `manifest.json` current for dots; end a run's last reply with one marker line (`result:`, `needs input:` or `failed:`), because the Stop hook reads it into the status file.
 
@@ -86,7 +86,8 @@ Do not ask mid-task what a sensible default or the Spec already answers; note th
 
 - Verification fails: fix within scope and re-run; at most three repair cycles on the same failure, then record the blocker in Linear and split that work smaller, or drop it and name the drop in the CEO brief. Never mark an unmet `AC-n` as met.
 - A page is silent or two sources disagree: when the answer changes what ships (a Spec meaning, an interface others use, anything on the stop list), stop that step and ask, as a Middleman question if it is a code question; otherwise decide, record the ruling in Linear and the CEO brief, and continue.
-- Review `fail` or `blocked`: fix, then request a new review of the new head. A fix you hand down uses the repair format (org-chart.md: `Keep:`, `Change:`, `Scope:`), and the third repair cycle goes to a fresh agent. A receipt is single use and bound to the exact base/head/criteria.
+- Review `fail` or `blocked`: fix, then request a new review of the new head. A receipt is single use and bound to the exact base/head/criteria.
+- Any fix you hand down, for a failing check or a review finding, uses the repair format (org-chart.md: `Keep:`, `Change:`, `Scope:`); the third repair cycle on the same failure goes to a fresh agent.
 - Uncertain write (timeout, lost response): read back before retrying; never retry blindly or create a duplicate.
 - Hooks are guardrails against mistakes, not a security boundary; do not look for ways around a denial. Use the sanctioned route (for merges, `maeng-ship merge`).
 
