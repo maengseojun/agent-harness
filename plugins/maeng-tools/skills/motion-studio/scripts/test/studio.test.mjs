@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { soundtrack } from '../studio.mjs';
 import { readWav } from '../huashu/sound.js';
@@ -45,6 +45,18 @@ test('CLI writes the file; unknown effect names fail loudly', () => {
   const bad = spawnSync('node', [CLI, 'sound', join(dir, 'bad.json'), '--out', join(dir, 'x.wav')], { encoding: 'utf8', env: process.env });
   assert.notEqual(bad.status, 0);
   assert.match(bad.stderr, /unknown sound effect/);
+});
+
+test('CLI runs from a path with a space and Hangul, and through a symlink', () => {
+  const root = mkdtempSync(join(tmpdir(), 'ms-'));
+  const copy = join(root, '모션 studio');
+  cpSync(dirname(CLI), copy, { recursive: true, filter: (src) => !src.includes(`${dirname(CLI)}/test`) });
+  symlinkSync(join(copy, 'studio.mjs'), join(root, 'link.mjs'));
+  for (const entry of [join(copy, 'studio.mjs'), join(root, 'link.mjs')]) {
+    const r = spawnSync('node', [entry, 'list'], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /impact/); // would be empty if the main-module check failed and main() never ran
+  }
 });
 
 test('qa reads a rendered video and finds a dead stretch', () => {

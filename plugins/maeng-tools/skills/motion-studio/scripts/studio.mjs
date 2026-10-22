@@ -4,8 +4,9 @@
 //   node studio.mjs list                  effects, products and styles
 //   node studio.mjs samples [build]       real-instrument pack status, or download it once (~55 MB)
 //   node studio.mjs qa <video.mp4> [--loop]
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, realpathSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { LIST, mixdown, toWav } from './huashu/sound.js';
 import { loadPack, packDir } from './huashu/samples.js';
 import { qa, report } from './huashu/qa.js';
@@ -47,4 +48,6 @@ async function main() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main().catch((e) => { console.error(`error  ${e.message}`); process.exit(1); });
+// Compare real paths: the URL form is percent-encoded and a symlinked path differs from the resolved module path.
+const isMain = process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+if (isMain) main().catch((e) => { console.error(`error  ${e.message}`); process.exit(1); });
