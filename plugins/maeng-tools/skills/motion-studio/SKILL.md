@@ -19,10 +19,12 @@ One studio folder per company, a git repo outside this harness. Ask for its path
   brand/assets/           logos, real product screenshots and recordings, fonts
   lessons.md              rules promoted from repeated defects (read before every film)
   videos/<slug>/
-    BRIEF.md  style-guide.md  shotlist.md  reviews/
+    BRIEF.md  style-guide.md  shotlist.md  cues.json  score.abc  reviews/
     wide/                 HyperFrames project, 1920x1080
     vertical/             HyperFrames project, 1080x1920
 ```
+
+`<skill>` below is this skill's folder (where this SKILL.md lives).
 
 ## HyperFrames rules (verified 2026-10-20, hyperframes 0.8.181)
 
@@ -35,15 +37,16 @@ One studio folder per company, a git repo outside this harness. Ask for its path
 
 ## Flow
 
-1. **Read the studio.** `brand/frame.md` and `lessons.md`. With no brand yet, write `brand/frame.md` from the user's site, Figma or assets before the first film.
+1. **Read the studio.** `brand/frame.md`, `lessons.md` and the general findings in [references/huashu/experience.md](references/huashu/experience.md). With no brand yet, write `brand/frame.md` from the user's site, Figma or assets before the first film.
 2. **Director brief.** Fill [references/brief-ko.md](references/brief-ko.md). Ask only what the request leaves open, one question at a time; record inferred answers apart from stated ones. Write `BRIEF.md`.
-3. **Reference.** Inspect the references the user allows (screenshots, sites, past films) and write `style-guide.md`: palette, typography, composition, pacing, motion, texture, and a DO NOT COPY list. Missing real assets: stop and ask; never draw a fake product UI. When there is no reference for a look (mood, background, illustration style), draft 2-3 candidate stills per [references/images.md](references/images.md) into `reviews/drafts/` and let them steer the style guide; they are drafts, not film assets.
-4. **Shot list.** Write `shotlist.md` per [references/shotlist.md](references/shotlist.md): beats with timestamps, entry and exit states, purpose. A shot that cannot state its purpose is cut.
+3. **Reference.** Inspect the references the user allows (screenshots, sites, past films) and write `style-guide.md`: palette, typography, composition, pacing, motion, texture, and a DO NOT COPY list. Pick the motion language from the director docs ([references/huashu/README.md](references/huashu/README.md) says which file serves which step; read `om` commands there through its mapping table). Missing real assets: stop and ask; never draw a fake product UI. When there is no reference for a look (mood, background, illustration style), draft 2-3 candidate stills per [references/images.md](references/images.md) into `reviews/drafts/` and let them steer the style guide; they are drafts, not film assets.
+4. **Shot list.** Write `shotlist.md` per [references/shotlist.md](references/shotlist.md): beats with timestamps, entry and exit states, purpose. Shape the energy with `references/huashu/rhythm.md`: a hook within 3 s, a burst, a stop before the peak. A shot that cannot state its purpose is cut.
 5. **Gate A (user).** First create the `wide/` project from `videos/<slug>/` with `HYPERFRAMES_SKIP_SKILLS=1 npx --yes hyperframes@latest init wide --non-interactive --example=blank`, build only its most representative beat (usually REVEAL or PROOF, sourcing its images per step 6 if it needs any), then take one still of it with `snapshot --at`. Send one message: the brief summary, the style guide in five lines, the shot list, and that still. Build the rest only after approval or edits.
 6. **Build.** `init vertical` the same way with the pinned version, set its size to 1080x1920 (`data-width`/`data-height` on the root, on every sub-composition and its host, plus the viewport meta and the `html, body` size), write the remaining beats in both, apply [references/motion-weights.md](references/motion-weights.md), source images per [references/images.md](references/images.md). Keep motion, sound cues and transitions on the one timeline.
+6b. **Sound.** Follow [references/sound.md](references/sound.md): write `cues.json` from the shot list (beat starts as scene labels, a hit on every landing that matters, the music direction), optionally a `score.abc`, run `node <skill>/scripts/studio.mjs sound cues.json --out assets/sound.wav`, and add one `<audio id="soundtrack">` to each project. Re-run it after any timing change.
 7. **Check and contact sheet.** `check` with 0 errors, then `snapshot --at <every beat midpoint plus fast transitions> --no-end -o ../reviews/<round>-<aspect>`. It writes the stills and `contact-sheet.jpg`.
 8. **Critique.** Follow [references/critic.md](references/critic.md): an independent reviewer judges only the rendered frames and names the three worst defects with timestamp, evidence and a local fix. Patch only those beats, snapshot again. At most three rounds; stop early when a round brings no new evidence.
-9. **Render.** `render --quality delivery` in each project. Confirm with `ffprobe -v error -show_entries stream=width,height,r_frame_rate:format=duration -of csv=p=0 renders/*.mp4`, and pull one frame per beat from the MP4 to see that fonts and images survived the render.
+9. **Render.** `render --quality delivery` in each project. Confirm with `ffprobe -v error -show_entries stream=width,height,r_frame_rate:format=duration -of csv=p=0 renders/*.mp4`, and pull one frame per beat from the MP4 to see that fonts and images survived the render. Run `node <skill>/scripts/studio.mjs qa renders/<file>.mp4` on each render: it lists single-frame pops, dead time and a flat motion curve.
 10. **Gate B (user).** Deliver per [references/formats.md](references/formats.md): both MP4s, poster frames, the last contact sheets, source, an assets list with sources, and what still needs a human look.
 11. **Lessons.** Log every defect fixed this film in `lessons.md`. A defect seen in two films becomes a rule there, read at step 1 next time.
 
@@ -51,7 +54,7 @@ The user sees two gates (A and B). Everything between them runs without asking, 
 
 ## Approvals and limits
 
-- Default sound is none, with on-screen text carrying the message. Narration (ElevenLabs or another TTS), licensed music, Figma Weave or any other paid generation runs only after the user approves the provider, the cost or cap, and the data sent, for that run.
+- Default sound is local music and effects from `scripts/studio.mjs` (no network, no cost); silence only when the user asks or for a transparent overlay. Ask once before the first `studio.mjs samples build` (a ~55 MB download of CC0/CC-BY instrument samples); without it the music uses synthesized instruments. Narration (ElevenLabs or another TTS), licensed music, Figma Weave or any other paid generation runs only after the user approves the provider, the cost or cap, and the data sent, for that run.
 - Generated images never stand in for the real product, real UI or real data. Generated images with text in them are rejected; set text in HTML.
 - Do not publish, upload or post a film anywhere; delivery is files in the studio folder and a message to the user.
 - HyperFrames is young and releases several times a day. When a command or flag here fails, read the current docs and record the change in `lessons.md` rather than guessing.
