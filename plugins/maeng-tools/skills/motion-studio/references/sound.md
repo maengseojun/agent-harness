@@ -28,11 +28,14 @@ Write it from `shotlist.md`. Wide and vertical can share one file when their bea
 
 ## Run and place
 
+Run it from `videos/<slug>/` once per project, so each project has its own copy at the path its `index.html` uses:
+
 ```bash
 node <skill>/scripts/studio.mjs sound cues.json [--score score.abc] --out wide/assets/sound.wav
+node <skill>/scripts/studio.mjs sound cues.json [--score score.abc] --out vertical/assets/sound.wav
 ```
 
-It prints the length, loudness (about -14 LUFS) and number of hits. Add one audio clip to the project's `index.html`, inside the root and next to the other clips:
+Use `vertical/cues.json` for the second run when the vertical beats start at other times. Each run prints the length, loudness (about -14 LUFS) and number of hits. Add one audio clip to each project's `index.html`, inside the root and next to the other clips:
 
 ```html
 <audio id="soundtrack" src="assets/sound.wav" data-start="0" data-duration="15" data-track-index="9" data-volume="1"></audio>
