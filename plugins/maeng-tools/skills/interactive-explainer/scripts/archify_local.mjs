@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Being agents integration: fixed vendor, no automatic update or brand capture.
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 const args = process.argv.slice(2);
 const allowed = new Set(['validate', 'finalize', 'deliver', 'check', 'browser-check', 'visual-check', 'guide', 'doctor']);
 if (!allowed.has(args[0])) {
@@ -15,7 +16,13 @@ if (browserCommands.has(args[0]) && typeof process.getuid === 'function' && proc
   console.error('Browser checks require a verified non-root sandboxed runtime; refusing root execution.');
   process.exit(2);
 }
-const cli = fileURLToPath(new URL('../vendor/archify/bin/archify.mjs', import.meta.url));
+// The installed Archify skill folder; nothing is vendored in this repository.
+const home = process.env.ARCHIFY_HOME || path.join(os.homedir(), '.claude', 'skills', 'archify');
+const cli = path.join(home, 'bin', 'archify.mjs');
+if (!fs.existsSync(cli)) {
+  console.error(`Archify is not installed at ${home}. Set ARCHIFY_HOME or install it on the user's request.`);
+  process.exit(2);
+}
 if (['validate', 'finalize', 'deliver'].includes(args[0])) {
   const candidate = JSON.parse(fs.readFileSync(args[2], 'utf8'));
   const hasBrand = value => value && typeof value === 'object' &&

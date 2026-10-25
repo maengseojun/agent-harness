@@ -90,7 +90,7 @@ When focus is within the motion root: `ArrowRight` advances, `ArrowLeft` goes ba
 
 Provide visible instructions and a scoped `role="status" aria-live="polite" aria-atomic="true"`. Keep that live region inside the motion root but outside `[data-motion-controls]`, so hiding controls for reduced/static states cannot hide announcements. Announce user actions such as “Step 3 of 5: first divergence”; do not announce every autoplay frame. Controls operate only on their nearest `[data-motion-root]`.
 
-Use [`assets/template-motion.html`](../assets/template-motion.html) rather than inventing another controller. Its inline controller is the executable implementation contract: copy that script body verbatim. The skin linter rejects modified or additional controllers, even when they carry `data-diagram-controls`. Replace diagram content and slug-prefixed IDs, but preserve the controller and its state/control attributes.
+Use [`assets/template-motion.html`](../assets/template-motion.html) rather than inventing another controller. Its inline controller is the executable implementation contract: copy that script body verbatim. The skin linter rejects modified or additional controllers, even when they carry `data-diagram-controls`; the only other script it accepts is the unmodified explore controller from [`template-explore.html`](../assets/template-explore.html) (`data-diagram-explore`). Replace diagram content and slug-prefixed IDs, but preserve the controller and its state/control attributes.
 
 ## Reduced motion, color, and accessibility
 

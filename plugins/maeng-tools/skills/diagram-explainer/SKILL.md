@@ -24,7 +24,7 @@ A direct invocation requests an actual visual artifact, including a timeline or 
 
 For an overview, research synthesis or timeline, prefer **one coherent canvas** with complementary diagram regions and a visible reading order. Node-count budgets guide grouping and label economy; they do not require separate pages. Reflow, group, grow the canvas or shorten repetition before splitting. Split only when distinct reading tasks or demonstrated legibility require it, preserving an at-a-glance overview. Do not invent numeric charts, dates or causal relationships merely to fill space.
 
-Read the small [personal additions](references/personal-additions.md) for preservation, rendering and supporting assets, and [delivery/storage](references/delivery-storage.md) before delivering files. School Google Drive storage and separate readback remain required. These explicit personal requirements take precedence over conflicting setup, format and split suggestions below.
+Read the small [personal additions](references/personal-additions.md) for preservation, rendering and supporting assets, [Archify methods](references/archify-methods.md) for relationship colors, placement, explainer pages and explorable diagrams, and [delivery/storage](references/delivery-storage.md) before delivering files. School Google Drive storage and separate readback remain required. These explicit personal requirements take precedence over conflicting setup, format and split suggestions below.
 
 ## 0. First-time setup — style guide gate
 
@@ -146,6 +146,7 @@ Universal building blocks. Type-specialized primitives (lifeline, activation bar
 - Icon set (laptop, server, DB, K8s, Docker, AWS, …) → [primitive-icons.md](references/primitive-icons.md). Browse the gallery at [`assets/icons.html`](assets/icons.html).
 - Terminal / CLI-window variant → [primitive-terminal.md](references/primitive-terminal.md)
 - Optional explanatory motion → [animation.md](references/animation.md)
+- Explorable diagram (focus, route, lens, finder, steps) → [archify-methods.md § Exploring a diagram](references/archify-methods.md#exploring-a-diagram), starting from `assets/template-explore.html`
 
 Exact markup (background, dotted paper, markers, node box, arrow label, legend) and the long form of each connector rule: [`references/primitives-core.md`](references/primitives-core.md). The static templates (`template.html`, `template-dark.html`, `template-full.html`) already define the background and the `arrow`, `arrow-accent`, and `arrow-link` markers; `template-motion.html` defines only its own prefixed marker, so add the others from primitives-core.md when a motion diagram needs them.
 
@@ -214,7 +215,7 @@ Every diagram ships in three variants (see `assets/`):
 
 ### To create a new diagram
 
-1. Copy the variant closest to what you want (`assets/template.html` for minimal, `assets/template-full.html` for cards, `assets/template-motion.html` only when motion is requested).
+1. Copy the variant closest to what you want (`assets/template.html` for minimal, `assets/template-full.html` for cards, `assets/template-motion.html` only when motion is requested, `assets/template-explore.html` when the reader should explore the diagram).
 2. If behavior is load-bearing, choose a semantic pattern; then load the matching type reference linked in the visual-type guide.
 3. Replace the eyebrow, h1, and SVG body. Replace `[diagram-slug]` with the file slug and fill `<title>` / `<desc>`.
 4. If motion is requested, load `animation.md`; otherwise keep mode `none` and no script.

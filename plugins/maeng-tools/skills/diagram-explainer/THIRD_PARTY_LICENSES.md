@@ -49,3 +49,11 @@ The `scripts/vendor/icons/url/` directory contains one-off sourced icons for SAS
 ## Trademarks
 
 Brand logos remain the trademarks of their respective owners. Their inclusion in this icon set is for documentation and illustrative use only. The presence of a brand mark in this repository does not imply endorsement, sponsorship, or affiliation.
+
+## Archify
+
+- **License:** MIT, Copyright (c) tt-a1i
+- **Upstream:** https://github.com/tt-a1i/archify (v3.2.0, commit `25cf37080fc8b1dbe758a4efc3935b55f3327083`)
+- **Used in:** `references/archify-methods.md` restates Archify's authoring rules (relationship variants, placement and label-gap formulas, explainer page structure) in this skill's tokens; `assets/template-explore.html` implements reader interactions modelled on Archify's viewer (focus/reach, route, lens, finder, deep links). No Archify code is copied.
+
+The MIT license is reproduced in full at https://github.com/tt-a1i/archify/blob/main/LICENSE.

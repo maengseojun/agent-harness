@@ -7,9 +7,9 @@ Ships inside the skill so an installed agent can verify its own output:
 
 Checks the accessible-SVG contract, the single-file safety rules (no remote
 assets beyond the approved Google Fonts stylesheet, no executable attributes,
-no scripts other than the one canonical motion controller), painted content
-staying inside each SVG's viewBox, and — when motion markup is present — the
-structural motion contract. This is a distilled
+no scripts other than the canonical motion and explore controllers), painted
+content staying inside each SVG's viewBox, and — when motion or explore markup
+is present — its structural contract. This is a distilled
 subset of the repository gates (`lint-skin.py`, `verify-motion.py`), which
 remain the authority for contributions to the repository itself.
 """
@@ -26,6 +26,12 @@ from urllib.parse import urlparse
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 MOTION_TEMPLATE = SKILL_DIR / "assets" / "template-motion.html"
+EXPLORE_TEMPLATE = SKILL_DIR / "assets" / "template-explore.html"
+# Script attribute -> template holding its canonical body.
+CONTROLLERS = {
+    "data-diagram-controls": MOTION_TEMPLATE,
+    "data-diagram-explore": EXPLORE_TEMPLATE,
+}
 MODES = {"none", "reveal", "step", "loop"}
 ACTIONS = {"play", "pause", "replay", "prev", "next"}
 ASCII_DECIMAL_RE = re.compile(r"^[0-9]+$")
@@ -126,6 +132,11 @@ class DiagramParser(HTMLParser):
         self.statuses: list[dict[str, str]] = []
         self.statuses_in_controls = 0
         self.scripts: list[dict[str, object]] = []
+        self.explore_roots = 0
+        self.explore_nodes: list[dict[str, str]] = []
+        self.explore_edges: list[dict[str, str]] = []
+        self.explore_targets: list[str] = []
+        self.explore_statuses: list[dict[str, str]] = []
         self.styles: list[str] = []
         self.css_attributes: list[str] = []
         self.svgs: list[dict[str, object]] = []
@@ -177,6 +188,16 @@ class DiagramParser(HTMLParser):
                 self.statuses.append(data)
                 if self._controls_depth is not None:
                     self.statuses_in_controls += 1
+        if "data-explore-root" in data:
+            self.explore_roots += 1
+        if "data-node" in data:
+            self.explore_nodes.append(data)
+        if "data-edge" in data:
+            self.explore_edges.append(data)
+        if "data-target" in data:
+            self.explore_targets.append(data["data-target"])
+        if "data-explore-status" in data:
+            self.explore_statuses.append(data)
         if tag == "script":
             self._current_script = {
                 "attrs": data,
@@ -488,15 +509,15 @@ def check_css_references(parser: DiagramParser, errors: list[str]) -> None:
         errors.append("remote reference in CSS is not allowed")
 
 
-def canonical_controller() -> str:
-    if not MOTION_TEMPLATE.is_file():
+def canonical_controller(template: Path = MOTION_TEMPLATE) -> str:
+    if not template.is_file():
         raise RuntimeError(
-            f"cannot find the canonical controller at {MOTION_TEMPLATE}; "
+            f"cannot find the canonical controller at {template}; "
             "run self_check.py from its shipped location inside the skill"
         )
-    parser = parsed_document(MOTION_TEMPLATE.read_text(encoding="utf-8"))
+    parser = parsed_document(template.read_text(encoding="utf-8"))
     if len(parser.scripts) != 1 or not parser.scripts[0]["closed"]:
-        raise RuntimeError("template-motion.html must contain one closed controller")
+        raise RuntimeError(f"{template.name} must contain one closed controller")
     body = parser.scripts[0]["body"]
     assert isinstance(body, list)
     return normalized_controller("".join(body))
@@ -567,11 +588,18 @@ def check_viewbox(source: str, errors: list[str]) -> None:
             )
 
 
+def scripts_of(parser: DiagramParser, attribute: str) -> list[dict[str, object]]:
+    return [
+        script
+        for script in parser.scripts
+        if isinstance(script["attr_names"], list) and script["attr_names"] == [attribute]
+    ]
+
+
 def check_scripts(parser: DiagramParser, errors: list[str]) -> None:
     if not parser.scripts:
         return
-    if len(parser.scripts) > 1:
-        errors.append(f"at most one script is allowed; found {len(parser.scripts)}")
+    seen: Counter[str] = Counter()
     for number, script in enumerate(parser.scripts, 1):
         attrs = script["attrs"]
         attr_names = script["attr_names"]
@@ -579,18 +607,65 @@ def check_scripts(parser: DiagramParser, errors: list[str]) -> None:
         assert isinstance(attrs, dict) and isinstance(attr_names, list) and isinstance(body, list)
         if not script["closed"]:
             errors.append(f"script {number} must have a closing script tag")
-        if attr_names != ["data-diagram-controls"] or attrs.get("data-diagram-controls") != "":
-            errors.append(f"script {number} must carry only the canonical data-diagram-controls attribute")
+        attribute = attr_names[0] if len(attr_names) == 1 else ""
+        if attribute not in CONTROLLERS or attrs.get(attribute) != "":
+            errors.append(
+                f"script {number} must carry only one canonical attribute: "
+                + " or ".join(sorted(CONTROLLERS))
+            )
             continue
+        seen[attribute] += 1
+        template = CONTROLLERS[attribute]
         try:
-            if normalized_controller("".join(body)) != canonical_controller():
-                errors.append(f"script {number} must exactly match the controller in template-motion.html")
+            if normalized_controller("".join(body)) != canonical_controller(template):
+                errors.append(f"script {number} must exactly match the controller in {template.name}")
         except RuntimeError as exc:
             errors.append(str(exc))
+    for attribute, count in seen.items():
+        if count > 1:
+            errors.append(f"at most one {attribute} script is allowed; found {count}")
+
+
+def check_explore(parser: DiagramParser, errors: list[str]) -> None:
+    has_explore = bool(parser.explore_roots or scripts_of(parser, "data-diagram-explore"))
+    if not has_explore:
+        return
+    if parser.explore_roots != 1:
+        errors.append(f"expected exactly one data-explore-root; found {parser.explore_roots}")
+    ids = [node.get("data-node", "").strip() for node in parser.explore_nodes]
+    if not ids:
+        errors.append("explore file needs data-node elements")
+    if "" in ids:
+        errors.append("every data-node needs a non-empty id")
+    duplicates = sorted(node_id for node_id, n in Counter(ids).items() if n > 1 and node_id)
+    if duplicates:
+        errors.append(f"duplicate data-node ids: {', '.join(duplicates)}")
+    for node in parser.explore_nodes:
+        if not node.get("data-kind", "").strip():
+            errors.append(f"data-node {node.get('data-node', '')!r} needs a data-kind for the lens")
+    known = set(ids)
+    for index, edge in enumerate(parser.explore_edges, 1):
+        for end in ("data-from", "data-to"):
+            if edge.get(end, "") not in known:
+                errors.append(f"data-edge {index} {end}={edge.get(end, '')!r} names no data-node")
+    for target in parser.explore_targets:
+        if target not in known:
+            errors.append(f"step data-target={target!r} names no data-node")
+    if len(parser.explore_statuses) != 1:
+        errors.append(f"explore file needs one data-explore-status; found {len(parser.explore_statuses)}")
+    else:
+        status = parser.explore_statuses[0]
+        if (
+            status.get("role") != "status"
+            or status.get("aria-live") != "polite"
+            or status.get("aria-atomic") != "true"
+        ):
+            errors.append("explore status needs role=status, aria-live=polite, aria-atomic=true")
 
 
 def check_motion(parser: DiagramParser, source: str, errors: list[str]) -> None:
-    has_motion_markup = bool(parser.roots or parser.items or parser.scripts)
+    motion_scripts = scripts_of(parser, "data-diagram-controls")
+    has_motion_markup = bool(parser.roots or parser.items or motion_scripts)
     if not has_motion_markup:
         return
     if len(parser.roots) != 1:
@@ -637,11 +712,11 @@ def check_motion(parser: DiagramParser, source: str, errors: list[str]) -> None:
     if crowded:
         errors.append(f"no more than two semantic items may share a step; found {crowded}")
 
-    if mode in {"none", "loop"} and parser.scripts:
+    if mode in {"none", "loop"} and motion_scripts:
         errors.append(f"{mode} mode must be script-free")
     if mode in {"none", "loop"} and (parser.controls or parser.actions or parser.statuses):
         errors.append(f"{mode} mode must not expose playback controls or live status")
-    controlled = mode == "step" or (mode == "reveal" and bool(parser.scripts))
+    controlled = mode == "step" or (mode == "reveal" and bool(motion_scripts))
     if controlled:
         if parser.controls != 1:
             errors.append(f"controlled mode needs one in-root control group; found {parser.controls}")
@@ -660,9 +735,11 @@ def check_motion(parser: DiagramParser, source: str, errors: list[str]) -> None:
                 errors.append("motion status needs role=status, aria-live=polite, aria-atomic=true")
             if parser.statuses_in_controls:
                 errors.append("motion status must sit outside data-motion-controls")
-        if not parser.scripts:
+        if not motion_scripts:
             errors.append("controlled mode needs the scoped control script")
 
+
+def check_script_fallbacks(parser: DiagramParser, source: str, errors: list[str]) -> None:
     style_source = "".join(parser.styles)
     if parser.scripts:
         if re.search(r"prefers-reduced-motion\s*:\s*reduce", style_source, re.IGNORECASE) is None:
@@ -670,7 +747,7 @@ def check_motion(parser: DiagramParser, source: str, errors: list[str]) -> None:
         if re.search(r"@media\s+print\b", style_source, re.IGNORECASE) is None:
             errors.append("missing print CSS fallback (@media print)")
         if "<noscript" not in source.casefold():
-            errors.append("motion file needs a <noscript> explanation of the complete static frame")
+            errors.append("scripted file needs a <noscript> explanation of the complete static frame")
 
 
 def verify(path: Path, offline: bool = False) -> list[str]:
@@ -691,6 +768,8 @@ def verify(path: Path, offline: bool = False) -> list[str]:
     check_viewbox(source, errors)
     check_scripts(parser, errors)
     check_motion(parser, source, errors)
+    check_explore(parser, errors)
+    check_script_fallbacks(parser, source, errors)
     return errors
 
 

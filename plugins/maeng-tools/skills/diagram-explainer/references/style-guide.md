@@ -27,6 +27,8 @@ Every token is referred to by **semantic role**, not by its hex value. Type refe
 | `accent` | Focal / 1–2 max per diagram | `#bf4520` (burnt-tangerine) | `#f08a59` |
 | `accent-tint` | Fill for accent-bordered boxes | `rgba(191,69,32,0.08)` | `rgba(240,138,89,0.10)` |
 | `link` | HTTP/API calls, external arrows | `#2e5aa8` | `#739fdf` |
+| `guard` | Security/policy relationships and boundaries | `#6d3fa0` | `#b99be8` |
+| `data` | Data read/write relationships to stores | `#1d7368` | `#5fc2b3` |
 
 > **Brand palette source:** this skin maps to a five-color brand palette: `jet-black #2d3142`, `silver #bfc0c0`, `white-smoke #f5f5f5`, `atomic-tangerine`, `blue-slate #4f5d75`. The light `accent` is not the raw brand tangerine. Raw atomic-tangerine reads 2.86:1 on `paper`, too faint for an arrow or a label, so the skin uses `#bf4520`, the same hue darkened until it clears 4.5:1 as text. The `soft`, `rule`, and `link` tokens are derived (a darker slate, ink at opacity, and a saturated variant in the blue-slate hue family) to cover roles the brand palette doesn't name directly. Every derived value is held to the contrast contract below.
 
@@ -46,7 +48,9 @@ Every token must clear the threshold for each role it plays, against the backgro
 - **A token used in several roles must pass each one.** `accent` is a stroke in one place and a label in another, so it is held to 4.5:1, not the 3:1 its strokes alone would need. Don't assume a token is non-text because it usually is.
 - **Translucent colors are composited first.** An `rgba()` fill or stroke is blended over `paper` before its ratio is measured. A value that clears the bar at full strength can fail at 0.5 opacity.
 - **Surfaces other than `paper` cost contrast.** Inside an `accent-tint` box or on `paper-2` every ratio drops. Measure text placed there against that surface, not against `paper`.
-- **Current defaults:** light `accent` 4.71:1, `soft` 5.34:1, `link` 6.13:1, `muted` 6.11:1 on `#f5f5f5`; dark `accent` 5.21:1, `soft` 4.78:1, `link` 4.76:1 on `#2d3142`.
+- **Current defaults:** light `accent` 4.71:1, `soft` 5.34:1, `link` 6.13:1, `guard` 6.71:1, `data` 5.20:1, `muted` 6.11:1 on `#f5f5f5`; dark `accent` 5.21:1, `soft` 4.78:1, `link` 4.76:1, `guard` 5.47:1, `data` 6.05:1 on `#2d3142`.
+
+> **Relationship colors (personal addition, 2026-10-25, MAE-272):** `guard` and `data` are not accents. They color a relationship by what it means, so a reader can tell a policy check or a store write from an ordinary call at a glance. Use them only on the relationships and boundaries named in their row, and name them in the legend when used. `accent` stays the single focal color. The variant-to-token mapping is in [archify-methods.md](archify-methods.md#relationship-variants).
 
 ### Inversion rule (light → dark)
 
@@ -210,7 +214,7 @@ Semantic role combinations — reference these by name in type specs.
 | `external` | `ink @ 0.03` | `ink @ 0.30` |
 | `input` | `muted @ 0.10` | `soft` |
 | `optional` | `ink @ 0.02` | `ink @ 0.20` dashed `4,3` |
-| `security` | `accent @ 0.05` | `accent @ 0.50` dashed `4,4` |
+| `security` | `guard @ 0.05` | `guard @ 0.60` dashed `4,4` |
 
 ---
 
@@ -225,7 +229,7 @@ Four options:
 
 ### Constraints (don't break these)
 
-- **Contrast**: every text token (`ink`, `muted`, `soft`, `link`, and `accent`) must clear 4.5:1 on `paper`, in both skins. See the [contrast contract](#contrast-contract); `scripts/verify-contrast.py` checks it.
+- **Contrast**: every text token (`ink`, `muted`, `soft`, `link`, `guard`, `data`, and `accent`) must clear 4.5:1 on `paper`, in both skins. See the [contrast contract](#contrast-contract); `scripts/verify-contrast.py` checks it.
 - **One accent**: pick one color for `accent`. Two accents erases the focal signal.
 - **No rainbow palette**: if your brand ships 8 colors, pick 3 (paper, ink, accent). The rest become `muted` variants.
 - **Serif + sans + mono**: three families, not more. If brand typography is all sans, keep Instrument Serif for `title` and `callout` anyway — the contrast is load-bearing.

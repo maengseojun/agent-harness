@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Explore diagram template</title>
+  <style>
+    /* The five installed faces (assets/local-fonts.css), inlined. */
+    @font-face { font-family: 'Diagram Nunito Sans'; src: local('NunitoSans-Regular'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Diagram Nunito Sans'; src: local('NunitoSans-SemiBold'), local('Nunito Sans SemiBold'); font-weight: 600; font-style: normal; }
+    @font-face { font-family: 'Diagram Nunito Sans'; src: local('NunitoSans-Bold'); font-weight: 700; font-style: normal; }
+    @font-face { font-family: 'Diagram LINE Seed Sans KR'; src: local('LINESeedSansKR-Regular'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Diagram LINE Seed Sans KR'; src: local('LINESeedSansKR-Bold'); font-weight: 700; font-style: normal; }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --color-paper: #f5f5f5;
+      --color-paper-2: #ececec;
+      --color-ink: #2d3142;
+      --color-muted: #4f5d75;
+      --color-soft: #5a6580;
+      --color-accent: #bf4520;
+      --color-accent-tint: rgba(191,69,32,0.08);
+      --color-rule: rgba(45,49,66,0.12);
+      --font-sans: 'Diagram Nunito Sans', 'Diagram LINE Seed Sans KR', system-ui, sans-serif;
+      --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+      --explore-dim: .22;
+      --explore-fade: 160ms;
+    }
+    body {
+      margin: 0;
+      padding: 40px 32px;
+      color: var(--color-ink);
+      background: var(--color-paper);
+      font-family: var(--font-sans);
+    }
+    [data-explore-root] { max-width: 1280px; margin: 0 auto; min-width: 0; }
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--color-muted);
+      font: 600 12px/1.4 var(--font-sans);
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 0 0 12px; font: 700 30px/1.2 var(--font-sans); }
+    .conclusion { max-width: 72ch; margin: 0 0 24px; font-size: 17px; line-height: 1.6; }
+    .board { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+    @media (max-width: 1100px) { .board { grid-template-columns: minmax(0, 1fr); } }
+    .diagram-container { width: 100%; overflow-x: auto; }
+    svg { display: block; width: 100%; min-width: 900px; }
+
+    [data-explore-controls] {
+      display: none;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--color-rule);
+      font-size: 13px;
+    }
+    .explore-ready [data-explore-controls] { display: flex; }
+    [data-explore-controls] label { display: inline-flex; align-items: center; gap: 6px; color: var(--color-muted); }
+    [data-explore-controls] select,
+    [data-explore-controls] input,
+    [data-explore-controls] button,
+    [data-explore-steps] button {
+      min-height: 36px;
+      padding: 6px 10px;
+      border: 1px solid var(--color-muted);
+      border-radius: 4px;
+      color: var(--color-ink);
+      background: var(--color-paper);
+      font: 600 13px/1 var(--font-sans);
+    }
+    [data-explore-controls] button, [data-explore-steps] button { cursor: pointer; }
+    [data-explore-controls] button[aria-pressed="true"] { border-color: var(--color-accent); background: var(--color-accent-tint); }
+    :is([data-explore-controls], [data-explore-steps]) :focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
+    [data-explore-lens] { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+    [data-explore-status] { margin: 8px 0 0; min-height: 1.4em; color: var(--color-muted); font: 600 13px/1.4 var(--font-sans); }
+
+    /* Lit and dimmed states. Lit edges also thicken and focus gets a heavier outline, so state is never color-only. */
+    [data-node], [data-edge] { transition: opacity var(--explore-fade) ease; }
+    .explore-ready [data-node] { cursor: pointer; }
+    .is-exploring [data-node]:not(.is-lit),
+    .is-exploring [data-edge]:not(.is-lit) { opacity: var(--explore-dim); }
+    .is-exploring [data-edge].is-lit :is(path, line) { stroke: var(--color-accent); stroke-width: 2.6; }
+    .is-exploring [data-node].is-lit rect { stroke-width: 2; }
+    [data-node].is-focus rect { stroke: var(--color-accent); stroke-width: 3; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 18px; margin: 12px 0 0; padding: 0; list-style: none; color: var(--color-muted); font-size: 13px; }
+    .legend li { display: inline-flex; align-items: center; gap: 8px; }
+    .legend svg { width: 34px; min-width: 0; height: 10px; }
+
+    [data-explore-steps] { margin: 0; padding: 0; list-style: none; counter-reset: step; }
+    [data-explore-steps] li {
+      counter-increment: step;
+      margin: 0 0 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--color-rule);
+      border-radius: 6px;
+      background: #ffffff;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .explore-ready [data-explore-steps] li { cursor: pointer; }
+    [data-explore-steps] li::before { content: counter(step) ". "; font-weight: 700; color: var(--color-muted); }
+    [data-explore-steps] li strong { font-weight: 700; }
+    [data-explore-steps] li[aria-current="step"] { border-color: var(--color-accent); box-shadow: inset 3px 0 0 var(--color-accent); }
+    .step-nav { display: none; gap: 8px; margin-top: 4px; }
+    .explore-ready .step-nav { display: flex; }
+    .notes { max-width: 72ch; margin-top: 28px; font-size: 15px; line-height: 1.7; }
+    .notes a { color: var(--color-ink); text-decoration-color: var(--color-accent); text-underline-offset: 3px; }
+    noscript p { color: var(--color-muted); font-size: 13px; }
+
+    @media (prefers-reduced-motion: reduce) {
+      [data-node], [data-edge] { transition: none !important; }
+    }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+      [data-explore-controls], .step-nav { display: none !important; }
+      .is-exploring [data-node], .is-exploring [data-edge] { opacity: 1 !important; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Replace template-explore in IDs, data-node ids and prose when copying this file. Keep the script byte-for-byte. -->
+  <main data-explore-root>
+    <p class="eyebrow">Architecture · Explore</p>
+    <h1>작업 요청이 머지되기까지</h1>
+    <p class="conclusion">요청은 세션에서 검증과 리뷰를 거쳐야만 머지돼요. 리뷰가 실패하면 세션으로 되돌아가고, 머지는 리뷰가 남긴 영수증을 확인한 뒤에만 열려요.</p>
+
+    <div class="board">
+      <section aria-label="도식">
+        <div data-explore-controls>
+          <label>노드 <select data-explore-node aria-label="강조할 노드"></select></label>
+          <label>경로 끝 <select data-explore-route-to aria-label="경로 도착 노드"></select></label>
+          <label>찾기 <input type="search" data-explore-find aria-label="노드 이름 찾기" size="10"></label>
+          <span data-explore-lens aria-label="유형별 보기"></span>
+          <button type="button" data-explore-clear>초기화</button>
+        </div>
+
+        <div class="diagram-container">
+          <svg viewBox="0 0 900 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="template-explore-title template-explore-desc">
+            <title id="template-explore-title">작업 요청이 머지되기까지</title>
+            <desc id="template-explore-desc">사용자의 요청을 세션이 받아 검증 게이트, 리뷰, 머지 순서로 진행한다. 세션은 진행을 Linear에 기록하고, 리뷰는 영수증을 저장하며, 머지는 그 영수증을 확인한다. 리뷰가 실패하면 세션으로 되돌아간다.</desc>
+            <defs>
+              <marker id="template-explore-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+              <marker id="template-explore-arrow-ink" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2d3142"/></marker>
+              <marker id="template-explore-arrow-data" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#1d7368"/></marker>
+            </defs>
+            <rect width="900" height="420" fill="#f5f5f5"/>
+
+            <!-- Edges first. data-from/data-to name authored relationships; reach and route follow only these. -->
+            <g data-edge data-from="user" data-to="session" data-variant="default">
+              <line x1="170" y1="200" x2="212" y2="200" stroke="#4f5d75" stroke-width="1.4" marker-end="url(#template-explore-arrow)"/>
+              <text x="191" y="190" text-anchor="middle" font-size="11" fill="#4f5d75">요청</text>
+            </g>
+            <g data-edge data-from="session" data-to="gate" data-variant="primary">
+              <line x1="350" y1="200" x2="392" y2="200" stroke="#2d3142" stroke-width="2" marker-end="url(#template-explore-arrow-ink)"/>
+              <text x="371" y="190" text-anchor="middle" font-size="11" fill="#2d3142">검증</text>
+            </g>
+            <g data-edge data-from="gate" data-to="review" data-variant="primary">
+              <line x1="530" y1="200" x2="572" y2="200" stroke="#2d3142" stroke-width="2" marker-end="url(#template-explore-arrow-ink)"/>
+              <text x="551" y="190" text-anchor="middle" font-size="11" fill="#2d3142">통과</text>
+            </g>
+            <g data-edge data-from="review" data-to="ship" data-variant="primary">
+              <line x1="710" y1="200" x2="752" y2="200" stroke="#2d3142" stroke-width="2" marker-end="url(#template-explore-arrow-ink)"/>
+              <text x="731" y="190" text-anchor="middle" font-size="11" fill="#2d3142">pass</text>
+            </g>
+            <!-- Return: above the main path, where no store or branch sits. -->
+            <g data-edge data-from="review" data-to="session" data-variant="return">
+              <path d="M640 168 V96 H280 V160" fill="none" stroke="#4f5d75" stroke-width="1.4" stroke-dasharray="2 3" marker-end="url(#template-explore-arrow)"/>
+              <text x="460" y="88" text-anchor="middle" font-size="11" fill="#4f5d75">fail: 수정 요청</text>
+            </g>
+            <!-- Stores: directly below their owner, all on the same side. -->
+            <g data-edge data-from="session" data-to="linear" data-variant="data">
+              <line x1="280" y1="232" x2="280" y2="304" stroke="#1d7368" stroke-width="1.4" marker-end="url(#template-explore-arrow-data)"/>
+              <text x="288" y="272" font-size="11" fill="#1d7368">진행 기록</text>
+            </g>
+            <g data-edge data-from="review" data-to="receipt" data-variant="data">
+              <line x1="640" y1="232" x2="640" y2="304" stroke="#1d7368" stroke-width="1.4" marker-end="url(#template-explore-arrow-data)"/>
+              <text x="648" y="272" font-size="11" fill="#1d7368">영수증 저장</text>
+            </g>
+            <g data-edge data-from="receipt" data-to="ship" data-variant="data">
+              <path d="M710 344 H820 V240" fill="none" stroke="#1d7368" stroke-width="1.4" marker-end="url(#template-explore-arrow-data)"/>
+              <text x="828" y="300" font-size="11" fill="#1d7368">확인</text>
+            </g>
+
+            <!-- Nodes. data-kind feeds the lens; data-label is the name the finder, picker and status use. -->
+            <g data-node="user" data-kind="external" data-label="사용자">
+              <rect x="40" y="168" width="130" height="64" rx="6" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+              <text x="105" y="205" text-anchor="middle" font-size="14" font-weight="700" fill="#2d3142">사용자</text>
+            </g>
+            <g data-node="session" data-kind="backend" data-label="세션">
+              <rect x="212" y="168" width="138" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+              <text x="281" y="198" text-anchor="middle" font-size="14" font-weight="700" fill="#2d3142">세션</text>
+              <text x="281" y="216" text-anchor="middle" font-size="11" fill="#5a6580">Claude Code</text>
+            </g>
+            <g data-node="gate" data-kind="security" data-label="검증 게이트">
+              <rect x="392" y="168" width="138" height="64" rx="6" fill="rgba(109,63,160,0.05)" stroke="rgba(109,63,160,0.60)" stroke-width="1" stroke-dasharray="4 4"/>
+              <text x="461" y="198" text-anchor="middle" font-size="14" font-weight="700" fill="#2d3142">검증 게이트</text>
+              <text x="461" y="216" text-anchor="middle" font-size="11" fill="#5a6580">maeng-verify</text>
+            </g>
+            <g data-node="review" data-kind="backend" data-label="리뷰">
+              <rect x="572" y="168" width="138" height="64" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+              <text x="641" y="198" text-anchor="middle" font-size="14" font-weight="700" fill="#2d3142">리뷰</text>
+              <text x="641" y="216" text-anchor="middle" font-size="11" fill="#5a6580">maeng-review</text>
+            </g>
+            <g data-node="ship" data-kind="focal" data-label="머지">
+              <rect x="752" y="168" width="130" height="64" rx="6" fill="rgba(191,69,32,0.08)" stroke="#bf4520" stroke-width="1.4"/>
+              <text x="817" y="198" text-anchor="middle" font-size="14" font-weight="700" fill="#2d3142">머지</text>
+              <text x="817" y="216" text-anchor="middle" font-size="11" fill="#5a6580">maeng-ship</text>
+            </g>
+            <g data-node="linear" data-kind="store" data-label="Linear">
+              <rect x="212" y="304" width="138" height="56" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+              <text x="281" y="337" text-anchor="middle" font-size="14" font-weight="700" fill="#2d3142">Linear</text>
+            </g>
+            <g data-node="receipt" data-kind="store" data-label="리뷰 영수증">
+              <rect x="572" y="304" width="138" height="56" rx="6" fill="rgba(45,49,66,0.05)" stroke="#4f5d75" stroke-width="1"/>
+              <text x="641" y="337" text-anchor="middle" font-size="14" font-weight="700" fill="#2d3142">리뷰 영수증</text>
+            </g>
+          </svg>
+        </div>
+
+        <!-- Legend: only the relationship variants this diagram uses. -->
+        <ul class="legend" aria-label="선 범례">
+          <li><svg viewBox="0 0 34 10" aria-hidden="true"><line x1="0" y1="5" x2="34" y2="5" stroke="#2d3142" stroke-width="2"/></svg>주 경로</li>
+          <li><svg viewBox="0 0 34 10" aria-hidden="true"><line x1="0" y1="5" x2="34" y2="5" stroke="#1d7368" stroke-width="1.4"/></svg>데이터 읽기·쓰기</li>
+          <li><svg viewBox="0 0 34 10" aria-hidden="true"><line x1="0" y1="5" x2="34" y2="5" stroke="#4f5d75" stroke-width="1.4"/></svg>일반 호출</li>
+          <li><svg viewBox="0 0 34 10" aria-hidden="true"><line x1="0" y1="5" x2="34" y2="5" stroke="#4f5d75" stroke-width="1.4" stroke-dasharray="2 3"/></svg>되돌림</li>
+        </ul>
+        <p data-explore-status role="status" aria-live="polite" aria-atomic="true"></p>
+        <noscript><p>스크립트 없이도 도식 전체와 단계 설명이 그대로 보입니다. 강조와 경로 찾기만 빠집니다.</p></noscript>
+      </section>
+
+      <aside aria-label="단계">
+        <!-- Steps beside the diagram. Title each step with the label of the node it points at. -->
+        <ol data-explore-steps>
+          <li data-target="session"><strong>세션</strong>: 요청을 받아 Spec과 Plan을 쓰고 Linear에 바인딩한다.</li>
+          <li data-target="gate"><strong>검증 게이트</strong>: Plan이 지정한 검사를 마지막 수정 뒤에 다시 돌린다.</li>
+          <li data-target="review"><strong>리뷰</strong>: 정확한 head에 대한 리뷰를 받고 영수증을 남긴다.</li>
+          <li data-target="ship"><strong>머지</strong>: 영수증이 head와 맞을 때만 머지한다.</li>
+        </ol>
+        <div class="step-nav">
+          <button type="button" data-explore-step="prev">이전</button>
+          <button type="button" data-explore-step="next">다음</button>
+        </div>
+      </aside>
+    </div>
+
+    <div class="notes">
+      <p>리뷰가 실패하면 <a href="#route=review~session">리뷰에서 세션으로</a> 되돌아가요. <a href="#focus=receipt">리뷰 영수증</a>은 리뷰와 머지를 잇는 유일한 연결이라, 영수증 없이 머지로 가는 경로는 없어요.</p>
+    </div>
+  </main>
+
+  <script data-diagram-explore>
+(() => {
+  'use strict';
+  const ko = (document.documentElement.lang || '').toLowerCase().startsWith('ko');
+  const t = ko ? {
+    none: '—', reach: (n, up, down) => `${n}: 위로 ${up}개, 아래로 ${down}개 연결`,
+    route: (a, b, k) => `${a} → ${b}: ${k}단계 경로`, noRoute: (a, b) => `${a}에서 ${b}로 가는 경로가 없습니다`,
+    lens: (k, n) => `${k} 유형 ${n}개`, find: (q, n) => `"${q}" 일치 ${n}개`,
+    step: (i, n, l) => `${i}/${n}단계: ${l}`, clear: '강조를 지웠습니다'
+  } : {
+    none: '—', reach: (n, up, down) => `${n}: ${up} upstream, ${down} downstream`,
+    route: (a, b, k) => `${a} → ${b}: ${k}-step route`, noRoute: (a, b) => `No route from ${a} to ${b}`,
+    lens: (k, n) => `${n} ${k} nodes`, find: (q, n) => `${n} match "${q}"`,
+    step: (i, n, l) => `Step ${i} of ${n}: ${l}`, clear: 'Highlight cleared'
+  };
+  document.querySelectorAll('[data-explore-root]').forEach((root) => {
+    const nodes = new Map();
+    root.querySelectorAll('[data-node]').forEach((el) => nodes.set(el.getAttribute('data-node'), el));
+    const edges = [...root.querySelectorAll('[data-edge]')]
+      .map((el) => ({ el, from: el.getAttribute('data-from'), to: el.getAttribute('data-to') }))
+      .filter((e) => nodes.has(e.from) && nodes.has(e.to));
+    const label = (id) => (nodes.get(id).getAttribute('data-label') || nodes.get(id).textContent).trim().replace(/\s+/g, ' ');
+    const status = root.querySelector('[data-explore-status]');
+    const picker = root.querySelector('[data-explore-node]');
+    const routeTo = root.querySelector('[data-explore-route-to]');
+    const finder = root.querySelector('[data-explore-find]');
+    const lensBox = root.querySelector('[data-explore-lens]');
+    const steps = [...root.querySelectorAll('[data-explore-steps] [data-target]')].filter((li) => nodes.has(li.getAttribute('data-target')));
+    let stepIndex = -1;
+
+    const say = (text) => { if (status) status.textContent = text; };
+    const setHash = (value) => {
+      try { history.replaceState(null, '', value ? `#${value}` : location.href.split('#')[0]); } catch (_) { /* file or sandboxed frame */ }
+    };
+    const paint = (litNodes, litEdges, focusId) => {
+      root.classList.add('is-exploring');
+      nodes.forEach((el, id) => {
+        el.classList.toggle('is-lit', litNodes.has(id));
+        el.classList.toggle('is-focus', id === focusId);
+      });
+      edges.forEach((e) => e.el.classList.toggle('is-lit', litEdges.has(e)));
+    };
+    const syncControls = (nodeId, toId, lensKind) => {
+      if (picker) picker.value = nodeId || '';
+      if (routeTo) routeTo.value = toId || '';
+      if (lensBox) lensBox.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.value === lensKind)));
+      steps.forEach((li, i) => (i === stepIndex ? li.setAttribute('aria-current', 'step') : li.removeAttribute('aria-current')));
+    };
+    const walk = (start, forward) => {
+      const seen = new Set([start]);
+      const used = new Set();
+      const queue = [start];
+      while (queue.length) {
+        const id = queue.shift();
+        edges.forEach((e) => {
+          const [here, there] = forward ? [e.from, e.to] : [e.to, e.from];
+          if (here !== id) return;
+          used.add(e);
+          if (!seen.has(there)) { seen.add(there); queue.push(there); }
+        });
+      }
+      return { seen, used };
+    };
+
+    const clear = (announce) => {
+      root.classList.remove('is-exploring');
+      nodes.forEach((el) => el.classList.remove('is-lit', 'is-focus'));
+      edges.forEach((e) => e.el.classList.remove('is-lit'));
+      stepIndex = -1;
+      if (finder) finder.value = '';
+      syncControls('', '', '');
+      setHash('');
+      say(announce ? t.clear : '');
+    };
+    const focus = (id) => {
+      if (!nodes.has(id)) return;
+      const down = walk(id, true);
+      const up = walk(id, false);
+      paint(new Set([...down.seen, ...up.seen]), new Set([...down.used, ...up.used]), id);
+      stepIndex = -1;
+      syncControls(id, '', '');
+      setHash(`focus=${encodeURIComponent(id)}`);
+      say(t.reach(label(id), up.seen.size - 1, down.seen.size - 1));
+    };
+    // Breadth-first over authored directed edges only; geometry never implies a route.
+    const route = (a, b) => {
+      if (!nodes.has(a) || !nodes.has(b)) return;
+      const via = new Map([[a, null]]);
+      const queue = [a];
+      while (queue.length && !via.has(b)) {
+        const id = queue.shift();
+        edges.forEach((e) => {
+          if (e.from === id && !via.has(e.to)) { via.set(e.to, e); queue.push(e.to); }
+        });
+      }
+      stepIndex = -1;
+      syncControls(a, b, '');
+      setHash(`route=${encodeURIComponent(a)}~${encodeURIComponent(b)}`);
+      if (!via.has(b)) {
+        paint(new Set([a, b]), new Set(), a);
+        say(t.noRoute(label(a), label(b)));
+        return;
+      }
+      const litNodes = new Set([b]);
+      const litEdges = new Set();
+      for (let e = via.get(b); e; e = via.get(e.from)) { litEdges.add(e); litNodes.add(e.from); }
+      paint(litNodes, litEdges, a);
+      say(t.route(label(a), label(b), litEdges.size));
+    };
+    const lens = (kind) => {
+      const lit = new Set([...nodes].filter(([, el]) => el.getAttribute('data-kind') === kind).map(([id]) => id));
+      if (!lit.size) return;
+      paint(lit, new Set(edges.filter((e) => lit.has(e.from) && lit.has(e.to))), '');
+      stepIndex = -1;
+      syncControls('', '', kind);
+      setHash(`lens=${encodeURIComponent(kind)}`);
+      say(t.lens(kind, lit.size));
+    };
+    const find = (query) => {
+      const q = query.trim().toLowerCase();
+      if (!q) { clear(false); return; }
+      const lit = new Set([...nodes.keys()].filter((id) => label(id).toLowerCase().includes(q) || id.toLowerCase().includes(q)));
+      paint(lit, new Set(), '');
+      stepIndex = -1;
+      syncControls('', '', '');
+      say(t.find(query.trim(), lit.size));
+    };
+    const showStep = (i) => {
+      if (!steps.length) return;
+      stepIndex = Math.max(0, Math.min(steps.length - 1, i));
+      const id = steps[stepIndex].getAttribute('data-target');
+      const prev = stepIndex > 0 ? steps[stepIndex - 1].getAttribute('data-target') : null;
+      paint(new Set(prev ? [prev, id] : [id]), new Set(edges.filter((e) => e.from === prev && e.to === id)), id);
+      syncControls('', '', '');
+      setHash(`step=${stepIndex + 1}`);
+      say(t.step(stepIndex + 1, steps.length, label(id)));
+    };
+    const fromHash = () => {
+      const params = new URLSearchParams(location.hash.slice(1));
+      if (params.has('route')) {
+        const [a, b] = params.get('route').split('~');
+        route(a, b);
+      } else if (params.has('focus')) focus(params.get('focus'));
+      else if (params.has('lens')) lens(params.get('lens'));
+      else if (params.has('step')) showStep(Number.parseInt(params.get('step'), 10) - 1);
+    };
+
+    const fill = (select) => {
+      if (!select) return;
+      select.append(new Option(t.none, ''));
+      nodes.forEach((_el, id) => select.append(new Option(label(id), id)));
+    };
+    fill(picker);
+    fill(routeTo);
+    if (lensBox) {
+      [...new Set([...nodes.values()].map((el) => el.getAttribute('data-kind')).filter(Boolean))].forEach((kind) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.value = kind;
+        b.textContent = kind;
+        b.setAttribute('aria-pressed', 'false');
+        b.addEventListener('click', () => (b.getAttribute('aria-pressed') === 'true' ? clear(true) : lens(kind)));
+        lensBox.append(b);
+      });
+    }
+    const pickOrRoute = () => {
+      const a = picker ? picker.value : '';
+      const b = routeTo ? routeTo.value : '';
+      if (a && b) route(a, b); else if (a) focus(a); else clear(true);
+    };
+    if (picker) picker.addEventListener('change', pickOrRoute);
+    if (routeTo) routeTo.addEventListener('change', pickOrRoute);
+    if (finder) finder.addEventListener('input', () => find(finder.value));
+    root.querySelectorAll('[data-explore-clear]').forEach((b) => b.addEventListener('click', () => clear(true)));
+    root.querySelectorAll('[data-explore-step]').forEach((b) => b.addEventListener('click', () => {
+      showStep(b.getAttribute('data-explore-step') === 'prev' ? stepIndex - 1 : stepIndex + 1);
+    }));
+    steps.forEach((li, i) => li.addEventListener('click', () => showStep(i)));
+    // Pointer shortcut only; the node picker is the keyboard path, so the SVG keeps role=img.
+    nodes.forEach((el, id) => el.addEventListener('click', () => focus(id)));
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && root.classList.contains('is-exploring')) clear(true);
+    });
+    window.addEventListener('hashchange', fromHash);
+    root.classList.add('explore-ready');
+    fromHash();
+  });
+})();
+  </script>
+</body>
+</html>
