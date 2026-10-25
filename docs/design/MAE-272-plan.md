@@ -58,4 +58,5 @@ Verification tier: code (skill scripts) + docs. Ship checks, once at the final t
 - AC-4: wrapper doctor and missing-home run (declared with maeng-verify ran)
 - AC-5: claude plugin validate plugins/maeng-tools
 - AC-5: python3 -m pytest -q
-- AC-1: review item in the parent review
+
+AC-1 is judged by the reviewer (maeng-review, Sol high); it is not a runnable check.
