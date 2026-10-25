@@ -634,6 +634,8 @@ def check_explore(parser: DiagramParser, errors: list[str]) -> None:
         return
     if parser.explore_roots != 1:
         errors.append(f"expected exactly one data-explore-root; found {parser.explore_roots}")
+    if not scripts_of(parser, "data-diagram-explore"):
+        errors.append("explore markup needs the canonical data-diagram-explore controller from template-explore.html")
     ids = [node.get("data-node", "") for node in parser.explore_nodes]
     if not ids:
         errors.append("explore file needs data-node elements")

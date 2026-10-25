@@ -67,6 +67,14 @@ def test_node_without_kind_fails(tmp_path: Path) -> None:
     assert any("'user' needs a data-kind" in e for e in errors_for(tmp_path, broken))
 
 
+def test_missing_explore_controller_fails(tmp_path: Path) -> None:
+    start = EXPLORE.index("<script data-diagram-explore>")
+    end = EXPLORE.index("</script>", start) + len("</script>")
+    broken = EXPLORE[:start] + EXPLORE[end:]
+    assert "<script" not in broken
+    assert any("needs the canonical data-diagram-explore controller" in e for e in errors_for(tmp_path, broken))
+
+
 def test_unknown_script_attribute_still_fails(tmp_path: Path) -> None:
     broken = EXPLORE.replace("<script data-diagram-explore>", "<script data-diagram-other>", 1)
     assert broken != EXPLORE

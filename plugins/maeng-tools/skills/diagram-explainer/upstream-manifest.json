@@ -264,7 +264,7 @@
     },
     "scripts/self_check.py": {
       "upstream_sha256": "4da309dc768c921153872715666859f4d2c3af384ec804b3d4159b549b7697ea",
-      "migrated_sha256": "6aeb4c95bf995a26412983f9a9e6a272805cf31ccb59ae19a5ed3c381ac1cd62"
+      "migrated_sha256": "a1822129ed59eb7817667429e5057672e19d6861eac5c23eb229547d1f294a91"
     },
     "scripts/export_svg.py": {
       "upstream_sha256": "0fd5fd85d99eaaa06df60235ee7a0a4f7478766e58de19c4de4cd944538afb5c",
