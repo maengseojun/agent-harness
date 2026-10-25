@@ -47,6 +47,14 @@ def test_duplicate_node_id_fails(tmp_path: Path) -> None:
     assert any("duplicate data-node ids: receipt" in e for e in errors_for(tmp_path, broken))
 
 
+def test_node_id_with_whitespace_fails(tmp_path: Path) -> None:
+    broken = EXPLORE.replace('data-node="receipt"', 'data-node="receipt "', 1)
+    assert broken != EXPLORE
+    errors = errors_for(tmp_path, broken)
+    assert any("data-node id 'receipt '" in e for e in errors)
+    assert any("names no data-node" in e for e in errors)
+
+
 def test_step_target_missing_fails(tmp_path: Path) -> None:
     broken = EXPLORE.replace('data-target="gate"', 'data-target="ghost"', 1)
     assert broken != EXPLORE

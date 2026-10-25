@@ -35,6 +35,8 @@ CONTROLLERS = {
 MODES = {"none", "reveal", "step", "loop"}
 ACTIONS = {"play", "pause", "replay", "prev", "next"}
 ASCII_DECIMAL_RE = re.compile(r"^[0-9]+$")
+# The explore controller matches ids by their raw attribute value, so validate the raw value.
+NODE_ID_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
 CSS_ESCAPE_RE = re.compile(
     r"\\(?:([0-9a-fA-F]{1,6})[ \t\r\n\f]?|(.))", re.DOTALL
 )
@@ -632,11 +634,12 @@ def check_explore(parser: DiagramParser, errors: list[str]) -> None:
         return
     if parser.explore_roots != 1:
         errors.append(f"expected exactly one data-explore-root; found {parser.explore_roots}")
-    ids = [node.get("data-node", "").strip() for node in parser.explore_nodes]
+    ids = [node.get("data-node", "") for node in parser.explore_nodes]
     if not ids:
         errors.append("explore file needs data-node elements")
-    if "" in ids:
-        errors.append("every data-node needs a non-empty id")
+    for node_id in ids:
+        if not NODE_ID_RE.fullmatch(node_id):
+            errors.append(f"data-node id {node_id!r} must start with a letter and use only letters, digits, - and _")
     duplicates = sorted(node_id for node_id, n in Counter(ids).items() if n > 1 and node_id)
     if duplicates:
         errors.append(f"duplicate data-node ids: {', '.join(duplicates)}")

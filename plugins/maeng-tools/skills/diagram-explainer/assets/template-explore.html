@@ -380,6 +380,8 @@
       paint(lit, new Set(), '');
       stepIndex = -1;
       syncControls('', '', '');
+      // Drop the stale fragment so following the same #link again still fires hashchange.
+      setHash('');
       say(t.find(query.trim(), lit.size));
     };
     const showStep = (i) => {

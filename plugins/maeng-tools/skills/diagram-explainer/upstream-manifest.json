@@ -4,7 +4,7 @@
   "base_files": {
     "SKILL.md": {
       "upstream_sha256": "1b30bb3c0da29a05e5b05c0a4510ce6f286a0d0f1da97b9aa6aaf03c92e98618",
-      "migrated_sha256": "ca6e715ca6f85351fbee8458074d7d2cf94e4b0535efc8e05f7f74b9f4b88a72"
+      "migrated_sha256": "52d260bbe2774d67808389be433057b56e2dc48927aa56a1814cb45cd4c2145d"
     },
     "references/type-quadrant.md": {
       "upstream_sha256": "eb7d542ddac72e2e1a75cb7ca64ddb67901283859413a133a332137e7fb9e5b1",
@@ -264,7 +264,7 @@
     },
     "scripts/self_check.py": {
       "upstream_sha256": "4da309dc768c921153872715666859f4d2c3af384ec804b3d4159b549b7697ea",
-      "migrated_sha256": "45eda493b4705a0a4e7487cdbf0e24e342cc02bba12cfa319405b1c5fbfe3346"
+      "migrated_sha256": "6aeb4c95bf995a26412983f9a9e6a272805cf31ccb59ae19a5ed3c381ac1cd62"
     },
     "scripts/export_svg.py": {
       "upstream_sha256": "0fd5fd85d99eaaa06df60235ee7a0a4f7478766e58de19c4de4cd944538afb5c",
