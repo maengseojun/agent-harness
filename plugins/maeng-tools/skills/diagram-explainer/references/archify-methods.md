@@ -82,6 +82,8 @@ Markup contract:
 | `data-explore-steps` + `data-target="id"` | an ordered list beside the diagram | steps that light their node |
 | `data-explore-status` | one `role=status aria-live=polite aria-atomic=true` element | announces every change in words |
 
+Layout: set `--diagram-width` in the template's `:root` to the SVG viewBox width. The steps list sits beside the diagram only when both fit at that width; otherwise it moves below, so the diagram is never squeezed into a horizontal scroller next to it.
+
 What the reader gets: choosing or clicking a node lights everything upstream and downstream of it; choosing an end node shows the directed route between them, or says there is none; kind buttons light one group; the finder lights matches; prev/next walks the steps; `#focus=id`, `#route=a~b`, `#lens=kind` and `#step=n` restore a view, so a link can share it; Escape clears.
 
 Rules:

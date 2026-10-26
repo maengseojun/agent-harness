@@ -25,6 +25,8 @@
       --font-sans: 'Diagram Nunito Sans', 'Diagram LINE Seed Sans KR', system-ui, sans-serif;
       --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
       --explore-dim: .22;
+      /* Set to the SVG viewBox width. Steps sit beside the diagram only when both fit; otherwise they move below. */
+      --diagram-width: 900px;
       --explore-fade: 160ms;
     }
     body {
@@ -44,10 +46,11 @@
     }
     h1 { margin: 0 0 12px; font: 700 30px/1.2 var(--font-sans); }
     .conclusion { max-width: 72ch; margin: 0 0 24px; font-size: 17px; line-height: 1.6; }
-    .board { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
-    @media (max-width: 1100px) { .board { grid-template-columns: minmax(0, 1fr); } }
+    .board { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+    .board > section { flex: 1 1 var(--diagram-width); min-width: min(100%, var(--diagram-width)); }
+    .board > aside { flex: 1 1 280px; }
     .diagram-container { width: 100%; overflow-x: auto; }
-    svg { display: block; width: 100%; min-width: 900px; }
+    svg { display: block; width: 100%; min-width: var(--diagram-width); }
 
     [data-explore-controls] {
       display: none;
