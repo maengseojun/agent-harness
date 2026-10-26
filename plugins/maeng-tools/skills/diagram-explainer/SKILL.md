@@ -24,6 +24,8 @@ A direct invocation requests an actual visual artifact, including a timeline or 
 
 For an overview, research synthesis or timeline, prefer **one coherent canvas** with complementary diagram regions and a visible reading order. Node-count budgets guide grouping and label economy; they do not require separate pages. Reflow, group, grow the canvas or shorten repetition before splitting. Split only when distinct reading tasks or demonstrated legibility require it, preserving an at-a-glance overview. Do not invent numeric charts, dates or causal relationships merely to fill space.
 
+**Explore by default (personal, 2026-10-26).** When the delivery includes HTML and the diagram draws relationships between nodes (architecture, flowchart, swimlane, data flow, sequence, state/lifecycle, dependency, deployment, ER/schema, tree, journey, service blueprint), start from `assets/template-explore.html` and mark every node and relationship with the explore attributes, so the reader can light a node's connections, trace a route, filter by kind, find by name and step through the explanation while the rest dims. Use a static template only for image-only delivery (PNG/SVG), types with no node-to-node relationships (charts, quadrant, heatmap, an undated event list), an explicit static request, or a requested motion figure. Revising an existing static HTML keeps it static unless the user asks for exploration. Markup contract: [archify-methods.md § Exploring a diagram](references/archify-methods.md#exploring-a-diagram).
+
 Read the small [personal additions](references/personal-additions.md) for preservation, rendering and supporting assets, [Archify methods](references/archify-methods.md) for relationship colors, placement, explainer pages and explorable diagrams, and [delivery/storage](references/delivery-storage.md) before delivering files. School Google Drive storage and separate readback remain required. These explicit personal requirements take precedence over conflicting setup, format and split suggestions below.
 
 ## 0. First-time setup — style guide gate
@@ -215,7 +217,7 @@ Every diagram ships in three variants (see `assets/`):
 
 ### To create a new diagram
 
-1. Copy the variant closest to what you want (`assets/template.html` for minimal, `assets/template-full.html` for cards, `assets/template-motion.html` only when motion is requested, `assets/template-explore.html` when the reader should explore the diagram).
+1. Copy the variant closest to what you want (`assets/template.html` for minimal, `assets/template-full.html` for cards, `assets/template-motion.html` only when motion is requested, `assets/template-explore.html` by default for an HTML relationship diagram, see Explore by default above).
 2. If behavior is load-bearing, choose a semantic pattern; then load the matching type reference linked in the visual-type guide.
 3. Replace the eyebrow, h1, and SVG body. Replace `[diagram-slug]` with the file slug and fill `<title>` / `<desc>`.
 4. If motion is requested, load `animation.md`; otherwise keep mode `none` and no motion script. An explore page keeps its explore controller either way.

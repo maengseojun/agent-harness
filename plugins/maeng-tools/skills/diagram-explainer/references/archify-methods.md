@@ -68,7 +68,7 @@ Choose the form by the shape of the information:
 
 ## Exploring a diagram
 
-For a diagram the reader will study rather than glance at, start from [`assets/template-explore.html`](../assets/template-explore.html). Its controller is canonical: copy the script byte for byte; `self_check.py` rejects edits.
+This is the default for every HTML relationship diagram (SKILL.md, Explore by default): start from [`assets/template-explore.html`](../assets/template-explore.html). Static output is the exception, for image-only delivery, relationship-free charts, an explicit static request or a motion figure. Its controller is canonical: copy the script byte for byte; `self_check.py` rejects edits.
 
 Markup contract:
 

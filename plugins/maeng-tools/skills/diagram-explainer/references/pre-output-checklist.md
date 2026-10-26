@@ -10,6 +10,7 @@ Run before producing any diagram.
 - [ ] Right visual type for the layout? (§3 visual-type guide)
 - [ ] Stated type, pattern, size preset, and planned cuts before drawing — confirmed, or assumptions noted? (§3)
 - [ ] Would a table / paragraph do the same job? (If yes — don't draw.)
+- [ ] HTML relationship diagram: built on `template-explore.html` with `data-node` / `data-kind` on every node and `data-edge data-from data-to data-variant` on every relationship, steps beside it when there are steps? Static only for image-only delivery, relationship-free charts, an explicit static request or motion.
 - [ ] Loaded the matching type reference linked in the visual-type guide?
 - [ ] If this is an import — format, size, detail level, and audience set? `viewBox` and type ramp match the size preset? (§11, [output-spec.md §6](output-spec.md))
 - [ ] If this is an import — fidelity ledger ready to report? (§11)

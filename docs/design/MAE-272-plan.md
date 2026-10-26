@@ -24,6 +24,8 @@ must_haves:
 - **AC-4** interactive-explainer: the default route for path/state exploration is diagram-explainer + `template-explore.html`; the Archify route is used only when the user asks for Archify's own look or viewer features. The wrapper no longer points at the never-committed `vendor/archify/` path: it uses `ARCHIFY_HOME` or `~/.claude/skills/archify` and fails with a clear message when neither exists.
 - **AC-5** MIT attribution for Archify is recorded; `upstream-manifest.json` lists `scripts/self_check.py` as customized with its new hash; maeng-tools version bumped so sessions pick it up.
 
+- **AC-6** (follow-up 2026-10-26, user: "이런 동적으로 보이고 나머지는 비하인드 처리되는거 아직 반영이 안된 것 같은데 다시 한번 해줄래?") diagram-explainer makes `template-explore.html` the default for HTML relationship diagrams; static only for image-only delivery, relationship-free charts, an explicit static request or motion. A fresh agent given only a plain HTML diagram request picks the explore template and its output passes self_check.
+
 Decisions:
 - **D-1** Restate Archify's rules in our token names rather than vendor its renderer. Signal: a diagram made with the reference renders in our skin and passes self_check. Held/broke judged at close.
 - **D-2** The explore controller is a second canonical script (`data-diagram-explore`), enforced like the motion one. Signal: self_check rejects edits to it.
@@ -58,3 +60,4 @@ Verification tier: code (skill scripts) + docs. Ship checks, once at the final t
 - AC-4: wrapper doctor and missing-home run (declared with maeng-verify ran)
 - AC-5: claude plugin validate plugins/maeng-tools
 - AC-5: python3 -m pytest -q
+- AC-6: fresh-agent routing test on a plain HTML diagram request (declared with maeng-verify ran)
