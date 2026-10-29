@@ -43,7 +43,7 @@ class PluginLayout(unittest.TestCase):
         t = {e: [h["timeout"] for g in gs for h in g["hooks"]] for e, gs in self.hooks.items()}
         self.assertEqual(t["SessionStart"], [5])
         self.assertEqual(t["UserPromptSubmit"], [10])  # `승인 #N` reads the PR head with gh
-        self.assertEqual(t["PreToolUse"], [5])
+        self.assertEqual(t["PreToolUse"], [15])  # MAE-284: 5s blocked calls under load
         self.assertEqual(sorted(t["PostToolUse"]), [5, 10])      # 10s only for the formatter (Edit/Write) group
         self.assertEqual(t["Stop"], [10])
         self.assertEqual(t["SubagentStop"], [3])

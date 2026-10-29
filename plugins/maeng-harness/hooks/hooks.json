@@ -29,7 +29,7 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/maeng_hooks.py\"",
-            "timeout": 5,
+            "timeout": 15,
             "onFailure": "block"
           }
         ]

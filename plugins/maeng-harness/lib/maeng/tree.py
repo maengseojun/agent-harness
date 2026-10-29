@@ -2,6 +2,7 @@
 import fnmatch
 import os
 import re
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -104,6 +105,22 @@ def dirty_submodules(top):
     return dirty, commits
 
 
+def _seed_index(top, idx, env):
+    """Copy the repo's index to `idx` so `git add -A` rehashes only changed files (MAE-284: an empty index rehashed
+    every file, 7.8s cold). False, with `idx` absent, when there is no readable index or an entry is assume-unchanged
+    or skip-worktree: git would not look at those files, so a change could hide from the tree id."""
+    real = git_out(top, "rev-parse", "--path-format=absolute", "--git-path", "index")
+    try:
+        shutil.copyfile(real, idx)
+    except (TypeError, OSError):
+        return False
+    rc, out, _ = git(top, "ls-files", "-v", env=env)
+    if rc == 0 and not re.search(r"^(?:[a-z]|S) ", out, re.M):
+        return True
+    os.remove(idx)
+    return False
+
+
 def tree_id(cwd):
     """(tree_sha | None, info). None when not a repo, git fails, or a submodule is dirty."""
     top = toplevel(cwd)
@@ -114,7 +131,8 @@ def tree_id(cwd):
         return None, {"reason": "dirty submodule: " + ", ".join(dirty)}
     with tempfile.TemporaryDirectory(prefix="maeng-idx-") as d:
         env = {"GIT_INDEX_FILE": os.path.join(d, "index")}
-        if git(top, "rev-parse", "--verify", "-q", "HEAD")[0] == 0:
+        seeded = _seed_index(top, env["GIT_INDEX_FILE"], env)
+        if not seeded and git(top, "rev-parse", "--verify", "-q", "HEAD")[0] == 0:
             if git(top, "read-tree", "HEAD", env=env)[0] != 0:
                 return None, {"reason": "read-tree failed"}
         if git(top, "add", "-A", env=env, timeout=60)[0] != 0:

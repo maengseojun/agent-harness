@@ -371,7 +371,7 @@ Shipping stays blocked by G1 until a tree is ship-verified.
 |---|---|---|
 | SessionStart | From disk only: binding suggestions, hub and latest session note, policy summary, versions, eta checkouts missing isolation. Output ≤ 2 KB. | 5s |
 | UserPromptSubmit | Marks the turn start | 3s |
-| PreToolUse Bash (runner) | Records `tree_start` | 5s |
+| PreToolUse Bash (runner) | Records `tree_start` | 15s (MAE-284; was 5s, which blocked calls under load) |
 | PostToolUse / PostToolUseFailure | Evidence and record tracking. After `gh pr create`, a review reminder with its tier. | 5s |
 | PostToolUse Edit/Write/NotebookEdit | Synchronous single-file format, only if the repo has a formatter config. The tree id catches the change. | 10s |
 | Stop | §5.3/§5.4. Also **writes or refreshes the session stub** `wiki/sessions/SESSION-…` (atomic write + readback), so the durable record exists before SessionEnd. | 10s |
