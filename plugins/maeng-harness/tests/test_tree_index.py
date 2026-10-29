@@ -36,6 +36,22 @@ class TreeIdFromCopiedIndex(HarnessCase):
                 self.assertEqual(got, self.fresh_tree(repo))
                 self.assertNotEqual(got, self.git(repo, "rev-parse", "HEAD^{tree}").stdout.strip())
 
+    def test_racily_clean_entry_is_still_rechecked(self):
+        # A same-size edit whose stat data still matches the index entry is caught only by git's racy-clean check
+        # (entry mtime >= index mtime). The copy must keep the index mtime or git trusts the stale entry.
+        repo = self.make_repo()
+        self.git(repo, "config", "core.checkStat", "minimal")  # compare only mtime and size: ctime cannot be set back
+        self.git(repo, "update-index", "--refresh")  # the repo is a copy, so cached stat data is stale until now
+        app, idx = repo / "app.py", repo / ".git" / "index"
+        st = os.stat(app)
+        os.utime(idx, ns=(st.st_atime_ns, st.st_mtime_ns))
+        with open(app, "r+") as f:  # same inode, same size, different bytes
+            f.write("print('HI')\n")
+        os.utime(app, ns=(st.st_atime_ns, st.st_mtime_ns))
+        got, _ = treelib.tree_id(repo)
+        self.assertEqual(got, self.fresh_tree(repo))
+        self.assertNotEqual(got, self.git(repo, "rev-parse", "HEAD^{tree}").stdout.strip())
+
     def test_leaves_the_real_index_alone(self):
         repo = self.make_repo()
         (repo / "app.py").write_text("print('changed')\n")

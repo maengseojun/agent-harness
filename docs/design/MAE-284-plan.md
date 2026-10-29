@@ -17,7 +17,7 @@ Exclusions: caching the world classification, moving Stop's git calls out of the
 Requirements -> acceptance:
   AC-1: hooks.json PreToolUse timeout is 15, `onFailure: block` unchanged; the MAE-216 §5.5 table and test_plugin say 15s.
   AC-2: `tree_id` equals the tree of a fresh `git add -A` for a worktree with a modified, a staged-then-modified, a deleted and an untracked file.
-  AC-3: a modified file flagged assume-unchanged or skip-worktree still changes the tree id.
+  AC-3: a modified file flagged assume-unchanged or skip-worktree, and a same-size edit to a racily clean entry (stat data still matching), still change the tree id. The copy keeps the index mtime (review round 2 needs-external-check, reproduced: a fresh-mtime copy missed the edit).
   AC-4: plugin.json version is 0.4.5.
 
 ## Plan

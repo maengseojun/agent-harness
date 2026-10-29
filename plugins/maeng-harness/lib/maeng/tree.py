@@ -108,10 +108,11 @@ def dirty_submodules(top):
 def _seed_index(top, idx, env):
     """Copy the repo's index to `idx` so `git add -A` rehashes only changed files (MAE-284: an empty index rehashed
     every file, 7.8s cold). False, with `idx` absent, when there is no readable index or an entry is assume-unchanged
-    or skip-worktree: git would not look at those files, so a change could hide from the tree id."""
+    or skip-worktree: git would not look at those files, so a change could hide from the tree id. copy2 keeps the
+    index mtime, which git's racy-clean check compares entries against; a fresh mtime lets a same-size edit pass."""
     real = git_out(top, "rev-parse", "--path-format=absolute", "--git-path", "index")
     try:
-        shutil.copyfile(real, idx)
+        shutil.copy2(real, idx)
     except (TypeError, OSError):
         return False
     rc, out, _ = git(top, "ls-files", "-v", env=env)
