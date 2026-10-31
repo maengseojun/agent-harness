@@ -68,7 +68,7 @@ Choose the form by the shape of the information:
 
 ## Exploring a diagram
 
-For a diagram the reader will study rather than glance at, start from [`assets/template-explore.html`](../assets/template-explore.html). Its controller is canonical: copy the script byte for byte; `self_check.py` rejects edits.
+This is the default for every HTML relationship diagram (SKILL.md, Explore by default): start from [`assets/template-explore.html`](../assets/template-explore.html). Static output is the exception, for image-only delivery, relationship-free charts, an explicit static request or a motion figure. Its controller is canonical: copy the script byte for byte; `self_check.py` rejects edits.
 
 Markup contract:
 
@@ -81,6 +81,8 @@ Markup contract:
 | `data-edge data-from data-to data-variant` | each relationship `<g>` | an authored directed relationship |
 | `data-explore-steps` + `data-target="id"` | an ordered list beside the diagram | steps that light their node |
 | `data-explore-status` | one `role=status aria-live=polite aria-atomic=true` element | announces every change in words |
+
+Layout: set `--diagram-width` in the template's `:root` to the SVG viewBox width. The steps list sits beside the diagram only when both fit at that width; otherwise it moves below, so the diagram is never squeezed into a horizontal scroller next to it.
 
 What the reader gets: choosing or clicking a node lights everything upstream and downstream of it; choosing an end node shows the directed route between them, or says there is none; kind buttons light one group; the finder lights matches; prev/next walks the steps; `#focus=id`, `#route=a~b`, `#lens=kind` and `#step=n` restore a view, so a link can share it; Escape clears.
 

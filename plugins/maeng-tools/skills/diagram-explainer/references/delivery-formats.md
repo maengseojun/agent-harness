@@ -8,7 +8,9 @@ Choose the deliverable set before drawing. A requested format also authorizes it
 | “SVG만”, “SVG only” | SVG only |
 | “PNG랑 SVG”, “PNG+SVG” | Both PNG and SVG |
 | “이미지만”, “그림 파일만”, “image only”, without a named format | PNG only; state this choice briefly |
-| No image-only restriction, or an explicit source/HTML request | Existing HTML source and inspected preview route, plus requested exports |
+| No image-only restriction, or an explicit source/HTML request | The inspected HTML, published as a private Artifact, plus requested exports |
+
+**Artifact first (personal, 2026-10-29).** When the delivery includes HTML, publish it with the Artifact tool by default, following that tool's page contract, and give the link. Hand over a local file path or use another route only when the user asks for it. Image-only requests below are unchanged.
 
 For image-only delivery:
 

@@ -4,7 +4,7 @@
   "base_files": {
     "SKILL.md": {
       "upstream_sha256": "1b30bb3c0da29a05e5b05c0a4510ce6f286a0d0f1da97b9aa6aaf03c92e98618",
-      "migrated_sha256": "52d260bbe2774d67808389be433057b56e2dc48927aa56a1814cb45cd4c2145d"
+      "migrated_sha256": "df33d58959807599f53856a29941943d3e50575579853e573f05aa84c61830ef"
     },
     "references/type-quadrant.md": {
       "upstream_sha256": "eb7d542ddac72e2e1a75cb7ca64ddb67901283859413a133a332137e7fb9e5b1",
