@@ -52,7 +52,7 @@ Fixed by the user (MAE-293 D-2):
 
 - **Opus is the main model.** This session is the coordinator (상무): split, integration, re-running Done, the CEO brief. It is not counted as a worker.
 - **Astra raises architecture-level issues, never authors.** Wave 0 is an Astra critique (`gpt-6-astra`, effort high, read-only) of the parent Spec, the interfaces and the row split: boundaries, missing rows, rows that secretly share a file or interface, risks to `AC-n`. Astra also keeps its harness tiers (parent integration review, design docs).
-- **Claude:Codex is about 2:1 by implementation rows** (rows that write code, tests or docs). Count it and show it. If it is off, move swing rows (ones the table rates fine for both) until it is close; never move a row against its kind to hit the number.
+- **Claude:Codex is about 2:1 by worker rows**: every Sub-task row placed on a Claude or Codex model counts, scan rows included. The coordinator, Astra's wave 0 and the harness reviews are not rows and are listed separately. Count it and show it. If it is off, move swing rows (ones the table rates fine for both) until it is close; never move a row against its kind to hit the number.
 - **Grok takes only `tiny` rows**, as the bottom worker. It never reviews, never owns an interface, never commits; the coordinator re-runs its Done and commits for it. Grok rows are counted separately, not in the ratio.
 
 Default placement by kind (from models.md; change it when the refreshed notes say so):
@@ -102,7 +102,7 @@ orca orchestration check --wait --types "worker_done,escalation,question" --time
 ```
 
 - Each row brief uses the org-chart.md delegation format: the head, `Why:` with the `AC-n`, Writes as the only files it may change, Interfaces, Done, Fails-if, when to stop, and the model's line from org-chart.md. Workers commit on their own worktree branch and do not push, open PRs or merge.
-- Grok is not an Orca agent id. Start it in a terminal (`orca terminal create --worktree <sel> --command "grok -m grok-4.7-build-fast"`) and pass that handle as `worker-start --terminal <handle> --worktree <sel>`. Whether Grok follows the worker preamble (`worker_done`) is unverified; on the first run give it one trivial row and watch. If it does not report, run tiny rows headless instead (`grok -p "<row brief>" -m grok-4.7-build-fast --cwd <worktree>`) and check the result yourself.
+- Grok is not an Orca agent id. Start it in a terminal (`orca terminal create --worktree <sel> --command "grok -m grok-4.7-build-fast"`) and pass that handle as `worker-start --terminal <handle> --worktree <sel>`. Whether Grok follows the worker preamble (`worker_done`) is unverified; on the first run give it one trivial row and watch. If it does not report, run tiny rows headless instead (`grok -p "<row brief>" -m grok-4.7-build-fast --cwd <worktree>`; checked 2026-10-31: `-p` with `--cwd` runs in that folder) and check the result yourself.
 - Repairs go back to the same worker with `dispatch --inject` in the org-chart.md repair format; the third cycle goes to a fresh worker.
 - A stop-list action becomes a `gate-create` for the user.
 
