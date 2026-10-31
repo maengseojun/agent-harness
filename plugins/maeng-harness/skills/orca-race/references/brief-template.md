@@ -32,7 +32,9 @@ Find the root cause before writing any fix, and explain why it produces every sy
 - Must not touch: <paths>
 
 ## Done
-Done when this passes in your worktree: <check command(s)>, with the repro going from failing to passing.
+<keep the line for the chosen purpose, delete the other>
+- Purpose (a): done when you can show the mechanism, a command or probe whose output proves the root cause (<e.g. a log line, a targeted assertion in a scratch file outside the repo>), with the repro still failing unchanged and no repository file changed.
+- Purpose (b) or (c): done when this passes in your worktree: <check command(s)>, with the repro going from failing to passing.
 
 ## Stop
 - Budget: <minutes or turns>.

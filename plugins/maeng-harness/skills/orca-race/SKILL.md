@@ -32,7 +32,7 @@ Use AskUserQuestion, at most four questions per round and at most two rounds. Of
 | Purpose | what counts as solved: (a) root cause explained, no code change; (b) root cause plus minimal fix; (c) workaround acceptable | (b) |
 | Guardrails | the must-not list | the template's list |
 | Scope | paths the racers may edit; paths they must not touch | edit only the area the evidence points to; never secrets, migrations, infra, lockfiles |
-| Done | the check that proves it: the repro test turns green and the named suite stays green | repro test + the area's suite + lint/typecheck |
+| Done | the check that proves it, per purpose: (a) a command or probe that shows the mechanism, repro unchanged; (b)/(c) the repro turns green and the named suite stays green | (b)/(c): repro test + the area's suite + lint/typecheck |
 | Stop | budget per racer and the give-up rule | 60 minutes or the turn cap the user names; stop and report when the bug does not reproduce or no hypothesis explains all of the evidence; after two failed fix attempts, report instead of trying a third |
 | Racers | which two models | Opus (`claude-opus-5-5`, xhigh) vs Sol (`gpt-6.1-sol`, xhigh), the two best-evidenced coders in [orca-big-task's model notes](../orca-big-task/references/models.md); re-check there first. Different vendors, never the same model twice |
 | Judging | what decides the winner, in order | root cause backed by evidence > guardrails kept > Done check passes on re-run > smaller diff |

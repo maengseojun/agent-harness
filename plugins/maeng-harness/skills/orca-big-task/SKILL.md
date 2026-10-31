@@ -64,7 +64,7 @@ Default placement by kind (from models.md; change it when the refreshed notes sa
 | test | Sol (xhigh) | Sonnet (medium) |
 | docs | Sonnet (medium) | Terra (`gpt-6.1-terra`) |
 | ui | Sonnet (medium) + `maeng-tools:design-reviewer` | Terra |
-| scan | Haiku (`claude-haiku-5-5`) | Grok |
+| scan | Haiku (`claude-haiku-5-5`) | none; Grok only if the row also qualifies as `tiny` |
 | tiny | Grok (`grok-4.7-build-fast`) | Haiku; Luna (`gpt-6-luna`) only with an exact spec |
 
 Not placed: Fable (audit only, on request), gpt-reserve (no public source).
