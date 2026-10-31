@@ -52,6 +52,8 @@ One studio folder per company, a git repo outside this harness. Ask for its path
 
 The user sees two gates (A and B). Everything between them runs without asking, except the approvals below.
 
+For ideas at any step, [references/playbook.md](references/playbook.md) collects optional tips (brief, reference, story, motion, sound, review); consult it as needed, it adds no steps.
+
 ## Approvals and limits
 
 - Default sound is local music and effects from `scripts/studio.mjs` (no network, no cost); silence only when the user asks or for a transparent overlay. Ask once before the first `studio.mjs samples build` (a ~55 MB download of CC0/CC-BY instrument samples); without it the music uses synthesized instruments. Narration (ElevenLabs or another TTS), licensed music, Figma Weave or any other paid generation runs only after the user approves the provider, the cost or cap, and the data sent, for that run.
