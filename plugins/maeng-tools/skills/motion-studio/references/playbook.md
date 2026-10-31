@@ -4,7 +4,6 @@ Tips to reach for when a film needs them. None of this is a step or a gate; the 
 
 ## Brief
 - A short vibe prompt gets the safest defaults (centered title on a gradient, everything fading in), and everyone's reel starts to rhyme. When the user gives only a vibe, ask for one sentence the viewer should keep and one hard line.
-- Keep one studio folder per brand: the next film reuses its renderer, sound and lessons and comes out faster.
 - A one-line showreel prompt ("make a 15-second showreel of what you can do, go all out") is good for testing the setup, not for a real film.
 
 ## Reference
@@ -14,7 +13,7 @@ Tips to reach for when a film needs them. None of this is a step or a gate; the 
 
 ## Story
 - One container that morphs from state to state, driven by real cursor clicks, with the last frame matching the first, reads as one story and loops cleanly.
-- Staging the film inside a made-up UI (an editor, a dashboard) works like a film set: every element has a known state.
+- For a film with no product of its own (a showreel, a story), staging it inside an invented tool such as a video editor works like a film set: every element has a known state. Never use this to stand in for a real product's UI or a missing asset.
 
 ## Motion
 - Give each class of object its own feel: small UI snaps with little overshoot, panels settle, the camera glides, headlines land hard and hold long enough to read. If everything overshoots, nothing feels precise.
