@@ -84,11 +84,14 @@ Then ask one question:
 
 > 이렇게 배치해서 Orca 실행할까요?
 
-Buttons: launch, change placement. On change, re-place and ask again. When Astra's wave 0 changes the Spec, an `AC-n` or the row split, show the revised table and ask again before wave 1.
+Buttons: launch, change placement. On change, re-place and ask again. When Astra's wave 0 changes the Spec, an `AC-n` or the row split, show the revised table and ask again before wave 1. No row Task exists yet at that point (section 6), so the revision costs nothing to apply.
 
 ## 6. Launch (after yes)
 
-Follow the `orchestration` skill as coordinator. Create the Run and every Task at once, with `--deps` from the After column; do not add Tasks mid-run.
+Follow the `orchestration` skill as coordinator. Orca can update a Task's status and result but not its spec or dependencies (`task-update`, v1.4.243), so the graph is created only once it is final:
+
+1. Wave 0 runs alone: one `worker-start --spec "<Astra critique brief>" --agent codex --model gpt-6-astra --effort high --worktree current` on the Run, read-only, before any row Task exists.
+2. Apply its findings, re-ask if the table changed (section 5), then create every row Task at once with `--deps` from the After column. Do not add Tasks mid-run; if the split must change later, abandon the Run and create a new one with the new graph.
 
 ```text
 orca orchestration run-create --objective "<MAE-n>: <goal>" --json
