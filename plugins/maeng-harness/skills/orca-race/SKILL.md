@@ -37,9 +37,9 @@ Use AskUserQuestion, at most four questions per round and at most two rounds. Of
 | Racers | which two models | Opus (`claude-opus-5-5`, xhigh) vs Sol (`gpt-6.1-sol`, xhigh), the two best-evidenced coders in [orca-big-task's model notes](../orca-big-task/references/models.md); re-check there first. Different vendors, never the same model twice |
 | Judging | what decides the winner, in order | root cause backed by evidence > guardrails kept > Done check passes on re-run > smaller diff |
 
-## 3. Freeze the repro
+## 3. Race base and the frozen repro
 
-When the purpose includes a fix, write the failing repro test (or script) before the race, show it to the user, and commit it on a race base branch. Both racers start from that commit. This stops either racer from weakening the check, and it gives the user one fixed bar. If a repro test cannot be written, the Done row must name another check the coordinator can run itself.
+Every race gets a race base branch (`race/<slug>`) cut from the commit the evidence was taken on; both racers start from it and section 6 compares against it, whatever the purpose. When the purpose includes a fix, also write the failing repro test (or script), show it to the user, and commit it on that branch before the race. This stops either racer from weakening the check, and it gives the user one fixed bar. If a repro test cannot be written, the Done row must name another check the coordinator can run itself.
 
 ## 4. The brief and the launch question
 
