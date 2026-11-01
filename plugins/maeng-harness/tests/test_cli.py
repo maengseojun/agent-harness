@@ -356,6 +356,33 @@ class ClaudeBackend(ReviewRunFixture):
         self.assertTrue(self.log.exists())
         self.assertFalse(log.exists())
 
+    def run_author_review(self, author, fake):
+        return self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
+                                         "--base-ref", "main", "--author", author], self.repo,
+                        extra_env={"MAENG_REVIEW_BACKEND": "codex", "MAENG_CLAUDE": str(fake),
+                                   "MAENG_CODEX": str(self.codex)})
+
+    def test_codex_written_code_goes_to_opus_high_without_codex(self):
+        """MAE-295: Sol never reviews a Sol-written change."""
+        fake, log, _ = self.fake_claude()
+        r = self.run_author_review("codex", fake)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse(self.log.exists(), "codex must not run on codex-written code")
+        argv = json.loads(log.read_text())
+        self.assertEqual(argv[argv.index("--model") + 1], "claude-opus-5-5")
+        self.assertEqual(argv[argv.index("--effort") + 1], "high")
+        rev = receipts.load(json.loads(r.stdout)["receipt"])["verdict"]["reviewer"]
+        self.assertEqual((rev["model"], rev["effort"], rev["author"]), ("claude-opus-5-5", "high", "codex"))
+
+    def test_claude_written_code_keeps_codex_first(self):
+        fake, log, _ = self.fake_claude()
+        r = self.run_author_review("claude", fake)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue(self.log.exists())
+        self.assertFalse(log.exists())
+        rev = receipts.load(json.loads(r.stdout)["receipt"])["verdict"]["reviewer"]
+        self.assertEqual((rev["model"], rev["author"]), ("gpt-6.1-sol", "claude"))
+
     def test_aux_model_is_recorded_and_accepted_when_the_requested_model_is_primary(self):
         usage = {"claude-opus-5-5": {"inputTokens": 900, "outputTokens": 5000},
                  "claude-opus-4-8": {"inputTokens": 100, "outputTokens": 40}}

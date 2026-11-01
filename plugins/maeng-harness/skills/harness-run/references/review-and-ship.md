@@ -1,12 +1,12 @@
 # Review tiers and shipping
 
-Author is never the reviewer. `maeng-review` runs an isolated, read-only reviewer and writes a verdict bound to the exact subject. Codex (Astra/Sol, table below) always comes first. If codex fails 3 times in a row (e.g. usage exhausted), `maeng-review` falls back to an isolated headless `claude -p` reviewer and records `reviewer.fallback_from`: parent integration uses Fable (`claude-fable-5-1`) at medium (`MAENG_FABLE_EFFORT` changes it, only on the user's request); every other subject uses Opus (`claude-opus-5-5`) at the Claude effort in the table. The requested Claude model must appear in the run's `modelUsage` and be the primary one, i.e. the most output tokens; other models it uses internally are recorded as `reviewer.aux_models`; an absent or non-primary requested model is rejected. `MAENG_REVIEW_BACKEND=claude` skips codex and is set only when the user asks. When the user asks, prefix the command (`MAENG_REVIEW_BACKEND=claude maeng-review run ...`); run `maeng-review --help` for the current flags.
+Author is never the reviewer. `maeng-review` runs an isolated, read-only reviewer and writes a verdict bound to the exact subject. Codex (Astra/Sol, table below) always comes first. If codex fails 3 times in a row (e.g. usage exhausted), `maeng-review` falls back to an isolated headless `claude -p` reviewer and records `reviewer.fallback_from`: parent integration uses Fable (`claude-fable-5-1`) at medium (`MAENG_FABLE_EFFORT` changes it, only on the user's request); every other subject uses Opus (`claude-opus-5-5`) at the Claude effort in the table. The requested Claude model must appear in the run's `modelUsage` and be the primary one, i.e. the most output tokens; other models it uses internally are recorded as `reviewer.aux_models`; an absent or non-primary requested model is rejected. `MAENG_REVIEW_BACKEND=claude` skips codex and is set only when the user asks. No model reviews its own family's code: when Sol or another Codex model wrote the change, pass `--author codex` and the code review goes to Opus high without trying codex (user decision 2026-11-01, MAE-295); the receipt records `reviewer.author`. When the user asks, prefix the command (`MAENG_REVIEW_BACKEND=claude maeng-review run ...`); run `maeng-review --help` for the current flags.
 
 Commands (tier is picked from the bound issue; see the table below):
 
 | Subject | Command |
 |---|---|
-| Child-task PR / small work | `maeng-review run --kind code --pr <N>`; with no session binding (background or dots-run sessions) add `--plan docs/design/MAE-<n>-plan.md`, which reads the `AC-n` from that file as committed at `--head` |
+| Child-task PR / small work | `maeng-review run --kind code --pr <N>`; with no session binding (background or dots-run sessions) add `--plan docs/design/MAE-<n>-plan.md`, which reads the `AC-n` from that file as committed at `--head`; add `--author codex` when Sol/Codex wrote the change |
 | Parent integration | `maeng-review run --kind parent --pr <N>` |
 | Design / rules doc | `maeng-review run --kind docs --draft <path>` |
 | Research draft | `maeng-review run --kind research --draft <path> --source <S- note>` (one `--source` per cited note) |
@@ -21,6 +21,7 @@ Store payloads under the session repo's `publish/` directory (`publish/<id>.json
 | Parent integration / boundary (children meet) | Astra | high | Fable medium | children merged; review the combined diff against the parent Spec/Plan and child contracts |
 | Architecture, rules, design documents | Astra | medium | Opus high | document review |
 | Small implementation without a task tree | Sol | high | Opus high | no parent/child structure |
+| Either code row above, written by Sol/Codex | none (skipped) | - | Opus high | `--kind code --author codex` |
 | Notion outcome payload | Sol | medium | Opus medium | `work-records` flow |
 | Research draft | Sol | xhigh | Opus high | `aside-research`, with a devil's-advocate lens |
 
