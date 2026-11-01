@@ -29,7 +29,7 @@ GAP_KINDS = ('login_required', 'session_expired', 'forbidden', 'rate_limited', '
 HEADER_KEYS = ('url', 'title', 'retrieved_at')
 REQUIRED = ('url', 'content')
 DOI = re.compile(r'\b(10\.\d{4,9}/[^\s"<>?#]+)', re.I)
-ARXIV = re.compile(r'arxiv\.org/(?:abs|pdf)/(\d{4}\.\d{4,5})(?:v\d+)?', re.I)
+ARXIV = re.compile(r'arxiv\.org/(?:abs|pdf)/(\d{4}\.\d{4,5}|[a-z-]+(?:\.[a-z]{2})?/\d{7})(?:v\d+)?', re.I)
 TRACKING = ('utm_', 'fbclid', 'gclid', 'mc_cid', 'mc_eid', 'ref_src')
 TRACKING_EXACT = {'ref', 'igshid', 'si'}  # si: YouTube/Spotify share token
 
@@ -90,7 +90,7 @@ def work_key(url):
     if doi:
         return f'doi:{doi}'
     m = ARXIV.search(url or '')
-    return f'arxiv:{m.group(1)}' if m else canonical_url(url)
+    return f'arxiv:{m.group(1).lower()}' if m else canonical_url(url)
 
 
 def parse_gap(body):

@@ -145,6 +145,9 @@ class ParseAside(unittest.TestCase):
     def test_work_key_merges_versions(self):
         self.assertEqual(pa.work_key('https://arxiv.org/abs/2208.06046v3'), 'arxiv:2208.06046')
         self.assertEqual(pa.work_key('https://arxiv.org/pdf/2208.06046'), 'arxiv:2208.06046')
+        self.assertEqual(pa.work_key('https://arxiv.org/abs/hep-th/9901001v1'), 'arxiv:hep-th/9901001')
+        self.assertEqual(pa.work_key('https://arxiv.org/pdf/hep-th/9901001v2'), 'arxiv:hep-th/9901001')
+        self.assertEqual(pa.work_key('https://arxiv.org/abs/math.GT/0309136v3'), 'arxiv:math.gt/0309136')
         self.assertEqual(pa.work_key('https://doi.org/10.1000/XYZ123'), 'doi:10.1000/xyz123')
         self.assertEqual(pa.work_key('https://Example.com/a/'), 'https://example.com/a')
 
