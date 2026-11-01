@@ -27,15 +27,15 @@ class ReviewConfig(HarnessCase):
         self.assertEqual(rv.tier_for("code", child), ("gpt-6.1-sol", "xhigh"))
         self.assertEqual(rv.tier_for("code", {"criteria": ["AC-1"]}), ("gpt-6.1-sol", "high"))
         self.assertEqual(rv.tier_for("code", None), ("gpt-6.1-sol", "high"))
-        self.assertEqual(rv.tier_for("parent", child), ("gpt-6-astra", "high"))
+        self.assertEqual(rv.tier_for("parent", child), ("claude-fable-5-1", "high"))
+        self.assertEqual(rv._codex_tier("parent", child), ("gpt-6-astra", "high"))  # Fable's standby
         self.assertEqual(rv.tier_for("docs", None), ("gpt-6-astra", "medium"))
         self.assertEqual(rv.tier_for("notion", None), ("gpt-6.1-sol", "medium"))
         self.assertEqual(rv.tier_for("research", None), ("gpt-6.1-sol", "xhigh"))
 
-    def test_fallback_tier_is_fable_medium_for_parent_and_opus_otherwise(self):
+    def test_fallback_tier_is_opus(self):
         rv = load_bin("maeng-review")
         child = {"parent": "MAE-216", "criteria": ["AC-1"]}
-        self.assertEqual(rv.fallback_tier("parent", child), ("claude-fable-5-1", "medium"))
         self.assertEqual(rv.fallback_tier("code", child), ("claude-opus-5-5", "medium"))
         self.assertEqual(rv.fallback_tier("code", None), ("claude-opus-5-5", "high"))
         self.assertEqual(rv.fallback_tier("docs", None), ("claude-opus-5-5", "high"))
@@ -384,6 +384,35 @@ class ClaudeBackend(ReviewRunFixture):
         self.assertFalse(log.exists())
         rev = receipts.load(json.loads(r.stdout)["receipt"])["verdict"]["reviewer"]
         self.assertEqual((rev["model"], rev["author"]), ("gpt-6.1-sol", "claude"))
+
+    def run_parent_review(self, fake):
+        return self.cli("maeng-review", ["run", "--kind", "parent", "--pr", "7", "--base", self.base, "--head", self.h,
+                                         "--base-ref", "main"], self.repo,
+                        extra_env={"MAENG_REVIEW_BACKEND": "codex", "MAENG_CLAUDE": str(fake),
+                                   "MAENG_CODEX": str(self.codex)})
+
+    def test_parent_integration_goes_to_fable_high_first(self):
+        """MAE-296: Fable reviews the parent; codex does not run while Fable works."""
+        fake, log, _ = self.fake_claude(model="claude-fable-5-1")
+        r = self.run_parent_review(fake)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse(self.log.exists(), "codex must not run while Fable works")
+        argv = json.loads(log.read_text())
+        self.assertEqual((argv[argv.index("--model") + 1], argv[argv.index("--effort") + 1]), ("claude-fable-5-1", "high"))
+        rev = receipts.load(json.loads(r.stdout)["receipt"])["verdict"]["reviewer"]
+        self.assertEqual((rev["model"], rev["effort"]), ("claude-fable-5-1", "high"))
+        self.assertNotIn("fallback_from", rev)
+
+    def test_failing_fable_falls_back_to_astra_high(self):
+        """MAE-296: Astra high is Fable's standby (e.g. Fable usage exhausted)."""
+        fake, log, _ = self.fake_claude(model="claude-fable-5-1", is_error=True)
+        r = self.run_parent_review(fake)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue(log.exists())
+        self.assertTrue(self.log.exists(), "codex must run once Fable fails")
+        rev = receipts.load(json.loads(r.stdout)["receipt"])["verdict"]["reviewer"]
+        self.assertEqual((rev["model"], rev["effort"]), ("gpt-6-astra", "high"))
+        self.assertEqual(rev["fallback_from"], {"model": "claude-fable-5-1", "effort": "high", "attempts": 1})
 
     def test_aux_model_is_recorded_and_accepted_when_the_requested_model_is_primary(self):
         usage = {"claude-opus-5-5": {"inputTokens": 900, "outputTokens": 5000},

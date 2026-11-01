@@ -170,6 +170,8 @@ class HarnessCase(unittest.TestCase):
             "MAENG_NOTION_DBS": "db111111111111111111111111111111",
             # Existing review tests exercise the codex backend with a fake binary; claude-backend tests opt in.
             "MAENG_REVIEW_BACKEND": "codex",
+            # Parent reviews try claude (Fable) first; never reach the real CLI from a test.
+            "MAENG_CLAUDE": str(self.tmp / "no-claude"),
             # `maeng-review store` and fixture receipts are test-only; tests of the default policy pop this.
             "MAENG_TEST_FIXTURES": "1",
         }

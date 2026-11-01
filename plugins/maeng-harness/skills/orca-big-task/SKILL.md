@@ -51,7 +51,7 @@ Skip a question the Spec or the conversation already answers.
 Fixed by the user (MAE-293 D-2):
 
 - **Opus is the main model.** This session is the coordinator (상무): split, integration, re-running Done, the CEO brief. It is not counted as a worker.
-- **Astra raises architecture-level issues, never authors.** Wave 0 is an Astra critique (`gpt-6-astra`, effort high, read-only) of the parent Spec, the interfaces and the row split: boundaries, missing rows, rows that secretly share a file or interface, risks to `AC-n`. Astra also keeps its harness tiers (parent integration review, design docs).
+- **Astra raises architecture-level issues, never authors.** Wave 0 is an Astra critique (`gpt-6-astra`, effort high, read-only) of the parent Spec, the interfaces and the row split: boundaries, missing rows, rows that secretly share a file or interface, risks to `AC-n`. Astra also keeps its harness tiers (design docs) and is the standby when Fable's parent integration review fails.
 - **Claude:Codex is about 2:1 by worker rows**: every Sub-task row placed on a Claude or Codex model counts, scan rows included. The coordinator, Astra's wave 0 and the harness reviews are not rows and are listed separately. Count it and show it. If it is off, move swing rows (ones the table rates fine for both) until it is close; never move a row against its kind to hit the number.
 - **Grok takes only `tiny` rows**, as the bottom worker. It never reviews, never owns an interface, never commits; the coordinator re-runs its Done and commits for it. Grok rows are counted separately, not in the ratio.
 
@@ -67,7 +67,7 @@ Default placement by kind (from models.md; change it when the refreshed notes sa
 | scan | Haiku (`claude-haiku-5-5`) | none; Grok only if the row also qualifies as `tiny` |
 | tiny | Grok (`grok-4.7-build-fast`) | Haiku; Luna (`gpt-6-luna`) only with an exact spec |
 
-Not placed: Fable (audit only, on request), gpt-reserve (no public source).
+Not placed as workers: Fable (parent integration review and audits only), gpt-reserve (no public source).
 
 Waves: a wave holds rows whose After rows are done and whose Writes do not overlap, up to the concurrency cap. Code-writing rows that share a file or interface never run in the same wave (harness-run Implement).
 
@@ -76,7 +76,7 @@ Waves: a wave holds rows whose After rows are done and whose Writes do not overl
 Show:
 
 1. The table: row | kind | model and effort | why (one models.md reason) | wave | Done.
-2. Counts: Claude N rows, Codex M rows (ratio N:M against 2:1), Grok K rows; reviews (Astra wave 0 and parent integration, Sol child reviews per review-and-ship.md).
+2. Counts: Claude N rows, Codex M rows (ratio N:M against 2:1), Grok K rows; reviews (Astra wave 0, Fable parent integration, Sol child reviews per review-and-ship.md).
 3. What changed in the model notes, if anything.
 4. Gates: push, merge, deploy, migrations, deleting data, money and messages to other people stay with the user (harness-run stop list).
 
@@ -109,6 +109,6 @@ orca orchestration check --wait --types "worker_done,escalation,question" --time
 ## 7. Close
 
 - For every row, re-run its Done yourself and tick the Sub-tasks table; a worker's `worker_done` is a claim.
-- Merge the worker branches into the parent feature branch, then continue harness-run from Verify: checks, `maeng-review` (Astra parent integration), CEO brief, `승인 #N`, `maeng-ship merge`.
+- Merge the worker branches into the parent feature branch, then continue harness-run from Verify: checks, `maeng-review` (Fable parent integration, Astra standby), CEO brief, `승인 #N`, `maeng-ship merge`.
 - Release workers, and remove worktrees once their branches are merged.
 - Record in the parent Linear issue, for each row: model, effort, repair cycles, whether Done passed on the first re-run. When the same model keeps failing the same kind of row, propose a change to models.md through `skill-feedback`.

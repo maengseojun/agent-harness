@@ -8,7 +8,7 @@ Ranks give every agent its scope, its approval line, its reporting line and wher
 |---|---|---|---|
 | CEO | the user | chat, Slack `#maestro-claude` | sets purpose and direction, judges once before approval |
 | 사외이사 (outside director) | dots-maestro | Slack bot `seojunmaeng-maestro`, Work tasks | advises on direction and project management, injects tasks |
-| 사내이사 (inside director) | Fable | Agent `model: fable`, or `maeng-review` fallback | audits the whole workflow, only on the CEO's request or after Opus offers ("감사 할까요?") and the CEO agrees |
+| 사내이사 (inside director) | Fable | Agent `model: fable`; `maeng-review --kind parent` | reviews parent integration (high, first; Astra is the standby); audits the whole workflow only on the CEO's request or after Opus offers ("감사 할까요?") and the CEO agrees |
 | 감사 (auditor) | Astra | `maeng-review` (review-and-ship.md tiers) | independent review; never the author |
 | 컨설턴트 (consultant) | Astra medium | `aside-research` | research whose scope or stakes are large (vision, strategy, a decision that is hard to undo) |
 | 리서치팀장 (research lead) | Opus | `aside-research`; splits topics to Sonnet or Sol at effort high | ordinary research |
@@ -23,7 +23,7 @@ Ranks give every agent its scope, its approval line, its reporting line and wher
 |---|---|---|---|
 | CEO | merge (`승인 #N`), direction, Notion `Completed`, archive, whether a wait is needed | - | - |
 | 사외이사 (dots-maestro) | advice; which task to inject | any change to direction | CEO |
-| 사내이사 (Fable) | audit findings and recommendations; changes nothing itself | every fix it recommends | CEO |
+| 사내이사 (Fable) | the parent integration verdict; audit findings and recommendations; changes nothing itself | every fix it recommends | the requester through the receipt (parent verdict); CEO (audit) |
 | 감사 (Astra) | the verdict (pass, fail, blocked) on what it reviews | - | the requester, through the receipt; 상무 puts it in the CEO brief |
 | 컨설턴트 (Astra medium) | its research conclusion and confidence | decisions that follow from it | whoever commissioned it (CEO or 상무) |
 | 리서치팀장 (Opus) | research scope, topic split, its conclusion | decisions that follow from it | 상무, or the CEO when the CEO asked |
