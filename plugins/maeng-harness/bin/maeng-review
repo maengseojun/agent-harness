@@ -86,6 +86,7 @@ BUNDLE:
 # Review backend (design D-9): Codex (Astra/Sol) always comes first. A headless isolated `claude -p` reviewer is
 # only the fallback after CODEX_ATTEMPTS failed codex runs (e.g. usage exhausted): Fable for parent integration,
 # Opus for everything else. MAENG_REVIEW_BACKEND=claude skips codex and is set only on the user's request.
+# `--author codex` on a code review also skips codex: Sol never reviews a Sol-written change; Opus high does (MAE-295).
 CODEX_ATTEMPTS = 3
 OPUS = os.environ.get("MAENG_OPUS_REVIEWER", "claude-opus-5-5")
 FABLE = os.environ.get("MAENG_FABLE_REVIEWER", "claude-fable-5-1")
@@ -410,7 +411,8 @@ def run_review(a, cwd):
                 subject[k] = st["binding"][k]
         if not a.base_ref:
             bundle.setdefault("missing", []).append("base ref name (--base-ref)")
-    model, effort = tier_for(a.kind, st.get("binding"))
+    codex_author = a.kind == "code" and a.author == "codex"
+    model, effort = (OPUS, "high") if codex_author else tier_for(a.kind, st.get("binding"))
     prompt_text = PROMPT + json.dumps(bundle, indent=1)
     if len(prompt_text) > a.max_bytes:  # the exact text sent to codex, not an estimate
         bundle.setdefault("missing", []).append(
@@ -435,7 +437,7 @@ def run_review(a, cwd):
         schema_path, out_path = Path(d, "schema.json"), Path(d, "out.json")
         write_json(schema_path, out_schema)
         fallback_from = None
-        if backend() == "claude":
+        if backend() == "claude" or codex_author:
             result, aux_models = run_claude(model, effort, out_schema, prompt_text, cwd)
         else:
             aux_models = []
@@ -454,6 +456,7 @@ def run_review(a, cwd):
         die("reviewer output violates schema: " + "; ".join(errors))
     verdict = {"verdict": result["verdict"], "subject": subject,
                "reviewer": {"model": model, "effort": effort, "provenance": "review-run",
+                            **({"author": a.author} if a.author else {}),
                             **({"aux_models": aux_models} if aux_models else {}),
                             **({"fallback_from": fallback_from} if fallback_from else {})},
                "findings": result["findings"]}
@@ -490,7 +493,8 @@ def report_review(a, cwd, st, subject, verdict, verdict_key):
             print(f"warning: maeng/review commit status not posted: {err}", file=sys.stderr)
     if st.get("task_id"):
         r = verdict["reviewer"]
-        via = "claude" if backend() == "claude" or r.get("fallback_from") else "codex"
+        claude_ran = backend() == "claude" or r.get("fallback_from") or (a.kind == "code" and a.author == "codex")
+        via = "claude" if claude_ran else "codex"
         try:
             status.write(st["task_id"], st["session_id"], pr=a.pr, review_verdict=verdict["verdict"],
                          review_backend=f"{via}:{r['model']}",
@@ -538,6 +542,9 @@ def main(argv=None):
                    help="include the installed git/gh help text (tool_reference) in a code bundle; without it "
                         "tool_reference is null and the reviewer reports tool-dependent judgments as needs-external-check")
     r.add_argument("--no-tool-ref", action="store_true", help=argparse.SUPPRESS)  # old no-op: null is the default
+    r.add_argument("--author", choices=["claude", "codex"],
+                   help="model family that wrote the change; with --kind code, codex sends the review to Opus high "
+                        "instead of Sol (no same-model review)")
     r.add_argument("--plan", help="repo path of the Spec/Plan file, read at --head; used when the session has no "
                                   "binding (background or dots-run sessions)")
     r.add_argument("--max-rounds", type=int, default=4,
