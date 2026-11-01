@@ -357,6 +357,8 @@ def run_claude(model, effort, out_schema, prompt_text, cwd):
         envelope = json.loads(out)
     except ValueError:
         return None, [], f"reviewer failed (rc={proc.returncode}): not JSON: ..." + (proc.stderr.strip() or out)[-2000:]
+    if not isinstance(envelope, dict):
+        return None, [], f"reviewer failed (rc={proc.returncode}): output is not a JSON object"
     if proc.returncode != 0 or envelope.get("is_error"):
         return None, [], f"reviewer failed (rc={proc.returncode}): {str(envelope.get('result') or proc.stderr)[-2000:]}"
     primary, aux = primary_model(envelope.get("modelUsage"), model)

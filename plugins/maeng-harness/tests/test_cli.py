@@ -422,6 +422,15 @@ class ClaudeBackend(ReviewRunFixture):
         rev = receipts.load(json.loads(r.stdout)["receipt"])["verdict"]["reviewer"]
         self.assertEqual(rev["model"], "gpt-6-astra")
 
+    def test_non_object_fable_output_falls_back_to_astra(self):
+        fake = self.tmp / "null-claude"
+        fake.write_text(f"#!{sys.executable}\nimport sys\nsys.stdin.read()\nprint('null')\n")
+        fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+        r = self.run_parent_review(fake)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        rev = receipts.load(json.loads(r.stdout)["receipt"])["verdict"]["reviewer"]
+        self.assertEqual(rev["model"], "gpt-6-astra")
+
     def test_aux_model_is_recorded_and_accepted_when_the_requested_model_is_primary(self):
         usage = {"claude-opus-5-5": {"inputTokens": 900, "outputTokens": 5000},
                  "claude-opus-4-8": {"inputTokens": 100, "outputTokens": 40}}
