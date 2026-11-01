@@ -23,7 +23,9 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 ANSI = re.compile(r'\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b[@-Z\\-_]')
 BLOCK = re.compile(r'^[ \t]*=== ITEM ===[ \t]*\n(.*?)^[ \t]*=== END ===[ \t]*$', re.S | re.M)
-GAP = re.compile(r'^[ \t]*=== GAP ===[ \t]*\n(.*?)^[ \t]*=== END ===[ \t]*$', re.S | re.M)
+# Scanned left to right, so a GAP quoted inside an ITEM's content is consumed by that ITEM, never read as a gap.
+ANY_BLOCK = re.compile(r'^[ \t]*=== (ITEM|GAP) ===[ \t]*\n(.*?)^[ \t]*=== END ===[ \t]*$', re.S | re.M)
+ESCAPED_MARKER = re.compile(r'^([ \t]*)\\===', re.M)  # content lines starting with === are sent as \===
 GAP_KINDS = ('login_required', 'session_expired', 'forbidden', 'rate_limited', 'timeout', 'js_empty',
              'gone', 'paywalled', 'refused', 'searched_none', 'cap_reached')
 HEADER_KEYS = ('url', 'title', 'retrieved_at')
@@ -126,7 +128,7 @@ def parse_block(body):
             content.append(val)
         else:
             item[key] = val.strip()
-    item['content'] = '\n'.join(content).strip()
+    item['content'] = ESCAPED_MARKER.sub(r'\1===', '\n'.join(content).strip())
     item['missing'] = [k for k in REQUIRED if _is_placeholder(item[k])]
     item['placeholder'] = _is_placeholder(item['url']) and _is_placeholder(item['content'])
     if not _is_placeholder(item['url']):
@@ -149,6 +151,18 @@ def final_region(text, nonce):
     if not starts:
         return None
     return text[starts[-1].end():end.start()]
+
+
+def split_gaps(region):
+    """Top-level GAP bodies, and the region with those blocks removed so ITEM runs stay contiguous."""
+    gaps, kept, pos = [], [], 0
+    for m in ANY_BLOCK.finditer(region):
+        if m.group(1) == 'GAP':
+            gaps.append(m.group(2))
+            kept.append(region[pos:m.start()])
+            pos = m.end()
+    kept.append(region[pos:])
+    return gaps, ''.join(kept)
 
 
 def last_run(region):
@@ -177,9 +191,9 @@ def parse(raw, nonce, exit_code):
     region = final_region(text, nonce)
     if region is None:
         return {'parse_status': 'no_final_answer', **empty}, text
-    gaps = [g for g in (parse_gap(b) for b in GAP.findall(region)) if not _is_placeholder(g['scope'])]
-    # GAP blocks sit between or after ITEM blocks; removing them keeps the item run contiguous.
-    bodies, total = last_run(GAP.sub('', region))
+    gap_bodies, items_region = split_gaps(region)
+    gaps = [g for g in map(parse_gap, gap_bodies) if not _is_placeholder(g['scope'])]
+    bodies, total = last_run(items_region)
     items = [parse_block(b) for b in bodies]
     items = [i for i in items if not i['placeholder']]
     if not items:

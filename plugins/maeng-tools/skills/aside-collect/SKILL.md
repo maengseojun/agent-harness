@@ -57,6 +57,7 @@ Needs the `aside` CLI (see the `aside-browser` skill; run `aside guide` first if
    - If a login wall, CAPTCHA, bot check or "access denied" page appears, stop on that site, do not try another route, and report it as a GAP. Never use the captcha-solver skill.
    - Do not invent items. If a search finds nothing, report a GAP with kind searched_none and where you looked.
    - For every number, give the page's own notation next to your reading, e.g. "1.3K (1300)".
+   - Inside content, write any line that starts with === as \=== so it is not read as a marker.
    - Stop after <N> items or <M> searches, whichever comes first, and report cap_reached.
    ```
 

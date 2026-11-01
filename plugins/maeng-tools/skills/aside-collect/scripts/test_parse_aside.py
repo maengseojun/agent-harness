@@ -174,6 +174,20 @@ class ParseAside(unittest.TestCase):
                 code = pa.main([str(raw), '--nonce', NONCE, '--exit-code', '0'])
         self.assertEqual(code, 0)  # not retried like parse_failed
 
+    def test_gap_quoted_in_item_content_is_not_a_gap(self):
+        quoted = ('=== ITEM ===\nurl: https://example.com/aside-notes\ntitle: Notes\nretrieved_at: now\n'
+                  'content: The template looks like this:\n\\=== GAP ===\nscope: google\nkind: searched_none\n'
+                  'evidence: example\n\\=== END ===\nEnd of article.\n=== END ===')
+        res, _ = P(final(quoted + '\n' + ITEM2) + '\n')
+        self.assertEqual(res['parse_status'], 'ok')
+        self.assertEqual(res['gaps'], [])
+        self.assertEqual(res['run_length'], 2)
+        self.assertIn('=== GAP ===\nscope: google', res['items'][0]['content'])
+        self.assertIn('End of article.', res['items'][0]['content'])
+        # Unescaped quote: the article is cut at the quoted END, but no gap is fabricated.
+        res, _ = P(final(quoted.replace('\\===', '===')) + '\n')
+        self.assertEqual(res['gaps'], [])
+
     def test_template_gap_echo_is_ignored(self):
         echo = '=== GAP ===\nscope: <url, site or query>\nkind: <kind>\nevidence: <what you saw>\n=== END ==='
         res, _ = P(final(echo) + '\n')
