@@ -153,16 +153,26 @@ def final_region(text, nonce):
     return text[starts[-1].end():end.start()]
 
 
+STRAY_MARKER = re.compile(r'^[ \t]*=== (?:ITEM|GAP|END) ===[ \t]*$', re.M)
+
+
 def split_gaps(region):
-    """Top-level GAP bodies, and the region with those blocks removed so ITEM runs stay contiguous."""
-    gaps, kept, pos = [], [], 0
+    """Top-level GAP bodies, the region with those blocks removed so ITEM runs stay contiguous, and
+    whether the structure is ambiguous. A marker line left outside every block means an unescaped
+    marker inside content cut a block short; then no GAP can be trusted (fail closed)."""
+    gaps, kept, outside, pos = [], [], [], 0
     for m in ANY_BLOCK.finditer(region):
+        outside.append(region[pos:m.start()])
         if m.group(1) == 'GAP':
             gaps.append(m.group(2))
             kept.append(region[pos:m.start()])
-            pos = m.end()
+        else:
+            kept.append(region[pos:m.end()])
+        pos = m.end()
     kept.append(region[pos:])
-    return gaps, ''.join(kept)
+    outside.append(region[pos:])
+    ambiguous = bool(STRAY_MARKER.search(''.join(outside)))
+    return ([] if ambiguous else gaps), ''.join(kept), ambiguous
 
 
 def last_run(region):
@@ -191,19 +201,19 @@ def parse(raw, nonce, exit_code):
     region = final_region(text, nonce)
     if region is None:
         return {'parse_status': 'no_final_answer', **empty}, text
-    gap_bodies, items_region = split_gaps(region)
+    gap_bodies, items_region, ambiguous = split_gaps(region)
     gaps = [g for g in map(parse_gap, gap_bodies) if not _is_placeholder(g['scope'])]
     bodies, total = last_run(items_region)
     items = [parse_block(b) for b in bodies]
     items = [i for i in items if not i['placeholder']]
     if not items:
         status = 'gaps_only' if gaps else 'parse_failed'
-    elif any(i['missing'] for i in items):
+    elif ambiguous or any(i['missing'] for i in items):
         status = 'partial'
     else:
         status = 'ok'
     return {'parse_status': status, 'blocks_total': total, 'run_length': len(items), 'items': items,
-            'gaps': gaps, 'private_spans_removed': removed}, text
+            'gaps': gaps, 'structure_ambiguous': ambiguous, 'private_spans_removed': removed}, text
 
 
 def update_sidecar(path, nonce, exit_code, result, world=None):

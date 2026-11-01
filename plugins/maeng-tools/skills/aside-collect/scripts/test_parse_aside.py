@@ -187,6 +187,22 @@ class ParseAside(unittest.TestCase):
         # Unescaped quote: the article is cut at the quoted END, but no gap is fabricated.
         res, _ = P(final(quoted.replace('\\===', '===')) + '\n')
         self.assertEqual(res['gaps'], [])
+        self.assertTrue(res['structure_ambiguous'])
+        self.assertEqual(res['parse_status'], 'partial')
+
+    def test_two_unescaped_quoted_gaps_fail_closed(self):
+        g = '=== GAP ===\nscope: s{0}\nkind: refused\nevidence: quoted\n=== END ==='
+        quoted = ('=== ITEM ===\nurl: https://example.com/a\ntitle: A\nretrieved_at: now\ncontent: Example:\n'
+                  + g.format(1) + '\n' + g.format(2) + '\nEnd of article.\n=== END ===')
+        real = '=== GAP ===\nscope: google\nkind: refused\nevidence: CAPTCHA\n=== END ==='
+        for body in (quoted, quoted + '\n' + real):
+            res, _ = P(final(body) + '\n')
+            self.assertEqual(res['gaps'], [])  # neither the quoted second GAP nor any other is trusted
+            self.assertTrue(res['structure_ambiguous'])
+            self.assertEqual(res['parse_status'], 'partial')
+        res, _ = P(final(ITEM + '\n' + real) + '\n')  # clean output keeps its real gap
+        self.assertFalse(res['structure_ambiguous'])
+        self.assertEqual([g['scope'] for g in res['gaps']], ['google'])
 
     def test_template_gap_echo_is_ignored(self):
         echo = '=== GAP ===\nscope: <url, site or query>\nkind: <kind>\nevidence: <what you saw>\n=== END ==='

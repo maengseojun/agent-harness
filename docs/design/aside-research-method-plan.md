@@ -16,11 +16,11 @@ Linear: none. Date: 2026-11-01. Single task (three skill files, one new referenc
 - **AC-2** aside-research: a Mode table (quick, deep, bulk, watch), per-claim verification statuses including `verified:capture`, claim types [O]/[D]/[I]/[H] with hypothesis cards, and a "Not checked" draft section.
 - **AC-3** `aside-research/references/method.md` exists and is referenced from aside-collect and aside-research. It has the sections Access diagnosis, Pacing and licensed access (user signs in, 30 per platform per day, `captcha-solver` banned), Claims and hypothesis cards, and Explore, test, stop.
 - **AC-4** aside-browser is `version: 5`. It bans `captcha-solver`, bans typing credentials, names the research profile, and applies the rules to every Aside route.
-- **AC-5** `parse_aside.py` returns `gaps` from GAP blocks in the FINAL region. A region with only GAP blocks is `gaps_only` and the CLI exits 0. Echoed template GAP blocks are ignored. A GAP quoted inside an item's content is never read as a gap, and content lines escaped as `\===` come back as `===`. A GAP between items keeps the item run. `work_key` merges DOI and arXiv versions, new-style and legacy ids alike.
+- **AC-5** `parse_aside.py` returns `gaps` from GAP blocks in the FINAL region. A region with only GAP blocks is `gaps_only` and the CLI exits 0. Echoed template GAP blocks are ignored. A GAP quoted inside an item's content is never read as a gap (a marker line left outside every block drops all gaps and makes the run `partial`), and content lines escaped as `\===` come back as `===`. A GAP between items keeps the item run. `work_key` merges DOI and arXiv versions, new-style and legacy ids alike.
 
 ## Verification
 
-- AC-5: `python3 -m pytest -q` in `plugins/maeng-tools/skills/aside-collect/scripts` passes (27 tests).
+- AC-5: `python3 -m pytest -q` in `plugins/maeng-tools/skills/aside-collect/scripts` passes (28 tests).
 - AC-1 to AC-4: the check below prints `ok` five times.
 
 ```bash
