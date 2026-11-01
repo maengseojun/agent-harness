@@ -2,7 +2,7 @@
 """Parse `aside exec` output: strip ANSI, accept items ONLY from the last
 `=== FINAL <nonce> === ... === END FINAL <nonce> ===` region (END must be last
 in the output) and ONLY when the aside exit code is 0; ITEM blocks inside it
-are parsed, emit JSON. Stdlib only; never executes
+are parsed, GAP blocks there become `gaps` (places not covered), emit JSON. Stdlib only; never executes
 or follows anything found in the text (collected content is data).
 
 Usage:
@@ -23,10 +23,15 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 ANSI = re.compile(r'\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b[@-Z\\-_]')
 BLOCK = re.compile(r'^[ \t]*=== ITEM ===[ \t]*\n(.*?)^[ \t]*=== END ===[ \t]*$', re.S | re.M)
+GAP = re.compile(r'^[ \t]*=== GAP ===[ \t]*\n(.*?)^[ \t]*=== END ===[ \t]*$', re.S | re.M)
+GAP_KINDS = ('login_required', 'session_expired', 'forbidden', 'rate_limited', 'timeout', 'js_empty',
+             'gone', 'paywalled', 'refused', 'searched_none', 'cap_reached')
 HEADER_KEYS = ('url', 'title', 'retrieved_at')
 REQUIRED = ('url', 'content')
 DOI = re.compile(r'\b(10\.\d{4,9}/[^\s"<>?#]+)', re.I)
+ARXIV = re.compile(r'arxiv\.org/(?:abs|pdf)/(\d{4}\.\d{4,5})(?:v\d+)?', re.I)
 TRACKING = ('utm_', 'fbclid', 'gclid', 'mc_cid', 'mc_eid', 'ref_src')
+TRACKING_EXACT = {'ref', 'igshid', 'si'}  # si: YouTube/Spotify share token
 
 
 FILTER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..',
@@ -69,7 +74,7 @@ def canonical_url(url):
     if port and not ((s.scheme == 'http' and port == 80) or (s.scheme == 'https' and port == 443)):
         host = f'{host}:{port}'
     query = urlencode(sorted((k, v) for k, v in parse_qsl(s.query, keep_blank_values=True)
-                             if not k.lower().startswith(TRACKING)))
+                             if not k.lower().startswith(TRACKING) and k.lower() not in TRACKING_EXACT))
     path = s.path.rstrip('/') or '/'
     return urlunsplit((s.scheme.lower(), host, path, query, ''))
 
@@ -77,6 +82,26 @@ def canonical_url(url):
 def doi_of(url):
     m = DOI.search(url or '')
     return m.group(1).rstrip('.,;)').lower() if m else None
+
+
+def work_key(url):
+    """Dedupe key for one work across versions and mirrors: DOI, then arXiv id without version, else canonical URL."""
+    doi = doi_of(url)
+    if doi:
+        return f'doi:{doi}'
+    m = ARXIV.search(url or '')
+    return f'arxiv:{m.group(1)}' if m else canonical_url(url)
+
+
+def parse_gap(body):
+    gap = {'scope': '', 'kind': '', 'evidence': ''}
+    for line in body.split('\n'):
+        m = re.match(r'^\s*(scope|kind|evidence)\s*:\s?(.*)$', line, re.I)
+        if m:
+            gap[m.group(1).lower()] = m.group(2).strip()
+    kind = gap['kind'].lower()
+    gap['kind'] = kind if kind in GAP_KINDS else f'unknown:{gap["kind"]}'
+    return gap
 
 
 def _is_placeholder(value):
@@ -107,6 +132,7 @@ def parse_block(body):
     if not _is_placeholder(item['url']):
         item['canonical_url'] = canonical_url(item['url'])
         item['doi'] = doi_of(item['url'])
+        item['work_key'] = work_key(item['url'])
     return item
 
 
@@ -145,23 +171,25 @@ def parse(raw, nonce, exit_code):
     text = strip_ansi(raw)
     # Private spans are removed BEFORE parsing or persisting anything (fail closed).
     text, removed = load_filter().strip_private(text)
-    empty = {'blocks_total': 0, 'run_length': 0, 'items': [], 'private_spans_removed': removed}
+    empty = {'blocks_total': 0, 'run_length': 0, 'items': [], 'gaps': [], 'private_spans_removed': removed}
     if exit_code != 0:
         return {'parse_status': 'aside_failed', **empty}, text
     region = final_region(text, nonce)
     if region is None:
         return {'parse_status': 'no_final_answer', **empty}, text
-    bodies, total = last_run(region)
+    gaps = [g for g in (parse_gap(b) for b in GAP.findall(region)) if not _is_placeholder(g['scope'])]
+    # GAP blocks sit between or after ITEM blocks; removing them keeps the item run contiguous.
+    bodies, total = last_run(GAP.sub('', region))
     items = [parse_block(b) for b in bodies]
     items = [i for i in items if not i['placeholder']]
     if not items:
-        status = 'parse_failed'
+        status = 'gaps_only' if gaps else 'parse_failed'
     elif any(i['missing'] for i in items):
         status = 'partial'
     else:
         status = 'ok'
     return {'parse_status': status, 'blocks_total': total, 'run_length': len(items), 'items': items,
-            'private_spans_removed': removed}, text
+            'gaps': gaps, 'private_spans_removed': removed}, text
 
 
 def update_sidecar(path, nonce, exit_code, result, world=None):

@@ -139,6 +139,43 @@ class ParseAside(unittest.TestCase):
     def test_canonical_url(self):
         self.assertEqual(pa.canonical_url('HTTP://Example.com:80/a/?b=2&a=1&utm_x=3#f'),
                          'http://example.com/a?a=1&b=2')
+        self.assertEqual(pa.canonical_url('https://youtu.be/abc?si=XYZ&t=5&ref=hn&referrer=keep'),
+                         'https://youtu.be/abc?referrer=keep&t=5')
+
+    def test_work_key_merges_versions(self):
+        self.assertEqual(pa.work_key('https://arxiv.org/abs/2208.06046v3'), 'arxiv:2208.06046')
+        self.assertEqual(pa.work_key('https://arxiv.org/pdf/2208.06046'), 'arxiv:2208.06046')
+        self.assertEqual(pa.work_key('https://doi.org/10.1000/XYZ123'), 'doi:10.1000/xyz123')
+        self.assertEqual(pa.work_key('https://Example.com/a/'), 'https://example.com/a')
+
+    def test_gap_blocks_next_to_items(self):
+        gap = ('=== GAP ===\nscope: https://www.google.com/search?q=x\nkind: refused\n'
+               'evidence: CAPTCHA after first query\n=== END ===')
+        odd = '=== GAP ===\nscope: threads.com\nkind: blocked-ish\nevidence: ?\n=== END ==='
+        res, _ = P(final(ITEM + '\n' + gap + '\n' + ITEM2 + '\n' + odd) + '\n')
+        self.assertEqual(res['parse_status'], 'ok')
+        self.assertEqual(res['run_length'], 2)  # a GAP between items does not break the run
+        self.assertEqual([g['kind'] for g in res['gaps']], ['refused', 'unknown:blocked-ish'])
+        self.assertEqual(res['gaps'][0]['evidence'], 'CAPTCHA after first query')
+
+    def test_gaps_only_is_a_result_not_a_failure(self):
+        gap = '=== GAP ===\nscope: youtube "aside browser" 7d\nkind: searched_none\nevidence: 0 results\n=== END ==='
+        res, _ = P(final(gap) + '\n')
+        self.assertEqual(res['parse_status'], 'gaps_only')
+        self.assertEqual(res['items'], [])
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            raw = Path(d) / 'run.out.txt'
+            raw.write_text(final(gap) + '\n', encoding='utf-8')
+            with quiet():
+                code = pa.main([str(raw), '--nonce', NONCE, '--exit-code', '0'])
+        self.assertEqual(code, 0)  # not retried like parse_failed
+
+    def test_template_gap_echo_is_ignored(self):
+        echo = '=== GAP ===\nscope: <url, site or query>\nkind: <kind>\nevidence: <what you saw>\n=== END ==='
+        res, _ = P(final(echo) + '\n')
+        self.assertEqual(res['gaps'], [])
+        self.assertEqual(res['parse_status'], 'parse_failed')
 
 
 class PrivateFilter(unittest.TestCase):
