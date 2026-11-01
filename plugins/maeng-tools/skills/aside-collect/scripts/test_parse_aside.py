@@ -200,6 +200,9 @@ class ParseAside(unittest.TestCase):
             self.assertEqual(res['gaps'], [])  # neither the quoted second GAP nor any other is trusted
             self.assertTrue(res['structure_ambiguous'])
             self.assertEqual(res['parse_status'], 'partial')
+        res, _ = P(final(real + '\n=== END ===') + '\n')  # GAP-only region with a stray marker
+        self.assertEqual((res['parse_status'], res['gaps'], res['items']), ('partial', [], []))
+        self.assertTrue(res['structure_ambiguous'])
         res, _ = P(final(ITEM + '\n' + real) + '\n')  # clean output keeps its real gap
         self.assertFalse(res['structure_ambiguous'])
         self.assertEqual([g['scope'] for g in res['gaps']], ['google'])

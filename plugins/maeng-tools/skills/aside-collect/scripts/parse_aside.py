@@ -206,9 +206,11 @@ def parse(raw, nonce, exit_code):
     bodies, total = last_run(items_region)
     items = [parse_block(b) for b in bodies]
     items = [i for i in items if not i['placeholder']]
-    if not items:
+    if ambiguous:  # coverage unknown: recorded, not retried as a parse failure
+        status = 'partial'
+    elif not items:
         status = 'gaps_only' if gaps else 'parse_failed'
-    elif ambiguous or any(i['missing'] for i in items):
+    elif any(i['missing'] for i in items):
         status = 'partial'
     else:
         status = 'ok'
