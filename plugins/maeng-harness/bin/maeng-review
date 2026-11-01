@@ -493,7 +493,8 @@ def report_review(a, cwd, st, subject, verdict, verdict_key):
             print(f"warning: maeng/review commit status not posted: {err}", file=sys.stderr)
     if st.get("task_id"):
         r = verdict["reviewer"]
-        via = "claude" if backend() == "claude" or r.get("fallback_from") else "codex"
+        claude_ran = backend() == "claude" or r.get("fallback_from") or (a.kind == "code" and a.author == "codex")
+        via = "claude" if claude_ran else "codex"
         try:
             status.write(st["task_id"], st["session_id"], pr=a.pr, review_verdict=verdict["verdict"],
                          review_backend=f"{via}:{r['model']}",

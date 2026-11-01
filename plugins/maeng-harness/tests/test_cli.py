@@ -7,7 +7,7 @@ import os
 import stat
 import sys
 
-from maeng import guard, receipts
+from maeng import guard, receipts, status
 from maeng.common import canonical, sha256
 from .helpers import BIN, HarnessCase
 
@@ -373,6 +373,8 @@ class ClaudeBackend(ReviewRunFixture):
         self.assertEqual(argv[argv.index("--effort") + 1], "high")
         rev = receipts.load(json.loads(r.stdout)["receipt"])["verdict"]["reviewer"]
         self.assertEqual((rev["model"], rev["effort"], rev["author"]), ("claude-opus-5-5", "high", "codex"))
+        backends = [json.loads(p.read_text()).get("review_backend") for p in status.status_dir().glob("*.json")]
+        self.assertIn("claude:claude-opus-5-5", backends)  # the task status names the backend that actually ran
 
     def test_claude_written_code_keeps_codex_first(self):
         fake, log, _ = self.fake_claude()
