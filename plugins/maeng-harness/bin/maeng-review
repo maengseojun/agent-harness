@@ -366,6 +366,9 @@ def run_claude(model, effort, out_schema, prompt_text, cwd):
     result = envelope.get("structured_output")
     if not isinstance(result, dict):
         return None, [], "reviewer returned no structured output"
+    errors = schema.validate(result, out_schema)
+    if errors:
+        return None, [], "reviewer output violates schema: " + "; ".join(errors)
     return result, aux, None
 
 
