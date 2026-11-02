@@ -43,6 +43,24 @@ class PaletteTests(unittest.TestCase):
         finally:
             Path(f.name).unlink()
 
+    def test_single_quoted_and_unquoted_styles_are_checked(self):
+        self.assertEqual(run("<p style='color:red'>x</p>"), 1)
+        self.assertEqual(run('<p style=color:red>x</p>'), 1)
+
+    def test_urls_strings_and_identifiers_are_not_colors(self):
+        html = ('<style>.x{background-image:url("red.svg");--accent-red:var(--ink);'
+                'border-color:var(--rule, var(--ink));quotes:"red"}.y{color:var(--red-ink)}</style>')
+        self.assertEqual(run(html), 0)
+
+    def test_rgb_channels_keep_their_boundaries(self):
+        with tempfile.NamedTemporaryFile('w', suffix='.md', delete=False) as f:
+            f.write('| `paper` | Page background | `rgb(1 23 4)` | `rgb(1 23 4)` |')
+        try:
+            self.assertEqual(run(':root{--a:rgb(1 23 4)}', tokens=f.name), 0)
+            self.assertEqual(run(':root{--a:rgb(12 3 4)}', tokens=f.name), 1)
+        finally:
+            Path(f.name).unlink()
+
     def test_short_hex_matches_its_long_form(self):
         self.assertEqual(run(':root{--x:#FFF}'), 0)  # backend fill is #ffffff in the style guide
 

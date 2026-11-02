@@ -30,7 +30,9 @@ Reference .md files are copied verbatim and merged. Each reference serves narrow
   - It exits 1 and lists each color that is not in the effective token set, and exits 0 otherwise. Colors are hex (short forms expanded), `rgb()`/`rgba()`, `hsl()`/`hsla()`, and CSS named colors in any CSS declaration (`<style>`, `style=""`, or a .css file; font, content, animation and similar non-color properties excepted) or SVG paint attribute.
   - Only token-table rows count as allowed colors. Prose mentions and the opt-in `terminal-*` skin do not.
   - `--allow` admits a color as written, including a named color. `--tokens` selects the token file, whose backticked named colors also count.
-  - `python3 -m unittest test_check_palette`, run in `scripts/`, passes 10 tests.
+  - Inline styles may be double-quoted, single-quoted or unquoted. `url(...)`, quoted strings and `--custom-property` names are never read as colors. Color channels keep their boundaries when normalized.
+  - Limits: it is a regex lint, not a CSS parser. Colors set from `<script>`, CSS escapes and external stylesheets are out of scope. The rendered check in review.md stays the final check.
+  - `python3 -m unittest test_check_palette`, run in `scripts/`, passes 13 tests.
 - AC-6: method.md sets the explanation rules.
   - The map has five sections: destination, settled, to decide, missed, out of scope.
   - The chain starts from the first premise, using a 0.x prerequisite chain.

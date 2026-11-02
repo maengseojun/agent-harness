@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Report colors in an output file that are not in the effective token set (default: diagram-explainer's style guide)."""
+"""Report colors in an output file that are not in the effective token set (default: diagram-explainer's style guide).
+
+shortcut: a regex lint, not a CSS parser. Colors set from <script>, CSS escapes and external stylesheets are not
+seen; the rendered look in review.md stays the final check. Upgrade to a real CSS tokenizer if leaks get past it.
+"""
 import argparse
 import re
 import sys
@@ -24,7 +28,10 @@ oldlace olive olivedrab orange orangered orchid palegoldenrod palegreen paleturq
 peachpuff peru pink plum powderblue purple rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown
 seagreen seashell sienna silver skyblue slateblue slategray slategrey snow springgreen steelblue tan teal
 thistle tomato turquoise violet wheat white whitesmoke yellow yellowgreen'''.split())
-CSS_SOURCE = re.compile(r'<style[^>]*>(.*?)</style>|\bstyle\s*=\s*"([^"]*)"', re.I | re.S)
+CSS_SOURCE = re.compile(r'<style[^>]*>(.*?)</style>|\bstyle\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))', re.I | re.S)
+# Parts of a value that are never colors: url(...), quoted strings and --custom-property names.
+NOT_A_COLOR_PART = re.compile(r'url\([^)]*\)|"[^"]*"|\'[^\']*\'|--[\w-]+', re.I)
+WORD = re.compile(r'(?<![\w-])[a-z]+(?![\w-])')
 DECL = re.compile(r'([-\w]+)\s*:\s*([^;{}]+)')
 # Every declaration is checked (shorthands like text-decoration or column-rule carry colors) except these.
 NOT_COLOR = frozenset('''font font-family content quotes animation animation-name transition transition-property
@@ -35,7 +42,8 @@ PAINT_ATTR = re.compile(r'\b(?:fill|stroke|stop-color|flood-color|lighting-color
 def literals(text):
     out = set()
     for c in COLOR.findall(text):
-        c = re.sub(r'\s+', '', c.lower())
+        # Keep channel boundaries: rgb(1 23 4) and rgb(12 3 4) stay different; spaces around , ( ) / go.
+        c = re.sub(r'\s*([,()/])\s*', r'\1', re.sub(r'\s+', ' ', c.lower().strip()))
         if c.startswith('#') and len(c) in (4, 5):
             c = '#' + ''.join(ch * 2 for ch in c[1:])
         out.add(c)
@@ -43,12 +51,12 @@ def literals(text):
 
 
 def names(text):
-    return {w for w in re.findall(r'[a-z]+', text.lower()) if w in NAMED}
+    return {w for w in WORD.findall(NOT_A_COLOR_PART.sub(' ', text.lower())) if w in NAMED}
 
 
 def used(text, whole_css=False):
     """Colors an output uses: literals anywhere; named colors only in CSS declarations and SVG paint attributes."""
-    css = text if whole_css else '\n'.join(a + b for a, b in CSS_SOURCE.findall(text))
+    css = text if whole_css else '\n'.join(''.join(groups) for groups in CSS_SOURCE.findall(text))
     values = [v for p, v in DECL.findall(css) if p.lower() not in NOT_COLOR] + PAINT_ATTR.findall(text)
     return literals(text) | {n for v in values for n in names(v)}
 
