@@ -24,14 +24,40 @@ oldlace olive olivedrab orange orangered orchid palegoldenrod palegreen paleturq
 peachpuff peru pink plum powderblue purple rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown
 seagreen seashell sienna silver skyblue slateblue slategray slategrey snow springgreen steelblue tan teal
 thistle tomato turquoise violet wheat white whitesmoke yellow yellowgreen'''.split())
-COLOR_DECL = re.compile(r'(?:--[\w-]+|[a-z-]*(?:color|background|border|outline|fill|stroke|shadow)[a-z-]*)\s*:\s*([^;{}"<>]+)', re.I)
+CSS_SOURCE = re.compile(r'<style[^>]*>(.*?)</style>|\bstyle\s*=\s*"([^"]*)"', re.I | re.S)
+DECL = re.compile(r'([-\w]+)\s*:\s*([^;{}]+)')
+# Every declaration is checked (shorthands like text-decoration or column-rule carry colors) except these.
+NOT_COLOR = frozenset('''font font-family content quotes animation animation-name transition transition-property
+will-change grid-area grid-template-areas counter-reset counter-increment'''.split())
 PAINT_ATTR = re.compile(r'\b(?:fill|stroke|stop-color|flood-color|lighting-color|color)\s*=\s*["\']([^"\']*)["\']', re.I)
 
 
-def colors(text):
-    found = {re.sub(r'\s+', '', c.lower()) for c in COLOR.findall(text)}
-    values = COLOR_DECL.findall(text) + PAINT_ATTR.findall(text)
-    return found | {w for v in values for w in re.findall(r'[a-z]+', v.lower()) if w in NAMED}
+def literals(text):
+    out = set()
+    for c in COLOR.findall(text):
+        c = re.sub(r'\s+', '', c.lower())
+        if c.startswith('#') and len(c) in (4, 5):
+            c = '#' + ''.join(ch * 2 for ch in c[1:])
+        out.add(c)
+    return out
+
+
+def names(text):
+    return {w for w in re.findall(r'[a-z]+', text.lower()) if w in NAMED}
+
+
+def used(text, whole_css=False):
+    """Colors an output uses: literals anywhere; named colors only in CSS declarations and SVG paint attributes."""
+    css = text if whole_css else '\n'.join(a + b for a, b in CSS_SOURCE.findall(text))
+    values = [v for p, v in DECL.findall(css) if p.lower() not in NOT_COLOR] + PAINT_ATTR.findall(text)
+    return literals(text) | {n for v in values for n in names(v)}
+
+
+def allowed(tokens_text, allow):
+    """Token-table rows give literals and backticked named colors; --allow values count as written."""
+    rows = '\n'.join(TOKEN_ROW.findall(tokens_text))
+    named_cells = {w.lower() for w in re.findall(r'`([A-Za-z]+)`', rows) if w.lower() in NAMED}
+    return literals(rows) | named_cells | literals(' '.join(allow)) | names(' '.join(allow))
 
 
 def main(argv=None):
@@ -40,8 +66,8 @@ def main(argv=None):
     parser.add_argument('--allow', action='append', default=[], help='a deliberately borrowed color')
     parser.add_argument('--tokens', type=Path, default=STYLE, help='the effective style guide or profile (default: %(default)s)')
     args = parser.parse_args(argv)
-    allowed = colors('\n'.join(TOKEN_ROW.findall(args.tokens.read_text()))) | colors(' '.join(args.allow))
-    off = sorted(colors(Path(args.file).read_text()) - allowed)
+    path = Path(args.file)
+    off = sorted(used(path.read_text(), path.suffix == '.css') - allowed(args.tokens.read_text(), args.allow))
     for color in off:
         print(f'off-palette: {color}')
     if not off:

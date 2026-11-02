@@ -27,10 +27,10 @@ Reference .md files are copied verbatim and merged. Each reference serves narrow
   - The figure type is checked against diagram-explainer's visual-type guide for each structured phase and for the whole flow.
   - isas1 modes apply to the whole flow, in house tokens only.
 - AC-5: `scripts/check_palette.py` checks the output file's colors.
-  - It exits 1 and lists each color that is not in the effective token set, and exits 0 otherwise. Colors are hex, `rgb()`/`rgba()`, `hsl()`/`hsla()`, and CSS named colors in color-bearing declarations or SVG paint attributes.
+  - It exits 1 and lists each color that is not in the effective token set, and exits 0 otherwise. Colors are hex (short forms expanded), `rgb()`/`rgba()`, `hsl()`/`hsla()`, and CSS named colors in any CSS declaration (`<style>`, `style=""`, or a .css file; font, content, animation and similar non-color properties excepted) or SVG paint attribute.
   - Only token-table rows count as allowed colors. Prose mentions and the opt-in `terminal-*` skin do not.
-  - `--allow` admits a named color, and `--tokens` selects the token file.
-  - `python3 -m unittest test_check_palette`, run in `scripts/`, passes 7 tests.
+  - `--allow` admits a color as written, including a named color. `--tokens` selects the token file, whose backticked named colors also count.
+  - `python3 -m unittest test_check_palette`, run in `scripts/`, passes 10 tests.
 - AC-6: method.md sets the explanation rules.
   - The map has five sections: destination, settled, to decide, missed, out of scope.
   - The chain starts from the first premise, using a 0.x prerequisite chain.
