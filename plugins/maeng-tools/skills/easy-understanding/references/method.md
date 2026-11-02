@@ -170,3 +170,28 @@ Within one answer the term ledger and the chapter chain carry the context. Use O
   2. Open with one line: "지난번까지: …".
   3. Continue from the next chapter, using the saved terms without defining them again.
   4. Update the note in place at the end.
+
+## Fixed labels
+
+The references write fixed labels in Korean because the user writes Korean. Reply in the user's language:
+1. Pick each label's form in that language once.
+2. Use exactly that form everywhere in the output: headings, figure tags, the check list.
+3. For a language not in this table, translate the English column.
+
+| Korean (default) | English |
+|---|---|
+| 목적지 | Destination |
+| 정해진 것 · 정함 | Settled |
+| 결정할 것 · 결정 | To decide |
+| 대기 | Waiting on |
+| 놓친 것 · 흐림 | Missed · Unclear |
+| 범위 밖 | Out of scope |
+| 앞에서 가져오는 것 | Carried forward |
+| 이 장의 용어 | Terms in this chapter |
+| 비유 · 이 비유가 틀리는 곳 | Analogy · Where the analogy breaks |
+| 제 판단 | My call |
+| 없음 | None |
+| 지난번까지 | Last time |
+| 확인 목록 | Check list |
+| 좋음 · 주의 · 나쁨 | Good · Caution · Bad |
+| 학교 Drive에도 올릴까요? | Shall I also upload this to the school Drive? |

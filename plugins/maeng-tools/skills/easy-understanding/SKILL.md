@@ -11,13 +11,19 @@ The reader is smart and new to the field. Every output does three things:
 2. **Chain:** the logic from its first premise, not from the conclusion.
 3. **Chapters:** textbook register. Each chapter assumes the previous ones and carries their terms forward.
 
-Reply in the user's language.
+Reply in the user's language. The fixed labels in `references/` are written in Korean. For another language, use the [fixed-label table](references/method.md#fixed-labels) and keep each label identical across the output.
 
 ## How the references combine
 
 `upstream/` holds verbatim copies of the references ([SOURCES.md](upstream/SOURCES.md) lists each repo, commit, license and checksum). Do not read them by default. The merged rules in `references/` are what you follow. Read an upstream file only when its merged rule does not cover the case in front of you.
 
-**Each reference owns exactly one role.** A reference never produces a whole section, page or slide in its own style. A past slide deck was built that way: one reference ran some slides and another ran the rest, and the backgrounds and charts broke. Roles:
+**References serve narrow roles; they never run a whole output.**
+- Each role below has one merged rule in one place, so two references never give competing instructions for the same thing.
+- A reference may serve several narrow roles. For example, understanding-ladder sets size, sentences and the check list.
+- No reference produces a whole section, page or slide in its own style. Colors, fonts and backgrounds come only from the **Colors, fonts** row.
+- A past slide deck broke this rule: one reference ran some slides and another ran the rest, and the backgrounds and charts clashed.
+
+Every vendored reference appears in this table:
 
 | Role | Owner | Merged rule |
 |---|---|---|
@@ -25,6 +31,7 @@ Reply in the user's language.
 | Facts vs decisions | mattpocock grilling | [method.md §2](references/method.md#2-facts-are-your-job-decisions-are-the-users) |
 | Order of the chain | eli5-plus (+ Ranedeer's 0.x idea, paraphrased) | [method.md §4](references/method.md#4-the-chain-start-from-the-first-step) |
 | Term carry-forward | mattpocock teach GLOSSARY-FORMAT | [method.md §5](references/method.md#5-chapters-build-on-each-other) |
+| Textbook register: purpose before mechanism, no condescension | DreambigOu ELI5 (Important Reminders) | method.md §5 |
 | Map sections | mattpocock wayfinder | [method.md §6](references/method.md#6-the-map-the-flow-what-you-missed-what-to-decide) |
 | Decision order | mattpocock grilling (frontier) | method.md §6 |
 | What you missed | discernment-nudge + superpowers brainstorming | method.md §6 |

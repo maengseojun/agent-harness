@@ -24,6 +24,18 @@ class PaletteTests(unittest.TestCase):
         self.assertEqual(run(html), 1)
         self.assertEqual(run(html, '#0a0f1c'), 0)
 
+    def test_named_and_hsl_colors_are_checked(self):
+        self.assertEqual(run('<p style="color:red">x</p>'), 1)
+        self.assertEqual(run('<rect fill="white"/>'), 1)
+        self.assertEqual(run(':root{--bg: hsl(0 100% 50%)}'), 1)
+
+    def test_tokens_keywords_and_prose_words_pass(self):
+        html = '.a{color:var(--ink);border:1px solid var(--rule)}<rect fill="none"/><p>a red flag</p>'
+        self.assertEqual(run(html), 0)
+
+    def test_opt_in_terminal_skin_is_not_an_active_token(self):
+        self.assertEqual(run(':root{--paper:#f5f5f5;--accent:#ff5a36}'), 1)
+
     def test_another_profile_replaces_the_default_set(self):
         with tempfile.NamedTemporaryFile('w', suffix='.md', delete=False) as f:
             f.write('| `paper` | Page background | `#fbf7ef` | `#1b1a17` |')
