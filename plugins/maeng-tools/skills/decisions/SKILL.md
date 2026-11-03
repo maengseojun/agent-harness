@@ -1,6 +1,6 @@
 ---
 name: decisions
-description: Use during the OpenAI Decisions API trial (MAE-306, until the user's decision on Sunday 2026-11-08) - verifying research claims against their pages in aside-research stage 3, a review pre-flight before every `maeng-review run` (are the Plan's AC-n met by the diff and the verification output), sorting a failed review round's findings, the claim eval, and the trial report. Personal world only. Sends public page text or a redacted diff, Plan and test output to OpenAI; never runs in an eta checkout.
+description: Use during the OpenAI Decisions API trial (MAE-306, until the user's decision on Sunday 2026-11-08) - verifying research claims against their pages in aside-research stage 3, a review pre-flight before every `maeng-review run` (are the Plan's AC-n met by the diff and the verification output), sorting a failed review round's findings, picking which Linear issues, Notion pages or Obsidian notes to read when resuming work, a duplicate check before creating a Linear issue, Notion record or vault note, cleanup candidates for the weekly vault or Linear tidy, the evals, and the trial report. Personal world only. Sends public page text, a redacted diff, Plan and test output, or personal Linear/Notion/vault text (private spans stripped) to OpenAI; never eta content, never in an eta checkout.
 ---
 
 # decisions (Decisions API trial)
@@ -9,7 +9,7 @@ Trial skill for MAE-306. The OpenAI Decisions API (`POST /v1/decisions`, `gpt-6-
 
 ## Rules
 
-- **Data.** Only public page text and claim text, or for the pre-flight the diff, the Plan and the verification output. The client redacts known secret patterns before sending. Nothing from vault notes beyond a source note's own page extract.
+- **Data.** Public page text and claim text; for the pre-flight the diff, the Plan and the verification output; for records work, personal Linear, Notion and vault text. The client redacts known secret patterns; `records.py` strips vault `<private>` spans and refuses eta items (`world: eta`, vault `eta/` paths, eta Linear or Notion). Never put eta-workspace results into a candidates file.
 - **Off and eta.** `MAENG_DECISIONS=off` sends nothing. A working directory inside the eta checkout (`MAENG_ETA_ROOT`, default `~/Documents/Project/eta_v1`) sends nothing; eta research keeps the researcher path.
 - **Key.** `OPENAI_API_KEY`, else the macOS keychain item `openai-api-key`. Never print it, never ask the user to paste it into the chat.
 - **Unknown is not a verdict.** An error, timeout, refusal, missing or off-list answer comes back as `unknown`. Treat it as "not checked", never as a pass.
@@ -35,8 +35,17 @@ Scripts are in this skill's `scripts/` folder; run them with `python3 <this skil
 
 After a failed round, `python3 preflight.py triage --findings <this round.json> --previous <earlier round.json> ...` sorts each finding into new or repeat, and this change, pre-existing or approval bypass (the review-round rule).
 
+## Linear, Notion and Obsidian work (MAE-311)
+
+All three take a candidates file: a JSON list of `{"id", "title", "text", "source", "path", "world", "date"}` built from the search results you already have (Linear issue search, Notion search, vault search). Put a short excerpt in `text`, not whole documents. Outputs are suggestions; you still open, create, update or close things yourself.
+
+- **Resuming work:** after searching for related notes, issues and pages, run `python3 records.py related --task "<what you are about to do>" --candidates <file>`. Read the selected items; glance at the near misses; open anything else you need. When you later needed an item it did not select, note it on MAE-311 (a miss).
+- **Before creating** a Linear issue, Notion record or vault note (the search-before-create step of work-records and obsidian-workspace): `python3 records.py duplicate --new "<title and one-line summary>" --candidates <file>`. If it names an item, open that item and decide whether to update it instead. Note on MAE-311 whether the flag was real.
+- **Weekly tidy:** `python3 records.py cleanup --candidates <file>` lists items that look superseded or done. Suggest them to the user or check them yourself; never close, archive or delete because of this list alone. Note which suggestions were accepted.
+
 ## Eval and report
 
 - `python3 build_claim_eval.py --check` validates the eval set (claims verified in MAE-303 plus code-made false variants).
 - `python3 eval_claims.py --out <report.json>` runs the claim eval against the plan's floors (coordinator, once per client change).
+- `python3 related_eval.py build --check` and `python3 related_eval.py run --out <report.json>`: the related-pick eval on vault wikilinks, reported for Korean and other notes separately, with recall also on the positives the task text does not name. Its files hold personal vault text, so they live outside the repository (`MAENG_DECISIONS_EVAL_DIR`, default `~/Documents/maeng-harness/decisions/eval/`; the script refuses a folder inside the checkout). agent-harness is a public repository: never commit vault, Linear or Notion text.
 - `python3 report.py --since 2026-11-05 --until 2026-11-08 --eval-report <report.json>` prints the per-use metrics for the Sunday brief.

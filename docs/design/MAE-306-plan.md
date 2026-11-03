@@ -12,6 +12,7 @@ Decisions:
 - D-3 (user, 2026-11-04) "Risk prevention" is the sample re-check (A-4), not command or content guards; no hooks. "나는 표본 재검사라서 307은 빼도 될듯". Wrong if: none (user decision).
 - D-4 Everything lives in one skill directory inside maeng-tools, so deleting it removes the trial; no file under `plugins/maeng-harness` or `harness/` changes. Wrong if: a use needs a harness change.
 - D-5 Stdlib-only client (urllib), no SDK. Wrong if: the API needs something urllib cannot do.
+- D-6 (user, 2026-11-04) Add Linear, Notion and Obsidian work to the live trial (MAE-311): related-item pick, duplicate check before create, cleanup candidates. "나 linear, notion, obsidian을 정말 자주 쓰거든? 이거에도 붙여서 이용할 수 있지 않을까", "그럼 저것들도 넣고 실사용해보자". Wrong if: the offline related-pick eval misses its floor (AC-9) or live misses exceed the Sunday criterion.
 
 Assumptions (A-n; the user approved the plan on 2026-11-03 with "승인, 진행해"):
 - A-1 Key: `OPENAI_API_KEY` from the environment, else the macOS keychain item `openai-api-key` (`security find-generic-password -s openai-api-key -w`). Never logged. The user creates and stores the key; the credit is already linked (billing page shows "ChatGPT subscription linked", 2026-11-04).
@@ -22,8 +23,10 @@ Assumptions (A-n; the user approved the plan on 2026-11-03 with "승인, 진행�
 - A-6 Ledger `~/Documents/maeng-harness/decisions/ledger.jsonl` (override `MAENG_DECISIONS_LEDGER`); page cache `~/Documents/maeng-harness/decisions/pages/`. Input text is stored as a hash and size only.
 - A-7 Data rule: only public page text, claim text, and for pre-flight the redacted diff, Plan text and verification output. No request from an eta checkout (cwd under `MAENG_ETA_ROOT`, default `~/Documents/Project/eta_v1`); `MAENG_DECISIONS=off` sends nothing.
 - A-8 Pre-flight is advisory: it prints verdicts and never edits files or gates anything; the Sol review runs as before.
+- A-9 Records data rule (extends A-7 for MAE-311): personal Linear, Notion and vault content may be sent. Refused by code: any item marked `world: eta`, vault paths under `eta/`, items whose `source` names the eta Linear or Notion workspace. Vault `<private>` spans are stripped with obsidian-workspace's `strip_private` before sending. Instructions are English; item text is sent as-is (no translation); the eval reports Korean and other items separately so the Korean question (MAE-304 Phase 2) gets data.
+- A-10 Records outputs are suggestions: `related` prints the selected items and the three nearest misses; `duplicate` names a candidate for Claude to open before deciding; `cleanup` lists candidates. Nothing is created, changed or closed by the script.
 
-Owns: `plugins/maeng-tools/skills/decisions/**`, `plugins/maeng-tools/skills/aside-research/SKILL.md`, `plugins/maeng-tools/.claude-plugin/plugin.json`, this file.
+Owns: `plugins/maeng-tools/skills/decisions/**`, `plugins/maeng-tools/skills/aside-research/SKILL.md`, `plugins/maeng-tools/.claude-plugin/plugin.json`, this file. The records pilot imports `strip_private` from `plugins/maeng-tools/skills/obsidian-workspace/scripts/private_filter.py` without changing it.
 
 Exclusions: hooks and guards (MAE-307 canceled); the Korean translation arm (MAE-304 Phase 2); image QA; subagent routing; the chunk picker unless everything else is merged first (MAE-309).
 
@@ -53,6 +56,8 @@ Acceptance:
 - **AC-5** Report: per-use counts, outcomes, latency p50/p95, tokens and cost for a date range from the ledger; fixture numbers equal hand-computed values in the test. covers A5
 - **AC-6** Skill text: `decisions` SKILL.md says when to run each script and the data rule; aside-research stage 3 has `decisions` (trial default, A-4) and `researcher` modes. covers A6, K1, K2
 - **AC-7** No change under `plugins/maeng-harness` or `harness/`; maeng-tools is 0.3.14 and validates.
+- **AC-8** Records: `records.py related|duplicate|cleanup` builds one request per call with English instructions; refuses eta items and `eta/` vault paths without sending; strips `<private>` spans; `unknown` answers are never selected, never named as duplicates and never listed as cleanup candidates; no file writes. covers A-9, A-10
+- **AC-9** Related-pick offline eval: a builder makes cases from vault wikilinks (a note's linked notes are relevant, seeded random unlinked notes are not; eta and private content excluded), deterministic on rerun; the runner reports recall of relevant items, share of candidates selected, and both per language (Korean / other), plus recall on positives the task text does not name. Floor for the live trial: recall ≥ 0.9 with selected share ≤ 0.5 overall; the unnamed recall is reported for the Sunday judgment. The case files hold vault text and live outside the public repository (`~/Documents/maeng-harness/decisions/eval/`).
 
 Sub-tasks:
 
@@ -76,6 +81,8 @@ Verification:
 - AC-5: `cd plugins/maeng-tools/skills/decisions/scripts && python3 -m unittest test_report` expect OK
 - AC-6: declared check: review confirms the two skill texts
 - AC-7: `git diff --stat origin/feat/harness-v1...HEAD -- plugins/maeng-harness harness` expect no output; `claude plugin validate plugins/maeng-tools` expect `Validation passed`
+- AC-8: `cd plugins/maeng-tools/skills/decisions/scripts && python3 -m unittest test_records` expect OK
+- AC-9: `cd plugins/maeng-tools/skills/decisions/scripts && python3 -m unittest test_related_eval && python3 related_eval.py build --check` expect OK and identical (files under `~/Documents/maeng-harness/decisions/eval/`, never in the repo); live run recorded with `maeng-verify ran`
 
 Failure / change handling: three repair cycles per failing check, then cut and name it in the CEO brief. A floor miss in the live eval is a result: report it, keep `researcher` as the default mode, ship the rest.
 
@@ -85,11 +92,13 @@ Sunday criteria (fixed 2026-11-03, P2 removed):
 - Claim verification: A-2 floors on the eval set, and in live runs the sample re-check found at most one wrong `supported` per run.
 - Review pre-flight: at least one flag was a real defect (listed by the Sol review on the same head or fixed before review) and false flags ≤ 50% of flags; with no PR this week, extend.
 - Chunk picker (if built): root-error chunk selected in ≥ 9 of 10 real logs, Claude-read tokens down ≥ 70%.
+- Records (MAE-311, added 2026-11-04): related-pick offline floor (AC-9) met overall and reported per language; live `related` misses (an item Claude later needed that was not selected) ≤ 1 in 10 uses; `duplicate` flags that were real ≥ 50% of flags; `cleanup` suggestions the user or Claude accepted ≥ 50%.
 - Cost and token overhead reported, no criterion.
 
 Revisions:
 - R-1 plan scope (2026-11-03): MAE-304 folded into the trial week; client shared.
 - R-2 plan scope (2026-11-04): guards dropped (D-3), Haiku shadow replaced by comparison with earlier sessions (D-2), one skill instead of a new plugin (D-4), everything through the Thursday plan done now.
+- R-3 plan scope (2026-11-04): records pilot added (D-6, A-9, A-10, AC-8, AC-9, MAE-311).
 
 Close-out:
 - size: (filled at close)

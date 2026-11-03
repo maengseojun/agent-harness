@@ -105,7 +105,8 @@ class ParseAcs(Base):
         self.assertEqual(pf.parse_acs(PLAN), PLAN_ACS)  # AC-9 (Verification) and the later AC-2 are not counted
 
     def test_repo_plans(self):
-        plans = {"MAE-306-plan.md": [f"AC-{i}" for i in range(1, 8)], "MAE-301-review-kind-plan.md": ["AC-1", "AC-2"]}
+        # MAE-306's plan defines AC-1..AC-9 since revision R-3; its Verification section repeats them and must not add any
+        plans = {"MAE-306-plan.md": [f"AC-{i}" for i in range(1, 10)], "MAE-301-review-kind-plan.md": ["AC-1", "AC-2"]}
         for name, ids in plans.items():
             f = REPO_DOCS / name
             if not f.exists():

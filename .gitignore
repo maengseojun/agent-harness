@@ -11,3 +11,6 @@ htmlcov/
 mutants/
 .mutmut-cache
 .impact/
+
+# MAE-311: the related-pick eval is built from personal vault text; it lives outside this public repo
+plugins/maeng-tools/skills/decisions/eval/related-*.jsonl
