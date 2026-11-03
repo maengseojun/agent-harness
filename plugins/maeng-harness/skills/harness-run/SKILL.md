@@ -20,7 +20,7 @@ Records are autonomous, code is strict: write Linear and Obsidian without asking
 
 ## The workflow
 
-Scale it down for small work: a small task can skip the interview and tree but keeps Spec/Plan-lite (a goal, 1-3 `AC-n`, a Verification line), verification, review and recording.
+Scale it down for small work: a small task can skip the interview and tree but keeps Spec/Plan-lite (a goal, a Deliverable line, Assumptions or "none", 1-3 `AC-n`, a Verification line and the Revisions log), verification, review and recording.
 
 1. **Interview** only for what changes architecture or workflow and cannot be read from the repo or issue. Settled decisions are not reopened. Detail: [workflow.md](references/workflow.md). When the work starts from a new product or AI-system idea, run the `maeng-tools:ai-loop-design` checklist here and carry its design note into the parent Spec.
 2. **Mandatory rules.** Write down the constraints that bind every task (repo rules, environment, forbidden changes) in the parent Spec.
@@ -33,7 +33,7 @@ Scale it down for small work: a small task can skip the interview and tree but k
 9. **Self-record** (verification.md): after the last substantive change, write the progress, decision or result to the bound Linear issue or an Obsidian note whose `linear` key includes it. Do it yourself; never ask the user.
 10. **Review tier** (`maeng-review`; details in [review-and-ship.md](references/review-and-ship.md)): Codex comes first, except for parent integration. Tiers: child-task PR, Sol xhigh; parent integration, Fable high first with Astra high as its standby when Fable fails; design/rules docs, Astra medium; small work without a tree, Sol high; Notion outcome payload, Sol medium; research draft (`--kind research`), Sol xhigh. Code that Sol/Codex wrote is never reviewed by Sol: pass `--author codex` and Opus high reviews it instead. Only after 3 failed codex attempts (e.g. usage exhausted) does it fall back to Claude Opus (docs, research and small work high; child-task PRs and Notion medium). Architect review of a task is falsify-first: start from "goal not achieved" and look for the proof.
 11. **Merge** only with `maeng-ship merge <PR>` and a matching `pass` receipt. If the base moved: update, re-verify, re-review. `maeng-review` refuses a fifth review run on the same PR; then, or whenever the user's approval is needed, send the CEO brief (below) and wait for `승인 #N`.
-12. **Outcome records.** Judge each `D-n` held, broke or open against its signal ([org-chart.md](references/org-chart.md) DRI) and write the judgments into the Linear closing comment and the Obsidian ADR/session note; each broke one gets one learning line through [Feedback](#feedback). Then the Notion record through `work-records` (Sol medium), then give the user the link only. Then close the Linear issue yourself (Done) once every `AC-n` is met, the review passed and the records are linked; the user never manages Linear.
+12. **Outcome records.** Judge each `D-n` held, broke or open against its signal ([org-chart.md](references/org-chart.md) DRI) and write the judgments, with the Plan's `Close-out`, into the Linear closing comment and the Obsidian ADR/session note; each broke one gets one learning line through [Feedback](#feedback). Then the Notion record through `work-records` (Sol medium), then give the user the link only. Then close the Linear issue yourself (Done) once every `AC-n` is met, the review passed and the records are linked; the user never manages Linear.
 
 ## Sub-tasks
 
@@ -62,7 +62,7 @@ The user is the CEO: they set purpose and direction, the agents work on their ow
 |---|---|
 | Reading, research, code on a feature branch, tests, PRs, Linear and Obsidian records, Slack reports to `#maestro-claude` | Merge to the default branch, deploys, deleting data, real money, messages to other people or teams, anything the Spec marks as a stop |
 
-Do not ask mid-task what a sensible default or the Spec already answers; note the assumption and keep going.
+Do not ask mid-task what a sensible default or the Spec already answers; note the assumption as an `A-n` in the Spec and keep going. The CEO brief lists every `A-n` added since the Plan approval.
 
 **CEO brief.** Before every approval request, post one brief to Slack `#maestro-claude` and the bound Linear issue:
 1. **Intent**: the purpose in one line, and the `AC-n` it serves.
