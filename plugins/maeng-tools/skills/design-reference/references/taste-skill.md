@@ -32,7 +32,7 @@ Run it every time the skill is used and name the revision it prints in one line.
 
 Read `<skill>/SKILL.md` whole and run it as written: page or app screen, the run (brief, argument, draw, idea, words, build, gate, look, move, report), its house rules and its gate. Adopt the dealt direction sheet; do not blend it with your own layout or with `frontend-design` taste. Its rules replace the user's general style preferences for this task; these still hold because they do not contradict it:
 
-- Facts the user or product fixes (brand colours, fonts, logo, an accepted `DESIGN.md`) enter through taste's own `--keep palette,type`. Record the dealt direction (id and seed) in `DESIGN.md` as a new dated line.
+- Brand colours and typefaces enter through taste's `--keep`, naming only what the brand fixes (`palette`, `type`, or `palette,type`); a field left out is dealt, and the flag keeps nothing else. The logo and every other fixed fact or accepted `DESIGN.md` choice go into the brief and the build as constraints (taste's "existing brand" case: keep the asset, say so, `--allow <rule>` for a house rule it breaks). Record the dealt direction (id and seed) in `DESIGN.md` as a new dated line.
 - Generated images go through `codex exec` (`cinematic-site` prompts §1), asked before each run. Taste's own picture search (`assets.mjs`) needs no extra approval.
 - Korean UI: run `hangul-wrap` after taste's gate.
 - An HTML prototype keeps `html-prototype-interview`'s working flows and interview; taste decides how its screens look.
@@ -51,7 +51,13 @@ node -e 'const [f,...w]=process.argv.slice(1);for(const x of require(f))if(w.som
 node <skill>/scripts/draw.mjs --site <id>    # the full notes: idea, hero, sections, type, palette
 ```
 
-Moods include playful, warm, confident, technical, dark, editorial, cinematic, precise, calm, bold, quiet, minimal. When the user's direction leaves composition open, `draw.mjs ... --keep palette,type --options 3` deals three compositions to show as candidates; the user picks. `references/type.md`, `colour.md`, `layout.md`, `motion.md`, `copy.md` and `critique.md` are reading: open the section that answers a real question.
+Moods include playful, warm, confident, technical, dark, editorial, cinematic, precise, calm, bold, quiet, minimal. When the user's direction leaves composition open, show two or three hero or section blueprints set in that direction and let the user pick. Do not use `--options`: it deals whole taste directions (idea, field colour, manner) that can override the user's.
+
+```bash
+node -e 'const [l,r]=process.argv.slice(1);const a=r==="hero"?require(l+"/heroes.json"):require(l+"/sections.json").filter(s=>s.role===r);for(const s of a)console.log(s.id,"-",s.name,"-",s.blueprint.split(". ")[0])' "$T/skills/taste-skill/library" pricing   # or hero, features, faq …
+```
+
+ `references/type.md`, `colour.md`, `layout.md`, `motion.md`, `copy.md` and `critique.md` are reading: open the section that answers a real question.
 
 **Code.** Copy into the project and adapt it to its stack and tokens; add no dependency.
 

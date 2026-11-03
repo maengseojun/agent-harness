@@ -15,7 +15,7 @@ Exclusions: version bump (#88 holds 0.3.12), vendoring taste-skill code into thi
 - AC-1: `references/taste-skill.md` maps "taste 그대로" to Follow and "taste 참고" to Borrow. When taste is named without a mode, it asks once. When taste is not named, it is not used.
 - AC-2: both SKILL.md descriptions name taste-skill with both trigger phrases, both bodies link to `references/taste-skill.md`, and every relative link resolves.
 - AC-3: the update block clones on first use and checks out `origin/HEAD` on every use. It prints `taste-skill <sha> <date>`, prints a `scripts/` diffstat only when the revision moved, and keeps the cached copy with exit 0 when the fetch fails.
-- AC-4: Follow runs upstream `SKILL.md` as written, and only facts the user fixes enter through `--keep`. Borrow keeps the user's direction, treats house rules as opt-in and the inspector as advisory, and requires the upstream MIT notice on any copied file. No taste-skill code is vendored here.
+- AC-4: Follow runs upstream `SKILL.md` as written. Brand colour and type enter through `--keep`, naming only the fields the brand fixes; the logo and other `DESIGN.md` choices stay as brief constraints. Borrow keeps the user's direction, offers composition as library blueprints and never as `--options` directions, treats house rules as opt-in and the inspector as advisory, and requires the upstream MIT notice on any copied file. No taste-skill code is vendored here.
 - AC-5: no regression.
 
 Verification tier: docs-only.
