@@ -11,7 +11,7 @@ import argparse
 import math
 import sys
 from pathlib import Path
-from statistics import NormalDist, mean
+from statistics import NormalDist, linear_regression, mean
 
 OUT = Path(__file__).resolve().parent.parent / 'assets' / 'example-analysis.html'
 W, H = 320, 200
@@ -27,7 +27,7 @@ def scale(d0, d1, r0, r1):
 
 def svg(slug, title, desc, body, h=H):
     return (f'<svg viewBox="0 0 {W} {h}" role="img" aria-labelledby="{slug}-t {slug}-d">'
-            f'<title id="{slug}-t">{title}</title><desc id="{slug}-d">{desc}</desc>{body}</svg>')
+            f'<title id="{slug}-t">{title}</title><desc id="{slug}-d">{desc} (예시 데이터)</desc>{body}</svg>')
 
 
 def text(x, y, s, cls='t', anchor='start'):
@@ -69,8 +69,10 @@ def cohort():
                 op = 0.08 + 0.55 * v / hi
                 body.append(f'<rect class="cell" style="fill-opacity:{op:.2f}" x="{x}" y="{y}" width="40" height="24"/>')
                 body.append(text(x + 20, y + 16, v, 't-inv' if op >= 0.4 else 't-ink', 'middle'))
+    plus1 = {months[i]: r[1] for i, r in enumerate(rows) if len(r) > 1}
+    assert max(plus1, key=plus1.get) == months[focal[0]], 'the focal cell is the highest +1 rate'
     return svg('cohort', '코호트 리텐션: 첫 구매 월별 재구매율',
-               '가입 월별 행, 경과 개월 열의 삼각형 표. 9월 코호트의 1개월 차 재구매율이 45%로 가장 높다.', ''.join(body))
+               f'가입 월별 행, 경과 개월 열의 삼각형 표. {months[focal[0]]} 코호트의 1개월 차 재구매율이 {rows[focal[0]][1]}%로 가장 높다.', ''.join(body))
 
 
 # 2. Small multiples: 12 campaigns, 12-week ROAS, one shared scale.
@@ -91,6 +93,9 @@ def small_multiples():
         body.append(text(px + 6, py + 11, f'C{c + 1:02d}', 't-acc' if focal else 't-s'))
         body.append(text(px + 70, py + 11, f'{s[-1]:.1f}', 't-acc' if focal else 't-s', 'end'))
         body.append(poly([(sx(w), sy(v)) for w, v in enumerate(s)], 'ln-acc' if focal else 'ln'))
+    slopes = [linear_regression(range(12), s).slope for s in series]
+    falling = [c for c, b in enumerate(slopes) if b < -0.05]
+    assert falling == [7], f'only C08 has a falling trend, got {falling}'
     return svg('multiples', '스몰 멀티플: 캠페인 12개의 12주 ROAS',
                '같은 축(ROAS 0–4배)을 쓰는 작은 선 그래프 12개. C08만 꾸준히 떨어진다.', ''.join(body), h=192)
 
@@ -142,8 +147,12 @@ def forest():
         body.append(line(sx(lo), y, sx(hi), y, f'ci-{cls}'))
         body.append(f'<rect class="sq-{cls}" x="{f(sx(e) - 4)}" y="{y - 4}" width="8" height="8"/>')
     body += [text(sx(0) - 4, 196, '← 대조군 우세', 't', 'end'), text(sx(0) + 4, 196, '실험군 우세 →')]
+    above = [n for n, _, lo, _ in rows if lo > 0]
+    below = [n for n, _, _, hi in rows if hi < 0]
+    assert focal[0] in above and not below, 'claims below match the intervals'
     return svg('forest', 'A/B 테스트 효과와 95% 구간',
-               '테스트 6개의 효과 추정치와 95% 신뢰구간. 영상 썸네일만 구간 전체가 0보다 크고 효과가 가장 크다.',
+               f'테스트 {len(rows)}개의 효과 추정치와 95% 신뢰구간. 구간 전체가 0보다 큰 테스트: {", ".join(above)}. '
+               f'가장 큰 효과: {focal[0]}. 나머지는 구간이 0을 지나 아직 판단할 수 없다.',
                ''.join(body))
 
 
@@ -261,6 +270,7 @@ def contribution():
         assert abs(top - totals[w]) < 1e-9, 'stacked top equals the modelled total'
     body += [f'<circle class="dot-halo" cx="{f(sx(w) + 8.5)}" cy="{f(sy(v))}" r="2.5"/>' for w, v in enumerate(actual)]
     body += [text(sx(0) + 2, 192, '1주'), text(sx(16), 192, '16주', anchor='end')]
+    assert all(b[2] > a[2] for a, b in zip(weeks, weeks[1:])), 'PMax contribution grows every week'
     return svg('contribution', '기여도 분해: 주별 매출의 모델 추정 기여',
                '16주 매출을 기본·검색·PMax·메타로 쌓은 모델 추정 막대와 실제 매출 점. 기본이 맨 아래에 고정되고 PMax 기여가 꾸준히 커진다.',
                ''.join(body)), names
@@ -347,6 +357,7 @@ figure svg { width: 100%; height: auto; display: block; }
 figcaption { font-size: 13px; color: var(--ink); }
 .foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid var(--rule); padding-top: 8px; }
 .when { font-size: 14px; font-weight: 700; }
+.sample { font-size: 12px; color: var(--muted); margin-left: auto; }
 .lv { font-size: 12px; padding: 1px 8px; border-radius: 4px; white-space: nowrap; }
 .lv-mid { border: 1px solid var(--rule-solid); color: var(--muted); }
 .lv-adv { background: var(--ink); color: var(--paper); }
@@ -375,7 +386,8 @@ line.grid { stroke: var(--rule); stroke-width: 1; }
 
 
 def card(no, title, metric, chart, caption, when, level, legend=''):
-    lv = '<span class="lv lv-adv">심화</span>' if level == 'advanced' else '<span class="lv lv-mid">중급</span>'
+    lv = ('<span class="sample">예시 데이터</span>'
+          + ('<span class="lv lv-adv">심화</span>' if level == 'advanced' else '<span class="lv lv-mid">중급</span>'))
     return (f'<figure id="chart-{no}"><h2><span>{no:02d}</span>{title}</h2><p class="metric">{metric}</p>{legend}{chart}'
             f'<figcaption><b>읽는 법</b> {caption}</figcaption><div class="foot"><span class="when">{when}</span>{lv}</div></figure>')
 
@@ -425,12 +437,12 @@ def main(argv=None):
     args = parser.parse_args(argv)
     html = build()
     if args.check:
-        if not OUT.is_file() or OUT.read_text(encoding='utf-8') != html:
+        if not OUT.is_file() or OUT.read_bytes() != html.encode('utf-8'):
             print(f'stale: {OUT} differs from the generated page; run without --check')
             return 1
         print('example-analysis: statistics asserted, committed file matches')
         return 0
-    OUT.write_text(html, encoding='utf-8')
+    OUT.write_bytes(html.encode('utf-8'))
     print(f'wrote {OUT}')
     return 0
 
