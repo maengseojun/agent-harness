@@ -171,7 +171,7 @@ Actuals `ink`. The forecast path is a dashed `accent` line. Bands are `accent` a
 ### Honest-data rule
 - Bands are **percentile intervals of the predictive distribution**, not minimum and maximum.
 - They are conditional on the model's assumptions; say what is held fixed.
-- Derive widths from past forecast errors or a bootstrap.
+- Derive widths from past forecast errors or a bootstrap, and name the forecast model and the error assumption on the chart.
 - Skewed quantities such as revenue deserve asymmetric bands. Check calibration against past actuals.
 
 ### How to read it

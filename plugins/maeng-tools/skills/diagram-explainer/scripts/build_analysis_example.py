@@ -193,10 +193,17 @@ def forest():
 
 
 # 5. Fan chart: monthly revenue (억원), months 1–9 actual, 10–12 forecast with 50/80/95% bands of the forecast.
+# Model: random walk with drift. Drift = mean monthly change; band width = SD of past one-month forecast errors × √h,
+# normal errors assumed. Both come from the actuals below, so the bands rest on the example's own forecast errors.
 def fan():
     actual = [3.9, 4.0, 4.2, 4.6, 4.4, 4.7, 4.9, 5.0, 4.9]
-    median = [actual[-1] + 0.15 * h for h in range(4)]
-    sd = [0.32 * math.sqrt(h) for h in range(4)]
+    diffs = [b - a for a, b in zip(actual, actual[1:])]
+    drift = mean(diffs)
+    errors = [d - drift for d in diffs]  # one-month-ahead errors of "last value + drift" on months 2–9
+    err_sd = math.sqrt(sum(e * e for e in errors) / (len(errors) - 1))
+    assert abs(mean(errors)) < 1e-9 and err_sd > 0, 'errors are centred and spread'
+    median = [actual[-1] + drift * h for h in range(4)]
+    sd = [err_sd * math.sqrt(h) for h in range(4)]
     levels = (0.95, 0.8, 0.5)
     bands = {p: [(m - NormalDist().inv_cdf(0.5 + p / 2) * s, m + NormalDist().inv_cdf(0.5 + p / 2) * s)
                  for m, s in zip(median, sd)] for p in levels}
@@ -217,8 +224,9 @@ def fan():
              text(sx(12) + 4, sy(bands[0.95][3][1]) + 3, '95%', 't-acc'),
              text(sx(12) + 4, sy(median[3]) + 3, '중앙값', 't-ink')]
     return svg('fan', '팬 차트: 월 매출과 3개월 예측',
-               '1–9월 실적 선과 10–12월 예측 중앙값, 예측 분포의 50·80·95% 구간 띠. 멀리 갈수록 띠가 넓어진다.',
-               ''.join(body))
+               f'1–9월 실적 선과 10–12월 예측 중앙값, 예측 분포의 50·80·95% 구간 띠. 모델은 마지막 실적에 월평균 변화 {drift:.3f}억원을 더하는 추세 모형이고, '
+               f'띠 폭은 과거 1개월 예측 오차의 표준편차 {err_sd:.2f}억원 × √개월(정규 가정). 멀리 갈수록 띠가 넓어진다.',
+               ''.join(body)), (drift, err_sd)
 
 
 # 6. Survival curve (Kaplan–Meier): share of monthly-plan subscribers still active, trial vs direct signup, 12 months.
@@ -435,25 +443,26 @@ def build():
     c7, names = contribution()
     c8, top = lift()
     c9, (auc, k) = roc()
+    c5, (drift, err_sd) = fan()
     order = tuple(zip(names, ('base', 'c2', 'acc', 'c4')))[::-1]  # legend lists the stack top-down
     legend = ('<p class="legend">' + ''.join(f'<span><i class="k-{c}"></i>{n}</span>' for n, c in order)
               + '<span><i class="k-dot"></i>실제 매출</span></p>')
     cards = [
-        card(1, '코호트 리텐션', '진입 월은 기준 100%, +1부터 그 달에 재구매한 비율(%) · 행은 첫 구매 월과 인원, 10월 말 기준', cohort(),
+        card(1, '코호트 리텐션', '진입 월은 기준 100%, +1부터 그 달에 재구매한 비율(%), 분모는 진입 인원 · 행은 첫 구매 월과 인원, 10월 말 기준', cohort(),
              '한 행이 한 코호트예요. 같은 열(같은 경과 개월)끼리 위아래로 비교해요. 빈칸은 0%가 아니라 아직 그 시점이 오지 않은 거예요.', '가입 시점별 잔존', 'intermediate'),
         card(2, '스몰 멀티플', '캠페인 12개 · 12주 ROAS, 모든 칸 같은 축(0–4배), 번호순 정렬', small_multiples(),
              '칸마다 축이 같아서 높이를 바로 비교할 수 있어요. 점선은 ROAS 1배(매출 = 광고비, 원가를 빼기 전), 오른쪽 위 숫자는 마지막 주 값이에요.', '세그먼트가 많을 때', 'intermediate'),
-        card(3, '관리도', f'일 전환율(%) · 평균 {center:.1f}% ± 3σ, 개별값 관리도 · 한계는 1–{BASELINE_DAYS}일 기준 기간에서 추정', c3,
+        card(3, '관리도', f'일 전환율(%) · 개별값 관리도, 평균 {center:.1f}% ± 3σ(σ는 이동범위로 추정) · 한계는 1–{BASELINE_DAYS}일 기준 기간에서 정함 · 판정 규칙: 3σ 밖 1점 · 하루 방문자 수가 비슷하다고 가정(크게 다르면 p 관리도)', c3,
              '점선은 목표가 아니라 이 과정이 평소 흔들리는 폭이에요. 밖으로 나간 점(주황)은 원인을 찾아볼 신호이지, 원인의 증거는 아니에요.', '이상 변동 감지', 'advanced'),
-        card(4, '포레스트 플롯', 'A/B 테스트 효과(%) · 네모는 추정치, 선은 95% 신뢰구간', forest(),
+        card(4, '포레스트 플롯', 'A/B 테스트 효과(%) · 네모는 추정치, 선은 95% 신뢰구간(추정치 ± 1.96 × 표준오차, 정규 근사)', forest(),
              '선이 0을 가로지르면 효과가 없다는 게 아니라 아직 판단할 수 없다는 뜻이에요. 테스트가 많으면 우연히 하나쯤 유의하게 나올 수 있어요.', '실험 효과 한눈에', 'advanced'),
-        card(5, '팬 차트', '월 매출(억원) · 3개월 예측, 띠는 예측 분포의 50·80·95% 구간', fan(),
+        card(5, '팬 차트', f'월 매출(억원) · 3개월 예측 · 모델: 마지막 실적 + 월평균 변화 {drift:.2f}억원 · 띠는 50·80·95% 구간, 폭은 과거 1개월 예측 오차 표준편차 {err_sd:.2f}억원 × √개월(정규 가정)', c5,
              '띠는 최솟값과 최댓값이 아니라 확률이에요. 실제 값이 95% 띠 밖에 떨어질 확률이 약 5%이고, 모델이 가정한 조건이 바뀌면 띠도 틀려요.', '예측과 불확실성', 'intermediate'),
-        card(6, '생존 곡선', '월간 요금제 유지 비율(%) · Kaplan–Meier, 11월 1일 기준, 아래는 남은 인원', c6,
+        card(6, '생존 곡선', '월간 요금제 유지 비율(%) · 이탈 = 해지 · Kaplan–Meier, 11월 1일 기준, 아래는 남은 인원', c6,
              f'계단이 내려갈 때마다 누군가 이탈했어요. 짧은 세로선은 이탈이 아니라 아직 구독 중인 사람이에요. 50% 선과 만나는 곳이 중앙 생존 시간이에요(바로 결제 {med}개월).', '이탈까지 걸린 시간', 'intermediate'),
-        card(7, '기여도 분해', '주별 매출의 모델(MMM) 추정 기여 · 기본을 맨 아래에 고정', c7,
+        card(7, '기여도 분해', '주별 매출(억원)의 예시 MMM 기여 · 조각은 사후 평균(점추정) · 기본 = 광고가 없었을 때의 매출 추정(추세·계절성 포함) · 이 예시에는 음수 기여 없음', c7,
              '조각은 측정값이 아니라 모델이 나눠 준 몫이에요. 두꺼운 조각이 효율 좋은 채널이라는 뜻은 아니니 지출과 함께 보세요.', '채널별 기여', 'advanced', legend),
-        card(8, '리프트 차트', '예측 점수 10분위별 리프트(배) · 분위별, 누적 아님, 분위당 1,000명', c8,
+        card(8, '리프트 차트', '예측 점수 10분위별 리프트(배) · 분위별, 누적 아님 · 검증 데이터, 분위당 1,000명', c8,
              f'상위 10%의 반응률이 평균의 {top:.1f}배라는 뜻이지, 매출이 {top:.1f}배라는 뜻은 아니에요. 점선(1배)보다 높은 막대만 무작위보다 나아요.', '상위 N%의 성과', 'intermediate'),
         card(9, 'ROC 커브', f'리드 스코어링 모델 · 검증 데이터 {2 * k}명(양성 {k}) · AUC {auc:.2f}', c9,
              f'AUC {auc:.2f}는 정확도가 아니라, 양성 하나와 음성 하나를 뽑았을 때 양성에 더 높은 점수를 줄 확률이에요. 대각선은 무작위(0.5)예요.', '분류 모델 성능', 'intermediate'),
