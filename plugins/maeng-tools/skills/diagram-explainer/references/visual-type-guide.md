@@ -50,6 +50,22 @@
 | Narrative backbone sliced into releases, with the cut line | **Story map** | [type-story-map.md](type-story-map.md) |
 | Physical tables: SQL types, constraints, indexes, column-level FKs | **Database schema** | [type-db-schema.md](type-db-schema.md) |
 
+## Analysis charts (personal addition, 9)
+
+These are for data questions. All nine live in [type-analysis.md](type-analysis.md), with a generated example in [example-analysis.html](../assets/example-analysis.html).
+
+| If you're showing… | Use | Reference |
+|---|---|---|
+| Retention by start cohort and age since start | **Cohort retention** | [type-analysis.md](type-analysis.md#cohort-retention) |
+| The same measure across many segments (8–16) on one shared scale | **Small multiples** | [type-analysis.md](type-analysis.md#small-multiples) |
+| Whether a time-ordered metric moved beyond its usual noise | **Control chart** | [type-analysis.md](type-analysis.md#control-chart) |
+| Many effect estimates with confidence intervals against a null line | **Forest plot** | [type-analysis.md](type-analysis.md#forest-plot) |
+| A forecast with uncertainty bands that widen with horizon | **Fan chart** | [type-analysis.md](type-analysis.md#fan-chart) |
+| Time to an event (churn) with people still waiting at the data cut | **Survival curve** | [type-analysis.md](type-analysis.md#survival-curve-kaplanmeier) |
+| A model's split of each period's outcome into baseline and channels | **Contribution decomposition** | [type-analysis.md](type-analysis.md#contribution-decomposition) |
+| How much better the top N% by model score responds than average | **Lift chart** | [type-analysis.md](type-analysis.md#lift-chart) |
+| A classifier's ranking quality across all thresholds | **ROC curve** | [type-analysis.md](type-analysis.md#roc-curve) |
+
 Rules of thumb:
 
 - If a 3-column table communicates the same thing, pick the table.
