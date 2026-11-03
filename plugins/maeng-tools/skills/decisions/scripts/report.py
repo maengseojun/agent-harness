@@ -74,9 +74,11 @@ def markdown(summary, eval_report=None):
         lines.append(f"\n**{p}**: outcomes {s['outcomes']}; verdicts {s['verdicts']}; unknown {s['unknown_by_reason']}")
     total = sum(s["cost_usd"] for s in summary.values())
     lines.append(f"\nTotal cost: ${total:.6f}")
-    if eval_report:
-        keys = ("negative_recall", "negative_recall_wilson_low", "over_flag", "latency_p50_ms", "pass")
-        lines.append("\nClaim eval: " + ", ".join(f"{k}={eval_report.get(k)}" for k in keys))
+    if eval_report:  # the shape eval_claims.py --out writes
+        low = (eval_report.get("negative_recall_wilson") or [None])[0]
+        lines.append(f"\nClaim eval: negative_recall={eval_report.get('negative_recall')}, wilson_lower={low}, "
+                     f"over_flag={eval_report.get('over_flag')}, p50_latency_ms={eval_report.get('p50_latency_ms')}, "
+                     f"pass={eval_report.get('pass')}")
     return "\n".join(lines) + "\n"
 
 

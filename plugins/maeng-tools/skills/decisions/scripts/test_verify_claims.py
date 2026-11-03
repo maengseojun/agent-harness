@@ -260,9 +260,37 @@ class FetchTests(Base):
             def __exit__(self, *a):
                 return False
 
-        with mock.patch.object(vc.urllib.request, "urlopen", lambda req, timeout: seen.append(req) or R()):
+        with mock.patch.object(vc, "_public", lambda url: True), \
+                mock.patch.object(vc._OPENER, "open", lambda req, timeout: seen.append(req) or R()):
             vc._get("https://example.com/")
         self.assertTrue(seen[0].get_header("User-agent").startswith("Mozilla/5.0"))
+
+
+class PublicAddressTests(unittest.TestCase):
+    """Claim URLs may only reach public http(s) addresses, also after redirects (Codex review, PR #93)."""
+
+    def test_rejects_non_public_and_non_http_targets(self):
+        for url in ("http://127.0.0.1/", "http://localhost:8080/x", "http://169.254.169.254/latest/meta-data/",
+                    "http://10.0.0.5/", "http://192.168.1.1/", "http://[::1]/", "file:///etc/passwd", "ftp://93.184.216.34/"):
+            self.assertFalse(vc._public(url), url)
+
+    def test_accepts_a_public_ip_literal(self):
+        self.assertTrue(vc._public("https://93.184.216.34/page"))  # an IP literal resolves without the network
+
+    def test_get_refuses_before_opening_a_connection(self):
+        opened = []
+        with mock.patch.object(vc._OPENER, "open", lambda *a, **k: opened.append(a)):
+            with self.assertRaises(ValueError):
+                vc._get("http://169.254.169.254/latest/meta-data/")
+        self.assertEqual(opened, [])
+
+    def test_redirect_to_a_private_address_is_refused(self):
+        req = vc.urllib.request.Request("https://93.184.216.34/start")
+        with self.assertRaises(vc.urllib.error.URLError):
+            vc._PublicRedirect().redirect_request(req, None, 302, "Found", {}, "http://127.0.0.1/admin")
+
+    def test_live_falls_back_to_empty_text_for_a_private_url(self):
+        self.assertEqual(vc._live("http://127.0.0.1/secret"), "")
 
 
 if __name__ == "__main__":

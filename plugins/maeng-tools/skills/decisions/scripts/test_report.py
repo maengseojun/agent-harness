@@ -60,10 +60,14 @@ class ReportTest(unittest.TestCase):
     def test_preflight_metrics_and_markdown(self):
         summary = report.summarize(report.load(self.ledger, "2026-11-04", "2026-11-08"))
         self.assertEqual(summary["review_preflight"]["verdicts"], {"met": 1, "unmet": 1})
-        md = report.markdown(summary, {"negative_recall": 0.96, "pass": True})
+        # the fields eval_claims.score() writes (Codex review, PR #93: the old keys printed None)
+        ev = {"negative_recall": 0.96, "negative_recall_wilson": [0.9101, 0.9844], "over_flag": 0.12,
+              "p50_latency_ms": 640, "pass": True}
+        md = report.markdown(summary, ev)
         self.assertIn("| review_preflight | 1 | 1 | 3 | 200 | 200 | 2000 | 0.000200 |", md)
         self.assertIn("Total cost: $0.000510", md)
-        self.assertIn("negative_recall=0.96", md)
+        self.assertIn("negative_recall=0.96, wilson_lower=0.9101, over_flag=0.12, p50_latency_ms=640, pass=True", md)
+        self.assertNotIn("None", md)
 
     def test_missing_ledger_exits_1(self):
         self.assertEqual(report.main(["--ledger", str(Path(self.tmp.name, "none.jsonl"))]), 1)

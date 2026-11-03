@@ -22,13 +22,16 @@ CLI: python3 verify_claims.py claims.json [--seed N] [--out path]
 """
 import argparse
 import hashlib
+import ipaddress
 import json
 import math
 import os
 import random
 import re
+import socket
 import sys
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -102,9 +105,36 @@ def _route(url):
     return url, "html"
 
 
+def _public(url):
+    """True only for an http(s) URL whose host resolves to public addresses alone (no loopback,
+    private, link-local, metadata or reserved ranges), so page text sent on is public text."""
+    u = urlparse(url)
+    if u.scheme not in ("http", "https") or not u.hostname:
+        return False
+    try:
+        infos = socket.getaddrinfo(u.hostname, u.port or (443 if u.scheme == "https" else 80), proto=socket.IPPROTO_TCP)
+        return bool(infos) and all(ipaddress.ip_address(i[4][0].split("%")[0]).is_global for i in infos)
+    except (OSError, ValueError):
+        return False
+
+
+class _PublicRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not _public(newurl):
+            raise urllib.error.URLError(f"redirect to a non-public address: {newurl}")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_OPENER = urllib.request.build_opener(_PublicRedirect)
+
+
 def _get(url):
+    # shortcut: the address is checked by DNS before connecting, not pinned for the connection itself
+    # (DNS rebinding); pin the resolved IP if claim files ever come from untrusted sources.
+    if not _public(url):
+        raise ValueError(f"not a public http(s) address: {url}")
     req = urllib.request.Request(url, headers={"User-Agent": _UA, "Accept": "text/html,application/json;q=0.9,*/*;q=0.8"})
-    with urllib.request.urlopen(req, timeout=20) as r:
+    with _OPENER.open(req, timeout=20) as r:
         return r.read(MAX_BYTES).decode(r.headers.get_content_charset() or "utf-8", "replace")
 
 
