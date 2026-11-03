@@ -30,12 +30,12 @@ Rules for all nine:
 ### Layout conventions
 - Rows are cohorts, keyed by their start event (first purchase, signup). Each row label carries the cohort size *n*.
 - Columns are periods since the start: +0, +1, …
-- The +0 column is 100% by construction, so draw it neutral (`paper-2`).
+- The +0 column is **cohort entry**, 100% by definition, not a return rate. Label it as entry and draw it neutral (`paper-2`).
 - It is a triangle. Cells a cohort has not reached yet stay **empty**, never 0.
 - Print the value in every cell.
 
 ### Colour
-One `ink` opacity ramp on non-focal cells, with heatmap rules (type-heatmap.md). One focal cell in `accent`, excluded from the ramp.
+One `ink` opacity ramp on non-focal cells, with heatmap rules (type-heatmap.md). One focal cell in `accent`, excluded from the ramp. Keep cell text at 4.5:1 or more in **both** themes, measured against the composited cell colour. A light ramp (about 0.06–0.30) lets `ink` text work everywhere; flipping to `paper` text mid-ramp fails around 0.4–0.5.
 
 ### Honest-data rule
 - Define the cell: "returned **in** that period" or "returned **by** that period". They differ.
@@ -64,7 +64,7 @@ One `ink` opacity ramp on non-focal cells, with heatmap rules (type-heatmap.md).
 - The same mini chart repeats in a regular grid.
 - Panel size is identical, and every panel has the **same x and y range**.
 - Panel title holds the segment name, plus the last value at the top right.
-- Draw a shared reference in every panel, for example break-even ROAS 1×.
+- Draw a shared reference in every panel, for example ROAS 1×. Name it for what it is: at 1× revenue equals ad spend. Profit break-even is 1 ÷ margin, so state the margin if you draw that line instead.
 - State the sort order. Name order is acceptable; an unstated order reads as a ranking.
 - No per-panel legends.
 
@@ -97,6 +97,7 @@ One focal panel: `accent-tint` fill, `accent` line. All others `paper-2` with `i
 - A solid centre line, and dashed upper and lower control limits with their labels.
 - Points outside the limits in `accent`.
 - Mark the baseline period and any recalculation point.
+- Estimate the centre and limits from a **stable baseline** (Phase I), then apply them unchanged to later points (Phase II). Estimating them over the whole series, signal included, widens the limits with the very points you are testing.
 
 ### Colour
 Limits and flagged points share `accent`; nothing else does. The centre line is `ink`, and the points are `ink` and `soft`.

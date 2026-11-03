@@ -41,7 +41,7 @@ diagram-explainer owns figure types. easy-understanding chooses figures by check
 - AC-2: `visual-type-guide.md` keeps its 45-row table unchanged. It adds an "Analysis charts" table with nine rows, each linking to an existing anchor in `type-analysis.md`.
 - AC-3: `python3 scripts/build_analysis_example.py --check`, run in the diagram-explainer folder, exits 0.
   - It regenerates the gallery from fixed sample data.
-  - It asserts that every labelled statistic matches the plotted data: cohort cells, control limits (mean ± 3σ), forest-plot intervals, fan bands nesting around the median, the Kaplan–Meier median, contributions summing to the stacked total, decile lift averaging 1×, and AUC by trapezoid.
+  - It asserts that every labelled statistic matches the plotted data: cohort cells, control limits (mean ± 3σ), forest-plot intervals, fan bands nesting around the median, the Kaplan–Meier median, contributions summing to the stacked total, decile lift averaging 1×, and AUC by trapezoid. It also asserts every chart description's claim against the computed data, control limits taken from a stable baseline period, and cohort cell text contrast of 4.5:1 or more in both themes.
   - It confirms the committed `example-analysis.html` is byte-identical to the output.
 - AC-4: `example-analysis.html` meets the house look.
   - `python3 ../easy-understanding/scripts/check_palette.py assets/example-analysis.html` prints `palette: house tokens only`.

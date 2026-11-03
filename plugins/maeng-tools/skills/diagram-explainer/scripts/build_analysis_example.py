@@ -42,7 +42,27 @@ def poly(points, cls):
     return f'<polyline class="{cls}" points="{" ".join(f"{f(x)},{f(y)}" for x, y in points)}"/>'
 
 
-# 1. Cohort retention: repurchase rate (%) by first-purchase month, months since first purchase.
+# Token values for the contrast assertions; build() checks they match the CSS below.
+THEMES = {'light': {'paper': '#f5f5f5', 'paper-2': '#ececec', 'ink': '#2d3142', 'accent': '#bf4520'},
+          'dark': {'paper': '#2d3142', 'paper-2': '#393e53', 'ink': '#f5f5f5', 'accent': '#f08a59'}}
+
+
+def _rgb(h):
+    return [int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+
+
+def contrast(fg, bg):
+    """WCAG contrast ratio of two sRGB triples (0–1)."""
+    lum = [0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] for c in
+           ([(v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4) for v in x] for x in (fg, bg))]
+    return (max(lum) + 0.05) / (min(lum) + 0.05)
+
+
+def over(fg, bg, opacity):
+    return [opacity * a + (1 - opacity) * b for a, b in zip(fg, bg)]
+
+
+# 1. Cohort retention: +0 is cohort entry (100% by definition); +1.. is the share who repurchased in that month.
 def cohort():
     months = ['5월', '6월', '7월', '8월', '9월', '10월']
     sizes = [820, 760, 905, 870, 1040, 980]
@@ -52,7 +72,7 @@ def cohort():
     focal = (4, 1)  # 9월 cohort, month +1
     rest = [v for i, r in enumerate(rows) for j, v in enumerate(r) if j and (i, j) != focal]
     hi = max(rest)
-    body = [text(64 + j * 42 + 20, 16, f'+{j}', anchor='middle') for j in range(len(months))]
+    body = [text(64 + j * 42 + 20, 16, f'+{j}' if j else '진입', anchor='middle') for j in range(len(months))]
     for i, r in enumerate(rows):
         y = 24 + i * 26
         body.append(text(32, y + 16, months[i], 't-ink' if i == focal[0] else 't', 'end'))
@@ -66,9 +86,16 @@ def cohort():
                 body.append(f'<rect class="cell-acc" data-focal="true" x="{x}" y="{y}" width="40" height="24"/>')
                 body.append(text(x + 20, y + 16, v, 't-inv', 'middle'))
             else:
-                op = 0.08 + 0.55 * v / hi
+                # A light ramp keeps ink text readable on every cell in both themes (asserted below).
+                op = round(0.06 + 0.24 * v / hi, 2)
+                for t in THEMES.values():
+                    bg = over(_rgb(t['ink']), _rgb(t['paper']), op)
+                    assert contrast(_rgb(t['ink']), bg) >= 4.5, f'cell text contrast at opacity {op}'
                 body.append(f'<rect class="cell" style="fill-opacity:{op:.2f}" x="{x}" y="{y}" width="40" height="24"/>')
-                body.append(text(x + 20, y + 16, v, 't-inv' if op >= 0.4 else 't-ink', 'middle'))
+                body.append(text(x + 20, y + 16, v, 't-ink', 'middle'))
+    for t in THEMES.values():
+        assert contrast(_rgb(t['paper']), _rgb(t['accent'])) >= 4.5, 'focal cell text contrast'
+        assert contrast(_rgb(t['ink']), _rgb(t['paper-2'])) >= 4.5, 'entry cell text contrast'
     plus1 = {months[i]: r[1] for i, r in enumerate(rows) if len(r) > 1}
     assert max(plus1, key=plus1.get) == months[focal[0]], 'the focal cell is the highest +1 rate'
     return svg('cohort', '코호트 리텐션: 첫 구매 월별 재구매율',
@@ -89,7 +116,7 @@ def small_multiples():
         sx, sy = scale(0, 11, px + 6, px + 70), scale(lo, hi, py + 52, py + 14)
         focal = c == 7
         body.append(f'<rect class="{"panel-acc" if focal else "panel"}" x="{px}" y="{py}" width="76" height="56" rx="4"/>')
-        body.append(line(px + 6, sy(1), px + 70, sy(1), 'ref'))  # ROAS 1× = break-even
+        body.append(line(px + 6, sy(1), px + 70, sy(1), 'ref'))  # ROAS 1×: revenue equals ad spend, not profit break-even
         body.append(text(px + 6, py + 11, f'C{c + 1:02d}', 't-acc' if focal else 't-s'))
         body.append(text(px + 70, py + 11, f'{s[-1]:.1f}', 't-acc' if focal else 't-s', 'end'))
         body.append(poly([(sx(w), sy(v)) for w, v in enumerate(s)], 'ln-acc' if focal else 'ln'))
@@ -101,16 +128,24 @@ def small_multiples():
 
 
 # 3. Control chart (individuals/XmR): daily conversion rate (%), limits = mean ± 3σ, σ from the mean moving range.
+# Limits come from a stable baseline (days 1–20) and are then applied to every day, so the signal never widens them.
+BASELINE_DAYS = 20
+
+
 def control():
     xs = [3.0 + 0.18 * math.sin(d * 1.7) + 0.12 * math.cos(d * 0.6) for d in range(30)]
     xs[24] = 2.05
-    center = mean(xs)
-    sigma = mean(abs(b - a) for a, b in zip(xs, xs[1:])) / 1.128
+    base = xs[:BASELINE_DAYS]
+    center = mean(base)
+    sigma = mean(abs(b - a) for a, b in zip(base, base[1:])) / 1.128
     ucl, lcl = center + 3 * sigma, center - 3 * sigma
+    assert all(lcl <= v <= ucl for v in base), 'the baseline itself is in control'
     out = [d for d, v in enumerate(xs) if v > ucl or v < lcl]
     assert out == [24], f'flagged points must be exactly those outside ±3σ, got {out}'
     sx, sy = scale(0, 29, 36, 280), scale(1.8, 4.2, 176, 16)
-    body = [line(36, sy(v), 280, sy(v), 'grid') for v in (2, 3, 4)]
+    body = [f'<rect class="panel" x="{f(sx(0) - 3)}" y="16" width="{f(sx(BASELINE_DAYS - 1) - sx(0) + 6)}" height="160"/>',
+            text(sx(0), 28, f'기준 기간 1–{BASELINE_DAYS}일', 't')]
+    body += [line(36, sy(v), 280, sy(v), 'grid') for v in (2, 3, 4)]
     body += [text(30, sy(v) + 3, v, 't', 'end') for v in (2, 3, 4)]
     body += [line(36, sy(ucl), 280, sy(ucl), 'lim'), line(36, sy(lcl), 280, sy(lcl), 'lim'),
              line(36, sy(center), 280, sy(center), 'ref-solid'),
@@ -121,7 +156,8 @@ def control():
              for d, v in enumerate(xs)]
     body += [text(sx(0), 192, '1일'), text(sx(14), 192, '15일', anchor='middle'), text(sx(29), 192, '30일', anchor='end')]
     return svg('control', f'관리도: 일 전환율, 평균 {center:.1f}% ± 3σ',
-               f'30일 전환율의 개별값 관리도. 평균 {center:.2f}%, 관리 한계 {lcl:.2f}–{ucl:.2f}%. 25일만 한계를 벗어났다.',
+               f'30일 전환율의 개별값 관리도. 1–{BASELINE_DAYS}일 기준 기간에서 정한 평균 {center:.2f}%, 관리 한계 {lcl:.2f}–{ucl:.2f}%를 30일 전체에 적용. '
+               f'{", ".join(f"{d + 1}일" for d in out)}만 한계를 벗어났다.',
                ''.join(body)), (center, lcl, ucl)
 
 
@@ -393,6 +429,7 @@ def card(no, title, metric, chart, caption, when, level, legend=''):
 
 
 def build():
+    assert all(h in CSS for t in THEMES.values() for h in t.values()), 'contrast tokens match the CSS'
     c3, (center, lcl, ucl) = control()
     c6, med = survival()
     c7, names = contribution()
@@ -402,11 +439,11 @@ def build():
     legend = ('<p class="legend">' + ''.join(f'<span><i class="k-{c}"></i>{n}</span>' for n, c in order)
               + '<span><i class="k-dot"></i>실제 매출</span></p>')
     cards = [
-        card(1, '코호트 리텐션', '그 달에 재구매한 비율(%) · 행은 첫 구매 월과 인원, 10월 말 기준', cohort(),
+        card(1, '코호트 리텐션', '진입 월은 기준 100%, +1부터 그 달에 재구매한 비율(%) · 행은 첫 구매 월과 인원, 10월 말 기준', cohort(),
              '한 행이 한 코호트예요. 같은 열(같은 경과 개월)끼리 위아래로 비교해요. 빈칸은 0%가 아니라 아직 그 시점이 오지 않은 거예요.', '가입 시점별 잔존', 'intermediate'),
         card(2, '스몰 멀티플', '캠페인 12개 · 12주 ROAS, 모든 칸 같은 축(0–4배), 번호순 정렬', small_multiples(),
-             '칸마다 축이 같아서 높이를 바로 비교할 수 있어요. 점선은 손익분기(1배), 오른쪽 위 숫자는 마지막 주 값이에요.', '세그먼트가 많을 때', 'intermediate'),
-        card(3, '관리도', f'일 전환율(%) · 평균 {center:.1f}% ± 3σ, 개별값 관리도(σ는 이동범위로 추정)', c3,
+             '칸마다 축이 같아서 높이를 바로 비교할 수 있어요. 점선은 ROAS 1배(매출 = 광고비, 원가를 빼기 전), 오른쪽 위 숫자는 마지막 주 값이에요.', '세그먼트가 많을 때', 'intermediate'),
+        card(3, '관리도', f'일 전환율(%) · 평균 {center:.1f}% ± 3σ, 개별값 관리도 · 한계는 1–{BASELINE_DAYS}일 기준 기간에서 추정', c3,
              '점선은 목표가 아니라 이 과정이 평소 흔들리는 폭이에요. 밖으로 나간 점(주황)은 원인을 찾아볼 신호이지, 원인의 증거는 아니에요.', '이상 변동 감지', 'advanced'),
         card(4, '포레스트 플롯', 'A/B 테스트 효과(%) · 네모는 추정치, 선은 95% 신뢰구간', forest(),
              '선이 0을 가로지르면 효과가 없다는 게 아니라 아직 판단할 수 없다는 뜻이에요. 테스트가 많으면 우연히 하나쯤 유의하게 나올 수 있어요.', '실험 효과 한눈에', 'advanced'),
