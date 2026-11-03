@@ -17,14 +17,14 @@ The mode holds for the task until the user changes it. It is not installed as a 
 
 ```bash
 T=~/.cache/maeng/taste-skill
-[ -d "$T/.git" ] || git clone -q https://github.com/leonxlnx/taste-skill "$T"
+[ -d "$T/.git" ] || { git clone -q https://github.com/leonxlnx/taste-skill "$T" && echo "first clone: read skills/taste-skill/scripts before running any"; }
 OLD=$(git -C "$T" rev-parse HEAD)
 git -C "$T" fetch -q origin && git -C "$T" checkout -q --detach origin/HEAD
 git -C "$T" log -1 --format='taste-skill %h %cs'
 [ "$OLD" = "$(git -C "$T" rev-parse HEAD)" ] || git -C "$T" diff --stat "$OLD" HEAD -- skills/taste-skill/scripts
 ```
 
-Run it every time the skill is used and name the revision it prints in one line. When the fetch fails (offline), continue on the cached copy and say so. When the last line lists changed scripts, read that diff before running any script: they should call only open-collection APIs (Openverse, Wikimedia Commons, Art Institute of Chicago, the Met, Internet Archive, NASA) and spawn only a local browser. A new host or process is reported to the user before use. When the revision moved, also skim the new `CHANGELOG.md` entries, since the run below defers to whatever `SKILL.md` now says.
+Run it every time the skill is used and name the revision it prints in one line. When the fetch fails (offline), continue on the cached copy and say so. On a first clone, read all of `scripts/` before running any script; when the last line lists changed scripts, read that diff. `grep -rhoE 'https?://[a-zA-Z0-9.-]+|child_process' "$T/skills/taste-skill/scripts" | sort | uniq -c` lists every host and process call to start from. The scripts should call only open-collection APIs (Openverse, Wikimedia Commons, Art Institute of Chicago, the Met, Internet Archive, NASA) and spawn only a local browser. A new host or process is reported to the user before use. When the revision moved, also skim the new `CHANGELOG.md` entries, since the run below defers to whatever `SKILL.md` now says.
 
 `<skill>` below is `$T/skills/taste-skill`. Its scripts need Node 22+ and Chrome, Edge or Chromium; `assets.mjs` needs network access. If `draw.mjs --list scenes` prints "No scene library yet" (true on 2026-11-03), skip scroll-scene steps.
 
