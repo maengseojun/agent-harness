@@ -6,7 +6,7 @@
 
 | The user says | Mode |
 | --- | --- |
-| "taste 그대로", "taste 모드", "taste 따라서", "follow taste" | **Follow**: taste-skill directs the design, as its author intended |
+| "taste 그대로", "taste 따라서", "follow taste" | **Follow**: taste-skill directs the design, as its author intended |
 | "taste 참고", "taste 레퍼런스", "taste 코드 빌려", "borrow from taste" | **Borrow**: the user's direction leads; taste supplies references and code |
 | names taste without a mode | Ask once: 그대로 or 참고 |
 | does not name taste | Neither. Work as before |
