@@ -1,6 +1,6 @@
 ---
 name: design-reference
-description: Maintain the user's design reference site catalog and use actual examples to choose a visual direction for presentations, websites, apps, logos, icons, posters, social previews, or motion. Use when the user asks to add a reference site or wants a design interview and reference-based previews; pair with the relevant production skill.
+description: Maintain the user's design reference site catalog and use actual examples to choose a visual direction for presentations, websites, apps, logos, icons, posters, social previews, or motion. Use when the user asks to add a reference site or wants a design interview and reference-based previews; pair with the relevant production skill. Also when the user names taste-skill (taste 그대로, taste 참고).
 ---
 
 # Design Reference
@@ -29,6 +29,10 @@ Show actual reference images or accessible previews with direct source links. Ex
 When comparison helps, create two or three small, meaningfully different previews using the same representative user content. Label placeholders and omitted content. If the direction is already settled, refine it instead of generating alternatives. After selection, keep a compact brief of accepted and rejected choices, source links, and open questions.
 
 For a checklist of interview questions or of axes to vary between previews (for example variance, motion and density), the archived ui-ux-pro-max snapshot (vault note `wiki/sources/S-ui-ux-pro-max-skill.md`) lists where to look. It is reading material: never install it or run its scripts, and do not take a direction from its product-to-style tables.
+
+## taste-skill
+
+When the user names taste-skill, follow [taste-skill](references/taste-skill.md) in the mode they chose: **Follow** (taste-skill directs the design as its author intended) or **Borrow** (their direction leads; taste supplies references and code). Ask once when they name it without a mode. Never apply it unnamed.
 
 ## Keep the direction in DESIGN.md
 

@@ -1,6 +1,6 @@
 ---
 name: frontend-guidance
-description: Use when building or refining a website, landing page or app UI and the user wants a specific visual style, a Korean-language UI, or a UI accessibility/compliance audit (웹 디자인, 랜딩페이지, 화면 다듬기, UI 감사, 접근성 점검). Adds only the user's deltas on top of the official frontend-design skill - use that one for general design craft. Not for backend work or HTML slide decks (use frontend-slides).
+description: Use when building or refining a website, landing page or app UI and the user wants a specific visual style, a Korean-language UI, or a UI accessibility/compliance audit (웹 디자인, 랜딩페이지, 화면 다듬기, UI 감사, 접근성 점검), or names taste-skill (taste 그대로, taste 참고). Adds only the user's deltas on top of the official frontend-design skill - use that one for general design craft. Not for backend work or HTML slide decks (use frontend-slides).
 ---
 
 # Frontend guidance (deltas only)
@@ -13,6 +13,7 @@ For general design craft (hierarchy, type, layout, motion, avoiding generic AI l
 - **Surface decides emphasis.** An operating dashboard favors scanability; a landing page supports its message and one action.
 - **Korean UI:** run `hangul-wrap` before shipping so words do not split mid-syllable-group; do not claim a fix without its measurement.
 - **Verify the rendered result,** not the code: relevant desktop and mobile widths, keyboard focus, text overflow, reduced motion when anything moves. Report what was actually checked and what was not. Optional style advice never waives accessibility or correctness checks. Before delivery, take a final pass over the CRITICAL and HIGH categories of the [UI checklist](references/ui-checklist.md); for a page or flow, have the `maeng-tools:design-reviewer` agent review the rendered result.
+- **taste-skill** named by the user: follow `design-reference`'s [taste-skill modes](../design-reference/references/taste-skill.md). Follow mode replaces the style rules above with taste's run; Borrow mode keeps them.
 - **HTML deck:** use `frontend-slides`; do not apply responsive page rules to a fixed slide canvas.
 - **Cinematic landing page** (references, generated hero image or video background, built in stages): use `cinematic-site`.
 - **Generated images** (hero, illustration, background, mock): GPT Image through `codex exec`, as in `cinematic-site` prompts §1. Never generate the real product UI, logos or data.
