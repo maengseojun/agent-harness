@@ -28,7 +28,7 @@ Exclusions: eta templates; any gate or hook that reads the new fields; a tool th
 ## Criteria
 
 - **AC-1** `spec-plan.md`: the Spec template has `Deliverable:` and `Assumptions:` (A-n) and the widened `Exclusions`; the Plan template has `Routing:`, a `Revisions:` log naming the ten categories and a `Close-out:` block with size, revisions plan/result, review rounds to pass and unmet AC; Readiness asks whether every A-n is confirmed; the Rules say how an A-n differs from a D-n and how mid-task assumptions are handled.
-- **AC-2** `SKILL.md`: Plan-lite includes Deliverable, Assumptions and the Revisions log; the outcome step copies Close-out into the records; the mid-task assumption line names A-n. `project-task-workflow.md` lists the new Spec/Plan fields and logs user corrections under Plan changes.
+- **AC-2** `SKILL.md`: Plan-lite includes Deliverable, Assumptions, the Revisions log and the Close-out; the outcome step copies Close-out into the records; the mid-task assumption line names A-n. `project-task-workflow.md` lists the new Spec/Plan fields and logs user corrections under Plan changes.
 - **AC-3** The `must_haves`, `AC-n` and `Verification` parts of the template are unchanged (D-2).
 - **AC-4** maeng-harness is 0.4.9, `claude plugin validate plugins/maeng-harness` passes and the root suite passes.
 
@@ -56,11 +56,12 @@ need=['Deliverable:','Assumptions: A-1','Routing:','Revisions:','Close-out:','ev
 need+=[c for c in 'intent scope format constraint overbuild criteria verification reuse order quality'.split()]
 kept=['must_haves:','  truths:      # observable facts that hold when done','  key_links:   # connections that must be wired','Requirements -> acceptance:','  AC-1: <exact command or declared check> expect <result>','Verification:      # one line per criterion; this is what the gates read (ship checks only, not the inner loop)']
 lite=sk.split('Spec/Plan-lite')[1][:300]
-print('ok' if all(n in sp for n in need+kept) and 'Deliverable' in lite and 'Assumptions' in lite and 'Close-out' in sk and 'A-n' in sk and 'Revisions' in wf and '\`A-n\` assumptions' in wf else 'FAIL')"
+print('ok' if all(n in sp for n in need+kept) and 'Deliverable' in lite and 'Assumptions' in lite and 'Close-out' in lite and 'A-n' in sk and 'Revisions' in wf and '\`A-n\` assumptions' in wf else 'FAIL')"
 ```
 - AC-4: `claude plugin validate plugins/maeng-harness` prints `Validation passed`; `python3 -m pytest -q` passes once at the final tree.
 
 Failure / change handling: a review finding inside Owns is fixed here; one that asks for a gate or a tool goes to a follow-up issue.
+Change log: GitHub Codex review on 207fb81 found that Plan-lite had no Close-out, although the outcome step copies it; Plan-lite now includes it (AC-2 and its check widened).
 Review focus: does each new field earn its place against the study numbers, and does any new rule conflict with harness-run autonomy ("do not ask mid-task")?
 
 Revisions:

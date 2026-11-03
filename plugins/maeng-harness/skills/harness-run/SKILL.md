@@ -20,7 +20,7 @@ Records are autonomous, code is strict: write Linear and Obsidian without asking
 
 ## The workflow
 
-Scale it down for small work: a small task can skip the interview and tree but keeps Spec/Plan-lite (a goal, a Deliverable line, Assumptions or "none", 1-3 `AC-n`, a Verification line and the Revisions log), verification, review and recording.
+Scale it down for small work: a small task can skip the interview and tree but keeps Spec/Plan-lite (a goal, a Deliverable line, Assumptions or "none", 1-3 `AC-n`, a Verification line, the Revisions log and the Close-out), verification, review and recording.
 
 1. **Interview** only for what changes architecture or workflow and cannot be read from the repo or issue. Settled decisions are not reopened. Detail: [workflow.md](references/workflow.md). When the work starts from a new product or AI-system idea, run the `maeng-tools:ai-loop-design` checklist here and carry its design note into the parent Spec.
 2. **Mandatory rules.** Write down the constraints that bind every task (repo rules, environment, forbidden changes) in the parent Spec.
