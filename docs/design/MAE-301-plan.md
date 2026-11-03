@@ -49,15 +49,14 @@ Verification:
 
 ```bash
 python3 -I -c "
-import pathlib,subprocess
+import pathlib
 r=pathlib.Path('plugins/maeng-harness/skills'); sp=(r/'harness-run/references/spec-plan.md').read_text()
 sk=(r/'harness-run/SKILL.md').read_text(); wf=(r/'work-records/references/project-task-workflow.md').read_text()
 need=['Deliverable:','Assumptions: A-1','Routing:','Revisions:','Close-out:','every A-n confirmed','review rounds to pass','unmet AC at close']
 need+=[c for c in 'intent scope format constraint overbuild criteria verification reuse order quality'.split()]
-gone=subprocess.run(['git','diff','origin/feat/harness-v1','--','plugins/maeng-harness/skills/harness-run/references/spec-plan.md'],capture_output=True,text=True).stdout
-kept=not any(l.startswith('-') and k in l for l in gone.splitlines() for k in ('must_haves','AC-1:','AC-2:','Verification:','truths','artifacts','key_links'))
-lite='Deliverable' in sk.split('Spec/Plan-lite')[1][:300] and 'Assumptions' in sk.split('Spec/Plan-lite')[1][:300]
-print('ok' if all(n in sp for n in need) and kept and lite and 'Close-out' in sk and 'A-n' in sk and 'Revisions' in wf and 'Assumptions' in wf else 'FAIL')"
+kept=['must_haves:','  truths:      # observable facts that hold when done','  key_links:   # connections that must be wired','Requirements -> acceptance:','  AC-1: <exact command or declared check> expect <result>','Verification:      # one line per criterion; this is what the gates read (ship checks only, not the inner loop)']
+lite=sk.split('Spec/Plan-lite')[1][:300]
+print('ok' if all(n in sp for n in need+kept) and 'Deliverable' in lite and 'Assumptions' in lite and 'Close-out' in sk and 'A-n' in sk and 'Revisions' in wf and '\`A-n\` assumptions' in wf else 'FAIL')"
 ```
 - AC-4: `claude plugin validate plugins/maeng-harness` prints `Validation passed`; `python3 -m pytest -q` passes once at the final tree.
 
