@@ -8,7 +8,7 @@ Commands (tier is picked from the bound issue; see the table below):
 |---|---|
 | Child-task PR / small work | `maeng-review run --kind code --pr <N>`; with no session binding (background or dots-run sessions) add `--plan docs/design/MAE-<n>-plan.md`, which reads the `AC-n` from that file as committed at `--head`; add `--author codex` when Sol/Codex wrote the change |
 | Parent integration | `maeng-review run --kind parent --pr <N>` |
-| Design / rules doc | `maeng-review run --kind docs --draft <path>` |
+| Design / rules doc | `maeng-review run --kind docs --draft <path>` reviews a draft before it lands. A PR you will merge is reviewed with `--kind code --pr <N>` even when it changes only docs: `maeng-ship merge` accepts only `code` or `parent` receipts (MAE-301) |
 | Research draft | `maeng-review run --kind research --draft <path> --source <S- note>` (one `--source` per cited note) |
 | Notion outcome payload | `maeng-review run --kind notion --payload publish/<id>.json --destination <db-or-page-id> --op create\|update --draft wiki/drafts/DRAFT-….md` |
 | Uncertain outcome | `maeng-review reconcile` (add `--notion` for Notion journal entries) |
@@ -19,7 +19,7 @@ Store payloads under the session repo's `publish/` directory (`publish/<id>.json
 |---|---|---|---|---|
 | Child-task PR in a structured implementation | Sol | xhigh | Opus medium | the bound issue has a parent and the task has a Plan with `AC-n` |
 | Parent integration / boundary (children meet) | Astra (standby only) | high | Fable high (first) | children merged; review the combined diff against the parent Spec/Plan and child contracts |
-| Architecture, rules, design documents | Astra | medium | Opus high | document review |
+| Architecture, rules, design documents | Astra | medium | Opus high | document review of a `--draft`; not a merge receipt |
 | Small implementation without a task tree | Sol | high | Opus high | no parent/child structure |
 | Either code row above, written by Sol/Codex | none (skipped) | - | Opus high | `--kind code --author codex` |
 | Notion outcome payload | Sol | medium | Opus medium | `work-records` flow |
