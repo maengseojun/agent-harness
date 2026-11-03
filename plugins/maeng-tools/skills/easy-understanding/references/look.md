@@ -45,6 +45,8 @@ Rules for a requested token set:
 Do this whenever you are about to draw the whole flow, or a chapter (phase) whose idea has structure. A phase has structure when it has an order, causes, parts, states, actors, a cycle, layers or quantities.
 
 1. Open diagram-explainer's [visual-type-guide.md](../../diagram-explainer/references/visual-type-guide.md). Do not pick a type from memory.
+   - When the question is about data, also check its **Analysis charts** table ([type-analysis.md](../../diagram-explainer/references/type-analysis.md)). Data questions include retention, many segments, monitoring a metric, experiment results, forecasts, time to an event, channel attribution and model performance.
+   - An analysis chart marked advanced always keeps its "how to read it" caption.
 2. Name the shape of the content in one phrase. For example: "steps with branches", "several actors handing off work", "one effect with grouped causes", "a cycle that feeds itself", "events in time".
 3. Find the row whose "If you're showing…" matches that phrase.
 4. Read that type guide (`type-*.md`) and its example, then draw.
