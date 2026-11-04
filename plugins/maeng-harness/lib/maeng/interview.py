@@ -8,12 +8,14 @@ import subprocess
 import sys
 
 from . import gates, ghcmd, guard, quiz, receipts, state
+from . import schema as jsonschema
 from . import tree as treelib
 from .common import git, git_out, home_dir, locked, now_iso, read_json, sha256, write_json
 from .shellparse import SHELLS, ParseError, program, split_segments
 
 WRAPPERS = ("<system-reminder>", "<task-notification>", "<cross-session-message>", "<side-sessions-event>",
             "<ci-monitor-event>")
+MODEL = "claude-opus-5-5"  # D-4: the interviewer is Opus in both worlds
 OVERALL, LIMIT = "overall", 150  # LIMIT: changed lines at which a PR needs a merge pass (what harness-run calls one task)
 WAIVE_PR = re.compile(r"\s*면제\s+#(\d+)\s+(\S.*)", re.S)
 WAIVE_PART = re.compile(r"\s*면제\s+([^\s#]+)\s+(\S.*)", re.S)
@@ -442,3 +444,27 @@ def require_merge(cwd, repo, pr, base, head):
         return _merge_refusal(slug(repo), pr, lines, [p for *_, p in rows], lambda: quiz.patch_id(cwd, base, head))
     except Refused as why:
         return str(why)
+
+
+# ---- the interview model -------------------------------------------------
+
+def run_model(prompt, schema, cwd, tools="Read,Grep,Glob"):
+    """One isolated `claude -p` Opus call (no settings, hooks or MCP) -> its schema-valid structured output.
+    MAENG_CLAUDE names the binary (tests use a fake). Raises Refused; nothing is stored by the caller before it returns."""
+    cmd = [os.environ.get("MAENG_CLAUDE") or "claude", "-p", "--setting-sources", "", "--strict-mcp-config", "--tools", tools,
+           "--model", MODEL, "--effort", "high", "--output-format", "json", "--json-schema", json.dumps(schema)]
+    try:
+        proc = subprocess.run(cmd, cwd=cwd, input=prompt, capture_output=True, text=True, timeout=900)
+        env = json.loads(proc.stdout)
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        raise Refused(f"the interview model call failed ({type(exc).__name__}: {exc})")
+    if not isinstance(env, dict) or proc.returncode != 0 or env.get("is_error"):
+        raise Refused("the interview model call failed: " + str(env.get("result") if isinstance(env, dict) else proc.stderr)[-500:])
+    usage = {k: v for k, v in (env.get("modelUsage") or {}).items() if isinstance(v, dict)}
+    if not usage or not max(usage, key=lambda k: usage[k].get("outputTokens") or 0).startswith(MODEL):
+        raise Refused(f"the interview model call ran on {sorted(usage)}, not {MODEL}; it is not used")
+    result = env.get("structured_output")
+    errors = jsonschema.validate(result, schema)
+    if errors:
+        raise Refused("the interview model's output violates its schema: " + "; ".join(errors))
+    return result

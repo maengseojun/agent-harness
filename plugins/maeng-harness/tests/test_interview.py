@@ -771,5 +771,390 @@ class ShipGate(MergeBase):
         self.assertIn("merge-quiz pass", interview.require_merge(self.repo, repo, 7, new_base, changed))
 
 
+FAKE_CLAUDE = """#!PY
+import json, os, sys
+queue = os.environ["FAKE_CLAUDE_QUEUE"]
+items = json.load(open(queue))
+with open(os.environ["FAKE_CLAUDE_LOG"], "a") as f:
+    f.write(json.dumps({"argv": sys.argv[1:], "prompt": sys.stdin.read()}) + "\\n")
+if not items:
+    print(json.dumps({"is_error": True, "result": "queue empty"}))
+    sys.exit(1)
+item = items.pop(0)
+json.dump(items, open(queue, "w"))
+model = sys.argv[sys.argv.index("--model") + 1]
+if isinstance(item, dict) and "_model" in item:
+    model, item = item["_model"], item["_out"]
+print(json.dumps({"is_error": False, "result": "", "structured_output": item,
+                  "modelUsage": {model: {"inputTokens": 5, "outputTokens": 50}}}))
+"""
+
+
+class FakeModel:
+    """A scripted `claude -p`: each call pops the next queued structured output and logs argv and prompt."""
+
+    def fake_model(self):
+        fake = self.tmp / "fake-claude"
+        fake.write_text(FAKE_CLAUDE.replace("PY", sys.executable))
+        fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+        self.queue_file, self.model_log = self.tmp / "queue.json", self.tmp / "model.log"
+        self.queue_file.write_text("[]")
+        self.env.update(MAENG_CLAUDE=str(fake), FAKE_CLAUDE_QUEUE=str(self.queue_file), FAKE_CLAUDE_LOG=str(self.model_log))
+
+    def queue(self, *items):
+        self.queue_file.write_text(json.dumps(json.loads(self.queue_file.read_text()) + list(items)))
+
+    def model_calls(self):
+        return [json.loads(line) for line in self.model_log.read_text().splitlines()] if self.model_log.exists() else []
+
+
+def gen(*topics):
+    """A generation answer: for topic t, question Q-t with rubric R-t-1 and R-t-2; the first is layer 1."""
+    return {"questions": [{"layer": 1 if i == 0 else 2, "topic": t, "question": f"Q-{t}", "rubric": [f"R-{t}-1", f"R-{t}-2"]}
+                          for i, t in enumerate(topics)]}
+
+
+def graded(*met, follow=None):
+    out = {"met": list(met)}
+    if follow:
+        out["followup"] = {"question": f"F-{follow}", "rubric": [f"R-F-{follow}-1"]}
+    return out
+
+
+class DesignCli(FakeModel, InterviewCase):
+    """AC-5, AC-2 and AC-8 through the CLI, with the hook capturing the user's messages."""
+
+    def setUp(self):
+        super().setUp()
+        self.fake_model()
+        self.declare()
+        self.material = self.tmp / "material.md"
+        self.material.write_text("SECRET-MATERIAL: mint issues tokens once per epoch")
+
+    def ctl(self, *args, cwd=None):
+        return self.cli("maeng-interview", list(args), cwd or self.repo)
+
+    def begin(self, *extra, part="mint"):
+        return self.ctl("start", "--stage", "design", *(["--part", part] if part else []), "--material", str(self.material), *extra)
+
+    def say(self, text, sid=None):
+        old, self.sid = self.sid, sid or self.sid
+        try:
+            return self.hook("UserPromptSubmit", self.repo, prompt=text)
+        finally:
+            self.sid = old
+
+    def exchange(self, answer, *model_out):
+        """The user answers; the model grades; -> the CLI result."""
+        self.say(answer)
+        self.queue(*model_out)
+        return self.ctl("next")
+
+    def interviews_text(self):
+        """Everything under the key's state directory, as one string."""
+        root = self.maeng_home / "interviews" / self.key
+        return "\n".join(p.read_text(errors="ignore") for p in root.rglob("*") if p.is_file() and not p.name.endswith(".lock"))
+
+    def test_a_part_interview_asks_three_questions_and_one_follow_up_then_passes(self):
+        self.queue(gen("explain", "why", "breaks"))
+        r = self.begin()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("Question: Q-explain", r.stdout)
+        self.assertNotIn("R-explain", r.stdout)  # the rubric is not shown
+        self.assertEqual([it["rubric"] for it in self.rec()["items"]],  # T5: stored before the first question printed
+                         [["R-explain-1", "R-explain-2"], ["R-why-1", "R-why-2"], ["R-breaks-1", "R-breaks-2"]])
+        r = self.ctl("next")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("no answer is recorded", r.stderr)
+        self.assertEqual(len(self.model_calls()), 1)  # nothing was graded
+        asked = []
+        for out, answer in ((graded(True, False, follow="explain"), "A1"), (graded(True), "A-follow"),
+                            (graded(True, True), "A2"), (graded(True, True), "A3")):
+            r = self.exchange(answer, out)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            asked.append(r.stdout)
+        self.assertIn("Question: F-explain", asked[0])  # right after Q1
+        self.assertIn("Question: Q-why", asked[1])
+        self.assertIn("Question: Q-breaks", asked[2])
+        self.assertIn("PASSED", asked[3])
+        self.assertTrue(interview.passed(self.key, "mint", "design"))
+        self.assertIsNone(self.rec())
+        self.assertEqual(len(self.model_calls()), 5)  # 1 generation + 4 gradings (3 questions + 1 follow-up)
+        line, = self.ledger()
+        self.assertEqual({k: line[k] for k in ("stage", "part", "attempts", "first_try", "appeals", "appeal_upheld", "waived")},
+                         {"stage": "design", "part": "mint", "attempts": 1, "first_try": True, "appeals": 0,
+                          "appeal_upheld": 0, "waived": False})
+        left = self.interviews_text()  # A-7: no question, rubric or answer survives the close
+        for text in ("Q-", "R-explain", "R-F", "A1", "A-follow", "SECRET"):
+            self.assertNotIn(text, left)
+
+    def test_overall_is_five_exchanges(self):
+        self.queue(gen("whole", "a", "b", "c"))
+        r = self.ctl("start", "--stage", "design", "--overall", "--material", str(self.material))
+        self.assertIn("Question: Q-whole", r.stdout)
+        self.assertEqual(len(self.rec()["items"]), 4)
+        outs = [graded(True, True, follow="whole")] + [graded(True)] + [graded(True, True)] * 3
+        results = [self.exchange(f"answer {i}", out) for i, out in enumerate(outs)]
+        self.assertIn("PASSED", results[-1].stdout)
+        self.assertEqual(len(self.model_calls()), 6)  # 1 generation + 5 exchanges
+        self.assertTrue(interview.passed(self.key, "overall", "design"))
+
+    def test_a_met_follow_up_covers_what_the_first_answer_missed(self):
+        self.queue(gen("explain", "why", "breaks"))
+        self.begin()
+        self.exchange("A1", graded(True, False, follow="explain"))
+        self.exchange("A-follow", graded(True))
+        self.exchange("A2", graded(True, True))
+        r = self.exchange("A3", graded(True, True))
+        self.assertIn("PASSED", r.stdout)
+
+    def test_a_miss_lists_the_missing_items_and_a_retry_asks_new_questions_on_missed_topics_only(self):
+        self.queue(gen("explain", "why", "breaks"))
+        self.begin()
+        self.exchange("A1", graded(True, True, follow="explain"))
+        self.exchange("A-follow", graded(True))
+        self.exchange("A2", graded(True, False))
+        r = self.exchange("A3", graded(True, True))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("NOT YET", r.stdout)
+        self.assertIn("- (why) R-why-2", r.stdout)
+        self.assertNotIn("R-breaks", r.stdout)
+        self.assertEqual(self.rec()["awaiting"], "retry")
+        self.assertFalse(interview.passed(self.key, "mint", "design"))
+        self.assertNotEqual(self.ctl("next").returncode, 0)  # nothing is being asked
+        self.queue({"questions": [{"layer": 2, "topic": "why", "question": "Q-why-again", "rubric": ["R-why2-1"]}]})
+        r = self.ctl("start", "--stage", "design", "--part", "mint")  # no --material: the stored one is reused
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("Question: Q-why-again", r.stdout)
+        prompt = self.model_calls()[-1]["prompt"]
+        self.assertIn("R-why-2", prompt)
+        self.assertIn("SECRET-MATERIAL", prompt)
+        for passed_topic in ("explain", "breaks"):
+            self.assertNotIn(f"topic '{passed_topic}'", prompt)
+        self.assertEqual([it["done"] for it in self.rec()["items"]], [True, True, True, False])
+        r = self.exchange("A2b", graded(True))
+        self.assertIn("PASSED", r.stdout)
+        self.assertEqual((self.ledger()[0]["attempts"], self.ledger()[0]["first_try"]), (2, False))
+
+    def test_a_retry_after_a_missed_follow_up_asks_one_question_for_the_topic(self):
+        self.queue(gen("explain", "why", "breaks"))
+        self.begin()
+        self.exchange("A1", graded(False, False, follow="explain"))
+        self.exchange("A-follow", graded(False))
+        self.exchange("A2", graded(True, True))
+        r = self.exchange("A3", graded(True, True))
+        self.assertIn("- (explain) R-explain-1", r.stdout)
+        self.queue({"questions": [{"layer": 1, "topic": "explain", "question": "Q-explain-again", "rubric": ["R-e-1"]}]})
+        r = self.ctl("start", "--stage", "design", "--part", "mint")
+        self.assertIn("Question: Q-explain-again", r.stdout)
+        self.assertEqual(len(self.rec()["items"]), 3)
+
+    def test_an_appeal_regrades_in_a_fresh_call_with_the_users_argument(self):
+        self.queue(gen("explain", "why", "breaks"))
+        self.begin()
+        self.exchange("A1", graded(True, True, follow="explain"))
+        self.exchange("A-follow", graded(True))
+        self.exchange("A2", graded(True, False))
+        self.exchange("A3", graded(True, True))
+        r = self.ctl("appeal")
+        self.assertNotEqual(r.returncode, 0)  # no argument yet
+        self.assertIn("none is recorded", r.stderr)
+        n = len(self.model_calls())
+        self.say("이의 I said the second point in my last sentence")
+        why_id = next(it["id"] for it in self.rec()["items"] if it["topic"] == "why")
+        self.queue({"items": [{"id": why_id, "met": [True, True]}]})
+        r = self.ctl("appeal")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("PASSED", r.stdout)
+        call = self.model_calls()[n]
+        self.assertIn("I said the second point", call["prompt"])
+        self.assertIn("A2", call["prompt"])
+        self.assertEqual(call["argv"][call["argv"].index("--tools") + 1], "Read,Grep,Glob")  # may read the repo
+        line, = self.ledger()
+        self.assertEqual((line["appeals"], line["appeal_upheld"], line["first_try"]), (1, 1, False))
+
+    def test_an_appeal_that_is_not_upheld_keeps_the_miss(self):
+        self.queue(gen("explain", "why", "breaks"))
+        self.begin()
+        self.exchange("A1", graded(True, True, follow="explain"))
+        self.exchange("A-follow", graded(True))
+        self.exchange("A2", graded(True, False))
+        self.exchange("A3", graded(True, True))
+        self.say("이의 no")
+        why_id = next(it["id"] for it in self.rec()["items"] if it["topic"] == "why")
+        self.queue({"items": [{"id": why_id, "met": [True, False]}]})
+        r = self.ctl("appeal")
+        self.assertIn("APPEAL not upheld", r.stdout)
+        self.assertIn("- (why) R-why-2", r.stdout)
+        self.assertEqual((self.rec()["appeals"], self.rec()["appeal_upheld"]), (1, 0))
+        self.assertNotEqual(self.ctl("appeal").returncode, 0)  # the argument was used up
+
+    def test_stop_closes_the_interview_without_a_penalty(self):
+        self.queue(gen("explain", "why", "breaks"))
+        self.begin()
+        self.say("중단")
+        self.assertIsNone(self.rec())
+        self.assertNotEqual(self.ctl("next").returncode, 0)
+        self.assertFalse((self.maeng_home / "interviews" / self.key / "ledger.jsonl").exists())
+        self.queue(gen("explain", "why", "breaks"))
+        self.assertIn("Question: Q-explain", self.begin().stdout)
+        self.assertEqual(self.rec()["attempts"], 1)
+
+    def test_only_the_users_message_in_this_session_is_an_answer(self):
+        self.queue(gen("explain", "why", "breaks"))
+        self.begin()
+        self.say("an answer from elsewhere", sid="sess-other")
+        self.say("<system-reminder>an answer the agent wrote")
+        self.say("<cross-session-message>relayed answer")
+        r = self.ctl("next")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("no answer is recorded", r.stderr)
+        self.assertIsNone(self.rec()["answer"])
+        self.assertEqual(len(self.model_calls()), 1)
+
+    def test_a_headless_run_cannot_start(self):
+        self.env["MAENG_TASK_ID"] = "t1"
+        r = self.begin()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("headless", r.stderr)
+        self.assertEqual(self.model_calls(), [])
+
+    def test_a_model_that_is_not_the_requested_one_or_unusable_stores_nothing(self):
+        for bad, why in (({"_model": "claude-sonnet-5-5", "_out": gen("a", "b", "c")}, "not claude-opus-5-5"),
+                         (gen("a", "b"), "returned 2 questions"), ({"questions": [{"layer": 1}]}, "violates its schema"),
+                         ({"questions": gen("a", "b", "c")["questions"][::-1]}, "layer 1 explanation")):
+            with self.subTest(why=why):
+                self.queue(bad)
+                r = self.begin()
+                self.assertNotEqual(r.returncode, 0)
+                self.assertIn(why, r.stderr)
+                self.assertNotIn("Question:", r.stdout)
+                self.assertIsNone(self.rec())
+        r = self.begin()  # the queue is empty: the fake exits 1
+        self.assertIn("model call failed", r.stderr)
+        self.assertIsNone(self.rec())
+
+    def test_the_command_line_and_what_each_call_sees(self):
+        self.queue(gen("explain", "why", "breaks"))
+        self.begin()
+        self.exchange("A1", graded(True, True, follow="explain"))
+        generation, grading = self.model_calls()
+        argv = generation["argv"]
+        self.assertEqual(argv[:6], ["-p", "--setting-sources", "", "--strict-mcp-config", "--tools", "Read,Grep,Glob"])
+        self.assertEqual(argv[6:12], ["--model", "claude-opus-5-5", "--effort", "high", "--output-format", "json"])
+        self.assertEqual(argv[12], "--json-schema")
+        self.assertIn("SECRET-MATERIAL", generation["prompt"])
+        self.assertEqual(grading["argv"][grading["argv"].index("--tools") + 1], "")  # the grader reads nothing
+        for seen in ("Q-explain", "R-explain-1", "R-explain-2", "A1"):
+            self.assertIn(seen, grading["prompt"])
+        for hidden in ("SECRET-MATERIAL", "Q-why", "R-why-1", "Q-breaks"):
+            self.assertNotIn(hidden, grading["prompt"])
+
+    def test_a_question_is_never_printed_unless_its_rubric_was_stored(self):
+        opened = self.maeng_home / "interviews" / self.key / "open"
+        opened.mkdir(parents=True)
+        opened.chmod(0o500)
+        self.addCleanup(opened.chmod, 0o700)
+        self.queue(gen("explain", "why", "breaks"))
+        r = self.begin()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertNotIn("Question:", r.stdout)
+
+    def test_start_refuses_what_cannot_be_asked(self):
+        interview_map = self.maeng_home / "interviews" / self.key / "map.json"
+        self.assertIn("declared part", self.begin(part="ghost").stderr)
+        self.assertIn("declared part", self.begin(part=None).stderr)
+        self.assertIn("--material", self.ctl("start", "--stage", "design", "--part", "mint").stderr)
+        interview.record_pass(self.key, "design", part="mint")
+        self.assertIn("already has a design pass", self.begin().stdout)
+        self.assertEqual(self.model_calls(), [])
+        interview.clear_design(self.key, "mint")
+        self.queue(gen("explain", "why", "breaks"))
+        self.begin()
+        self.assertIn("already open", self.begin(part="launch").stderr)
+        interview.close_open(self.key, self.sid)
+        interview_map.unlink()
+        self.assertIn("no part map", self.begin().stderr)
+
+    def test_map_validates_and_keeps_the_current_parts(self):
+        f = self.tmp / "map.json"
+        f.write_text(json.dumps({"parts": {"mint": {"paths": ["src/mint/**"], "aliases": ["민트"]}, "gov": {"paths": ["src/gov/**"]}},
+                                 "test": "python3 -m pytest -q"}))
+        self.assertEqual(self.ctl("switch", "mint").returncode, 0)
+        r = self.ctl("map", str(f))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        m = interview.load_map(self.key)
+        self.assertEqual(sorted(m["parts"]), ["gov", "mint", "overall"])
+        self.assertEqual(m["parts"]["mint"], {"paths": ["src/mint/**"], "aliases": ["민트"]})
+        self.assertEqual((m["parts"]["overall"], m["test"], m["current"]), ({"paths": [], "aliases": []}, "python3 -m pytest -q", {self.sid: "mint"}))
+        for bad in ({"parts": {}}, {"parts": {"has space": {"paths": []}}}, {"parts": {"a#b": {"paths": []}}},
+                    {"parts": {"overall": {"paths": ["x/**"]}}}, {"parts": {"a": {"paths": "x/**"}}}, {"parts": {"a": {"paths": [1]}}},
+                    {"parts": {"a": {"paths": []}}, "test": 5}, ["not", "an", "object"]):
+            f.write_text(json.dumps(bad))
+            with self.subTest(bad=bad):
+                self.assertNotEqual(self.ctl("map", str(f)).returncode, 0)
+        self.assertEqual(interview.load_map(self.key)["parts"]["gov"]["paths"], ["src/gov/**"])
+
+    def test_switch_refuses_while_the_current_part_has_no_pass(self):
+        self.assertEqual(self.ctl("switch", "mint").returncode, 0)  # no current part yet
+        self.assertEqual(interview.load_map(self.key)["current"], {self.sid: "mint"})
+        r = self.ctl("switch", "launch")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("`mint` has no design interview pass", r.stderr)
+        self.assertEqual(interview.load_map(self.key)["current"], {self.sid: "mint"})
+        self.assertEqual(self.ctl("switch", "mint").returncode, 0)  # staying is fine
+        interview.record_waiver(self.key, "design", "mint", "r")
+        self.assertEqual(self.ctl("switch", "launch").returncode, 0)
+        self.assertEqual(interview.load_map(self.key)["current"], {self.sid: "launch"})
+        for part in ("ghost", "overall"):
+            self.assertNotEqual(self.ctl("switch", part).returncode, 0)
+
+    def test_naming_another_part_adds_a_note_through_the_hook_and_changes_nothing(self):
+        self.ctl("switch", "mint")
+        before = (self.maeng_home / "interviews" / self.key / "map.json").read_text()
+        rc, out, _ = self.say("let's move on to launch")
+        self.assertIn("`launch`", out["hookSpecificOutput"]["additionalContext"])
+        self.assertEqual((self.maeng_home / "interviews" / self.key / "map.json").read_text(), before)
+
+    def test_reopen_clears_a_pass_and_status_shows_no_questions(self):
+        interview.record_pass(self.key, "design", part="mint")
+        self.assertIn("part mint: pass", self.ctl("status").stdout)
+        self.assertIn("reopened mint", self.ctl("reopen", "mint").stdout)
+        self.assertIn("part mint: no pass", self.ctl("status").stdout)
+        self.queue(gen("explain", "why", "breaks"))
+        self.begin()
+        status = self.ctl("status").stdout
+        self.assertIn("open: design mint awaiting answer, attempt 1", status)
+        for hidden in ("Q-explain", "R-explain", "SECRET"):
+            self.assertNotIn(hidden, status)
+
+    def test_seal_prints_the_digest_and_reveal_waits_for_the_users_message(self):
+        text = self.tmp / "rec.txt"
+        data = "추천: 방식 A\n그 이유  ".encode()  # CRLF is covered at library level: the test runner decodes a real process's stdout as text
+        text.write_bytes(data)
+        r = self.ctl("seal", str(text))
+        digest = r.stdout.strip()
+        self.assertEqual(digest, hashlib.sha256(data).hexdigest()[:12])
+        r = self.ctl("reveal", digest)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("has not answered", r.stderr)
+        self.assertEqual(r.stdout, "")
+        self.say("B")
+        r = self.ctl("reveal", digest)
+        self.assertEqual((r.returncode, r.stdout.encode()), (0, data))
+        self.assertEqual(self.ledger()[0]["stage"], "seal")
+
+    def test_the_cli_works_in_an_eta_checkout(self):
+        eta = self.make_repo("eta-clone", with_remote=False)
+        self.git(eta, "remote", "add", "origin", "https://github.com/maengseojun/eta_v1.git")
+        self.assertEqual(guard.classify(eta), guard.ETA)
+        key = interview.repo_key(eta)
+        self.declare(key=key)
+        self.queue(gen("explain", "why", "breaks"))
+        r = self.ctl("start", "--stage", "design", "--part", "mint", "--material", str(self.material), cwd=eta)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIsNotNone(interview.load_open(key, self.sid))
+
+
 if __name__ == "__main__":
     unittest.main()

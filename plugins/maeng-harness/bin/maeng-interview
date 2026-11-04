@@ -1,0 +1,357 @@
+#!/usr/bin/env python3
+"""maeng-interview: the comprehension gate. The user shows, without AI help, that they can explain and defend the
+work: a design interview per part, a quiz per large PR. Answers come only from the user's own messages
+(interview.on_prompt); this CLI grades what the hook captured. Works in the personal and eta worlds (D-5)."""
+import argparse
+import json
+import os
+import re
+import sys
+from pathlib import Path
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
+
+from maeng import interview  # noqa: E402
+from maeng import tree as treelib  # noqa: E402
+from maeng.cli_common import die  # noqa: E402
+from maeng.common import now_iso, read_json, write_json  # noqa: E402
+from maeng.interview import OVERALL, run_model  # noqa: E402
+
+QUESTION = {"type": "object", "required": ["layer", "topic", "question", "rubric"], "additionalProperties": False,
+            "properties": {"layer": {"enum": [1, 2]}, "topic": {"type": "string"}, "question": {"type": "string"},
+                           "rubric": {"type": "array", "items": {"type": "string"}}}}
+QUESTIONS = {"type": "object", "required": ["questions"], "additionalProperties": False,
+             "properties": {"questions": {"type": "array", "items": QUESTION}}}
+MET = {"type": "array", "items": {"type": "boolean"}}
+FOLLOWUP = {"type": "object", "required": ["question", "rubric"], "additionalProperties": False,
+            "properties": {"question": {"type": "string"}, "rubric": {"type": "array", "items": {"type": "string"}}}}
+GRADE = {"type": "object", "required": ["met"], "additionalProperties": False, "properties": {"met": MET}}
+GRADE_FOLLOWUP = {"type": "object", "required": ["met", "followup"], "additionalProperties": False,
+                  "properties": {"met": MET, "followup": FOLLOWUP}}
+APPEAL = {"type": "object", "required": ["items"], "additionalProperties": False,
+          "properties": {"items": {"type": "array", "items": {"type": "object", "required": ["id", "met"],
+                                                                "properties": {"id": {"type": "integer"}, "met": MET}}}}}
+SIZES = {"part": 3, "overall": 4}  # A-2: questions asked up front; Q1's follow-up makes it 4 and 5 exchanges
+RELAY = ("Relay the question to the user verbatim, without hints. Their next message is recorded as the answer; "
+         "then run `maeng-interview next`.")
+
+
+# ---- shared --------------------------------------------------------------
+
+def context(a, cwd, need_session=True):
+    """-> (state key, session id, checkout top)."""
+    key = interview.repo_key(cwd)
+    if not key:
+        die("this repository has no origin remote, so the gate has no state directory", 2)
+    sid = a.session or os.environ.get("MAENG_SESSION_ID") or os.environ.get("CLAUDE_CODE_SESSION_ID")
+    if need_session and not sid:
+        die("no session id: pass --session or set MAENG_SESSION_ID", 2)
+    return key, sid, treelib.toplevel(cwd) or cwd
+
+
+def need_map(key):
+    m = interview.load_map(key)
+    if not m:
+        die("no part map for this repository: `maeng-interview map <file>` after the user confirms the parts", 2)
+    return m
+
+
+def need_open(key, sid, asking=False):
+    """The open design interview or quiz of this session; with `asking`, one that waits for an answer."""
+    rec = interview.load_open(key, sid)
+    if not rec or rec.get("kind") == "seal":
+        die("no interview or quiz is open in this session", 2)
+    if asking and rec.get("awaiting") != "answer":
+        die("the interview is not asking: it waits for a retry. Tell the user what was missed; they can ask for new "
+            "questions (`start`), appeal with `이의 <argument>`, or stop with `중단`", 2)
+    return rec
+
+
+def current(rec):
+    """The next item to ask: not done and not yet answered."""
+    return next((it for it in rec["items"] if not it["done"] and it["given"] is None), None)
+
+
+def numbered(rubric):
+    return "\n".join(f"{i}. {r}" for i, r in enumerate(rubric, 1))
+
+
+def misses(it):
+    return [r for r, ok in zip(it["rubric"], it["met"]) if not ok]
+
+
+def show(it):
+    print(f"Question: {it['question']}\n\n{RELAY}")
+
+
+def add_items(rec, questions):
+    for q in questions:
+        rec["seq"] += 1
+        rec["items"].append({"id": rec["seq"], "layer": q["layer"], "topic": q["topic"], "question": q["question"],
+                             "rubric": q["rubric"], "given": None, "met": None, "done": False})
+
+
+def usable(questions, count):
+    if len(questions) != count or any(not q["question"].strip() or not q["rubric"] for q in questions):
+        raise interview.Refused(f"the model returned {len(questions)} questions (wanted {count}) or one with no rubric; "
+                                f"nothing was stored. Run the command again.")
+
+
+# ---- prompts: the grader sees only the question, its rubric and the answer ---
+
+def gen_prompt(part, material, count, missed=None):
+    what = "the whole project (the overall design)" if part == OVERALL else f"the part `{part}`"
+    head = (f"You are the interviewer. The user must show, without AI help, that they can explain and defend {what} to "
+            "someone who interviews them. Write in Korean. Layer 1 (implementation) is an open explanation: \"explain it "
+            "to someone hearing it for the first time\". Layer 2 (supervision) asks for reasons, rejected alternatives "
+            "and the conditions under which the design breaks.\n")
+    if missed:
+        task = (f"The user missed these topics. Write exactly {count} NEW questions, one per topic in this order, on the "
+                "same topic and layer but not in the same words:\n"
+                + "\n".join(f"- layer {m['layer']}, topic {m['topic']!r}; missed: {'; '.join(m['missing'])}" for m in missed))
+    else:
+        task = f"Write exactly {count} questions: the first is layer 1, the others layer 2."
+    return (head + task + "\nFor each give the layer, a short topic label, the question and a rubric: 2 to 6 facts a "
+            "complete answer states, each judgeable from the answer alone by a grader who has not seen the material. "
+            f"You may read the repository to check facts.\n<material>\n{material}\n</material>")
+
+
+def grade_prompt(it, answer, followup):
+    task = ("Grade one interview answer. You know only the question, the rubric and the answer below. For each rubric "
+            "item, in order, say whether the answer states it (any wording; a wrong statement does not count) in `met`, "
+            "one boolean per item.")
+    if followup:
+        task += (" Also write one follow-up question in Korean with its own rubric (1 to 4 items), aimed at what the "
+                 "answer missed or left thinnest.")
+    return (f"{task}\n<question>\n{it['question']}\n</question>\n<rubric>\n{numbered(it['rubric'])}\n</rubric>\n"
+            f"<answer>\n{answer}\n</answer>")
+
+
+def appeal_prompt(missed, argument):
+    body = "".join(f"<item id={it['id']}>\n<question>\n{it['question']}\n</question>\n<rubric>\n{numbered(it['rubric'])}\n"
+                   f"</rubric>\n<answer>\n{it['given']}\n</answer>\n</item>\n" for it in missed)
+    return ("The user appeals the grading of their interview answers. Grade each item again from scratch, weighing the "
+            "argument; you may read the repository to check it. Give `items`: for each id, `met` with one boolean per "
+            f"rubric item.\n<argument>\n{argument}\n</argument>\n{body}")
+
+
+def grade(it, answer, top, followup=False):
+    out = run_model(grade_prompt(it, answer, followup), GRADE_FOLLOWUP if followup else GRADE, top, tools="")
+    if len(out["met"]) != len(it["rubric"]) or (followup and not out["followup"]["rubric"]):
+        raise interview.Refused("the grader's answer does not match the rubric; nothing was recorded. Run `next` again.")
+    return out["met"], out.get("followup")
+
+
+# ---- commands ------------------------------------------------------------
+
+def cmd_map(a, cwd):
+    key, _, _ = context(a, cwd, need_session=False)
+    data = read_json(a.file)
+    parts = (data or {}).get("parts") if isinstance(data, dict) else None
+    ok = isinstance(parts, dict) and parts and all(
+        re.fullmatch(r"[^\s#]+", n) and isinstance(p, dict) and isinstance(p.get("paths", []), list)
+        and isinstance(p.get("aliases", []), list) and all(isinstance(x, str) for x in p.get("paths", []) + p.get("aliases", []))
+        and not (n == OVERALL and p.get("paths")) for n, p in parts.items())
+    if not ok or not isinstance(data.get("test"), (str, type(None))):
+        die('the map file is {"parts": {"<name>": {"paths": ["glob", ...], "aliases": ["word", ...]}}, "test": "<command>"}; '
+            f"names have no spaces or #, and `{OVERALL}` has no paths", 2)
+    path = interview._file(key, "map.json")
+    with interview.locked(path):
+        old = interview.load_map(key) or {}
+        built = {n: {"paths": p.get("paths", []), "aliases": p.get("aliases", [])} for n, p in parts.items()}
+        built[OVERALL] = {"paths": [], "aliases": built.get(OVERALL, {}).get("aliases", [])}
+        interview.save_map(key, {"parts": built, "test": data.get("test"), "current": old.get("current", {})})
+    print("part map saved: " + ", ".join(sorted(built)))
+
+
+def cmd_switch(a, cwd):
+    key, sid, _ = context(a, cwd)
+    path = interview._file(key, "map.json")
+    with interview.locked(path):
+        m = need_map(key)
+        if a.part not in m["parts"] or a.part == OVERALL:
+            die(f"`{a.part}` is not a declared part ({', '.join(n for n in sorted(m['parts']) if n != OVERALL)})", 2)
+        cur = m.setdefault("current", {}).get(sid)
+        if cur and cur != a.part and not interview.passed(key, cur, "design"):
+            die(f"the current part `{cur}` has no design interview pass: finish its interview, or the user waives it "
+                f"with `면제 {cur} <reason>`", 1)
+        m["current"][sid] = a.part
+        interview.save_map(key, m)
+    print(f"current part: {a.part}")
+
+
+def cmd_reopen(a, cwd):
+    key, _, _ = context(a, cwd, need_session=False)
+    print(f"reopened {a.part}: its pass is cleared" if interview.clear_design(key, a.part)
+          else f"{a.part} had no pass or waiver")
+
+
+def cmd_status(a, cwd):
+    key, sid, _ = context(a, cwd, need_session=False)
+    m = interview.load_map(key)
+    passes = interview._load_passes(key)
+    for name in sorted((m or {}).get("parts", {})):
+        mark = "waived" if name in passes["waivers"]["design"] else "pass" if name in passes["design"] else "no pass"
+        print(f"part {name}: {mark}" + (" (current)" if m.get("current", {}).get(sid) == name else ""))
+    if not m:
+        print("no part map")
+    rec = interview.load_open(key, sid) if sid else None
+    if rec:  # never the questions, rubrics or answers
+        print(f"open: {rec['kind']} {rec.get('part') or rec.get('pr') or ''} awaiting {rec['awaiting']}, attempt {rec.get('attempts', 1)}")
+
+
+def cmd_seal(a, cwd):
+    key, sid, _ = context(a, cwd)
+    print(interview.seal(key, sid, Path(a.file).read_bytes()))
+
+
+def cmd_reveal(a, cwd):
+    key, sid, _ = context(a, cwd)
+    sys.stdout.flush()
+    sys.stdout.buffer.write(interview.reveal(key, sid, a.digest))
+    sys.stdout.buffer.flush()
+
+
+def start_design(a, key, sid, top):
+    m = need_map(key)
+    part = OVERALL if a.overall else a.part
+    if not part or part not in m["parts"]:
+        die(f"name a declared part with --part, or use --overall ({', '.join(sorted(m['parts']))})", 2)
+    if interview.passed(key, part, "design"):
+        print(f"{part} already has a design pass (waived or passed); `maeng-interview reopen {part}` asks again.")
+        return
+    rec = interview.load_open(key, sid)
+    retry = bool(rec and rec.get("kind") == "design" and rec.get("part") == part and rec.get("awaiting") == "retry")
+    if rec and not retry:
+        die("an interview, quiz or seal is already open in this session; finish it or have the user send `중단`", 2)
+    material = Path(a.material).read_text(encoding="utf-8") if a.material else (rec or {}).get("material")
+    if not material or not material.strip():
+        die("--material <file> is required: the design the user is interviewed on (the agent writes it for the interview)", 2)
+    if retry:
+        missed = {}  # one new question per missed topic (Q1 and its follow-up share one)
+        for it in rec["items"]:
+            if not it["done"]:
+                slot = missed.setdefault(it["topic"], {"layer": it["layer"], "topic": it["topic"], "missing": []})
+                slot["missing"] += misses(it)
+        missed = list(missed.values())
+        out = run_model(gen_prompt(part, material, len(missed), missed), QUESTIONS, top)["questions"]
+        usable(out, len(missed))
+        rec["items"] = [it for it in rec["items"] if it["done"]]
+        rec["attempts"] += 1
+    else:
+        count = SIZES["overall" if part == OVERALL else "part"]
+        out = run_model(gen_prompt(part, material, count), QUESTIONS, top)["questions"]
+        usable(out, count)
+        if out[0]["layer"] != 1:
+            raise interview.Refused("the first question must be the layer 1 explanation; nothing was stored. Run it again.")
+        rec = {"kind": "design", "stage": "design", "part": part, "items": [], "seq": 0, "attempts": 1, "appeals": 0,
+               "appeal_upheld": 0, "followup": False, "opened_at": now_iso()}
+    add_items(rec, out)
+    rec.update(material=material, awaiting="answer", answer=None, appeal=None)
+    interview.save_open(key, sid, rec)  # T5: every rubric is stored before the first question is printed
+    show(current(rec))
+
+
+def cmd_start(a, cwd):
+    key, sid, top = context(a, cwd)
+    if interview.headless():
+        die("this is a headless run (`claude -p` or a dots task): it cannot start an interview. End with `needs input:` "
+            "and have the user run it in their own session.", 2)
+    start_design(a, key, sid, top)
+
+
+def conclude(key, sid, rec):
+    """Every item has been asked: a pass, or what was missed and a wait for the user's next move."""
+    left = [it for it in rec["items"] if not it["done"]]
+    if not left:
+        part = rec["part"]
+        interview.record_pass(key, "design", part=part)
+        interview.ledger(key, stage="design", part=part, attempts=rec["attempts"],
+                         first_try=rec["attempts"] == 1 and rec["appeals"] == 0, appeals=rec["appeals"],
+                         appeal_upheld=rec["appeal_upheld"], waived=False)
+        interview.close_open(key, sid)  # questions, rubrics and answers go (A-7)
+        print(f"PASSED: the design interview of `{part}`. Tell the user.")
+        return
+    rec["awaiting"], rec["answer"] = "retry", None
+    interview.save_open(key, sid, rec)
+    print("NOT YET. Every rubric item must be met. Tell the user plainly what was missing, so they can study:")
+    for it in left:
+        for r in misses(it):
+            print(f"- ({it['topic']}) {r}")
+    print("\nThey can ask for new questions on these topics only (run `maeng-interview start` again), appeal with "
+          "`이의 <argument>` (then run `maeng-interview appeal`), or stop with `중단`.")
+
+
+def cmd_next(a, cwd):
+    key, sid, top = context(a, cwd)
+    rec = need_open(key, sid, asking=True)
+    if rec.get("answer") is None:
+        die("no answer is recorded: only the user's own message counts. Ask them to answer in this session, then run "
+            "`next` again. Nothing was graded.", 2)
+    it = current(rec)
+    ask_followup = rec["kind"] == "design" and it["layer"] == 1 and not rec["followup"] and rec["attempts"] == 1
+    it["met"], follow = grade(it, rec["answer"], top, ask_followup)
+    it["given"], it["done"] = rec["answer"], all(it["met"])
+    if follow:
+        rec["followup"] = True
+        add_items(rec, [{"layer": 2, "topic": it["topic"], "question": follow["question"], "rubric": follow["rubric"]}])
+        rec["items"][-1]["for"] = it["id"]
+        rec["items"].insert(rec["items"].index(it) + 1, rec["items"].pop())  # the follow-up comes right after Q1
+    if it.get("for") and it["done"]:  # a met follow-up covers the points Q1 missed: it was aimed at them
+        parent = next(x for x in rec["items"] if x["id"] == it["for"])
+        parent["met"], parent["done"] = [True] * len(parent["rubric"]), True
+    rec["answer"] = None
+    nxt = current(rec)
+    if nxt:
+        interview.save_open(key, sid, rec)
+        show(nxt)
+    else:
+        conclude(key, sid, rec)
+
+
+def cmd_appeal(a, cwd):
+    key, sid, top = context(a, cwd)
+    rec = need_open(key, sid)
+    if rec.get("awaiting") != "retry" or not rec.get("appeal"):
+        die("an appeal needs a miss and the user's own message `이의 <argument>`; none is recorded", 2)
+    missed = [it for it in rec["items"] if not it["done"] and "rubric" in it]
+    if not missed:
+        die("nothing to appeal: the misses come from running the code, not from a grader", 2)
+    out = {i["id"]: i["met"] for i in run_model(appeal_prompt(missed, rec["appeal"]), APPEAL, top)["items"]}
+    if any(len(out.get(it["id"], [])) != len(it["rubric"]) for it in missed):
+        raise interview.Refused("the appeal grader skipped an item; nothing was changed. Run `appeal` again.")
+    for it in missed:
+        it["met"] = out[it["id"]]
+        it["done"] = all(it["met"])
+    rec["appeals"] += 1
+    rec["appeal_upheld"] += any(it["done"] for it in missed)
+    rec["appeal"] = None
+    print("APPEAL upheld in part or in full." if any(it["done"] for it in missed) else "APPEAL not upheld.")
+    conclude(key, sid, rec)
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(prog="maeng-interview")
+    p.add_argument("--session")
+    sub = p.add_subparsers(dest="cmd", required=True)
+    s = sub.add_parser("map"); s.add_argument("file")
+    s = sub.add_parser("switch"); s.add_argument("part")
+    s = sub.add_parser("reopen"); s.add_argument("part")
+    s = sub.add_parser("start"); s.add_argument("--stage", choices=["design"], required=True)
+    s.add_argument("--part"); s.add_argument("--overall", action="store_true"); s.add_argument("--material")
+    sub.add_parser("next")
+    sub.add_parser("appeal")
+    s = sub.add_parser("seal"); s.add_argument("file")
+    s = sub.add_parser("reveal"); s.add_argument("digest")
+    sub.add_parser("status")
+    a = p.parse_args(argv)
+    fn = {"map": cmd_map, "switch": cmd_switch, "reopen": cmd_reopen, "start": cmd_start, "next": cmd_next,
+          "appeal": cmd_appeal, "seal": cmd_seal, "reveal": cmd_reveal, "status": cmd_status}[a.cmd]
+    try:
+        fn(a, os.getcwd())
+    except (interview.Refused, OSError, ValueError) as exc:
+        die(str(exc))
+
+
+if __name__ == "__main__":
+    main()
