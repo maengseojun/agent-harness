@@ -21,7 +21,7 @@ EOF
 - Images are numbered in argument order, so "image 1" in the prompt is the first reference.
 - Sizes: `1536x864` is 16:9, `864x1536` vertical, `1024x1024` square. Both sides must divide by 16, the ratio stays within 3:1, and sizes above `2560x1440` are experimental.
 - The script does not retry, and a failed call leaves any earlier image at that path. On a non-zero exit, read the API's message. When the credit is out or the call keeps failing, use the fallback below instead of repeating it.
-- Verified 2026-11-04: one `1024x1024` `low` call without references. The edits endpoint that takes references follows OpenAI's reference but has not been called live; report it if the first such run fails.
+- Verified live 2026-11-04: one `1024x1024` `low` call without references, and one with a single reference, whose color, framing and proportions the result kept. Several references, other sizes and `high` have not run live; report it if the first such run fails.
 
 ### `codex exec` (fallback)
 

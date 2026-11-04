@@ -13,9 +13,9 @@ A-3 quality `low` for drafts and `high` for finals, with `2560x1440` `high` for 
 A-4 falling back is the agent's decision from the error message, not automatic, and the script never retries, since each call spends credit.
 A-5 a failed rerun leaves the earlier image at the output path, because deleting it would lose a paid image. Both docs chain `&& sips`, so a failed run does not inspect the old file (review round 1).
 Owns: `plugins/maeng-tools/skills/cinematic-site/` (SKILL.md, references/prompts.md, scripts/openai-image.sh, scripts/test_openai_image.py), `plugins/maeng-tools/skills/motion-studio/references/{images,formats}.md`, `plugins/maeng-tools/skills/frontend-guidance/SKILL.md`, `plugins/maeng-tools/skills/design-reference/references/taste-skill.md`, `plugins/maeng-tools/.claude-plugin/plugin.json`, this file.
-Exclusions: no live image call in this task (each one spends the user's credit), so the edits route is untested live. No price per image. `docs/design/codex-image-route-plan.md` stays as the past plan. `plugins/maeng-tools/skills/decisions/` is another session's. Weave's video step does not change.
+Exclusions: no live image call without the user's approval in chat, since each one spends credit. The user approved one (R-1), so one reference is verified live; several references, other sizes and `high` are not. No price per image. `docs/design/codex-image-route-plan.md` stays as the past plan. `plugins/maeng-tools/skills/decisions/` is another session's. Weave's video step does not change.
 
-- **AC-1** `motion-studio/references/images.md`, `cinematic-site/SKILL.md`, `cinematic-site/references/prompts.md` §1, `frontend-guidance/SKILL.md` and `design-reference/references/taste-skill.md` name the Images API as the default and `codex exec` as the fallback. Each route text with a credit-spending call says to ask first, and both copies of the route say the edits endpoint is not verified live.
+- **AC-1** `motion-studio/references/images.md`, `cinematic-site/SKILL.md`, `cinematic-site/references/prompts.md` §1, `frontend-guidance/SKILL.md` and `design-reference/references/taste-skill.md` name the Images API as the default and `codex exec` as the fallback. Each route text with a credit-spending call says to ask first, and both copies of the route say what has and has not run live.
 - **AC-2** `openai-image.sh` posts JSON to `/images/generations` without references and multipart `image[]` to `/images/edits` with them, in order. It saves the decoded image, never puts the key in argv, output or files, does not retry and ignores `~/.curlrc`. On any failure it exits non-zero and writes nothing to the output path, so an earlier image there stays as it was. Tests reach only a local fake server, and `security` is faked, so they cannot spend credit.
 - **AC-3** maeng-tools is 0.3.14 and `claude plugin validate plugins/maeng-tools` passes.
 - **AC-4** The root suite passes.
@@ -31,7 +31,7 @@ Verification:
 Checked against: 8 mutations of the script (key in argv, edits route removed, references reversed, reference path unquoted, HTTP status ignored, curl retries added, null image accepted, output folder check removed), plus 2 after review round 1 (curl `-q` removed, output deleted on failure). The tests caught all 10. The empty-image test from round 2 failed before its fix and passes after it.
 
 Revisions:
-- none
+- R-1 result verification: the user approved one live call on the edits route ("Yes, one test call", 2026-11-04). `1024x1024` `low`, one 256x256 reference, exit 0, the result kept the reference's background color and proportions with only the requested change. Both route texts now say so.
 
 Close-out:
 - size: (filled at close)
