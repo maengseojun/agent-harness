@@ -266,7 +266,8 @@ def start_design(a, key, sid, top):
 
 def cand_prompt(files, diff):
     return ("You write quiz candidates about a pull request so its author must show they understand the code. Use only "
-            f"these changed files: {', '.join(files)}. Give about 6 candidates in all, a mix of:\n"
+            f"these changed files: {', '.join(files)}. Ask about what the code does, not about test bookkeeping. Give about 6 "
+            "candidates in all, a mix of:\n"
             "- predict: an assertion in a changed TEST file that already passes. Give `file`, the 1-based `line`, `literal` "
             "(the expected value exactly as written on that line) and a short Korean `question`.\n"
             "- defect: a find/replace that introduces a plausible bug the tests should catch. Give `file`, `find` (it appears "

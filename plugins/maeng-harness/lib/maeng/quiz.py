@@ -191,10 +191,10 @@ def confirm_items(candidates, top, test_cmd, changed=None, rng=random, want=4):
                 defects += [d] if d else []
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    items = picked + [_defect_items(d, rng) for d in defects]
-    by = {id(it): d for it, d in zip(items[len(picked):], defects)}
+    found = [_defect_items(d, rng) for d in defects]
+    by = {id(it): d for it, d in zip(found, defects)}
+    items = picked[:max(0, want - len(found))] + found  # a found defect is closest to supervising: it goes in first
     rng.shuffle(items)
-    items = items[:want]
     lines = [it for it in items if it["kind"] == "defect-line"]
     if lines:  # one defect-line item becomes a clean snippet of the same file, so `없음` is a real answer
         swap = rng.choice(lines)

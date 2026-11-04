@@ -115,6 +115,12 @@ class ConfirmItems(HarnessCase):
         self.assertIn("2:     return a - b", item["question"])  # the mutated snippet, lines 1 to 3, numbered from 1
         self.assertEqual(self.run_count(), 4)  # head, then the three mutations: every candidate was really run
 
+    def test_found_defects_go_in_before_predicted_values(self):
+        low = {"kind": "predict", "file": "test_calc.py", "line": 9, "literal": "0", "question": "무엇?"}
+        clamp_high = {"kind": "defect", "file": "calc.py", "find": "if x > hi:", "replace": "if x < hi:", "question": "q"}
+        items = self.confirm([PREDICT_ADD, PREDICT_HIGH, low, ADD_MINUS, clamp_high], rng=Pick("failing-test", "failing-test"))
+        self.assertEqual([it["kind"] for it in items], ["predict", "predict", "failing-test", "failing-test"])
+
     def test_mutations_stop_once_there_are_enough(self):
         items = self.confirm([ADD_MINUS, EQUIVALENT, UNTESTED], want=1)
         self.assertEqual(len(items), 1)

@@ -106,6 +106,7 @@ Revisions:
 - R-3 result scope: a merge-quiz retry on the same patch keeps what passed and asks one new item per miss, as the user was told; mutation runs stop once there are enough items.
 - R-4 result quality: the written question names the design only when a design file was given.
 - R-5 plan scope: `bin/maeng-review` joined the Owns for the reviewer prompt's switch list.
+- R-6 result quality: the live run returned 3 predict items and 1 defect from 3 and 3 candidates, on test bookkeeping. Found defects now go in first and the candidate prompt asks about what the code does.
 
 Close-out:
 - filled at close
