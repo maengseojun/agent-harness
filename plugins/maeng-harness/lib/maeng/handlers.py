@@ -8,7 +8,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from . import evidence, gates, guard, receipts, state, status, stub
+from . import evidence, gates, guard, interview, receipts, state, status, stub
 from . import tree as treelib
 from .common import git_out, home_dir, now_iso, read_json, sha256, vault_dir
 from .shellparse import ParseError, program, split_segments
@@ -142,11 +142,26 @@ def on_session_start(payload):
 
 # ---- UserPromptSubmit ----------------------------------------------------
 
+def add_context(out, text):
+    """`out` (a UserPromptSubmit result or None) with `text` appended to its additionalContext."""
+    prev = (out or {}).get("hookSpecificOutput", {}).get("additionalContext")
+    return context_out("UserPromptSubmit", "\n".join(filter(None, [prev, text])))
+
+
+def interview_note(payload):
+    try:
+        return interview.on_prompt(payload)  # K2: the user's answer, appeal, stop or waiver
+    except Exception as exc:  # a tracker: never blocks the prompt
+        warn(f"interview prompt check failed: {type(exc).__name__}: {exc}")
+        return None
+
+
 def on_prompt(payload):
     sid, cwd = payload.get("session_id", ""), payload.get("cwd", os.getcwd())
     st = state.load(sid, cwd)
+    iv = interview_note(payload)
     if world_of(payload, st) != guard.PERSONAL:
-        return None
+        return context_out("UserPromptSubmit", iv) if iv else None
     out = record_approval(payload.get("prompt") or "", cwd)
     tree, _ = treelib.tree_id(cwd)
     new_task = not st.get("task_id")
@@ -160,10 +175,7 @@ def on_prompt(payload):
         return s
     st = state.update(sid, mark, cwd)
     note = task_running(st, new_task)
-    if note:
-        prev = (out or {}).get("hookSpecificOutput", {}).get("additionalContext")
-        out = context_out("UserPromptSubmit", "\n".join(filter(None, [prev, note])))
-    return out
+    return add_context(out, "\n".join(filter(None, [note, iv]))) if note or iv else out
 
 
 def task_running(st, new_task):
@@ -213,6 +225,9 @@ def on_pre(payload):
         return deny_out("maeng: session state was quarantined; restart the session")
     st = state.load(sid, cwd)
     world = world_of(payload, st)
+    why = interview.gate(payload, world)  # K1: before the eta return (D-5)
+    if why:
+        return deny_out(why)
     if world == guard.ETA:
         return None
     tool, tin, tuid = payload.get("tool_name"), payload.get("tool_input"), payload.get("tool_use_id", "")

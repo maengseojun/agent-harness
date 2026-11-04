@@ -7,10 +7,10 @@ import re
 import subprocess
 import sys
 
-from . import guard, receipts, state
+from . import gates, ghcmd, guard, quiz, receipts, state
 from . import tree as treelib
-from .common import git_out, home_dir, locked, now_iso, read_json, sha256, write_json
-from .shellparse import SHELLS
+from .common import git, git_out, home_dir, locked, now_iso, read_json, sha256, write_json
+from .shellparse import SHELLS, ParseError, program, split_segments
 
 WRAPPERS = ("<system-reminder>", "<task-notification>", "<cross-session-message>", "<side-sessions-event>",
             "<ci-monitor-event>")
@@ -278,3 +278,167 @@ def reveal(key, sid, digest):
     ledger(key, stage="seal", digest=rec["digest"][:12], revealed=True)
     close_open(key, sid)
     return data
+
+
+# ---- PreToolUse (K1, every world) ----------------------------------------
+
+EDIT_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
+FAST = ("gh", "interviews", "MAENG_CLAUDE")  # a Bash command with none of these is not ours
+MERGE_MCP = re.compile(r"mcp__.+__merge_pull_request")
+# shortcut: a text match on the state path, not a shell parse; a `cd` into the directory and a relative name slips
+# through. Upgrade if agents do that.
+STATE_PATH = re.compile(r"maeng-harness/interviews|MAENG_HOME\}?/interviews")
+PR_FIELDS = "number,additions,deletions,files,baseRefOid,headRefOid"
+HIDDEN = ("maeng: the interview state ({what}) belongs to the CLI and the user; the agent does not read or write the "
+          "questions, rubrics or answers (comprehension-gate skill). Use `maeng-interview`.")
+NEED = ("maeng: PR #{pr} {why}, and has no merge-quiz pass for patch {patch}. In a clean checkout of the PR head run "
+        "`maeng-interview start --stage merge --pr {pr}`; the user answers in their own messages. The user can waive "
+        "it with `면제 #{pr} <reason>`; `승인 #{pr}` does not replace it.")
+
+
+def _read(fn, *args):
+    """fn(*args); Refused when the gate's state is unreadable, which denies the matched call."""
+    try:
+        return fn(*args)
+    except (OSError, ValueError) as exc:
+        raise Refused(f"maeng: the comprehension gate's state is unreadable ({type(exc).__name__}: {exc}); move or fix "
+                      f"it with the user. The call is denied until then.")
+
+
+def gate(payload, world):
+    """PreToolUse: -> a deny reason, or None. An exception while matching warns and allows (T7); once a call has
+    matched, an unreadable state or PR denies."""
+    tool, tin, cwd = payload.get("tool_name"), payload.get("tool_input"), payload.get("cwd") or os.getcwd()
+    try:
+        if tool == "Bash":
+            return _bash_gate(tin["command"], world, cwd) if any(w in tin["command"] for w in FAST) else None
+        if tool in EDIT_TOOLS:
+            return _edit_gate(tin, cwd)
+        if world != guard.PERSONAL and MERGE_MCP.fullmatch(tool):
+            return _mcp_merge_gate(tin, cwd)
+    except Refused as why:
+        return str(why)
+    except Exception as exc:
+        warn(f"interview gate error ({type(exc).__name__}: {exc}); the call is allowed")
+    return None
+
+
+def _names_state(text):
+    return str(home_dir() / "interviews") in text or STATE_PATH.search(text) or gates.CLAUDE_SET.search(text)
+
+
+def _bash_gate(command, world, cwd):
+    try:  # `maeng-interview ...` is the sanctioned route: its segment is not read
+        texts = [" ".join(seg.tokens + seg.redirects) for seg in split_segments(command.rstrip())
+                 if program(seg.tokens)[0] != "maeng-interview"]
+    except ParseError:
+        texts = [command]
+    if any(_names_state(t) for t in texts):
+        raise Refused(HIDDEN.format(what="its directory, or MAENG_CLAUDE, which names the interview model"))
+    if world == guard.PERSONAL:  # `gh pr merge` is G1's there, and maeng-ship holds the merge gate
+        return None
+    for toks in _merge_calls(command):
+        info = ghcmd.parse_gh(toks)
+        why = _pr_gate(cwd, info["pos"][2] if len(info["pos"]) > 2 else None, info["repo"])
+        if why:
+            return why
+    return None
+
+
+def _merge_calls(command):
+    """Token lists of the `gh pr merge` calls in the command (also in `sh -c` and `eval`), with or without --auto."""
+    try:
+        return [toks for prog, toks in gates.simple_commands(command)
+                if prog == "gh" and not {"--help", "-h"} & set(toks) and ghcmd.parse_gh(toks)["pos"][:2] == ["pr", "merge"]]
+    except ParseError:
+        if re.search(r"\bgh\b.*\bmerge\b", command, re.S):
+            raise Refused("maeng: cannot parse this command and it mentions `gh ... merge`; run the merge as a simpler command.")
+        return []
+
+
+def _mcp_merge_gate(tin, cwd):
+    number = tin.get("pullNumber") or tin.get("pull_number")
+    if not number:
+        raise Refused("maeng: cannot tell which PR this merge call is for, so the comprehension gate denies it.")
+    owner, name = tin.get("owner"), tin.get("repo")
+    return _pr_gate(cwd, str(number), f"{owner}/{name}" if owner and name else None)
+
+
+def _edit_gate(tin, cwd):
+    path = tin.get("file_path") or tin.get("notebook_path") or tin.get("path")
+    if not isinstance(path, str) or not path:
+        return None
+    target = os.path.realpath(gates._abs(path, cwd))
+    base = os.path.realpath(home_dir() / "interviews")
+    if target == base or target.startswith(base + os.sep):
+        raise Refused(HIDDEN.format(what="a file in it"))
+    where = guard._nearest_dir(target)
+    top, key = treelib.toplevel(where), repo_key(where)
+    if not (top and key):
+        return None
+    m = _read(load_map, key)
+    rel = os.path.relpath(target, os.path.realpath(top))
+    parts = parts_of(m, rel)
+    if not parts or headless():  # A-3: a headless run skips the write gate, not the merge gate
+        return None
+    missing = [p for p in (OVERALL, *parts) if not _read(passed, key, p, "design")]
+    if missing:
+        raise Refused(f"maeng: `{rel}` belongs to part {', '.join(parts)}, and these have no design interview pass yet: "
+                      f"{', '.join(missing)}. Ask the user for the interview "
+                      f"(`maeng-interview start --stage design --part <part> --material <file>`, comprehension-gate "
+                      f"skill); they can waive one with `면제 <part> <reason>`.")
+    return None
+
+
+def _read_pr(cwd, sel, repo):
+    cmd = [os.environ.get("MAENG_GH", "gh"), "pr", "view", *([sel] if sel else []), *(["-R", repo] if repo else []),
+           "--json", PR_FIELDS]
+    try:
+        proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=8)
+        pr = json.loads(proc.stdout) if proc.returncode == 0 else None
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        pr = None
+    if not (isinstance(pr, dict) and all(isinstance(pr.get(k), int) for k in ("number", "additions", "deletions"))
+            and isinstance(pr.get("files"), list) and all(isinstance(pr.get(k), str) for k in ("baseRefOid", "headRefOid"))):
+        raise Refused("maeng: could not read the PR with gh within 8 seconds, so the comprehension gate cannot tell its "
+                      "size; the merge is denied. Retry.")
+    return pr
+
+
+def _pr_gate(cwd, sel, repo):
+    """The merge gate of a PR merged through gh or an MCP tool (not personal; there maeng-ship holds it)."""
+    key = slug(guard.normalize_repo(repo)) if repo else repo_key(cwd)  # shortcut: a PR URL for another repo is keyed by cwd
+    if not key:
+        return None
+    pr = _read_pr(cwd, sel, repo)
+    return _merge_refusal(key, pr["number"], pr["additions"] + pr["deletions"], [f.get("path", "") for f in pr["files"]],
+                          lambda: quiz.patch_id(cwd, pr["baseRefOid"], pr["headRefOid"]))
+
+
+def _merge_refusal(key, pr, lines, paths, patch_of):
+    """A-1: why the PR needs a merge pass it does not have, else None."""
+    m = _read(load_map, key)
+    hits = sorted({n for p in paths for n in parts_of(m, p)})
+    if lines <= LIMIT and not hits:
+        return None
+    if _read(passed, key, pr, "merge"):  # a waiver for this PR
+        return None
+    patch = patch_of()
+    if patch and _read(passed, key, pr, "merge", patch):
+        return None
+    why = f"changes {lines} lines (limit {LIMIT})" if lines > LIMIT else "touches " + ", ".join(hits)
+    return NEED.format(pr=pr, why=why + (f" and touches {', '.join(hits)}" if hits and lines > LIMIT else ""),
+                       patch=patch[:12] if patch else "unknown (fetch the PR head)")
+
+
+def require_merge(cwd, repo, pr, base, head):
+    """maeng-ship (K3): why this PR may not merge without a merge pass, else None."""
+    try:
+        rc, out, _ = git(cwd, "diff", "--numstat", "-z", "--no-renames", f"{base}...{head}")
+        if rc != 0:
+            raise Refused("maeng: cannot read the PR diff to size it, so the comprehension gate denies the merge.")
+        rows = [r.split("\t", 2) for r in out.split("\0") if r]
+        lines = sum(int(a) + int(d) for a, d, _ in rows if a.isdigit() and d.isdigit())  # a binary file counts 0
+        return _merge_refusal(slug(repo), pr, lines, [p for *_, p in rows], lambda: quiz.patch_id(cwd, base, head))
+    except Refused as why:
+        return str(why)

@@ -185,8 +185,15 @@ def check_merge_push(lease, cwd, ctx):
 # Test switches and binary/state overrides retarget maeng-ship's own checks (fixture receipts, fake git/gh); other
 # MAENG_* prefixes (MAENG_REVIEW_BACKEND, ...) stay allowed.
 # shortcut: a text match, not a shell parse; catches assignment/export/unset/env -u, not quoting tricks.
-SWITCHES = r"MAENG_(?:TEST_FIXTURES|GIT|GH|HOME|CACHE_DIR)\b"
-SWITCH_SET = re.compile(rf"\b{SWITCHES}\+?=|\b(?:export|unset|declare|typeset|readonly|local|read|env)\b[^;&|\n]*\b{SWITCHES}")
+SWITCHES = r"MAENG_(?:TEST_FIXTURES|GIT|GH|HOME|CACHE_DIR|CLAUDE)\b"
+
+
+def switch_set(names):
+    return re.compile(rf"\b{names}\+?=|\b(?:export|unset|declare|typeset|readonly|local|read|env)\b[^;&|\n]*\b{names}")
+
+
+SWITCH_SET = switch_set(SWITCHES)
+CLAUDE_SET = switch_set(r"MAENG_CLAUDE\b")  # interview.gate denies this one in every world: it names the interview model
 SHIP_TEXT = re.compile(r"\bgit\b.*\bpush\b|\bgh\b.*\b(?:pr|api|alias|repo)\b|--force-with-lease|maeng-ship", re.S)
 SHELL_KEYWORDS = {"if", "then", "elif", "else", "while", "until", "do", "!", "{"}
 GH_API_MERGE = re.compile(r"/pulls/[^/\s]+/(?:merge|update-branch)\b|/merges\b|/merge-upstream\b|/git/refs\b")
@@ -267,10 +274,34 @@ def _state_dependent_push(toks):
     return sub == "push" and (not dsts or any(d in ("", "@") or d.startswith("HEAD") for d in dsts))
 
 
+def wrapped_payload(prog, toks):
+    """The command text inside `eval ...` / `sh -c '...'`, else None."""
+    if prog == "eval":
+        return " ".join(toks[2:] if toks[1:2] == ["--"] else toks[1:])
+    if prog in SHELLS:
+        return next((toks[i + 1] for i, t in enumerate(toks[1:], 1)
+                     if re.fullmatch(r"-[a-zA-Z]*c[a-zA-Z]*", t) and i + 1 < len(toks)), None)
+    return None
+
+
+def simple_commands(command):
+    """(program, tokens) of every simple command in `command`, inside `sh -c` / `eval` payloads too. Raises ParseError."""
+    for seg in split_segments(command.rstrip()):
+        words = list(seg.tokens)
+        while words and words[0] in SHELL_KEYWORDS:
+            words.pop(0)
+        prog, toks = program(words)
+        yield prog, toks
+        payload = wrapped_payload(prog, toks)
+        if payload:
+            yield from simple_commands(payload)
+
+
 def check_bash(command, ctx, moved=False):
     if SWITCH_SET.search(command):
-        return deny("maeng G1: setting MAENG_TEST_FIXTURES / MAENG_GIT / MAENG_GH / MAENG_HOME / MAENG_CACHE_DIR from "
-                    "Bash is denied; they switch maeng-ship to test fixtures or fake binaries.")
+        return deny("maeng G1: setting MAENG_TEST_FIXTURES / MAENG_GIT / MAENG_GH / MAENG_HOME / MAENG_CACHE_DIR / "
+                    "MAENG_CLAUDE from Bash is denied; they switch maeng-ship to test fixtures or fake binaries, and "
+                    "the interview model to a fake.")
     try:
         segs = split_segments(command.rstrip())
     except ParseError:
@@ -285,9 +316,7 @@ def check_bash(command, ctx, moved=False):
         while words and words[0] in SHELL_KEYWORDS:  # `if git push ...; then` runs the condition too
             words.pop(0)
         prog, toks = program(words)
-        payload = " ".join(toks[2:] if toks[1:2] == ["--"] else toks[1:]) if prog == "eval" else \
-            next((toks[i + 1] for i, t in enumerate(toks[1:], 1)
-                  if re.fullmatch(r"-[a-zA-Z]*c[a-zA-Z]*", t) and i + 1 < len(toks)), None) if prog in SHELLS else None
+        payload = wrapped_payload(prog, toks)
         if payload:  # `sh -c '...'` / `eval '...'`: check the wrapped command too
             d = check_bash(payload, Ctx(cwd, ctx.state, ctx.world), moved)
             if not d.allow:

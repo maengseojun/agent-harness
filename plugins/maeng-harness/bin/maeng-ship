@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
 
-from maeng import evidence, guard, receipts, remotecfg, state  # noqa: E402
+from maeng import evidence, guard, interview, receipts, remotecfg, state  # noqa: E402
 from maeng import tree as treelib  # noqa: E402
 from maeng.cli_common import checked_load, die, require_personal, session_for  # noqa: E402
 from maeng.common import git  # noqa: E402
@@ -57,6 +57,9 @@ def merge(a, cwd):
     ok, reasons = evidence.Verifier(st, top, common).ship_verified(treelib.commit_tree(cwd, head))
     if not ok:
         die("head tree is not ship-verified: " + "; ".join(reasons))
+    why = interview.require_merge(cwd, repo, a.pr, base, head)  # K3: the user's merge quiz, before any receipt counts
+    if why:
+        die(why)
     rev = (st.get("binding") or {}).get("plan_updated_at")
     recs, problem = receipts.find_code(cwd, repo, base, head, ref, rev, issue=(st.get("binding") or {}).get("issue"))
     if not recs:
