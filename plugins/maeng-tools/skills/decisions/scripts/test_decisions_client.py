@@ -434,6 +434,16 @@ class LedgerTest(Base):
                 self.assertNotIn(s, out)
                 self.assertEqual(dc.redact(out), out)
 
+    def test_wrapped_and_multi_part_values(self):
+        s, q3, q1 = "hunter2hunter2", '"' * 3, "'" * 3
+        for text in (f'+db_password = (\n+    "{s}"\n+)\n', f'password = (\n    "{s}"\n    "{s}"\n)\n', f'token = [\n  "{s}",\n]\n',
+                     f'password = \\\n    "{s}"\n', f'password = {q3}{s}\n{s}{q3}\n', f"password = {q1}{s}{q1}\n",
+                     f'password = "abc\\"{s}"', f'password = "a" "{s}"', f'password = "a" + "{s}"', f"--password 'a b {s}'"):
+            with self.subTest(text):
+                out = dc.redact(text)
+                self.assertNotIn(s, out)
+                self.assertEqual(dc.redact(out), out)
+
     def test_recognized_token_formats(self):
         for token in ("sk" "_live_" + "a1b2c3d4e5", "rk" "_test_" + "a1b2c3d4e5", "gh" "u_a1b2c3d4e5", "gh" "r_a1b2c3d4e5",
                       "lin" "_api_a1b2c3d4e5", "nt" "n_a1b2c3d4e5", "np" "m_a1b2c3d4e5", "AI" "za" + "a1b2c3d4e5f6g7h8i9"):

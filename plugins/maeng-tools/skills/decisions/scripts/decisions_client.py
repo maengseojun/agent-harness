@@ -45,17 +45,19 @@ _URL_CRED = re.compile(r"([A-Za-z][A-Za-z0-9+.-]*://)[^/\s]*@")
 _SECRET_NAME = r"[\w.-]*(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|PWD)[\w.-]*"
 # after a name: its closing quote or bracket, escaped or not, then the operator
 _ASSIGN = r"\\?[\"']?\]?[ \t]*(?::=|=>|==|:|=)[ \t]*"
-_VALUE = r"\\\".*?\\\"|\"[^\"\r\n]*\"|'[^'\r\n]*'|[^\r\n]+"  # unquoted: the rest of the line, so nothing after a space survives
+# a triple-quoted string, else the rest of the line: quotes end too early ("a\"b", "a" "b", "a" + "b")
+_VALUE = r"\"\"\"[\s\S]*?\"\"\"|'''[\s\S]*?'''|[^\r\n]+"
 _AUTH = re.compile(rf"(\bAuthorization{_ASSIGN})(?![ \t=>]|\[REDACTED\])({_VALUE})", re.I)
 _BEARER = re.compile(r"(\bBearer\s+)[A-Za-z0-9._~+/=-]{8,}", re.I)
 _KV = re.compile(rf"(\b{_SECRET_NAME}{_ASSIGN})(?![ \t=>]|\[REDACTED\])({_VALUE})", re.I)
-_FLAG = re.compile(r"(--?[\w-]*(?:key|token|secret|password|passwd)[\w-]*[ \t]+)(?!\[REDACTED\])(\"[^\"\r\n]*\"|'[^'\r\n]*'|\S+)", re.I)
+_FLAG = re.compile(r"(--?[\w-]*(?:key|token|secret|password|passwd)[\w-]*[ \t]+)(?!\[REDACTED\])(\"[^\r\n]*\"|'[^\r\n]*'|\S+)", re.I)
 # A secret key with its value on the following lines, in a file or a diff: a YAML block ("key: |-" and its
-# indented lines) or one indented value alone ("key:", then a quoted or opaque value). A wider next-line
-# form would swallow code such as "for t in tokens:" and its body.
+# indented lines), a wrapped value ("key = (", "key = \" and the indented lines) or one indented value alone
+# ("key:", then a quoted or opaque value). A wider next-line form would swallow code such as
+# "for t in tokens:" and its body.
 _NEXT_LINES = re.compile(
     rf"(\b{_SECRET_NAME}{_ASSIGN})"
-    r"(?:[|>][+-]?[0-9]?[ \t]*\r?\n(?:[+\- ]?[ \t]+\S[^\r\n]*(?:\r?\n|\Z))+"
+    r"(?:(?:[|>][+-]?[0-9]?|[(\[{\\])[ \t]*\r?\n(?:[+\- ]?[ \t]+\S[^\r\n]*(?:\r?\n|\Z))+"
     r"|\r?\n[+\- ]?[ \t]+(?:\"[^\"\r\n]*\"|'[^'\r\n]*'|[A-Za-z0-9+/=_.~-]{16,}),?[ \t]*(?:\r?\n|\Z))", re.I)
 _TOKEN = re.compile(
     r"(?<![A-Za-z0-9])(?:sk-[A-Za-z0-9_-]{8,}|[sr]k_(?:live|test)_[A-Za-z0-9]{8,}|gh[oprsu]_[A-Za-z0-9]{8,}"

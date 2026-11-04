@@ -392,6 +392,24 @@ class RunTests(Base):
         r = rev.run(cases, decide=decide)["results"][0]
         self.assertEqual((r["selected"], r["unknown"]), (["p1", "p2"], ["n1"]))
 
+    def test_an_interrupted_run_keeps_the_calls_it_made_in_the_main_ledger(self):
+        self.eval.mkdir()
+        cases = jsonl(self.eval / rev.CASES_FILE, [case("c1", "ko", ["p1"], ["n1"]), case("c2", "other", ["p2"], ["n2"])])
+        sentinel = str(self.tmp / "main-ledger.jsonl")
+        posts = []
+
+        def post(url, body, headers, timeout):
+            posts.append(body)
+            if len(posts) > 1:
+                raise KeyboardInterrupt
+            return {"answers": [], "usage": {}}
+        env = {"OPENAI_API_KEY": "sk-test-EVALKEY1234567890", "MAENG_DECISIONS_LEDGER": sentinel}
+        with mock.patch.dict(os.environ, env), mock.patch.object(dc, "_post", post):
+            os.environ.pop("MAENG_DECISIONS", None)
+            with self.assertRaises(KeyboardInterrupt):
+                rev.run(cases)
+        self.assertEqual(len(Path(sentinel).read_text(encoding="utf-8").splitlines()), 1)
+
     def test_usage_comes_from_a_run_ledger_the_env_is_restored_and_the_main_ledger_gets_the_lines(self):
         self.files()
         sentinel = str(self.tmp / "main-ledger.jsonl")

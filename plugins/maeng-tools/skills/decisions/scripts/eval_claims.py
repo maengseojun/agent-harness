@@ -69,9 +69,9 @@ def run(claims_path, *, decide=None, seed=0):
                 os.environ.pop("MAENG_DECISIONS_LEDGER", None)
             else:
                 os.environ["MAENG_DECISIONS_LEDGER"] = old
-        lines = [json.loads(ln) for ln in ledger.read_text(encoding="utf-8").splitlines()] if ledger.exists() else []
-    for r in lines:  # eval spend also counts in the trial report's overhead
-        vc.decisions_client._log(r)
+            lines = [json.loads(ln) for ln in ledger.read_text(encoding="utf-8").splitlines()] if ledger.exists() else []
+            for r in lines:  # also after an interrupted run: eval spend counts in the trial report's overhead
+                vc.decisions_client._log(r)
     usage = {"input_tokens": sum(r["input_tokens"] for r in lines), "cached_tokens": sum(r["cached_tokens"] for r in lines),
              "cost_usd": round(sum(r["cost_usd"] for r in lines), 8)}
     results = [judged[c["id"]] for c in claims]

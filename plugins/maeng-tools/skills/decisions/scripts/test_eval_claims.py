@@ -116,6 +116,29 @@ class RunTests(Base):
         # two pages, two calls; each: 600000 fresh * $0.10/1M + 400000 cached * $0.01/1M = $0.064
         self.assertEqual(out["usage"], {"input_tokens": 2_000_000, "cached_tokens": 800_000, "cost_usd": 0.128})
 
+    def test_an_interrupted_run_keeps_the_calls_it_made_in_the_main_ledger(self):
+        claims = jsonl(self.tmp / "claims.jsonl", [
+            {"id": "c0", "claim": "a", "url": "u1", "note": None}, {"id": "c1", "claim": "b", "url": "u2", "note": None}])
+        self.patch_fetch()
+        sentinel = str(self.tmp / "main-ledger.jsonl")
+        posts = []
+
+        def post(url, body, headers, timeout):
+            posts.append(body)
+            return {"answers": [], "usage": {}}
+
+        def decide(input, questions, pilot, **kw):
+            if posts:
+                raise KeyboardInterrupt
+            return dc.decide(input, questions, pilot, **kw)
+        env = {"OPENAI_API_KEY": "sk-test-EVALKEY1234567890", "MAENG_DECISIONS_LEDGER": sentinel}
+        with mock.patch.dict(os.environ, env), mock.patch.object(dc, "_post", post):
+            os.environ.pop("MAENG_DECISIONS", None)
+            with self.assertRaises(KeyboardInterrupt):
+                ec.run(claims, decide=decide)
+            self.assertEqual(os.environ["MAENG_DECISIONS_LEDGER"], sentinel)
+        self.assertEqual(len(Path(sentinel).read_text(encoding="utf-8").splitlines()), 1)
+
     def test_env_without_a_ledger_variable_is_left_without_one(self):
         claims, _ = self.files()
         self.patch_fetch()
