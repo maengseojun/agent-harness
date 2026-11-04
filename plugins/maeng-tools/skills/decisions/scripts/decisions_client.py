@@ -12,8 +12,8 @@ invalid questions raise ValueError.
 
 No request is sent when MAENG_DECISIONS=off.
 
-MAENG_DECISIONS_MODEL or model= picks the engine. The default "both" asks gpt-6-luna and Jev at
-once: a choice both give is the answer, a choice they differ on is unknown with reason "disagree",
+MAENG_DECISIONS_MODEL or model= picks the engine. The default is gpt-6-luna alone. "both" asks
+gpt-6-luna and Jev at once: a choice both give is the answer, a choice they differ on is unknown with reason "disagree",
 so it goes to the researcher re-check; a probability or score is their mean; if only one engine
 answers, its answer stands. A jev-* model goes through the school's BAZE gateway with the keychain
 item baze-api-key, in batches of 32 questions, and its answers are turned into the OpenAI shape,
@@ -40,7 +40,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 URL = "https://api.openai.com/v1/decisions"
-MODEL, LUNA, JEV = "both", "gpt-6-luna", "jev-1.14.0"
+LUNA, JEV = "gpt-6-luna", "jev-1.14.0"
+MODEL = LUNA  # the school adds about 5 credits of masking to every BAZE request (MAE-319)
 BAZE_URL = "https://api.baze.co/v1/gateway/decisions/"
 JEV_BATCH = 32  # the gateway's limit per request
 PRICE_JEV = 0.042

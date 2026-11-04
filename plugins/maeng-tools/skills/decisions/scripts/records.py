@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Linear, Notion and vault records with the Decisions API (MAE-306 / MAE-311, AC-8). Stdlib only.
 
-  records.py related   --task TEXT --candidates FILE [--threshold 0.25]
+  records.py related   --task TEXT --candidates FILE [--threshold 0.05]
       Which items should someone doing the task read? One predicate per item; prints the selected
       items by probability, the 3 nearest misses, and the ids that were not judged.
   records.py duplicate --new TEXT --candidates FILE
@@ -33,8 +33,8 @@ import decisions_client  # noqa: E402
 from private_filter import strip_private  # noqa: E402
 
 DECIDE = decisions_client.decide  # tests replace this
-# For the mean of both engines (MAE-317): chosen on half of the eval's cases, confirmed on the other half.
-RELATED_THRESHOLD = 0.25
+# For Luna alone (MAE-306 A-11): chosen on half of the eval's cases, confirmed on the other half.
+RELATED_THRESHOLD = 0.05
 MAX_ITEM_CHARS = 4000
 MAX_PREDICATES = 400  # the client's limit per request
 MAX_CHOICES = 254  # plus `none`

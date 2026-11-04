@@ -241,9 +241,8 @@ class BothTest(Base):
             if isinstance(r, Exception):
                 raise r
             return r
-        os.environ.pop("MAENG_DECISIONS_MODEL", None)
         with mock.patch.object(dc, "_post", post):
-            return dc.decide("hello", questions, "p")
+            return dc.decide("hello", questions, "p", model="both")
 
     def jev_choice(self, c):
         return {"answers": {"topic": {"type": "choice", "choice": c, "confidence": 0.9, "probabilities": {"billing": 0.5, "bug": 0.5}}}}
@@ -278,9 +277,22 @@ class BothTest(Base):
     def test_no_baze_key_falls_back_to_luna(self):
         self.keychain.return_value = None
         fake = FakePost({"answers": [A_CHOICE]})
+        self.assertEqual(self.run_decide(fake, [Q_CHOICE], model="both")[0]["choice"], "billing")
+        self.assertEqual(len(fake.calls), 1)
+
+    def test_the_default_is_luna_alone_and_never_calls_baze(self):
+        self.keychain.return_value = "BAZEKEY"
+        fake = FakePost({"answers": [A_CHOICE]})
         del os.environ["MAENG_DECISIONS_MODEL"]
         self.assertEqual(self.run_decide(fake, [Q_CHOICE])[0]["choice"], "billing")
-        self.assertEqual(len(fake.calls), 1)
+        self.assertEqual([c[0] for c in fake.calls], [dc.URL])
+
+    def test_the_env_turns_both_back_on(self):
+        self.keychain.return_value = "BAZEKEY"
+        fake = FakePost({"answers": [A_CHOICE]})
+        with mock.patch.dict(os.environ, {"MAENG_DECISIONS_MODEL": "both"}):
+            self.run_decide(fake, [Q_CHOICE])
+        self.assertEqual(sorted(c[0] for c in fake.calls), sorted([dc.URL, dc.BAZE_URL]))
 
 
 class ErrorPathTest(Base):
