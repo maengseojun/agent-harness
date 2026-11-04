@@ -38,5 +38,6 @@ if [ "$status" != 200 ]; then
   exit 1
 fi
 jq -er '.data[0].b64_json' "$work/response.json" | base64 --decode > "$work/image"
+[ -s "$work/image" ] || { echo "openai-image: the response held an empty image" >&2; exit 1; }
 mv "$work/image" "$out"
 echo "$out"

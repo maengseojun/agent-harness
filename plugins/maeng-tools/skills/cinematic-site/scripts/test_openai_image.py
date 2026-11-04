@@ -129,6 +129,12 @@ class OpenAiImageTests(unittest.TestCase):
         self.assertNotEqual(self.run_script().returncode, 0)
         self.assertFalse(self.out.exists())
 
+    def test_empty_image_never_replaces_the_previous_image(self):
+        self.out.write_bytes(b'paid for earlier')
+        self.server.reply = b'{"data": [{"b64_json": ""}]}'
+        self.assertEqual(self.run_script().returncode, 1)
+        self.assertEqual(self.out.read_bytes(), b'paid for earlier')
+
     def test_stops_before_any_request(self):
         executable(self.security, '#!/bin/sh\nexit 44\n')
         self.assertEqual(self.run_script().returncode, 44)

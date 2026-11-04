@@ -28,7 +28,7 @@ Verification:
 - AC-3: `claude plugin validate plugins/maeng-tools`
 - AC-4: `python3 -m pytest -q`
 
-Checked against: 8 mutations of the script (key in argv, edits route removed, references reversed, reference path unquoted, HTTP status ignored, curl retries added, null image accepted, output folder check removed), plus 2 after review round 1 (curl `-q` removed, output deleted on failure). The tests caught all 10.
+Checked against: 8 mutations of the script (key in argv, edits route removed, references reversed, reference path unquoted, HTTP status ignored, curl retries added, null image accepted, output folder check removed), plus 2 after review round 1 (curl `-q` removed, output deleted on failure). The tests caught all 10. The empty-image test from round 2 failed before its fix and passes after it.
 
 Revisions:
 - none
