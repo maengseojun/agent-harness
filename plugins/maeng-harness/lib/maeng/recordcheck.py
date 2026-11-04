@@ -18,21 +18,28 @@ def off():
 
 
 def ran(command):
-    """-> "related" or "duplicate" when this Bash command runs that check, else None."""
+    """-> the checks this Bash command surely ran. Its exit status proves nothing after `||` or behind `&`, or after
+    `&&` when a later `;` can hide the failure, so those forms do not count."""
     try:
         segments = split_segments(command)
     except ParseError:
-        return None
-    for seg in segments:
+        return []
+    ops = [seg.op_after for seg in segments]
+    if "||" in ops or "&" in ops:
+        return []
+    found = []
+    for i, seg in enumerate(segments):
         prog, toks = program(seg.tokens)
-        if prog.startswith("python") and len(toks) > 2 and os.path.basename(toks[1]) == "records.py" \
-                and toks[2] in CHECKS:
-            return toks[2]
-    return None
+        if not (prog.startswith("python") and len(toks) > 2 and os.path.basename(toks[1]) == "records.py"
+                and toks[2] in CHECKS):
+            continue
+        if not ("&&" in ops[:i] and any(op in (";", "\n") for op in ops[i:])):
+            found.append(toks[2])
+    return found
 
 
-def mark(st, check):
-    st.setdefault("records_checks", {})[check] = time.time()
+def mark(st, checks):
+    st.setdefault("records_checks", {}).update(dict.fromkeys(checks, time.time()))
 
 
 def _new_vault_note(path):

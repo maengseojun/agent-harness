@@ -22,7 +22,7 @@ The OpenAI Decisions API (`POST /v1/decisions`, `gpt-6-luna`) answers bounded qu
 | Use | What makes it run |
 |---|---|
 | Claim verification | `maeng-review run --kind research` is blocked without `--claims <verify_claims.py --out file>` |
-| Review pre-flight, triage | `maeng-review run` runs them itself and prints them on stderr; the reviewer does not see them |
+| Review pre-flight, triage | `maeng-review run` runs them itself, is blocked without `--plan` and `--evidence`, and prints them on stderr; the reviewer does not see them |
 | Related pick | `maeng-verify bind` refuses until `records.py related` ran in this session |
 | Duplicate check | A new Linear issue, Notion page or vault note is denied until `records.py duplicate` ran in the last 30 minutes of this session. Updates, overwrites and machine-made notes (`wiki/sessions`, `wiki/reviews`, `wiki/sources`, `raw`) pass |
 | Cleanup | The Monday `vault-weekly-maint` task runs it |
@@ -41,7 +41,7 @@ Scripts are in this skill's `scripts/` folder; run them with `python3 <this skil
 
 ## Review pre-flight (`maeng-review run` runs it)
 
-1. Pass the latest verification output with `--evidence <file>` and a `--plan`; without them it does not run.
+1. Pass the latest verification output with `--evidence <file>` and a `--plan`; a code or parent review is blocked without them.
 2. To see the table before spending a round: `python3 preflight.py ac --plan <docs/design/MAE-n-plan.md> --base <base ref> --evidence <file>`.
 3. Read the table. Fix a clear `unmet` before requesting the review; leave `unclear` for the reviewer. Never skip or delay the review because of a `met`.
 4. After the review, add one line to the bound Linear issue: which `unmet` flags the review also raised or you fixed (real) and which were wrong (false).

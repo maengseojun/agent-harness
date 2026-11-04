@@ -448,6 +448,10 @@ def run_review(a, cwd):
             bundle.setdefault("missing", []).append("base ref name (--base-ref)")
     codex_author = a.kind == "code" and a.author == "codex"
     model, effort = (OPUS, "high") if codex_author else tier_for(a.kind, st.get("binding"))
+    plan = a.plan or (st.get("binding") or {}).get("plan_doc")
+    preflight = a.kind in ("code", "parent") and not recordcheck.off()
+    if preflight and not (plan and a.evidence):
+        bundle.setdefault("missing", []).append("Decisions pre-flight inputs (--plan and --evidence)")
     prompt_text = PROMPT + json.dumps(bundle, indent=1)
     if len(prompt_text) > a.max_bytes:  # the exact text sent to codex, not an estimate
         bundle.setdefault("missing", []).append(
@@ -466,12 +470,8 @@ def run_review(a, cwd):
             die(f"review round cap: PR #{a.pr} already had {rounds} review runs (max {a.max_rounds}). Stop reviewing: "
                 f"post the CEO brief with the open findings (harness-run, Approval) and ask the user for `승인 #{a.pr}`. "
                 f"Raise --max-rounds only on the user's word.", 2)
-    plan = a.plan or (st.get("binding") or {}).get("plan_doc")
-    code_review = a.kind in ("code", "parent") and a.base and a.head and a.evidence
-    if code_review and plan:
+    if preflight:
         decisions_advisory(cwd, "ac", "--plan", plan, "--base", a.base, "--head", a.head, "--evidence", *a.evidence)
-    elif a.kind in ("code", "parent") and not recordcheck.off():
-        print("warning: Decisions pre-flight not run: it needs --plan and --evidence", file=sys.stderr)
     full = schema.load_schema()
     out_schema = {**full["$defs"]["reviewer_output"], "$defs": full["$defs"]}
     with tempfile.TemporaryDirectory(prefix="maeng-review-") as d:
@@ -515,7 +515,7 @@ def run_review(a, cwd):
     earlier = [str(f) for f in round_files(subject["repo"], a.pr)] if subject.get("repo") and a.pr else []
     write_json(stored, verdict)
     report_review(a, cwd, st, subject, verdict, verdict_key)
-    if code_review and verdict["verdict"] != "pass":
+    if preflight and verdict["verdict"] != "pass":
         decisions_advisory(cwd, "triage", "--findings", str(stored), *(["--previous", *earlier] if earlier else []),
                            "--base", a.base, "--head", a.head, "--evidence", *a.evidence)
     print(json.dumps({"verdict": verdict["verdict"], "receipt": verdict_key, "findings": verdict["findings"]}, indent=2))

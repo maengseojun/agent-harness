@@ -62,10 +62,25 @@ class DuplicateGate(On, HarnessCase):
     def test_real_invocations_count(self):
         for command in ("cd /x && python3 /y/scripts/records.py duplicate --new t --candidates c.json",
                         'python3 "$D/records.py" duplicate --new t --candidates c.json',
+                        "D=/y; python3 $D/records.py duplicate --new t --candidates c.json",
                         "python3.12 records.py duplicate --new t --candidates c.json | tail -3"):
-            self.assertEqual(recordcheck.ran(command), "duplicate", command)
-        self.assertEqual(recordcheck.ran("python3 records.py cleanup --candidates c.json"), None)
-        self.assertEqual(recordcheck.ran("python3 records.py 'unclosed"), None)
+            self.assertEqual(recordcheck.ran(command), ["duplicate"], command)
+        self.assertEqual(recordcheck.ran("python3 records.py cleanup --candidates c.json"), [])
+        self.assertEqual(recordcheck.ran("python3 records.py 'unclosed"), [])
+
+    def test_one_call_can_run_both_checks(self):
+        command = "python3 records.py related --task t --candidates c.json && python3 records.py duplicate --new t " \
+                  "--candidates c.json"
+        self.assertEqual(recordcheck.ran(command), ["related", "duplicate"])
+        self.ran(command)
+        self.assertFalse(self.pre(self.repo, LINEAR, {"team": "MAE", "title": "x"})[0])
+
+    def test_a_step_that_may_have_been_skipped_does_not_count(self):
+        for command in ("test -f cached.json || python3 records.py related --task t --candidates c.json",
+                        "python3 records.py related --task t --candidates c.json || true",
+                        "python3 records.py related --task t --candidates c.json &",
+                        "false && python3 records.py related --task t --candidates c.json; echo ok"):
+            self.assertEqual(recordcheck.ran(command), [], command)
 
     def test_the_check_expires(self):
         self.ran("python3 records.py duplicate --new t --candidates c.json")
@@ -157,12 +172,14 @@ class ReviewWiring(On, ReviewRunFixture):
         self.assertEqual(self.run_review(bad).returncode, 0)
         self.assertEqual(self.run_review(self.tmp / "gone.py").returncode, 0)
 
-    def test_a_review_without_evidence_says_the_preflight_did_not_run(self):
+    def test_a_review_without_evidence_is_blocked_before_the_reviewer(self):
         proc = self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
                                          "--base-ref", "main"], self.repo,
                         extra_env={"MAENG_CODEX": str(self.codex), "MAENG_PREFLIGHT": str(self.fake)})
-        self.assertIn("pre-flight not run", proc.stderr)
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("pre-flight inputs", proc.stdout)
         self.assertEqual(self.logged(), [])
+        self.assertFalse(self.stdin_log.exists())
 
     def test_off_skips_it(self):
         self.env["MAENG_DECISIONS"] = "off"
