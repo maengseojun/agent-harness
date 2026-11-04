@@ -4,7 +4,7 @@ Linear: MAE-306 (parent), MAE-304 (claim verification), MAE-308 (review pre-flig
 
 Goal: run the OpenAI Decisions API (`POST /v1/decisions`, `gpt-6-luna`, paid from the ChatGPT Pro API credit) inside the personal harness for the rest of the week, measured against criteria fixed now, so the user can keep, change or drop each use on Sunday 2026-11-08.
 
-Deliverable: one PR adding the skill `plugins/maeng-tools/skills/decisions/` (client, ledger, claim verification, eval, review pre-flight, report), the aside-research stage 3 change, and the maeng-tools 0.3.14 bump. Installed on Thursday after `승인 #N`. On Sunday: a report from the ledger and a CEO brief in Korean with one keep/change/drop question per use.
+Deliverable: one PR adding the skill `plugins/maeng-tools/skills/decisions/` (client, ledger, claim verification, eval, review pre-flight, report), the aside-research stage 3 change, and the maeng-tools 0.3.15 bump. Installed on Thursday after `승인 #N`. On Sunday: a report from the ledger and a CEO brief in Korean with one keep/change/drop question per use.
 
 Decisions:
 - D-1 (user, 2026-11-03) Try it this week and decide on Sunday; accept the extra token use. "이번주 정도 시험해보고 그다음에 일요일에 결정하자", "토큰 소모하는거 감수". Wrong if: none (user decision).
@@ -57,7 +57,7 @@ Acceptance:
 - **AC-4** Pre-flight: one request with a `choice` (`met`/`unmet`/`unclear`) per `AC-n` of the given Plan; diff and verification output always in the input; finding triage (`new`/`repeat`, `this_change`/`pre_existing`/`bypass`); no file writes. covers T5, A4
 - **AC-5** Report: per-use counts, outcomes, latency p50/p95, tokens and cost for a date range from the ledger; fixture numbers equal hand-computed values in the test. covers A5
 - **AC-6** Skill text: `decisions` SKILL.md says when to run each script and the data rule; aside-research stage 3 has `decisions` (trial default, A-4) and `researcher` modes. covers A6, K1, K2
-- **AC-7** No change under `plugins/maeng-harness` or `harness/`; maeng-tools is 0.3.14 and validates.
+- **AC-7** No change under `plugins/maeng-harness` or `harness/`; maeng-tools is 0.3.15 and validates.
 - **AC-8** Records: `records.py related|duplicate|cleanup` builds one request per call with English instructions; strips `<private>` spans; `unknown` answers are never selected, never named as duplicates and never listed as cleanup candidates; no file writes. covers A-9, A-10
 - **AC-9** Related-pick offline eval: a builder makes cases from vault wikilinks (a note's linked notes are relevant, seeded random unlinked notes are not; private content excluded), deterministic on rerun; the runner reports recall of relevant items, share of candidates selected, and both per language (Korean / other), plus recall on positives the task text does not name. Floor for the live trial: recall ≥ 0.9 with selected share ≤ 0.5 overall; the unnamed recall is reported for the Sunday judgment. The case files hold vault text and live outside the public repository (`~/Documents/maeng-harness/decisions/eval/`).
 
@@ -109,9 +109,10 @@ Revisions:
 - R-9 result (2026-11-04): internal review before the last round. Redaction covers more assignment forms, command flags, the rest of an unquoted line and more token formats; a PEM header alone no longer erases what follows; claim verification keeps named values because page text is public and masking made true and false claims identical; malformed `confidence` and `probabilities` are dropped; a lone surrogate cannot fail a call; a claim eval with an unknown negative cannot pass; pre-flight `triage` needs evidence and an empty diff sends nothing; stage 3 maps `decisions` verdicts to the citation labels.
 - R-10 result (2026-11-04): fourth and last review round (fail, cap reached). Redaction covers wrapped and multi-part values; an interrupted eval keeps its completed calls in the main ledger. These two fixes have no independent review.
 - R-11 result (2026-11-04): internal Fable review, at the user's request. No blocker. A bracketed value ends at its closing line, a zero-indent context line ends a block, a PEM block must hold only body characters, `_PASS`, passphrase and webhook names plus Slack webhooks and JWTs are redacted, a cut ledger line is skipped and counted. No independent `maeng-review` of this either.
+- R-12 result (2026-11-04): MAE-312 landed on the base first with the same 0.3.14 version. The base is merged in and this PR moves to 0.3.15, because the plugin cache is keyed by version. No skill code changed.
 
 Close-out:
 - size: (filled at close)
-- revisions: plan 4 / result 7
+- revisions: plan 4 / result 8
 - review rounds to pass:
 - unmet AC at close:
