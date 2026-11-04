@@ -353,7 +353,7 @@ def _merge_calls(command):
     """Token lists of the `gh pr merge` calls in the command (also in `sh -c` and `eval`), with or without --auto."""
     try:
         return [toks for prog, toks in gates.simple_commands(command)
-                if prog == "gh" and not {"--help", "-h"} & set(toks) and ghcmd.parse_gh(toks)["pos"][:2] == ["pr", "merge"]]
+                if prog == "gh" and not {"--help", "-h", "--disable-auto"} & set(toks) and ghcmd.parse_gh(toks)["pos"][:2] == ["pr", "merge"]]
     except ParseError:
         if re.search(r"\bgh\b.*\bmerge\b", command, re.S):
             raise Refused("maeng: cannot parse this command and it mentions `gh ... merge`; run the merge as a simpler command.")

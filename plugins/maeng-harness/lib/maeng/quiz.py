@@ -18,6 +18,8 @@ SUMMARY = re.compile(r"^[=\s]*\d+ (?:failed|passed|error|skipped)")  # pytest's 
 TEST_FILE = re.compile(r"(^|/)(tests?/|test_[^/]*$)|_test\.[^/]*$|\.(?:test|spec)\.[^/]*$")
 MAX_LINES = 3  # a mutation is a find/replace of at most this many lines
 EQUAL = re.compile(r"==|\bis\b|assertEq|toEqual|toBe|\bequal", re.I)  # a line that states a value, not a bound
+NEGATED = re.compile(r"!=|\bnot\b|assertNot|\.not\.", re.I)  # changing its literal can fail it, and the value is still not the key
+TEST_ID = re.compile(r"^\S*::(\w+)(?:\[[^\]]*\])?(?=\s|$)|^\[[^\]]*\]\s*(test\w+)\(|^---\s*:\s*(Test\w+)\b|^:\s*(test\w+)\b")
 
 
 def patch_id(cwd, base, head):
@@ -58,14 +60,10 @@ def run_tests(cmd, cwd):
 
 
 def test_names(lines):
-    """The test names in failing lines: `path::test_x[1] - ...` (pytest), `testFoo() (gas: 1)` (forge), `TestFoo` (go)."""
-    names = set()
-    for line in lines:
-        for tok in re.findall(r"[\w./:\[\]-]+", line):
-            leaf = tok.rsplit("::", 1)[-1].split("[")[0]
-            if re.fullmatch(r"\w{5,}", leaf) and "test" in leaf.casefold() and leaf.casefold() not in ("tests", "testing"):
-                names.add(leaf)
-    return sorted(names)
+    """Test names in failing lines, whose FAIL word is gone, by runner form: `path::name[1] - msg` (pytest),
+    `[: msg] testFoo() (gas: 1)` (forge), `--- : TestFoo (0s)` (go), `: test_foo (mod.Class)` (unittest). A word in a
+    failure message never counts."""
+    return sorted({name for line in lines for hit in TEST_ID.finditer(line) for name in hit.groups() if name})
 
 
 def _lines(text):
@@ -102,7 +100,8 @@ def _predict(c, repo, cmd, changed):
     except (OSError, UnicodeDecodeError):
         return None
     rows = _lines(text)
-    if not 1 <= line <= len(rows) or literal not in rows[line - 1] or not EQUAL.search(rows[line - 1]):
+    if not 1 <= line <= len(rows) or literal not in rows[line - 1] or not EQUAL.search(rows[line - 1]) \
+            or NEGATED.search(rows[line - 1]):
         return None
     asked = c.get("question") if isinstance(c.get("question"), str) and literal not in c["question"] else \
         "기대값이 가려진 테스트 줄입니다. 코드가 실제로 내는 값은 무엇입니까?"

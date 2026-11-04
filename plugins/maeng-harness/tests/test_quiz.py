@@ -123,12 +123,14 @@ class ConfirmItems(HarnessCase):
 
     def test_a_prediction_must_pin_the_value_the_code_gives(self):
         body = ("import pytest\n" + TESTS + "\n\ndef test_not_zero():\n    assert add(2, 3) != 0\n\n\n"
-                "def test_big():\n    assert add(2, 3) > 1\n\n\n@pytest.mark.skip\ndef test_off():\n    assert add(2, 3) == 9\n")
+                "def test_big():\n    assert add(2, 3) > 1\n\n\ndef test_no():\n    assert is_even(4) is not False\n\n\n"
+                "@pytest.mark.skip\ndef test_off():\n    assert add(2, 3) == 9\n")
         (self.proj / "test_calc.py").write_text(body)
         rows = body.split("\n")
         at = lambda text: rows.index(text) + 1
         wrong = [{"kind": "predict", "file": "test_calc.py", "line": at("    assert add(2, 3) != 0"), "literal": "0", "question": "?"},
                  {"kind": "predict", "file": "test_calc.py", "line": at("    assert add(2, 3) > 1"), "literal": "1", "question": "?"},
+                 {"kind": "predict", "file": "test_calc.py", "line": at("    assert is_even(4) is not False"), "literal": "False", "question": "?"},
                  {"kind": "predict", "file": "test_calc.py", "line": at("    assert add(2, 3) == 9"), "literal": "9", "question": "?"}]
         self.assertEqual(self.confirm(wrong), [])
         right = {"kind": "predict", "file": "test_calc.py", "line": at("    assert add(2, 3) == 5"), "literal": "5", "question": "?"}
@@ -291,7 +293,9 @@ class Keyed(HarnessCase):
 
     def test_names_of_failing_tests_per_runner(self):
         self.assertEqual(quiz.test_names(["test_calc.py::TestA::test_add[1] - assert -1 == 5"]), ["test_add"])  # pytest
+        self.assertEqual(quiz.test_names(["test_calc.py::test_add - AssertionError: latest result is wrong"]), ["test_add"])
         self.assertEqual(quiz.test_names(["[: revert] testMint() (gas: 1234)"]), ["testMint"])  # forge
+        self.assertEqual(quiz.test_names([": test_add (test_calc.Case.test_add)"]), ["test_add"])  # unittest
         self.assertEqual(quiz.test_names(["--- : TestFoo (0.00s)"]), ["TestFoo"])  # go
         self.assertEqual(quiz.test_names(["some tests in test_calc.py: exit status 1"]), [])  # nothing names a test
 

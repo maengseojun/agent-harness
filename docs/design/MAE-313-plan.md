@@ -18,7 +18,7 @@ Decisions:
 
 Assumptions (for the CEO brief):
 - A-1 The merge gate opens when a PR's additions plus deletions exceed 150 or it touches a mapped path. 150 is the size harness-run treats as one task. With no part map, design gates do not apply.
-- A-2 Sizes: overall 5 exchanges, part 3 questions plus 1 follow-up, merge 4 keyed items plus 1 written question.
+- A-2 Sizes: overall 5 exchanges, part 3 questions plus 1 follow-up, merge up to 4 keyed items plus 1 written question. With 2 or 3 confirmed items the quiz is that much shorter: filling it would add LLM grading, which D-2 keeps to one question.
 - A-3 Headless sessions (`claude -p`, dots) skip the code-write gate but not the merge gate; they end with `needs input:`. Measured 2026-11-04: `CLAUDE_CODE_ENTRYPOINT` is inherited by a child `claude -p` so it cannot tell them apart; the parent process argv carries `-p`, the desktop session's does not.
 - A-4 Answers bind to the session id that opened the interview. A child `claude -p` has its own session id (measured). A prompt starting with a system wrapper (`<system-reminder>`, `<task-notification>`, `<cross-session-message>`, `<side-sessions-event>`, `<ci-monitor-event>`) is never an answer. Unmeasured: how a cross-session message reaches UserPromptSubmit.
 - A-5 A design pass does not expire and is not bound to a digest; `maeng-interview reopen <part>` clears it. Only merge passes are bound to code.
@@ -112,6 +112,10 @@ Revisions:
 - R-10 result quality, first Sol review: numeric answers compare as Decimal, not float.
 - R-11 result quality, first Sol review: a pure deletion can only be a `failing-test` item, or is dropped.
 - R-12 result quality, first Sol review: the merge-pass digest is no longer `git patch-id`, which ignores whitespace, so a Python indentation change kept a pass. T2 and AC-3's patch id now mean this digest.
+- R-13 result quality, second Sol review: a negated assertion (`is not`, `!=`, `assertNot`) is never a prediction.
+- R-14 result quality, second Sol review: test names are parsed by runner form, so a word in a failure message is not an answer.
+- R-15 plan criteria, second Sol review: A-2 says up to 4 keyed items; a shorter quiz is intended. For the CEO brief.
+- R-16 result quality: `gh pr merge --disable-auto` turns auto-merge off and is not gated, found while checking the installed `gh` options.
 - R-6 result quality: the live run returned 3 predict items and 1 defect from 3 and 3 candidates, on test bookkeeping. Found defects now go in first and the candidate prompt asks about what the code does.
 
 Close-out:

@@ -615,6 +615,10 @@ class MergeGateEta(GateCase):
             with self.subTest(cmd=cmd):
                 self.assertTrue(self.merge(cmd)[0])
 
+    def test_turning_auto_merge_off_is_not_a_merge(self):
+        self.set_pr(151, ["feat.py"])
+        self.assertFalse(self.merge("gh pr merge 7 --disable-auto")[0])
+
     def test_the_gh_call_reads_the_named_pr_and_repo(self):
         self.set_pr(10, ["feat.py"])
         self.merge("gh pr merge 7 -R someone/else")
