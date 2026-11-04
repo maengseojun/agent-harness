@@ -28,7 +28,7 @@ Verification:
 - AC-4: `claude plugin validate plugins/maeng-tools`, `git diff --stat origin/feat/harness-v1...HEAD -- plugins/maeng-harness harness`, `python3 -m pytest -q`
 
 Results, 2026-11-04, Jev 1.14.0 through BAZE against `gpt-6-luna` on the OpenAI key:
-- Claim eval: on the 263 claims both engines judged, a tie: 141 of 144 false claims caught (natural 5 of 6) and no true claim flagged. They miss different mutations. Jev left 29 claims `unknown` because 3 pages pass 64,000 characters. p50 per request: Jev 1,172 ms, Luna about 300 ms.
+- Claim eval: on the 263 claims both engines judged, a tie: 141 of 144 false claims caught (natural 5 of 6) and no true claim flagged. They miss different mutations. A second Jev run on the final client missed one more (4 in all), so a gap of one or two claims is noise. Jev left 29 claims `unknown` because 3 pages pass 64,000 characters. p50 per request: Jev 1,172 ms, Luna about 300 ms.
 - Related eval, 40 cases from the 511 notes with no eta mention (Korean 30, other 10): AUC 0.974 against 0.957. Reading 30% of candidates, recall is 0.906 against 0.914; reading 40%, 0.978 against 0.942. Jev gains mostly on non-Korean notes; on Korean notes Luna is ahead at 25 to 30% and level at 35%. p50 2,525 ms against 484 ms. Cost $0.014 against $0.042.
 - At the 0.05 threshold Jev selects 96.5% of candidates, so a threshold must be set for it.
 - These are small sets written by the agent, so this is direction, not a verdict.
