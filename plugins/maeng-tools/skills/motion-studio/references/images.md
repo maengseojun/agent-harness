@@ -10,14 +10,14 @@ Order (user decision, 2026-11-04): the OpenAI Images API first, `codex exec` whe
 cat > <outdir>/<name>.prompt.txt <<'EOF'
 <prompt>
 EOF
-<cinematic-site>/scripts/openai-image.sh <outdir>/<name>.prompt.txt <outdir>/<name>.png 1536x864 low <ref1.png> <ref2.png>
-sips -g pixelWidth -g pixelHeight <outdir>/<name>.png
+<cinematic-site>/scripts/openai-image.sh <outdir>/<name>.prompt.txt <outdir>/<name>.png 1536x864 low <ref1.png> <ref2.png> &&
+  sips -g pixelWidth -g pixelHeight <outdir>/<name>.png
 ```
 
 - The prompt in English: the subject, the palette from `brand/frame.md`, where to leave empty space for text, `no text, no letters, no logos`.
 - Arguments: prompt file, output, size, quality (`low`, `medium`, `high`), then any reference images (PNG or JPEG). `low` for drafts, `high` for the final image.
 - Size sets the aspect: `1536x864` wide, `864x1536` vertical, `1024x1024` square. Both sides must divide by 16 and the ratio stays within 3:1; sizes above `2560x1440` are experimental.
-- The script does not retry. On a non-zero exit, read the API's message. When the credit is out or the call keeps failing, use route 2 instead of repeating it.
+- The script does not retry, and a failed call leaves any earlier image at that path. On a non-zero exit, read the API's message. When the credit is out or the call keeps failing, use route 2 instead of repeating it.
 - Verified 2026-11-04: one `1024x1024` `low` call without references. The edits endpoint that takes references follows OpenAI's reference but has not been called live; report it if the first such run fails.
 
 ## 2. GPT image through `codex exec` (fallback)

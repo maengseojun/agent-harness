@@ -11,11 +11,12 @@ Assumptions: A-1 the model stays `gpt-image-2`, the model of the working call. O
 A-2 the script lives in `cinematic-site/scripts/`, since `frontend-guidance` and `taste-skill` already point at `cinematic-site` prompts §1. `motion-studio` reaches it as a sibling folder.
 A-3 quality `low` for drafts and `high` for finals, with `2560x1440` `high` for the cinematic-site plate. Neither has run live.
 A-4 falling back is the agent's decision from the error message, not automatic, and the script never retries, since each call spends credit.
+A-5 a failed rerun leaves the earlier image at the output path, because deleting it would lose a paid image. Both docs chain `&& sips`, so a failed run does not inspect the old file (review round 1).
 Owns: `plugins/maeng-tools/skills/cinematic-site/` (SKILL.md, references/prompts.md, scripts/openai-image.sh, scripts/test_openai_image.py), `plugins/maeng-tools/skills/motion-studio/references/{images,formats}.md`, `plugins/maeng-tools/skills/frontend-guidance/SKILL.md`, `plugins/maeng-tools/skills/design-reference/references/taste-skill.md`, `plugins/maeng-tools/.claude-plugin/plugin.json`, this file.
 Exclusions: no live image call in this task (each one spends the user's credit), so the edits route is untested live. No price per image. `docs/design/codex-image-route-plan.md` stays as the past plan. `plugins/maeng-tools/skills/decisions/` is another session's. Weave's video step does not change.
 
 - **AC-1** `motion-studio/references/images.md`, `cinematic-site/SKILL.md`, `cinematic-site/references/prompts.md` §1, `frontend-guidance/SKILL.md` and `design-reference/references/taste-skill.md` name the Images API as the default and `codex exec` as the fallback. Each route text with a credit-spending call says to ask first, and both copies of the route say the edits endpoint is not verified live.
-- **AC-2** `openai-image.sh` posts JSON to `/images/generations` without references and multipart `image[]` to `/images/edits` with them, in order. It saves the decoded image, never puts the key in argv, output or files, does not retry, and on any failure leaves no output file and exits non-zero. Tests reach only a local fake server, and `security` is faked, so they cannot spend credit.
+- **AC-2** `openai-image.sh` posts JSON to `/images/generations` without references and multipart `image[]` to `/images/edits` with them, in order. It saves the decoded image, never puts the key in argv, output or files, does not retry and ignores `~/.curlrc`. On any failure it exits non-zero and writes nothing to the output path, so an earlier image there stays as it was. Tests reach only a local fake server, and `security` is faked, so they cannot spend credit.
 - **AC-3** maeng-tools is 0.3.14 and `claude plugin validate plugins/maeng-tools` passes.
 - **AC-4** The root suite passes.
 
@@ -27,7 +28,7 @@ Verification:
 - AC-3: `claude plugin validate plugins/maeng-tools`
 - AC-4: `python3 -m pytest -q`
 
-Checked against: 8 mutations of the script (key in argv, edits route removed, references reversed, reference path unquoted, HTTP status ignored, curl retries added, null image accepted, output folder check removed). The tests caught all 8.
+Checked against: 8 mutations of the script (key in argv, edits route removed, references reversed, reference path unquoted, HTTP status ignored, curl retries added, null image accepted, output folder check removed), plus 2 after review round 1 (curl `-q` removed, output deleted on failure). The tests caught all 10.
 
 Revisions:
 - none

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Make one image with the OpenAI Images API. With references it calls the edits endpoint, otherwise generations.
-# Every call spends API credit, so nothing here retries: a failure exits non-zero with the API's message.
+# Every call spends API credit, so nothing here retries: a failure exits non-zero with the API's message
+# and leaves any image already at OUT.png in place, since that one was paid for too.
 set -euo pipefail
 
 usage() { echo "usage: openai-image.sh PROMPT_FILE OUT.png WIDTHxHEIGHT low|medium|high [REF ...]" >&2; exit 2; }
@@ -27,9 +28,10 @@ else
 fi
 
 key=$(security find-generic-password -s openai-api-key -w)
-# printf is a builtin and curl reads the header from stdin, so the key never reaches any argv
+# printf is a builtin and curl reads the header from stdin, so the key never reaches any argv.
+# -q must stay first: it skips ~/.curlrc, where --retry would spend credit and --verbose would print the key.
 status=$(printf 'header = "Authorization: Bearer %s"\n' "$key" |
-  curl -sS -K - --max-time 600 -o "$work/response.json" -w '%{http_code}' "${args[@]}" "$url")
+  curl -q -sS -K - --max-time 600 -o "$work/response.json" -w '%{http_code}' "${args[@]}" "$url")
 
 if [ "$status" != 200 ]; then
   echo "openai-image: HTTP $status: $(jq -r '.error.message // .' "$work/response.json" 2>/dev/null || cat "$work/response.json")" >&2

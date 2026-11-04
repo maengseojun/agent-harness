@@ -58,7 +58,10 @@ class OpenAiImageTests(unittest.TestCase):
             'PATH': f'{bin_dir}:{os.environ["PATH"]}',
             'OPENAI_IMAGE_BASE_URL': f'http://127.0.0.1:{self.server.server_port}/v1',
             'NO_PROXY': '*',
+            'HOME': str(self.dir),
+            'CURL_HOME': str(self.dir),
         }
+        (self.dir / '.curlrc').write_text('retry = 2\nretry-all-errors\nretry-delay = 0\nverbose\n')
         self.prompt = self.dir / 'a.prompt.txt'
         self.prompt.write_text('A "quoted" hero\nsecond line\n')
         self.out = self.dir / 'a.png'
@@ -113,6 +116,13 @@ class OpenAiImageTests(unittest.TestCase):
         self.assertIn('HTTP 429: You exceeded your current quota', result.stderr)
         self.assertFalse(self.out.exists())
         self.assertEqual(len(self.server.requests), 1)
+        self.assertNotIn(KEY, result.stderr)
+
+    def test_failed_rerun_keeps_the_previous_image(self):
+        self.out.write_bytes(b'paid for earlier')
+        self.server.status, self.server.reply = 500, b'not json'
+        self.assertEqual(self.run_script().returncode, 1)
+        self.assertEqual(self.out.read_bytes(), b'paid for earlier')
 
     def test_ok_reply_without_image_fails_and_writes_nothing(self):
         self.server.reply = b'{"data": [{}]}'

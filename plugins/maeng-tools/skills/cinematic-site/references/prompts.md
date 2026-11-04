@@ -13,14 +13,14 @@ cd ~/Documents/maeng-harness/cinematic/{slug}
 cat > {stage}/{A}.prompt.txt <<'EOF'
 {prompt}
 EOF
-{skill}/scripts/openai-image.sh {stage}/{A}.prompt.txt {stage}/{A}.png 1536x864 low refs/1-{role}.png refs/2-{role}.png
-sips -g pixelWidth -g pixelHeight {stage}/{A}.png
+{skill}/scripts/openai-image.sh {stage}/{A}.prompt.txt {stage}/{A}.png 1536x864 low refs/1-{role}.png refs/2-{role}.png &&
+  sips -g pixelWidth -g pixelHeight {stage}/{A}.png
 ```
 
 - Arguments: prompt file, output, size, quality (`low`, `medium`, `high`), then any reference images (PNG or JPEG). With no references it generates from the prompt alone.
 - Images are numbered in argument order, so "image 1" in the prompt is the first reference.
 - Sizes: `1536x864` is 16:9, `864x1536` vertical, `1024x1024` square. Both sides must divide by 16, the ratio stays within 3:1, and sizes above `2560x1440` are experimental.
-- The script does not retry. On a non-zero exit, read the API's message. When the credit is out or the call keeps failing, use the fallback below instead of repeating it.
+- The script does not retry, and a failed call leaves any earlier image at that path. On a non-zero exit, read the API's message. When the credit is out or the call keeps failing, use the fallback below instead of repeating it.
 - Verified 2026-11-04: one `1024x1024` `low` call without references. The edits endpoint that takes references follows OpenAI's reference but has not been called live; report it if the first such run fails.
 
 ### `codex exec` (fallback)
