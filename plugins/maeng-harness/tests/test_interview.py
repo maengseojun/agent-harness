@@ -470,13 +470,11 @@ class WriteGate(GateCase):
         self.assertTrue(self.pre(elsewhere, "Edit", {"file_path": str(self.repo / "src/mint/a.py")})[0])
         self.assertFalse(self.pre(self.repo, "Edit", {"file_path": str(elsewhere / "src/mint/a.py")})[0])
 
-    def test_an_unreadable_map_denies_the_edit(self):
+    def test_an_unreadable_map_warns_and_allows_the_edit(self):  # T7: it is read while matching
         path = self.maeng_home / "interviews" / self.key / "map.json"
         path.parent.mkdir(parents=True)
         path.write_text("{broken")
-        denied, why = self.edit(self.repo, "README.md")
-        self.assertTrue(denied)
-        self.assertIn("unreadable", why)
+        self.assertFalse(self.edit(self.repo, "README.md")[0])
 
     def test_the_state_directory_is_closed_to_edits_in_every_world(self):
         for repo, _, world in self.both():

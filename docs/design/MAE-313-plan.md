@@ -29,10 +29,15 @@ Assumptions (for the CEO brief):
 - A-10 `승인 #N` keeps replacing the review only. A Slack relay of `승인 #N` alone no longer merges a gated PR.
 - A-11 `면제 #N <reason>` and `면제 <part> <reason>`, typed by the user, waive a gate. A relayed waiver does not count.
 - A-12 Clones use `cp -cR` (APFS), so `node_modules`, `lib/` and build output come along. macOS only.
+- A-13 A waiver is refused from a headless session as well as from a wrapped prompt, because a child `claude -p` could otherwise waive for itself.
+- A-14 A path owned by several parts needs a pass for all of them.
+- A-15 A repository with no origin remote has no gate.
+- A-16 Outside the personal world, a command that cannot be parsed and names `gh ... merge` is denied.
+- A-17 The CLI's session id is `--session`, then `MAENG_SESSION_ID`, then `CLAUDE_CODE_SESSION_ID`. Measured 2026-11-04 in an eta checkout: `MAENG_SESSION_ID` is empty and `CLAUDE_CODE_SESSION_ID` equals the hook's session id.
 
-Owns: `plugins/maeng-harness/bin/maeng-interview`, `plugins/maeng-harness/lib/maeng/interview.py`, `plugins/maeng-harness/lib/maeng/quiz.py`, `plugins/maeng-harness/lib/maeng/handlers.py`, `plugins/maeng-harness/lib/maeng/gates.py`, `plugins/maeng-harness/lib/maeng/guard.py` (comment only), `plugins/maeng-harness/bin/maeng-ship`, `plugins/maeng-harness/tests/test_interview.py`, `plugins/maeng-harness/tests/test_quiz.py`, `plugins/maeng-harness/skills/comprehension-gate/**`, `plugins/maeng-harness/skills/harness-run/**`, `plugins/maeng-harness/.claude-plugin/plugin.json`, `templates/global-CLAUDE.md`, `README.md`, this file.
+Owns: `plugins/maeng-harness/bin/maeng-interview`, `plugins/maeng-harness/lib/maeng/interview.py`, `plugins/maeng-harness/lib/maeng/quiz.py`, `plugins/maeng-harness/lib/maeng/handlers.py`, `plugins/maeng-harness/lib/maeng/gates.py`, `plugins/maeng-harness/lib/maeng/guard.py` (comment only), `plugins/maeng-harness/bin/maeng-ship`, `plugins/maeng-harness/bin/maeng-review` (the reviewer prompt's switch list), `plugins/maeng-harness/tests/test_interview.py`, `plugins/maeng-harness/tests/test_quiz.py`, `plugins/maeng-harness/skills/comprehension-gate/**`, `plugins/maeng-harness/skills/harness-run/**`, `plugins/maeng-harness/.claude-plugin/plugin.json`, `templates/global-CLAUDE.md`, `README.md`, this file.
 
-Exclusions: invalidating a design pass when the design changes (A-5); hard blocking of a part transition during design talk with no code write, which stays a prompt note plus the agent's stop; a command the model writes for output prediction (A-9); per-question time limits and asking one fact twice; blocking reads of the rubric (A-6); PRs merged by hand on GitHub; Linux clones.
+Exclusions: code written through Bash (`sed`, a heredoc) or by Codex and Orca workers, which the write gate does not see; invalidating a design pass when the design changes (A-5); hard blocking of a part transition during design talk with no code write, which stays a prompt note plus the agent's stop; a command the model writes for output prediction (A-9); per-question time limits and asking one fact twice; blocking reads of the rubric (A-6); PRs merged by hand on GitHub; Linux clones.
 
 must_haves:
 - truths:
@@ -96,7 +101,11 @@ Failure / change handling: Failure handling in harness-run. A change to an `AC-n
 Review focus: can an agent pass or skip a gate by mistake; does any path deny eta work when nothing is wrong; does a keyed answer ever come from the model; does `on_prompt` swallow a normal prompt when no interview is open.
 
 Revisions:
-- none
+- R-1 result quality: a `failing-test` answer must be the name of a failing test. Any 4 characters of a failing line passed before, so `test` was always right.
+- R-2 result quality: an unreadable map allows the edit and warns (T7). It denied every edit in the repository before.
+- R-3 result scope: a merge-quiz retry on the same patch keeps what passed and asks one new item per miss, as the user was told; mutation runs stop once there are enough items.
+- R-4 result quality: the written question names the design only when a design file was given.
+- R-5 plan scope: `bin/maeng-review` joined the Owns for the reviewer prompt's switch list.
 
 Close-out:
 - filled at close

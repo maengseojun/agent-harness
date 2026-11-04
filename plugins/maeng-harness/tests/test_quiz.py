@@ -111,9 +111,18 @@ class ConfirmItems(HarnessCase):
         items = self.confirm([ADD_MINUS, EQUIVALENT, UNTESTED], rng=Pick("failing-test"))
         item, = items  # only the mutation a test catches survives
         self.assertEqual(item["kind"], "failing-test")
-        self.assertTrue(any("test_calc.py::test_add" in line for line in item["key"]), item["key"])
+        self.assertEqual(item["key"], ["test_add"])
         self.assertIn("2:     return a - b", item["question"])  # the mutated snippet, lines 1 to 3, numbered from 1
         self.assertEqual(self.run_count(), 4)  # head, then the three mutations: every candidate was really run
+
+    def test_mutations_stop_once_there_are_enough(self):
+        items = self.confirm([ADD_MINUS, EQUIVALENT, UNTESTED], want=1)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(self.run_count(), 2)  # head, then ADD_MINUS: the other two are never run
+
+    def test_a_defect_with_no_test_name_in_its_failure_is_a_defect_line_item(self):
+        d = {"file": "calc.py", "failing": ["exit status 1"], "window": (1, 3), "rows": CALC.split("\n"), "changed": [2]}
+        self.assertEqual(quiz._defect_items(d, Pick("failing-test"))["kind"], "defect-line")
 
     def test_a_defect_line_answer_is_the_changed_line(self):
         clamp_high = {"kind": "defect", "file": "calc.py", "find": "if x > hi:", "replace": "if x < hi:", "question": "q",
@@ -243,12 +252,18 @@ class Keyed(HarnessCase):
         for bad in ("2", "calc.py:1", "", "none"):
             self.assertFalse(quiz.grade_keyed(clean, bad), bad)
 
-    def test_failing_test_needs_four_characters_of_a_failing_line(self):
-        item = {"kind": "failing-test", "key": ["test_calc.py::test_add - assert -1 == 5"]}
-        for ok in ("test_add", "TEST_ADD", " test_calc.py::test_add ", "calc.py::test_add"):
+    def test_failing_test_needs_the_name_of_a_test_that_failed(self):
+        item = {"kind": "failing-test", "key": ["test_add"]}
+        for ok in ("test_add", "TEST_ADD", " test_calc.py::test_add ", "calc.py::test_add", "`test_add`", "test_add()", "test_add[1]"):
             self.assertTrue(quiz.grade_keyed(item, ok), ok)
-        for bad in ("add", "", "tests_add", "test_clamp_low", None):
+        for bad in ("add", "", "test", "assert", "FAILED", "tests_add", "test_clamp_low", None):
             self.assertFalse(quiz.grade_keyed(item, bad), bad)
+
+    def test_names_of_failing_tests_per_runner(self):
+        self.assertEqual(quiz.test_names(["test_calc.py::TestA::test_add[1] - assert -1 == 5"]), ["test_add"])  # pytest
+        self.assertEqual(quiz.test_names(["[: revert] testMint() (gas: 1234)"]), ["testMint"])  # forge
+        self.assertEqual(quiz.test_names(["--- : TestFoo (0.00s)"]), ["TestFoo"])  # go
+        self.assertEqual(quiz.test_names(["some tests in test_calc.py: exit status 1"]), [])  # nothing names a test
 
     def test_grading_needs_no_model(self):
         self.assertTrue(quiz.grade_keyed({"kind": "predict", "key": "1"}, "1"))  # MAENG_CLAUDE points at nothing here
@@ -383,11 +398,15 @@ class MergeQuizCli(FakeModel, InterviewCase):
         self.assertIn("NOT YET", out.stdout)
         self.assertRegex(out.stdout, r"- \(predict\) the answer is `(5|10)` \(found by running the code\)")
         self.assertFalse(interview.passed(self.key, 7, "merge", self.raw_patch(self.base, self.h)))
-        self.queue(self.CANDIDATES, self.WRITTEN)
+        total = len(self.rec()["items"])
+        self.queue(self.CANDIDATES)
         r = self.quiz()
         self.assertEqual(r.returncode, 0, r.stderr)
+        items = self.rec()["items"]
         self.assertEqual(self.rec()["attempts"], 2)
-        self.finish([graded(True)])
+        self.assertEqual((sum(i["done"] for i in items), sum(not i["done"] for i in items)), (total - 1, 1))  # what passed stays
+        self.assertEqual(len({i["id"] for i in items}), total)
+        self.finish()
         self.assertEqual((self.ledger()[0]["attempts"], self.ledger()[0]["first_try"]), (2, False))
 
     def test_a_miss_on_the_written_question_can_be_appealed(self):

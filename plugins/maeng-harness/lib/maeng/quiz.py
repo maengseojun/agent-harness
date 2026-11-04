@@ -55,6 +55,17 @@ def run_tests(cmd, cwd):
     return proc.returncode == 0, [ln for ln in lines if ln]
 
 
+def test_names(lines):
+    """The test names in failing lines: `path::test_x[1] - ...` (pytest), `testFoo() (gas: 1)` (forge), `TestFoo` (go)."""
+    names = set()
+    for line in lines:
+        for tok in re.findall(r"[\w./:\[\]-]+", line):
+            leaf = tok.rsplit("::", 1)[-1].split("[")[0]
+            if re.fullmatch(r"\w{5,}", leaf) and "test" in leaf.casefold() and leaf.casefold() not in ("tests", "testing"):
+                names.add(leaf)
+    return sorted(names)
+
+
 def _lines(text):
     rows = text.split("\n")
     return rows[:-1] if rows[-1] == "" else rows  # a final newline does not start a line
@@ -127,10 +138,10 @@ def _shown(rows, s, e):
 
 def _defect_items(d, rng):
     s, e = d["window"]
-    where = d["file"]
-    kind = rng.choice(["defect-line", "failing-test"])
+    where, names = d["file"], test_names(d["failing"])
+    kind = rng.choice(["defect-line", "failing-test"]) if names else "defect-line"
     if kind == "failing-test":
-        return {"kind": kind, "file": where, "key": d["failing"], "reveal": d["failing"][0],
+        return {"kind": kind, "file": where, "key": names, "reveal": names[0],
                 "question": f"`{where}`를 아래처럼 바꾸면 테스트가 실패합니다. 실패하는 테스트 하나의 이름을 답하세요.\n\n{_shown(d['rows'], s, e)}"}
     return {"kind": kind, "file": where, "key": {"lines": d["changed"], "file": where}, "reveal": f"{where}:{d['changed'][0]}",
             "question": _snippet_question(where, _shown(d["rows"], s, e))}
@@ -171,10 +182,11 @@ def confirm_items(candidates, top, test_cmd, changed=None, rng=random, want=4):
             return []
         picked, defects = [], []
         for c in candidates:
-            if c.get("kind") == "predict":
-                item = _predict(c, repo, changed)
-                picked += [item] if item else []
-            elif c.get("kind") == "defect":
+            item = _predict(c, repo, changed) if c.get("kind") == "predict" else None
+            picked += [item] if item else []
+        need = max(want - len(picked), (want + 1) // 2)  # each mutation is a test run: stop once there are enough
+        for c in candidates:
+            if c.get("kind") == "defect" and len(defects) < need:
                 d = _defect(c, repo, test_cmd, changed)
                 defects += [d] if d else []
     finally:
@@ -203,8 +215,7 @@ def _same(given, key):
 
 def grade_keyed(item, answer):
     """Deterministic, no model (T4). predict: equal after strip and casefold, numbers by value. defect-line: a changed
-    line as a number or `file:line`, or `없음` for a clean snippet. failing-test: a piece of a failing line.
-    shortcut: any piece of 4+ characters counts (`assert` too); upgrade to test-id matching if guessing shows up."""
+    line as a number or `file:line`, or `없음` for a clean snippet. failing-test: the name of a test that failed."""
     a, kind, key = (answer or "").strip(), item["kind"], item["key"]
     if kind == "predict":
         return _same(a, key)
@@ -213,4 +224,5 @@ def grade_keyed(item, answer):
             return not key["lines"]
         m = re.fullmatch(r"(?:(.+):)?(\d+)", a)
         return bool(m) and int(m.group(2)) in key["lines"] and m.group(1) in (None, key["file"], os.path.basename(key["file"]))
-    return len(a) >= 4 and any(a.casefold() in line.casefold() for line in key)
+    leaf = a.strip("`").rsplit("::", 1)[-1].split("[")[0].removesuffix("()")
+    return leaf.casefold() in {name.casefold() for name in key}

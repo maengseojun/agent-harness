@@ -25,7 +25,7 @@ When the big picture is designed, propose parts: a name, path globs, a few alias
 4. The user's next message is recorded by the hook as the answer. Then run `maeng-interview next`. If it says no answer is recorded, the user has not answered yet: ask them to, never answer for them.
 5. `next` prints the next question, `PASSED`, or `NOT YET` with the missing items. On a miss, tell the user plainly what was missing so they can study. You may explain when they ask. A retry (`start` again, same arguments) asks new questions on the missed topics only and keeps the passed ones.
 6. `중단` is the user's: if they send exactly `중단`, the interview closes with no penalty; do not restart it unless they ask. If they send `이의 <argument>`, run `maeng-interview appeal`: a fresh grader reads their argument and may read the repo.
-7. Moving to the next part: `maeng-interview switch <B>` refuses while the current part has no pass. If the user's message names another part first, the hook adds a note; finish the current part. A design pass does not expire; `maeng-interview reopen <P>` clears one when the user wants it asked again.
+7. When work on a part begins, run `maeng-interview switch <P>`: the hook's note and the check below follow the current part. Moving to the next part: `maeng-interview switch <B>` refuses while the current part has no pass. If the user's message names another part first, the hook adds a note; finish the current part. A design pass does not expire; `maeng-interview reopen <P>` clears one when the user wants it asked again.
 
 ## Whose answers count
 

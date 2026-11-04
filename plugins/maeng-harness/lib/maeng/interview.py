@@ -378,7 +378,7 @@ def _edit_gate(tin, cwd):
     top, key = treelib.toplevel(where), repo_key(where)
     if not (top and key):
         return None
-    m = _read(load_map, key)
+    m = load_map(key)  # unreadable: still matching, so T7 allows and warns; no edit in the repo may hinge on this file
     rel = os.path.relpath(target, os.path.realpath(top))
     parts = parts_of(m, rel)
     if not parts or headless():  # A-3: a headless run skips the write gate, not the merge gate

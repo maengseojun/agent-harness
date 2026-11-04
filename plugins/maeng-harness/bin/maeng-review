@@ -49,7 +49,7 @@ destination is the default branch (main/master/trunk, the remote's HEAD, policy 
 implicit destinations resolved through upstream/push config), (2) the in-scope merge routes other than
 `maeng-ship merge <N>` (gh pr merge/update-branch, gh api merge/ref-write endpoints and merge mutations, git/gh
 aliases expanding to these, GitHub MCP merge/update-branch and file writes to the default branch), (3) Bash setting
-the harness test/override switches (MAENG_TEST_FIXTURES, MAENG_GIT, MAENG_GH, MAENG_HOME, MAENG_CACHE_DIR), and
+the harness test/override switches (MAENG_TEST_FIXTURES, MAENG_GIT, MAENG_GH, MAENG_HOME, MAENG_CACHE_DIR, MAENG_CLAUDE), and
 (4) Edit/Write into the harness state directory. An unparseable command is denied only when its raw text mentions
 a ship route. Everything else (feature-branch pushes incl. force, gh writes, Notion/Linear/Slack, eta paths,
 compound commands, other MAENG_* prefixes such as MAENG_REVIEW_BACKEND) is allowed by design and is not a finding.
