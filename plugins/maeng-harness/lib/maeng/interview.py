@@ -326,17 +326,19 @@ def gate(payload, world):
 
 
 def _names_state(text):
-    return str(home_dir() / "interviews") in text or STATE_PATH.search(text) or gates.CLAUDE_SET.search(text)
+    return str(home_dir() / "interviews") in text or STATE_PATH.search(text)
 
 
 def _bash_gate(command, world, cwd):
+    if gates.CLAUDE_SET.search(command):  # before the CLI's exemption: on its line this picks who grades the user
+        raise Refused(HIDDEN.format(what="MAENG_CLAUDE, which names the interview model"))
     try:  # `maeng-interview ...` is the sanctioned route: its segment is not read
         texts = [" ".join(seg.tokens + seg.redirects) for seg in split_segments(command.rstrip())
                  if program(seg.tokens)[0] != "maeng-interview"]
     except ParseError:
         texts = [command]
     if any(_names_state(t) for t in texts):
-        raise Refused(HIDDEN.format(what="its directory, or MAENG_CLAUDE, which names the interview model"))
+        raise Refused(HIDDEN.format(what="its directory"))
     if world == guard.PERSONAL:  # `gh pr merge` is G1's there, and maeng-ship holds the merge gate
         return None
     for toks in _merge_calls(command):

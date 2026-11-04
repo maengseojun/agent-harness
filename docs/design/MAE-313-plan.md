@@ -25,7 +25,7 @@ Assumptions (for the CEO brief):
 - A-6 Guardrail level, as with receipts: Edit/Write into the state directory is denied in both worlds, a Bash command that names the `interviews/` directory or sets `MAENG_CLAUDE` is denied, and reading the rubric is barred by the skill text only.
 - A-7 State lives under `home_dir()/interviews/<repo slug>/`. Questions, rubrics and answers are deleted when an interview closes; the ledger keeps counts and hashes only.
 - A-8 The test command comes from the map's `test`, else `.maeng/verify.json` `required[0]`, else none. With no test command, or fewer than 2 confirmed items, the merge gate falls back to two written questions.
-- A-9 Output prediction masks an expected value in an existing passing test instead of running a command the model wrote. Mutations are find/replace pairs of at most 3 lines, in files the PR changed, run in a throwaway clone.
+- A-9 Output prediction masks an expected value in an existing test instead of running a command the model wrote. The line must state an equality, and changing the literal must fail the tests. Mutations are find/replace pairs of at most 3 lines, in files the PR changed, run in a throwaway clone.
 - A-10 `승인 #N` keeps replacing the review only. A Slack relay of `승인 #N` alone no longer merges a gated PR.
 - A-11 `면제 #N <reason>` and `면제 <part> <reason>`, typed by the user, waive a gate. A relayed waiver does not count.
 - A-12 Clones use `cp -cR` (APFS), so `node_modules`, `lib/` and build output come along. macOS only.
@@ -106,6 +106,12 @@ Revisions:
 - R-3 result scope: a merge-quiz retry on the same patch keeps what passed and asks one new item per miss, as the user was told; mutation runs stop once there are enough items.
 - R-4 result quality: the written question names the design only when a design file was given.
 - R-5 plan scope: `bin/maeng-review` joined the Owns for the reviewer prompt's switch list.
+- R-7 result quality, first Sol review: `MAENG_CLAUDE=... maeng-interview` is denied in eta; it was exempted with the CLI.
+- R-8 result quality, first Sol review: a met follow-up no longer clears Q1. Q1's rubric is graded again on both answers.
+- R-9 result quality, first Sol review: a prediction is confirmed by changing its literal and seeing the tests fail, so an `!=` or a skipped test cannot become a key.
+- R-10 result quality, first Sol review: numeric answers compare as Decimal, not float.
+- R-11 result quality, first Sol review: a pure deletion can only be a `failing-test` item, or is dropped.
+- R-12 result quality, first Sol review: the merge-pass digest is no longer `git patch-id`, which ignores whitespace, so a Python indentation change kept a pass. T2 and AC-3's patch id now mean this digest.
 - R-6 result quality: the live run returned 3 predict items and 1 defect from 3 and 3 candidates, on test bookkeeping. Found defects now go in first and the candidate prompt asks about what the code does.
 
 Close-out:

@@ -389,9 +389,12 @@ def cmd_next(a, cwd):
         add_items(rec, [{"layer": 2, "topic": it["topic"], "question": follow["question"], "rubric": follow["rubric"]}])
         rec["items"][-1]["for"] = it["id"]
         rec["items"].insert(rec["items"].index(it) + 1, rec["items"].pop())  # the follow-up comes right after Q1
-    if it.get("for") and it["done"]:  # a met follow-up covers the points Q1 missed: it was aimed at them
+    if it.get("for") and it["done"]:
         parent = next(x for x in rec["items"] if x["id"] == it["for"])
-        parent["met"], parent["done"] = [True] * len(parent["rubric"]), True
+        if not parent["done"]:  # Q1 is graded again on both answers: a follow-up may reach only some of what it missed
+            parent["given"] += "\n\n" + it["given"]
+            parent["met"], _ = grade(parent, parent["given"], top)
+            parent["done"] = all(parent["met"])
     rec["answer"] = None
     nxt = current(rec)
     if nxt:

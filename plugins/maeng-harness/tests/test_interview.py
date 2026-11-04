@@ -17,6 +17,11 @@ WRAPPED = ("<system-reminder>x", "<task-notification>x", "<cross-session-message
            "<ci-monitor-event>x", "  \n<system-reminder>indented")
 
 
+def plain_patch(diff):
+    """The merge-pass digest, written out from its definition: the diff without blob ids and hunk positions."""
+    return hashlib.sha256("\n".join(ln for ln in diff.splitlines() if not ln.startswith(("index ", "@@ "))).encode()).hexdigest()
+
+
 class InterviewCase(HarnessCase):
     """A personal repo, its state key and a `ps` that sees an interactive parent."""
 
@@ -506,10 +511,11 @@ class BashStateGate(GateCase):
             self.assertIn("MAENG_CLAUDE", why)
         self.assertTrue(self.bash_pre(self.eta_repo(), "env MAENG_CLAUDE=/tmp/fake python3 x.py")[0])
 
-    def test_the_cli_itself_is_always_allowed_in_eta(self):
+    def test_the_cli_itself_is_allowed_in_eta_but_cannot_pick_its_model(self):
         eta = self.eta_repo()
         base = self.maeng_home / "interviews"
-        self.assertFalse(self.bash_pre(eta, "MAENG_CLAUDE=/tmp/fake maeng-interview start --stage design")[0])
+        self.assertFalse(self.bash_pre(eta, "maeng-interview start --stage design")[0])
+        self.assertTrue(self.bash_pre(eta, "MAENG_CLAUDE=/tmp/fake maeng-interview start --stage design")[0])
         self.assertFalse(self.bash_pre(eta, f"maeng-interview status && ls {self.tmp}")[0])
         self.assertTrue(self.bash_pre(eta, f"maeng-interview status && cat {base}/k/open/s.json")[0])  # only its own segment
 
@@ -578,8 +584,7 @@ class MergeGateEta(GateCase):
                                             "baseRefOid": self.base, "headRefOid": self.h}))
 
     def patch(self):
-        diff = run(["git", "diff", f"{self.base}...{self.h}"], cwd=self.eta, env=self.env).stdout
-        return run(["git", "patch-id", "--stable"], cwd=self.eta, env=self.env, input_text=diff).stdout.split()[0]
+        return plain_patch(run(["git", "diff", f"{self.base}...{self.h}"], cwd=self.eta, env=self.env).stdout)
 
     def merge(self, cmd="gh pr merge 7 --squash"):
         return self.bash_pre(self.eta, cmd)
@@ -701,8 +706,7 @@ class ShipGate(MergeBase):
         return head
 
     def patch(self, base, head):
-        diff = self.git(self.repo, "diff", f"{base}...{head}").stdout
-        return run(["git", "patch-id", "--stable"], cwd=self.repo, env=self.env, input_text=diff).stdout.split()[0]
+        return plain_patch(self.git(self.repo, "diff", f"{base}...{head}").stdout)
 
     def test_a_small_unmapped_pr_ships_as_before(self):
         self.verdict()
@@ -866,9 +870,9 @@ class DesignCli(FakeModel, InterviewCase):
         self.assertIn("no answer is recorded", r.stderr)
         self.assertEqual(len(self.model_calls()), 1)  # nothing was graded
         asked = []
-        for out, answer in ((graded(True, False, follow="explain"), "A1"), (graded(True), "A-follow"),
-                            (graded(True, True), "A2"), (graded(True, True), "A3")):
-            r = self.exchange(answer, out)
+        for out, answer in (((graded(True, False, follow="explain"),), "A1"), ((graded(True), graded(True, True)), "A-follow"),
+                            ((graded(True, True),), "A2"), ((graded(True, True),), "A3")):
+            r = self.exchange(answer, *out)
             self.assertEqual(r.returncode, 0, r.stderr)
             asked.append(r.stdout)
         self.assertIn("Question: F-explain", asked[0])  # right after Q1
@@ -877,7 +881,7 @@ class DesignCli(FakeModel, InterviewCase):
         self.assertIn("PASSED", asked[3])
         self.assertTrue(interview.passed(self.key, "mint", "design"))
         self.assertIsNone(self.rec())
-        self.assertEqual(len(self.model_calls()), 5)  # 1 generation + 4 gradings (3 questions + 1 follow-up)
+        self.assertEqual(len(self.model_calls()), 6)  # 1 generation + 4 gradings + Q1 again on both answers
         line, = self.ledger()
         self.assertEqual({k: line[k] for k in ("stage", "part", "attempts", "first_try", "appeals", "appeal_upheld", "waived")},
                          {"stage": "design", "part": "mint", "attempts": 1, "first_try": True, "appeals": 0,
@@ -897,14 +901,28 @@ class DesignCli(FakeModel, InterviewCase):
         self.assertEqual(len(self.model_calls()), 6)  # 1 generation + 5 exchanges
         self.assertTrue(interview.passed(self.key, "overall", "design"))
 
-    def test_a_met_follow_up_covers_what_the_first_answer_missed(self):
+    def test_a_met_follow_up_grades_the_first_question_again_on_both_answers(self):
         self.queue(gen("explain", "why", "breaks"))
         self.begin()
         self.exchange("A1", graded(True, False, follow="explain"))
-        self.exchange("A-follow", graded(True))
+        self.exchange("A-follow", graded(True), graded(True, True))
+        prompt = self.model_calls()[-1]["prompt"]
+        self.assertIn("R-explain-2", prompt)
+        self.assertIn("A1\n\nA-follow", prompt)
         self.exchange("A2", graded(True, True))
         r = self.exchange("A3", graded(True, True))
         self.assertIn("PASSED", r.stdout)
+
+    def test_a_met_follow_up_does_not_clear_what_both_answers_still_miss(self):
+        self.queue(gen("explain", "why", "breaks"))
+        self.begin()
+        self.exchange("A1", graded(True, False, follow="explain"))
+        self.exchange("A-follow", graded(True), graded(True, False))
+        self.exchange("A2", graded(True, True))
+        r = self.exchange("A3", graded(True, True))
+        self.assertIn("NOT YET", r.stdout)
+        self.assertIn("- (explain) R-explain-2", r.stdout)
+        self.assertFalse(interview.passed(self.key, "mint", "design"))
 
     def test_a_miss_lists_the_missing_items_and_a_retry_asks_new_questions_on_missed_topics_only(self):
         self.queue(gen("explain", "why", "breaks"))

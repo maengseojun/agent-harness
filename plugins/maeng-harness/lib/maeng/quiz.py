@@ -6,9 +6,10 @@ import re
 import shutil
 import subprocess
 import tempfile
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
-from .common import git
+from .common import git, sha256
 
 CLEAN = "없음"
 TIMEOUT = 300  # seconds per test run
@@ -16,15 +17,16 @@ FAIL_LINE = re.compile(r"\bFAIL(?:ED)?\b|\bfailed\b|^not ok\b", re.M)
 SUMMARY = re.compile(r"^[=\s]*\d+ (?:failed|passed|error|skipped)")  # pytest's "1 failed, 5 passed in 0.1s"
 TEST_FILE = re.compile(r"(^|/)(tests?/|test_[^/]*$)|_test\.[^/]*$|\.(?:test|spec)\.[^/]*$")
 MAX_LINES = 3  # a mutation is a find/replace of at most this many lines
+EQUAL = re.compile(r"==|\bis\b|assertEq|toEqual|toBe|\bequal", re.I)  # a line that states a value, not a bound
 
 
 def patch_id(cwd, base, head):
-    """The stable patch id of base...head, equal across a rebase that keeps the diff; None when it cannot be read."""
+    """A digest of base...head that a rebase keeping the diff does not change (no blob ids, no hunk positions); None
+    when it cannot be read. Not `git patch-id`: it ignores whitespace, so a Python indentation change would keep a pass."""
     rc, diff, _ = git(cwd, "diff", "--no-ext-diff", "--no-textconv", "--no-renames", f"{base}...{head}")
     if rc != 0 or not diff:
         return None
-    rc, out, _ = git(cwd, "patch-id", "--stable", input_text=diff)
-    return out.split()[0] if rc == 0 and out.split() else None
+    return sha256("\n".join(ln for ln in diff.splitlines() if not ln.startswith(("index ", "@@ "))))
 
 
 def clone(top):
@@ -77,21 +79,45 @@ def _inside(repo, path):
     return real if real.startswith(os.path.realpath(repo) + os.sep) else None
 
 
-def _predict(c, repo, changed):
-    """A masked literal from a passing test line, else None. The question never shows the answer."""
+def _other(literal):
+    """Another literal of the same kind, so the assertion still parses; None when that cannot be done safely."""
+    text, flip = literal.strip(), {"True": "False", "False": "True", "true": "false", "false": "true"}
+    if text in flip:
+        return flip[text]
+    if re.fullmatch(r"-?\d[\d_]*(?:\.\d+)?", text):
+        return str(Decimal(text) + 1)
+    return text[0] + "zz" + text[1:] if len(text) > 1 and text[0] in "'\"" and text[-1] == text[0] else None
+
+
+def _predict(c, repo, cmd, changed):
+    """A masked literal from a test line, else None: the line states an equality, and changing the literal fails the
+    tests, so the assertion ran and the value is what the code gives. The question never shows the answer."""
     path, line, literal = c.get("file"), c.get("line"), c.get("literal")
     if not (isinstance(path, str) and TEST_FILE.search(path) and isinstance(line, int) and isinstance(literal, str)
             and literal.strip() and (changed is None or path in changed)):
         return None
+    target = Path(_inside(repo, path) or "/nonexistent")
     try:
-        rows = _lines(Path(_inside(repo, path) or "/nonexistent").read_text())
+        text = target.read_text()
     except (OSError, UnicodeDecodeError):
         return None
-    if not 1 <= line <= len(rows) or literal not in rows[line - 1]:
+    rows = _lines(text)
+    if not 1 <= line <= len(rows) or literal not in rows[line - 1] or not EQUAL.search(rows[line - 1]):
         return None
     asked = c.get("question") if isinstance(c.get("question"), str) and literal not in c["question"] else \
         "기대값이 가려진 테스트 줄입니다. 코드가 실제로 내는 값은 무엇입니까?"
     row, at = rows[line - 1], rows[line - 1].rindex(literal)  # the expected value is the last one on an assert line
+    other = _other(literal)
+    if other is None:
+        return None
+    changed_rows = [*rows[:line - 1], row[:at] + other + row[at + len(literal):], *rows[line:]]
+    target.write_text("\n".join(changed_rows) + ("\n" if text.endswith("\n") else ""))
+    try:
+        ok, failing = run_tests(cmd, repo)
+    finally:
+        target.write_text(text)
+    if ok or not failing:  # the assertion did not run (skipped, unselected) or does not pin this value
+        return None
     return {"kind": "predict", "file": path, "question": f"{asked}\n\n{path}:{line}\n{row[:at]}___{row[at + len(literal):]}",
             "key": literal, "reveal": literal}
 
@@ -123,13 +149,16 @@ def _defect(c, repo, cmd, changed):
     post = 0
     while post < min(len(before), len(after)) - pre and before[-1 - post] == after[-1 - post]:
         post += 1
+    deleted = pre + post >= len(after)  # no new line to point at: only `failing-test` can ask about it
+    if deleted and not test_names(failing):
+        return None
     first, last = start + pre, start + max(pre, len(after) - post - 1)  # the changed lines in the mutated file
     s, e = c.get("snippet_start"), c.get("snippet_end")
     if not (isinstance(s, int) and isinstance(e, int) and 1 <= s <= first and last <= e <= s + 40):
         s, e = max(1, first - 3), last + 3
     rows = _lines(mutated)
     return {"file": path, "changed": list(range(first, last + 1)), "window": (s, min(e, len(rows))), "failing": failing,
-            "rows": rows, "orig": _lines(orig), "find_span": (start, start + len(before) - 1)}
+            "rows": rows, "orig": _lines(orig), "find_span": (start, start + len(before) - 1), "deleted": deleted}
 
 
 def _shown(rows, s, e):
@@ -139,7 +168,7 @@ def _shown(rows, s, e):
 def _defect_items(d, rng):
     s, e = d["window"]
     where, names = d["file"], test_names(d["failing"])
-    kind = rng.choice(["defect-line", "failing-test"]) if names else "defect-line"
+    kind = "failing-test" if d.get("deleted") else rng.choice(["defect-line", "failing-test"]) if names else "defect-line"
     if kind == "failing-test":
         return {"kind": kind, "file": where, "key": names, "reveal": names[0],
                 "question": f"`{where}`를 아래처럼 바꾸면 테스트가 실패합니다. 실패하는 테스트 하나의 이름을 답하세요.\n\n{_shown(d['rows'], s, e)}"}
@@ -180,20 +209,24 @@ def confirm_items(candidates, top, test_cmd, changed=None, rng=random, want=4):
         ok, _ = run_tests(test_cmd, repo)
         if not ok:
             return []
-        picked, defects = [], []
+        picked, defects, queue = [], [], [c for c in candidates if c.get("kind") == "defect"]
+
+        def take(limit):  # each try is a test run, so stop at `limit`
+            while queue and len(defects) < limit:
+                d = _defect(queue.pop(0), repo, test_cmd, changed)
+                defects.extend([d] if d else [])
+
+        take((want + 1) // 2)  # a found defect is closest to supervising, so these come first
         for c in candidates:
-            item = _predict(c, repo, changed) if c.get("kind") == "predict" else None
-            picked += [item] if item else []
-        need = max(want - len(picked), (want + 1) // 2)  # each mutation is a test run: stop once there are enough
-        for c in candidates:
-            if c.get("kind") == "defect" and len(defects) < need:
-                d = _defect(c, repo, test_cmd, changed)
-                defects += [d] if d else []
+            if c.get("kind") == "predict" and len(picked) + len(defects) < want:
+                item = _predict(c, repo, test_cmd, changed)
+                picked.extend([item] if item else [])
+        take(want - len(picked))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     found = [_defect_items(d, rng) for d in defects]
     by = {id(it): d for it, d in zip(found, defects)}
-    items = picked[:max(0, want - len(found))] + found  # a found defect is closest to supervising: it goes in first
+    items = picked + found
     rng.shuffle(items)
     lines = [it for it in items if it["kind"] == "defect-line"]
     if lines:  # one defect-line item becomes a clean snippet of the same file, so `없음` is a real answer
@@ -208,8 +241,8 @@ def _same(given, key):
     def norm(x):
         return x.strip().strip("'\"").strip().casefold()
     try:
-        return float(norm(given)) == float(norm(key))
-    except ValueError:
+        return Decimal(norm(given)) == Decimal(norm(key))  # not float: token amounts lose their low digits there
+    except InvalidOperation:
         return norm(given) == norm(key)
 
 

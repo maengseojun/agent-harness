@@ -13,7 +13,7 @@ import unittest.mock
 
 from maeng import interview, quiz
 from .helpers import HarnessCase, run
-from .test_interview import FakeModel, InterviewCase, graded
+from .test_interview import FakeModel, InterviewCase, graded, plain_patch
 
 CALC = """def add(a, b):
     return a + b
@@ -121,6 +121,30 @@ class ConfirmItems(HarnessCase):
         items = self.confirm([PREDICT_ADD, PREDICT_HIGH, low, ADD_MINUS, clamp_high], rng=Pick("failing-test", "failing-test"))
         self.assertEqual([it["kind"] for it in items], ["predict", "predict", "failing-test", "failing-test"])
 
+    def test_a_prediction_must_pin_the_value_the_code_gives(self):
+        body = ("import pytest\n" + TESTS + "\n\ndef test_not_zero():\n    assert add(2, 3) != 0\n\n\n"
+                "def test_big():\n    assert add(2, 3) > 1\n\n\n@pytest.mark.skip\ndef test_off():\n    assert add(2, 3) == 9\n")
+        (self.proj / "test_calc.py").write_text(body)
+        rows = body.split("\n")
+        at = lambda text: rows.index(text) + 1
+        wrong = [{"kind": "predict", "file": "test_calc.py", "line": at("    assert add(2, 3) != 0"), "literal": "0", "question": "?"},
+                 {"kind": "predict", "file": "test_calc.py", "line": at("    assert add(2, 3) > 1"), "literal": "1", "question": "?"},
+                 {"kind": "predict", "file": "test_calc.py", "line": at("    assert add(2, 3) == 9"), "literal": "9", "question": "?"}]
+        self.assertEqual(self.confirm(wrong), [])
+        right = {"kind": "predict", "file": "test_calc.py", "line": at("    assert add(2, 3) == 5"), "literal": "5", "question": "?"}
+        self.assertEqual([it["key"] for it in self.confirm([right])], ["5"])
+
+    def test_a_literal_that_cannot_be_varied_safely_is_dropped(self):
+        self.assertEqual([quiz._other(x) for x in ("5", "1.5", "True", "false", "'neg'", "[]", "a + b", "x")],
+                         ["6", "2.5", "False", "true", "'zzneg'", None, None, None])
+
+    def test_a_deleted_line_can_only_be_a_failing_test_item(self):
+        gone = {"kind": "defect", "file": "calc.py", "find": "    if x > hi:\n        return hi\n", "replace": "", "question": "q"}
+        item, = self.confirm([gone], rng=Pick("defect-line"))
+        self.assertEqual((item["kind"], item["key"]), ("failing-test", ["test_clamp_high"]))
+        with unittest.mock.patch.object(quiz, "run_tests", return_value=(False, ["exit status 1"])):
+            self.assertIsNone(quiz._defect(gone, str(self.proj), "x", None))  # no test name to ask for
+
     def test_mutations_stop_once_there_are_enough(self):
         items = self.confirm([ADD_MINUS, EQUIVALENT, UNTESTED], want=1)
         self.assertEqual(len(items), 1)
@@ -183,7 +207,7 @@ class ConfirmItems(HarnessCase):
 
     def test_a_mutation_outside_the_prs_files_is_never_applied(self):
         self.assertEqual(self.confirm([ADD_MINUS, PREDICT_ADD], changed={"test_calc.py"}, rng=Pick("failing-test"))[0]["kind"], "predict")
-        self.assertEqual(self.run_count(), 1)  # only the run at head
+        self.assertEqual(self.run_count(), 2)  # the run at head and the prediction's own check: ADD_MINUS never ran
         self.assertEqual(len(self.confirm([ADD_MINUS], changed={"calc.py"})), 1)
 
     def test_no_truth_means_no_items(self):
@@ -271,14 +295,28 @@ class Keyed(HarnessCase):
         self.assertEqual(quiz.test_names(["--- : TestFoo (0.00s)"]), ["TestFoo"])  # go
         self.assertEqual(quiz.test_names(["some tests in test_calc.py: exit status 1"]), [])  # nothing names a test
 
+    def test_large_numbers_keep_their_low_digits(self):
+        amount = {"kind": "predict", "key": "1000000000000000000"}
+        self.assertTrue(quiz.grade_keyed(amount, "1000000000000000000"))
+        self.assertFalse(quiz.grade_keyed(amount, "1000000000000000001"))
+
     def test_grading_needs_no_model(self):
         self.assertTrue(quiz.grade_keyed({"kind": "predict", "key": "1"}, "1"))  # MAENG_CLAUDE points at nothing here
 
 
 class PatchId(HarnessCase):
     def raw(self, repo, base, head):
-        diff = self.git(repo, "diff", f"{base}...{head}").stdout
-        return run(["git", "patch-id", "--stable"], cwd=repo, env=self.env, input_text=diff).stdout.split()[0]
+        return plain_patch(self.git(repo, "diff", f"{base}...{head}").stdout)
+
+    def test_an_indentation_change_gets_another_id(self):  # `git patch-id` would call these the same
+        repo = self.make_repo("proj", files=FILES)
+        base = self.head(repo)
+        self.git(repo, "checkout", "-qb", "feat")
+        (repo / "calc.py").write_text(CALC.replace("    return a + b", "    if a:\n        a += b\n        return a"))
+        one = self.commit_all(repo, "indented")
+        (repo / "calc.py").write_text(CALC.replace("    return a + b", "    if a:\n        a += b\n    return a"))
+        two = self.commit_all(repo, "dedented")
+        self.assertNotEqual(quiz.patch_id(repo, base, one), quiz.patch_id(repo, base, two))
 
     def test_same_diff_on_another_base_same_id_and_a_changed_diff_another(self):
         repo = self.make_repo("proj", files=FILES)
@@ -367,8 +405,7 @@ class MergeQuizCli(FakeModel, InterviewCase):
         return result
 
     def raw_patch(self, base, head):
-        diff = self.git(self.repo, "diff", f"{base}...{head}").stdout
-        return run(["git", "patch-id", "--stable"], cwd=self.repo, env=self.env, input_text=diff).stdout.split()[0]
+        return plain_patch(self.git(self.repo, "diff", f"{base}...{head}").stdout)
 
     CANDIDATES = {"candidates": [ADD_MINUS, EQUIVALENT, UNTESTED, PREDICT_ADD, PREDICT_HIGH]}
     WRITTEN = {"questions": [{"layer": 2, "topic": "design", "question": "Q-diff", "rubric": ["R-diff-1"]}]}
