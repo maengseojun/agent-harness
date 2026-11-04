@@ -1,16 +1,16 @@
 """Decisions checks on records work (MAE-320). records.py needs candidates from searches only the agent has, so a hook
 cannot run it: the hook denies the create until the agent ran it. A run counts whatever Decisions answered."""
 import os
-import re
 import time
 from pathlib import Path
 
 from .common import vault_dir
+from .shellparse import ParseError, program, split_segments
 
 WINDOW = 1800  # shortcut: one check covers every create for 30 minutes, tighten if duplicates slip through
 GENERATED = ("wiki/sessions/", "wiki/reviews/", "wiki/sources/", "raw/")  # machine-made notes
 SCRIPT = "python3 <decisions skill>/scripts/records.py"
-_RUN = re.compile(r"records\.py['\"]?\s+(related|duplicate)\b")
+CHECKS = ("related", "duplicate")
 
 
 def off():
@@ -19,8 +19,16 @@ def off():
 
 def ran(command):
     """-> "related" or "duplicate" when this Bash command runs that check, else None."""
-    m = _RUN.search(command)
-    return m[1] if m else None
+    try:
+        segments = split_segments(command)
+    except ParseError:
+        return None
+    for seg in segments:
+        prog, toks = program(seg.tokens)
+        if prog.startswith("python") and len(toks) > 2 and os.path.basename(toks[1]) == "records.py" \
+                and toks[2] in CHECKS:
+            return toks[2]
+    return None
 
 
 def mark(st, check):

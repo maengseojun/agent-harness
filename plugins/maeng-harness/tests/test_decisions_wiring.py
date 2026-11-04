@@ -54,8 +54,18 @@ class DuplicateGate(On, HarnessCase):
     def test_a_failed_run_or_a_mention_does_not_count(self):
         self.ran("python3 records.py duplicate --new t --candidates c.json", ok=False)
         self.ran("cat records.py")
+        self.ran("echo 'python3 records.py duplicate --new t --candidates c.json'")
+        self.ran("grep -n 'records.py duplicate' SKILL.md")
         self.ran("python3 records.py related --task t --candidates c.json")
         self.assertTrue(self.pre(self.repo, LINEAR, {"team": "MAE", "title": "x"})[0])
+
+    def test_real_invocations_count(self):
+        for command in ("cd /x && python3 /y/scripts/records.py duplicate --new t --candidates c.json",
+                        'python3 "$D/records.py" duplicate --new t --candidates c.json',
+                        "python3.12 records.py duplicate --new t --candidates c.json | tail -3"):
+            self.assertEqual(recordcheck.ran(command), "duplicate", command)
+        self.assertEqual(recordcheck.ran("python3 records.py cleanup --candidates c.json"), None)
+        self.assertEqual(recordcheck.ran("python3 records.py 'unclosed"), None)
 
     def test_the_check_expires(self):
         self.ran("python3 records.py duplicate --new t --candidates c.json")
@@ -168,10 +178,16 @@ class ReviewWiring(On, ReviewRunFixture):
         self.assertEqual(proc.returncode, 2)
         self.assertIn("claim check", proc.stdout)
         claims = self.tmp / "claims.json"
-        claims.write_text('{"results": []}')
+        for bad in ('{"results": []}', "", "not json", "[]"):
+            claims.write_text(bad)
+            proc = self.cli("maeng-review", [*args, "--claims", str(claims)], self.repo, extra_env=env)
+            self.assertEqual(proc.returncode, 2, bad)
+        proc = self.cli("maeng-review", [*args, "--claims", str(self.tmp / "gone.json")], self.repo, extra_env=env)
+        self.assertEqual(proc.returncode, 2)
+        claims.write_text('{"results": [{"id": "c1", "verdict": "supported"}]}')
         proc = self.cli("maeng-review", [*args, "--claims", str(claims)], self.repo, extra_env=env)
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
-        self.assertIn("results", self.stdin_log.read_text())
+        self.assertIn("supported", self.stdin_log.read_text())
 
 
 class Locate(HarnessCase):

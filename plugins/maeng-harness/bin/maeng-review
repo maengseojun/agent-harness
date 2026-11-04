@@ -198,6 +198,15 @@ DRAFT_FOCUS = {
 }
 
 
+def claim_results(path):
+    """Does this file hold at least one verify_claims.py result?"""
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8")) if path else None
+    except (OSError, ValueError):
+        return False
+    return isinstance(data, dict) and bool(data.get("results"))
+
+
 def draft_bundle(a):
     """-> (bundle, subject) for a docs/research draft review; the subject binds the exact draft text by digest."""
     missing, text = [], ""
@@ -210,10 +219,10 @@ def draft_bundle(a):
             missing.append(f"draft unreadable: {exc}")
     evidence = list(a.evidence or [])
     if a.kind == "research" and not recordcheck.off():
-        if a.claims:
+        if claim_results(a.claims):
             evidence.append(a.claims)
         else:
-            missing.append("claim check (--claims <verify_claims.py --out file>)")
+            missing.append("claim check (--claims <verify_claims.py --out file with results>)")
     bundle = {"kind": a.kind, "review_focus": DRAFT_FOCUS[a.kind], "draft_path": a.draft, "draft": text,
               "sources": read_evidence_files(a.source), "evidence_files": read_evidence_files(evidence),
               "missing": missing}
