@@ -444,6 +444,33 @@ class LedgerTest(Base):
                 self.assertNotIn(s, out)
                 self.assertEqual(dc.redact(out), out)
 
+    def test_a_bracketed_value_ends_at_its_closing_line(self):
+        out = dc.redact('+    tokens = {\n+        "a": 1,\n+    }\n+    if tokens["a"]:\n+        do_the_thing()\n+    return tokens\n')
+        self.assertNotIn('"a": 1', out)
+        for kept in ('if tokens["a"]:', "do_the_thing()", "return tokens"):
+            self.assertIn(kept, out)
+
+    def test_a_zero_indent_context_line_ends_a_block(self):
+        out = dc.redact("+client_secret: |-\n+  OPAQUEvalue0123456789\n next: 1\n other: 2\n")
+        self.assertNotIn("OPAQUEvalue", out)
+        self.assertIn(" next: 1\n other: 2", out)
+
+    def test_two_pem_markers_keep_the_code_between_them(self):
+        h, f = "-----BEGIN " + "PRIVATE KEY-----", "-----END " + "PRIVATE KEY-----"
+        self.assertIn("return compute(1)", dc.redact(f'+A = "{h}"\n+def helper():\n+    return compute(1)\n+B = "{f}"\n'))
+        for key in (f"{h}\nMIIEvQIBADANBgkqhkiG9w0B\n{f}\n", f'"{h}\\nMIIEvQIBADANBgkqhkiG9w0B\\n{f}\\n"',
+                    f"+{h}\n+MIIEvQIBADANBgkqhkiG9w0B\n+{f}\n", f"-{h}\n-MIIEvQIBADANBgkqhkiG9w0B\n-{f}\n"):
+            with self.subTest(key[:12]):
+                self.assertNotIn("MIIEvQ", dc.redact(key))
+
+    def test_pass_names_webhooks_and_jwts(self):
+        hook, jwt = "https://hooks.slack" + ".com/services/T0/B0/abc123", "ey" + "JhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.c2lnbmF0dXJlMTIz"
+        for text, secret in (("+SMTP_PASS=hunter2hunter2\n", "hunter2"), ("+SSH_PASSPHRASE=correct horse\n", "horse"),
+                             (f"+SLACK_WEBHOOK_URL={hook}\n", "abc123"), (f"post to {hook} now", "abc123"), (f"value {jwt} end", "c2lnbmF0")):
+            with self.subTest(text[:20]):
+                self.assertNotIn(secret, dc.redact(text))
+        self.assertEqual(dc.redact("floors pass=True\nall_passed: 3\n"), "floors pass=True\nall_passed: 3\n")
+
     def test_recognized_token_formats(self):
         for token in ("sk" "_live_" + "a1b2c3d4e5", "rk" "_test_" + "a1b2c3d4e5", "gh" "u_a1b2c3d4e5", "gh" "r_a1b2c3d4e5",
                       "lin" "_api_a1b2c3d4e5", "nt" "n_a1b2c3d4e5", "np" "m_a1b2c3d4e5", "AI" "za" + "a1b2c3d4e5f6g7h8i9"):

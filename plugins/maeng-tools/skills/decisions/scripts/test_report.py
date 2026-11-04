@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import tempfile
 import unittest
@@ -68,6 +70,15 @@ class ReportTest(unittest.TestCase):
         self.assertIn("Total cost: $0.000510", md)
         self.assertIn("negative_recall=0.96, wilson_lower=0.9101, over_flag=0.12, p50_latency_ms=640, pass=True", md)
         self.assertNotIn("None", md)
+
+    def test_a_cut_ledger_line_is_skipped_and_counted(self):
+        with self.ledger.open("a", encoding="utf-8") as f:
+            f.write('{"ts": "2026-11-05T')
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            rows = report.load(self.ledger, "2026-11-04", "2026-11-08")
+        self.assertEqual(len(rows), 4)
+        self.assertIn("skipped 1 unreadable", err.getvalue())
 
     def test_missing_ledger_exits_1(self):
         self.assertEqual(report.main(["--ledger", str(Path(self.tmp.name, "none.jsonl"))]), 1)

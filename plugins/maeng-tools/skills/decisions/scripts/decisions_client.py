@@ -39,10 +39,10 @@ PRICE_INPUT, PRICE_CACHED, PRICE_WRITE = 0.10, 0.01, 0.125
 _FIELD = {"choice": "choice", "predicate": "probability", "score": "score"}
 
 _R = "[REDACTED]"
-_PEM = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----(?:.*?-----END [A-Z ]*PRIVATE KEY-----"  # a whole block, or
+_PEM = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----(?:[A-Za-z0-9+/=\s\\\"',-]*?-----END [A-Z ]*PRIVATE KEY-----"  # a whole block, or
                   r"|(?:\r?\n[+\- ]?[ \t]*[A-Za-z0-9+/=]{16,}[ \t]*(?=\r?\n|\Z))*)", re.S)  # only its base64 lines
 _URL_CRED = re.compile(r"([A-Za-z][A-Za-z0-9+.-]*://)[^/\s]*@")
-_SECRET_NAME = r"[\w.-]*(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|PWD)[\w.-]*"
+_SECRET_NAME = r"[\w.-]*(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|PASSPHRASE|PWD|WEBHOOK|[_-]PASS(?![A-Z]))[\w.-]*"  # not "pass=True"
 # after a name: its closing quote or bracket, escaped or not, then the operator
 _ASSIGN = r"\\?[\"']?\]?[ \t]*(?::=|=>|==|:|=)[ \t]*"
 # a triple-quoted string, else the rest of the line: quotes end too early ("a\"b", "a" "b", "a" + "b")
@@ -52,17 +52,21 @@ _BEARER = re.compile(r"(\bBearer\s+)[A-Za-z0-9._~+/=-]{8,}", re.I)
 _KV = re.compile(rf"(\b{_SECRET_NAME}{_ASSIGN})(?![ \t=>]|\[REDACTED\])({_VALUE})", re.I)
 _FLAG = re.compile(r"(--?[\w-]*(?:key|token|secret|password|passwd)[\w-]*[ \t]+)(?!\[REDACTED\])(\"[^\r\n]*\"|'[^\r\n]*'|\S+)", re.I)
 # A secret key with its value on the following lines, in a file or a diff: a YAML block ("key: |-" and its
-# indented lines), a wrapped value ("key = (", "key = \" and the indented lines) or one indented value alone
-# ("key:", then a quoted or opaque value). A wider next-line form would swallow code such as
-# "for t in tokens:" and its body.
+# indented lines), a bracketed value ("key = {" up to its closing line) or one indented value alone ("key:" or
+# "key = \", then a quoted or opaque value). A wider next-line form would swallow code such as
+# "for t in tokens:" and its body. Indentation is a diff marker plus space, or two spaces: a one-space context
+# line of a diff is not indented.
+_INDENT = r"(?:[+\- ][ \t]+|[ \t]{2,})"
 _NEXT_LINES = re.compile(
     rf"(\b{_SECRET_NAME}{_ASSIGN})"
-    r"(?:(?:[|>][+-]?[0-9]?|[(\[{\\])[ \t]*\r?\n(?:[+\- ]?[ \t]+\S[^\r\n]*(?:\r?\n|\Z))+"
-    r"|\r?\n[+\- ]?[ \t]+(?:\"[^\"\r\n]*\"|'[^'\r\n]*'|[A-Za-z0-9+/=_.~-]{16,}),?[ \t]*(?:\r?\n|\Z))", re.I)
+    rf"(?:[|>][+-]?[0-9]?[ \t]*\r?\n(?:{_INDENT}\S[^\r\n]*(?:\r?\n|\Z))+"
+    rf"|[(\[{{][ \t]*\r?\n(?:(?![+\- ]?[ \t]*[)\]}}]){_INDENT}\S[^\r\n]*(?:\r?\n|\Z))+"
+    rf"|\\?[ \t]*\r?\n{_INDENT}(?:\"[^\"\r\n]*\"|'[^'\r\n]*'|[A-Za-z0-9+/=_.~-]{{16,}}),?[ \t]*(?:\r?\n|\Z))", re.I)
 _TOKEN = re.compile(
     r"(?<![A-Za-z0-9])(?:sk-[A-Za-z0-9_-]{8,}|[sr]k_(?:live|test)_[A-Za-z0-9]{8,}|gh[oprsu]_[A-Za-z0-9]{8,}"
     r"|github_pat_[A-Za-z0-9_]{8,}|xox[bpa]-[A-Za-z0-9-]{8,}|xapp-[A-Za-z0-9-]{8,}|glpat-[A-Za-z0-9_-]{8,}"
-    r"|lin_api_[A-Za-z0-9]{8,}|ntn_[A-Za-z0-9]{8,}|npm_[A-Za-z0-9]{8,}|AIza[0-9A-Za-z_-]{16,}|AKIA[0-9A-Z]{16})")
+    r"|lin_api_[A-Za-z0-9]{8,}|ntn_[A-Za-z0-9]{8,}|npm_[A-Za-z0-9]{8,}|AIza[0-9A-Za-z_-]{16,}|AKIA[0-9A-Z]{16}"
+    r"|hooks\.slack\.com/services/\S+|eyJ[\w-]{10,}\.[\w-]{10,}\.[\w-]+)")
 
 
 def redact(text, by_name=True):

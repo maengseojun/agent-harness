@@ -27,15 +27,21 @@ def percentile(values, p):
 
 
 def load(path, since=None, until=None):
-    rows = []
+    rows, skipped = [], 0
     for line in Path(path).expanduser().read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
-        r = json.loads(line)
+        try:
+            r = json.loads(line)
+        except ValueError:  # a line cut by an interrupted write must not cost the whole report
+            skipped += 1
+            continue
         day = r.get("ts", "")[:10]
         if (since and day < since) or (until and day > until):
             continue
         rows.append(r)
+    if skipped:
+        print(f"report: skipped {skipped} unreadable ledger lines", file=sys.stderr)
     return rows
 
 

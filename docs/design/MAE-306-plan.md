@@ -108,9 +108,10 @@ Revisions:
 - R-8 result (2026-11-04): third review. Redaction covers quoted next-line values; eval requests carry neutral names in a seeded order and a claim never shares a request with its own mutation; the date check covers dotted spellings for every seed format; `related`, `duplicate` and `cleanup` log under their own pilot names. The blinded claim eval gave the same result as before: recall 0.9808, over-flag 0, the same three misses.
 - R-9 result (2026-11-04): internal review before the last round. Redaction covers more assignment forms, command flags, the rest of an unquoted line and more token formats; a PEM header alone no longer erases what follows; claim verification keeps named values because page text is public and masking made true and false claims identical; malformed `confidence` and `probabilities` are dropped; a lone surrogate cannot fail a call; a claim eval with an unknown negative cannot pass; pre-flight `triage` needs evidence and an empty diff sends nothing; stage 3 maps `decisions` verdicts to the citation labels.
 - R-10 result (2026-11-04): fourth and last review round (fail, cap reached). Redaction covers wrapped and multi-part values; an interrupted eval keeps its completed calls in the main ledger. These two fixes have no independent review.
+- R-11 result (2026-11-04): internal Fable review, at the user's request. No blocker. A bracketed value ends at its closing line, a zero-indent context line ends a block, a PEM block must hold only body characters, `_PASS`, passphrase and webhook names plus Slack webhooks and JWTs are redacted, a cut ledger line is skipped and counted. No independent `maeng-review` of this either.
 
 Close-out:
 - size: (filled at close)
-- revisions: plan 4 / result 6
+- revisions: plan 4 / result 7
 - review rounds to pass:
 - unmet AC at close:
