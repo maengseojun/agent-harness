@@ -142,7 +142,7 @@ class JevTest(Base):
         self.assertEqual(body, {"model": "jev-1.14.0", "state": "hello", "questions": {
             "topic": {"type": "choice", "instructions": "Pick the topic.", "criteria": {"billing": "Money", "bug": "Defect"}},
             "urgent": {"type": "noul", "instructions": "Is it urgent?"},
-            "severity": {"type": "score", "instructions": "Rate severity.", "criteria": ["Cosmetic", "Major", "Blocked"]}}})
+            "severity": {"type": "score", "instructions": "Rate severity.", "criteria": ["Cosmetic: Looks", "Major: Breaks", "Blocked: Stops"]}}})
         self.assertEqual([r["status"] for r in res], ["ok", "ok", "ok"])
         self.assertEqual((res[0]["choice"], res[1]["probability"], res[2]["score"]), ("billing", 0.8, 1.5))
         self.assertEqual(res[0]["probabilities"], [{"value": "billing", "probability": 0.9}, {"value": "bug", "probability": 0.1}])
@@ -170,7 +170,7 @@ class JevTest(Base):
 
     def test_a_bad_score_key_is_dropped_and_the_score_stands(self):
         self.keychain.return_value = "BAZEKEY"
-        a = {"type": "score", "score": 1.0, "probabilities": {"1": 0.9, "9": 0.1, "x": 0.0}}
+        a = {"type": "score", "score": 1.0, "probabilities": {"1": 0.9, "9": 0.1, "x": 0.0, "\u00b2": 0.0}}
         res = self.run_decide(FakePost({"answers": {"severity": a}}), [Q_SCORE], model="jev-1.14.0")
         self.assertEqual(res[0]["probabilities"], [{"value": 1, "label": "Major", "probability": 0.9}])
 

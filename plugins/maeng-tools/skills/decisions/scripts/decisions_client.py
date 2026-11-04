@@ -155,7 +155,8 @@ def _jev_question(q):
         return {**out, "type": "noul"}
     if q["type"] == "choice":
         return {**out, "type": "choice", "criteria": {c["value"]: c.get("description", "") for c in q["choices"]}}
-    return {**out, "type": "score", "criteria": [v["label"] for v in q["levels"]]}
+    levels = [f"{v['label']}: {v['description']}" if v.get("description") else v["label"] for v in q["levels"]]
+    return {**out, "type": "score", "criteria": levels}
 
 
 def _from_jev(q, a):
@@ -172,7 +173,7 @@ def _from_jev(q, a):
     if t == "score":  # Jev keys levels by index as a string
         labels = [v["label"] for v in q["levels"]]
         ps = [{"value": int(k), "label": labels[int(k)], "probability": v} for k, v in ps.items()
-              if isinstance(k, str) and k.isdigit() and int(k) < len(labels)]
+              if isinstance(k, str) and k.isascii() and k.isdigit() and int(k) < len(labels)]
     else:
         ps = [{"value": k, "probability": v} for k, v in ps.items()]
     return {**a, "name": name, "probabilities": ps}

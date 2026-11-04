@@ -39,9 +39,10 @@ Revisions:
 - R-1 plan scope (2026-11-04): the user left Solar to judgment (`ask.py --model`, no code) and asked to keep rerank and embeddings as context, recorded under Next.
 - R-2 result (2026-11-04): first review. Structured input reaches Jev as text; score probabilities carry numeric levels and labels; an answer of another type is `unknown`.
 - R-3 result (2026-11-04): Codex finding on the first head. The eta rule moved from skill text to code, because `MAENG_DECISIONS_MODEL` left set would have sent `records.py` text to BAZE.
+- R-4 result (2026-11-04): second review. Score levels keep their descriptions; a non-ASCII digit key is dropped instead of raising.
 
 Close-out:
 - size: (filled at close)
-- revisions: plan 1 / result 2
+- revisions: plan 1 / result 3
 - review rounds to pass:
 - unmet AC at close:
