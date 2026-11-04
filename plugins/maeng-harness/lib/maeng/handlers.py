@@ -406,7 +406,8 @@ def on_post(payload, failed=False):
     tool, tin = payload.get("tool_name", ""), payload.get("tool_input") or {}
     tresp, tuid = payload.get("tool_response"), payload.get("tool_use_id", "")
     try:  # before the world check: the eta world has this gate too
-        checks = recordcheck.ran(str(tin.get("command", ""))) if tool == "Bash" else []
+        foreground = tool == "Bash" and not tin.get("run_in_background")
+        checks = recordcheck.ran(str(tin.get("command", ""))) if foreground else []
         if checks and not failed and not response_failed(tresp):
             state.update(sid, lambda st: recordcheck.mark(st, checks), cwd)
     except Exception as exc:

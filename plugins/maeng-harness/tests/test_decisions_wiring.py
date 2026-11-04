@@ -75,6 +75,12 @@ class DuplicateGate(On, HarnessCase):
         self.ran(command)
         self.assertFalse(self.pre(self.repo, LINEAR, {"team": "MAE", "title": "x"})[0])
 
+    def test_a_background_launch_does_not_count(self):
+        self.hook("PostToolUse", self.repo, tool_name="Bash", tool_use_id="tu-1", tool_response={"stdout": ""},
+                  tool_input={"command": "python3 records.py duplicate --new t --candidates c.json",
+                              "run_in_background": True})
+        self.assertTrue(self.pre(self.repo, LINEAR, {"team": "MAE", "title": "x"})[0])
+
     def test_a_step_that_may_have_been_skipped_does_not_count(self):
         for command in ("test -f cached.json || python3 records.py related --task t --candidates c.json",
                         "python3 records.py related --task t --candidates c.json || true",
@@ -169,7 +175,9 @@ class ReviewWiring(On, ReviewRunFixture):
     def test_a_broken_preflight_never_stops_the_review(self):
         bad = self.tmp / "bad.py"
         bad.write_text("raise SystemExit(3)\n")
-        self.assertEqual(self.run_review(bad).returncode, 0)
+        proc = self.run_review(bad)
+        self.assertEqual(proc.returncode, 0)
+        self.assertIn("failed with exit code 3", proc.stderr)
         self.assertEqual(self.run_review(self.tmp / "gone.py").returncode, 0)
 
     def test_a_review_without_evidence_is_blocked_before_the_reviewer(self):
@@ -195,7 +203,8 @@ class ReviewWiring(On, ReviewRunFixture):
         self.assertEqual(proc.returncode, 2)
         self.assertIn("claim check", proc.stdout)
         claims = self.tmp / "claims.json"
-        for bad in ('{"results": []}', "", "not json", "[]"):
+        for bad in ('{"results": []}', "", "not json", "[]", '{"results": true}', '{"results": "error"}',
+                    '{"results": [1]}', '{"results": [{"id": "c1"}]}'):
             claims.write_text(bad)
             proc = self.cli("maeng-review", [*args, "--claims", str(claims)], self.repo, extra_env=env)
             self.assertEqual(proc.returncode, 2, bad)
