@@ -1,6 +1,6 @@
 ---
 name: decisions
-description: Use during the OpenAI Decisions API trial (MAE-306, until the user's decision on Sunday 2026-11-08) - verifying research claims against their pages in aside-research stage 3, a review pre-flight before every `maeng-review run` (are the Plan's AC-n met by the diff and the verification output), sorting a failed review round's findings, picking which Linear issues, Notion pages or Obsidian notes to read when resuming work, a duplicate check before creating a Linear issue, Notion record or vault note, cleanup candidates for the weekly vault or Linear tidy, the evals, and the trial report. Personal world only. Sends public page text, a redacted diff, Plan and test output, or personal Linear/Notion/vault text (private spans stripped) to OpenAI; never eta content, never in an eta checkout.
+description: Use during the OpenAI Decisions API trial (MAE-306, until the user's decision on Sunday 2026-11-08) - verifying research claims against their pages in aside-research stage 3, a review pre-flight before every `maeng-review run` (are the Plan's AC-n met by the diff and the verification output), sorting a failed review round's findings, picking which Linear issues, Notion pages or Obsidian notes to read when resuming work, a duplicate check before creating a Linear issue, Notion record or vault note, cleanup candidates for the weekly vault or Linear tidy, the evals, and the trial report. For personal and eta work alike. Sends public page text, a redacted diff, Plan and test output, or Linear/Notion/vault text, eta included (private spans stripped), to OpenAI.
 ---
 
 # decisions (Decisions API trial)
@@ -9,8 +9,8 @@ Trial skill for MAE-306. The OpenAI Decisions API (`POST /v1/decisions`, `gpt-6-
 
 ## Rules
 
-- **Data.** Public page text and claim text; for the pre-flight the diff, the Plan and the verification output; for records work, personal Linear, Notion and vault text. The client redacts known secret patterns; `records.py` strips vault `<private>` spans and refuses eta items (`world: eta`, vault `eta/` paths, eta Linear or Notion). Never put eta-workspace results into a candidates file.
-- **Off and eta.** `MAENG_DECISIONS=off` sends nothing. A working directory inside the eta checkout (`MAENG_ETA_ROOT`, default `~/Documents/Project/eta_v1`) sends nothing; eta research keeps the researcher path.
+- **Data.** Public page text and claim text; for the pre-flight the diff, the Plan and the verification output; for records work, Linear, Notion and vault text, eta included (the user's decision, plan D-7). The client redacts known secret patterns; `records.py` strips vault `<private>` spans.
+- **Off.** `MAENG_DECISIONS=off` sends nothing.
 - **Key.** `OPENAI_API_KEY`, else the macOS keychain item `openai-api-key`. Never print it, never ask the user to paste it into the chat.
 - **Unknown is not a verdict.** An error, timeout, refusal, missing or off-list answer comes back as `unknown`. Treat it as "not checked", never as a pass.
 - **Ledger.** Every call appends one line to `~/Documents/maeng-harness/decisions/ledger.jsonl` (hashes and counts, no text). The Sunday report is computed from it.
@@ -37,7 +37,7 @@ After a failed round, `python3 preflight.py triage --findings <this round.json> 
 
 ## Linear, Notion and Obsidian work (MAE-311)
 
-All three take a candidates file: a JSON list of `{"id", "title", "text", "source", "path", "world", "date"}` built from the search results you already have (Linear issue search, Notion search, vault search). Put a short excerpt in `text`, not whole documents. Outputs are suggestions; you still open, create, update or close things yourself.
+All three take a candidates file: a JSON list of `{"id", "title", "text", "source", "date"}` built from the search results you already have (Linear issue search, Notion search, vault search). Put a short excerpt in `text`, not whole documents. Outputs are suggestions; you still open, create, update or close things yourself.
 
 - **Resuming work:** after searching for related notes, issues and pages, run `python3 records.py related --task "<what you are about to do>" --candidates <file>`. Read the selected items; glance at the near misses; open anything else you need. When you later needed an item it did not select, note it on MAE-311 (a miss).
 - **Before creating** a Linear issue, Notion record or vault note (the search-before-create step of work-records and obsidian-workspace): `python3 records.py duplicate --new "<title and one-line summary>" --candidates <file>`. If it names an item, open that item and decide whether to update it instead. Note on MAE-311 whether the flag was real.

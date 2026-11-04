@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Advisory pre-flight before a review round (MAE-306). Stdlib only.
 
-  preflight.py ac --plan PLAN.md [--base REF] [--head REF] [--evidence FILE ...] [--max-diff-chars N]
+  preflight.py ac --plan PLAN.md --evidence FILE ... [--base REF] [--head REF] [--max-diff-chars N]
       One Decisions request: for each AC-n of the plan, met / unmet / unclear, judged from the plan,
       the git diff and the verification output.
   preflight.py triage --findings review.json [--previous review.json ...] [--base REF] [--head REF]
@@ -10,7 +10,7 @@
 
 Advisory only: prints Markdown tables, never edits a file, never gates anything, and exits 0 unless
 its own arguments are wrong (2). Pilot name: review_preflight. decisions_client sends nothing under
-MAENG_DECISIONS=off or in an eta checkout (every answer is then `unknown`) and redacts secrets.
+MAENG_DECISIONS=off (every answer is then `unknown`) and redacts secrets.
 """
 import argparse
 import json
@@ -26,7 +26,6 @@ import decisions_client  # noqa: E402
 DECIDE = decisions_client.decide  # tests replace this
 PILOT = "review_preflight"
 BASE, HEAD, MAX_DIFF = "origin/feat/harness-v1", "HEAD", 300000
-NO_EVIDENCE = "No verification output was supplied."
 
 
 def _choices(*pairs):
@@ -144,10 +143,12 @@ def cmd_ac(ap, args):
         print(f"preflight: no acceptance criteria (AC-n) found in {args.plan}")
         return
     evidence = [(p, _read(ap, p)) for p in args.evidence]
+    if not any(t.strip() for _, t in evidence):
+        ap.error("the --evidence files are empty; nothing was sent")
     diff = _diff_or_none(args, args.max_diff_chars)
     if diff is None:
         return
-    ev = "\n\n".join(f"--- {p} ---\n{t}" for p, t in evidence) or NO_EVIDENCE
+    ev = "\n\n".join(f"--- {p} ---\n{t}" for p, t in evidence)
     text = f"=== PLAN ({args.plan}) ===\n{plan}\n\n{diff}\n\n=== VERIFICATION OUTPUT ===\n{ev}"
     questions = [{"type": "choice", "name": n, "choices": AC_CHOICES,
                   "instructions": f"Criterion {n}: {t}\nJudge only from the plan, diff and verification output above."}
@@ -241,7 +242,7 @@ def main(argv=None):
     refs.add_argument("--head", default=HEAD)
     p = sub.add_parser("ac", parents=[refs], help="check each acceptance criterion of a plan")
     p.add_argument("--plan", required=True)
-    p.add_argument("--evidence", nargs="+", action="extend", default=[], metavar="FILE")
+    p.add_argument("--evidence", nargs="+", action="extend", required=True, metavar="FILE")
     p.add_argument("--max-diff-chars", type=int, default=MAX_DIFF)
     p.set_defaults(run=cmd_ac)
     p = sub.add_parser("triage", parents=[refs], help="sort the findings of a review round")

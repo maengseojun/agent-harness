@@ -3,8 +3,7 @@
 
 build [--vault PATH] [--cases N] [--seed S] [--check]
     Writes related-v1-cases.jsonl and related-v1-labels.jsonl from the vault's wiki/ and
-    hubs/ notes (never raw/, templates/ or anything eta: world eta, an eta or endix path segment, an
-    imported eta Notion or Linear source). A case is a query note with at least 2 resolvable links;
+    hubs/ notes (never raw/ or templates/). A case is a query note with at least 2 resolvable links;
     its relevant notes are the first 5 (sorted) it links to, and 10 seeded-random notes that neither
     it nor they link to are the negatives. Candidates are listed sorted by id, so order says nothing
     about the label. Text has <private> spans stripped (the vault's strip_private) and is cut to 1500
@@ -60,7 +59,6 @@ def eval_dir():
 
 
 _FM = re.compile(r"\A---[ \t]*\n(.*?)\n---[ \t]*(?:\n|\Z)", re.S)
-_ETA_FM = re.compile(r"^world:[ \t]*[\"']?eta[\"']?[ \t]*$|imported/(?:notion|linear)/(?:eta|endix)", re.I | re.M)
 _TITLE_FM = re.compile(r"^title:[ \t]*(.*?)[ \t]*$", re.M)
 _HEADING = re.compile(r"^# +(.+?)[ \t]*$", re.M)
 _LINK = re.compile(r"\[\[([^\[\]|#\\]+)(?:#[^\[\]|]*)?(?:\\?\|[^\[\]]*)?\]\]")
@@ -77,9 +75,9 @@ def _stem(target):
 
 
 def scan(vault):
-    """-> ({id: {id, title, text, links}}, number of notes skipped as eta). id = path relative to the vault."""
+    """-> {id: {id, title, text, links}}. id = path relative to the vault."""
     vault = Path(vault)
-    notes, eta_skipped = {}, 0
+    notes = {}
     for sub in ("wiki", "hubs"):
         for p in sorted((vault / sub).rglob("*.md")):
             rel = _nfc(p.relative_to(vault).as_posix())
@@ -88,9 +86,6 @@ def scan(vault):
             raw = p.read_text(encoding="utf-8", errors="replace")
             m = _FM.match(raw)
             fm, body = (m.group(1), raw[m.end():]) if m else ("", raw)
-            if records.is_eta_path(rel) or _ETA_FM.search(fm):
-                eta_skipped += 1
-                continue
             body = records.strip_private(body)[0]
             t = _TITLE_FM.search(fm)
             h = _HEADING.search(body)
@@ -103,7 +98,7 @@ def scan(vault):
     unique = {s: v[0] for s, v in by_stem.items() if len(v) == 1}  # ambiguous and unresolved links are dropped
     for n in notes.values():
         n["links"] = {unique[s] for s in n.pop("stems") if s in unique} - {n["id"]}
-    return notes, eta_skipped
+    return notes
 
 
 def language(s):
@@ -128,7 +123,7 @@ def make_cases(notes, n=40, seed=0):
         neg = random.Random(f"{seed}:{q}").sample(pool, min(N_NEGATIVES, len(pool)))
         head = f"{notes[q]['title']}\n{notes[q]['text'][:TASK_CHARS]}"
         cases.append({"id": q, "task": f"Continue the work in this note: {head}", "lang": language(head),
-                      "candidates": [{"id": i, "title": notes[i]["title"], "text": notes[i]["text"], "source": "obsidian", "path": i}
+                      "candidates": [{"id": i, "title": notes[i]["title"], "text": notes[i]["text"], "source": "obsidian"}
                                      for i in sorted(pos + neg)]})
         labels.append({"id": q, "relevant": pos})
     return cases, labels
@@ -139,7 +134,7 @@ def _dump(rows):
 
 
 def build(vault, out_dir, n=40, seed=0):
-    notes, eta_skipped = scan(vault)
+    notes = scan(vault)
     cases, labels = make_cases(notes, n, seed)
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -147,7 +142,7 @@ def build(vault, out_dir, n=40, seed=0):
     for name, text in texts.items():
         (out / name).write_text(text, encoding="utf-8")
     ko = sum(c["lang"] == "ko" for c in cases)
-    return {"cases": len(cases), "ko": ko, "other": len(cases) - ko, "notes": len(notes), "eta_skipped": eta_skipped,
+    return {"cases": len(cases), "ko": ko, "other": len(cases) - ko, "notes": len(notes),
             "chars": sum(len(t) for t in texts.values()), "bytes": sum(len(t.encode("utf-8")) for t in texts.values())}
 
 
@@ -174,7 +169,7 @@ def run(cases_path=None, *, decide=None, threshold=records.RELATED_THRESHOLD):
     """Builds every request from the cases file only; keeps just id, task, lang and the candidate fields
     (so a stray label field cannot reach a request). Own ledger (a temp file via MAENG_DECISIONS_LEDGER,
     restored afterwards), copied to the main ledger once the run is over. -> {results, usage}"""
-    fields = ("id", "title", "text", "source", "path")
+    fields = ("id", "title", "text", "source")
     cases = [{"id": c["id"], "task": c["task"], "lang": c["lang"],
               "candidates": [{k: x.get(k) for k in fields} for x in c["candidates"]]}
              for c in _read(cases_path or eval_dir() / CASES_FILE)]
@@ -188,8 +183,7 @@ def run(cases_path=None, *, decide=None, threshold=records.RELATED_THRESHOLD):
                 r = records.related(c["task"], c["candidates"], threshold, decide=decide, pilot=PILOT)
                 results.append({"id": c["id"], "lang": c["lang"], "candidates": [x["id"] for x in c["candidates"]],
                                 "named": named_ids(c["task"], c["candidates"]),
-                                "selected": [i["id"] for i, _ in r["selected"]], "unknown": r["unknown"],
-                                "dropped": [i for i, _ in r["dropped"]]})
+                                "selected": [i["id"] for i, _ in r["selected"]], "unknown": r["unknown"]})
         finally:
             if old is None:
                 os.environ.pop("MAENG_DECISIONS_LEDGER", None)
@@ -275,7 +269,7 @@ def main(argv=None):
         if a.check:
             return check(a.vault, out, a.cases, a.seed)
         s = build(a.vault, out, a.cases, a.seed)
-        print(f"notes={s['notes']} eta_skipped={s['eta_skipped']}")
+        print(f"notes={s['notes']}")
         print(f"cases={s['cases']} ko={s['ko']} other={s['other']}")
         print(f"wrote {CASES_FILE} and {LABELS_FILE} to {out}: {s['chars']} characters ({s['bytes']} bytes)")
         return 0

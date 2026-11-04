@@ -78,6 +78,7 @@ class Base(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         self.tmp = Path(tmp.name).resolve()
         self.plan = self.write("plan.md", PLAN)
+        self.ev = self.write("ev.txt", "12 tests OK")
 
     def write(self, name, text):
         p = self.tmp / name
@@ -125,7 +126,6 @@ class AcInput(Base):
         self.assertEqual(pilot, "review_preflight")
         for needle in ("DIFF_MARKER_7731", "EVIDENCE_ONE_OK 12 tests", "EVIDENCE_TWO_FAIL", "Fourth criterion, star bullet"):
             self.assertIn(needle, text)
-        self.assertNotIn("No verification output was supplied", text)
         self.assertLess(text.index("First criterion"), text.index("DIFF_MARKER_7731"))
         self.assertLess(text.index("DIFF_MARKER_7731"), text.index("EVIDENCE_ONE_OK"))
         self.assertEqual([q["name"] for q in questions], [n for n, _ in PLAN_ACS])
@@ -141,20 +141,23 @@ class AcInput(Base):
         _, _, _, d = self.run_pf(["ac", "--plan", self.plan, "--evidence", e1, "--evidence", e2])
         self.assertTrue("EVIDENCE_ONE_OK" in d.calls[0][0] and "EVIDENCE_TWO_OK" in d.calls[0][0])
 
-    def test_no_evidence_is_said_explicitly(self):
-        _, _, _, d = self.run_pf(["ac", "--plan", self.plan])
-        text = d.calls[0][0]
-        self.assertIn("No verification output was supplied", text)
-        self.assertIn("DIFF_MARKER_7731", text)
+    def test_no_evidence_sends_nothing(self):
+        empty = self.write("empty.txt", " \n")
+        for argv in (["ac", "--plan", self.plan], ["ac", "--plan", self.plan, "--evidence", empty]):
+            d = FakeDecide()
+            with self.assertRaises(SystemExit) as e:
+                self.run_pf(argv, d)
+            self.assertEqual(e.exception.code, 2)
+            self.assertEqual(d.calls, [])
 
     def test_truncated_diff_says_so(self):
-        _, _, _, d = self.run_pf(["ac", "--plan", self.plan, "--max-diff-chars", "10"], diff="a" * 10 + "ZZZZ")
+        _, _, _, d = self.run_pf(["ac", "--plan", self.plan, "--evidence", self.ev, "--max-diff-chars", "10"], diff="a" * 10 + "ZZZZ")
         text = d.calls[0][0]
         self.assertIn("diff truncated: the first 10 of 14 characters", text)
         self.assertNotIn("ZZZZ", text)
 
     def test_empty_diff_is_stated_not_dropped(self):
-        _, _, _, d = self.run_pf(["ac", "--plan", self.plan], diff="")
+        _, _, _, d = self.run_pf(["ac", "--plan", self.plan, "--evidence", self.ev], diff="")
         self.assertIn("(empty diff)", d.calls[0][0])
 
     def test_git_failure_sends_nothing_and_still_exits_zero(self):
@@ -162,7 +165,7 @@ class AcInput(Base):
         boom = mock.Mock(side_effect=RuntimeError("bad revision"))
         with mock.patch.object(pf, "DECIDE", d), mock.patch.object(pf, "_git_diff", boom), \
                 contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            code = pf.main(["ac", "--plan", self.plan])
+            code = pf.main(["ac", "--plan", self.plan, "--evidence", self.ev])
         self.assertEqual((code, d.calls), (0, []))
         self.assertIn("bad revision", err.getvalue())
 
@@ -179,8 +182,8 @@ class Secrets(Base):
     SECRETS = ("sk" "-test1234567890abcdef", "gh" "p_abcdefghijklmnop1234")
 
     def run_real_client(self, argv, diff, post_calls):
-        """Real decisions_client.decide with only its _post faked; cwd outside the eta root."""
-        work, eta = self.tmp / "work", self.tmp / "eta_v1"
+        """Real decisions_client.decide with only its _post faked."""
+        work = self.tmp / "work"
         work.mkdir(exist_ok=True)
         ledger = self.tmp / "led" / "ledger.jsonl"
 
@@ -188,7 +191,7 @@ class Secrets(Base):
             post_calls.append(body)
             return {"answers": [ans("AC-1", "met", {"met": 0.9, "unmet": 0.05, "unclear": 0.05})]}
 
-        env = {"OPENAI_API_KEY": "sk-dummy-ENVKEY0123456789", "MAENG_DECISIONS_LEDGER": str(ledger), "MAENG_ETA_ROOT": str(eta)}
+        env = {"OPENAI_API_KEY": "sk-dummy-ENVKEY0123456789", "MAENG_DECISIONS_LEDGER": str(ledger)}
         out, cwd = io.StringIO(), os.getcwd()
         self.addCleanup(os.chdir, cwd)
         os.chdir(work)
@@ -222,7 +225,7 @@ class Secrets(Base):
         s = self.SECRETS[1]
         diff = "a" * 19 + " " + s  # the cut at 26 falls inside the token
         posts = []
-        self.run_real_client(["ac", "--plan", self.plan, "--max-diff-chars", "26"], diff, posts)
+        self.run_real_client(["ac", "--plan", self.plan, "--evidence", self.ev, "--max-diff-chars", "26"], diff, posts)
         self.assertEqual(len(posts), 1)
         body = json.dumps(posts[0])
         self.assertIn("diff truncated", body)
@@ -238,7 +241,7 @@ class Verdicts(Base):
             ans("AC-3", "unmet", {"met": 0.1, "unmet": 0.8, "unclear": 0.1}, 0.75),  # a real verdict
             {**unknown("AC-4", "timeout"), "choice": "met"}]                         # a stray choice on an unknown answer
         # AC-5 is not answered at all
-        code, out, err, _ = self.run_pf(["ac", "--plan", plan], FakeDecide(reply))
+        code, out, err, _ = self.run_pf(["ac", "--plan", plan, "--evidence", self.ev], FakeDecide(reply))
         self.assertEqual(code, 0)
         rows = {r[0]: r for r in self.rows(out)}
         self.assertEqual([rows[f"AC-{i}"][1] for i in range(1, 6)], ["unknown", "unknown", "unmet", "unknown", "unknown"])

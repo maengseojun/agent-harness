@@ -43,8 +43,7 @@ def note(root, rel, body, fm=None):
     p.write_text((f"---\n{fm}\n---\n" if fm is not None else "") + body, encoding="utf-8")
 
 
-LEAKS = ["ETA_BODY_1", "ETA_BODY_2", "ETA_BODY_3", "ETA_BODY_4", "ETA_BODY_5", "ETA_BODY_6", "ETA_BODY_7",
-         "RAW_BODY", "TEMPLATE_BODY", "PROJECT_BODY", "PRIVATE_SECRET"]
+LEAKS = ["OUTSIDE_BODY", "RAW_BODY", "TEMPLATE_BODY", "PROJECT_BODY", "PRIVATE_SECRET"]
 ALPHA = ("Alpha body text. [[Beta]] and [[Gamma|alias]] and [[Delta#Heading]] and [[Alpha]] itself and [[Missing]] "
          "and [[Dup]] and [[EtaWorld]] and [[EtaQuoted]] and [[EtaDir]] and [[wiki/concepts/Epsilon.md]] "
          "and <private>see [[Zeta]] PRIVATE_SECRET</private> the end.")
@@ -58,13 +57,7 @@ def make_vault(root):
         n(f"wiki/concepts/{stem}.md", f"{stem} body")
     n("wiki/answers/Dup.md", "first Dup")
     n("wiki/notes/Dup.md", "second Dup")  # two notes with the stem Dup: a link to it is ambiguous
-    n("wiki/answers/EtaWorld.md", "ETA_BODY_1 [[Alpha]]", "world: eta")
-    n("wiki/answers/EtaQuoted.md", "ETA_BODY_2", 'world: "eta"')
-    n("wiki/sources/imported/notion/Eta-20261014/EtaDir.md", "ETA_BODY_3")
-    n("wiki/answers/A-ETA-Named.md", "ETA_BODY_4")
-    n("wiki/sources/FromEta.md", "ETA_BODY_5", 'sources: ["wiki/sources/imported/linear/Endix/END-1.md"]')
-    n("wiki/eta/Inside.md", "ETA_BODY_6")
-    n("eta/Hidden.md", "ETA_BODY_7")  # outside wiki/ and hubs/
+    n("eta/Hidden.md", "OUTSIDE_BODY")  # outside wiki/ and hubs/
     n("wiki/raw/R.md", "RAW_BODY")
     n("wiki/templates/T.md", "TEMPLATE_BODY")
     n("projects/P.md", "PROJECT_BODY")
@@ -102,27 +95,34 @@ class Base(unittest.TestCase):
         return code, out.getvalue()
 
 
+class EtaNoteTests(Base):
+    def test_eta_notes_are_scanned_like_any_other(self):
+        c = "wiki/concepts/"
+        note(self.vault, c + "Marked.md", "body", "world: eta")
+        note(self.vault, c + "Source.md", "body", "source: notion-eta")
+        note(self.vault, c + "Mentions.md", "see the EndixGovernor split")
+        note(self.vault, "wiki/eta/Inside.md", "body")
+        self.assertEqual(sorted(rev.scan(self.vault)), [c + "Marked.md", c + "Mentions.md", c + "Source.md", "wiki/eta/Inside.md"])
+
+
 class ScanTests(Base):
     def setUp(self):
         super().setUp()
         make_vault(self.vault)
-        self.notes, self.eta_skipped = rev.scan(self.vault)
+        self.notes = rev.scan(self.vault)
 
-    def test_links_resolve_by_unique_stem_without_self_missing_ambiguous_or_eta_targets(self):
+    def test_links_resolve_by_unique_stem_without_self_missing_or_ambiguous_targets(self):
         c = "wiki/concepts/"
         self.assertEqual(self.notes[c + "Alpha.md"]["links"], {c + "Beta.md", c + "Gamma.md", c + "Delta.md", c + "Epsilon.md"})
-        # [[Alpha]] itself, [[Missing]], [[Dup]] (two notes), the three eta notes and Zeta (linked inside <private>) are dropped
+        # [[Alpha]] itself, [[Missing]], [[Dup]] (two notes) and Zeta (linked inside <private>) are dropped
         self.assertEqual(self.notes["hubs/areas/Hub.md"]["links"], {c + "Alpha.md", c + "Beta.md"})
         self.assertEqual(self.notes[c + "Beta.md"]["links"], {c + "Alpha.md"})
         self.assertEqual(self.notes["wiki/notes/Long.md"]["links"], {c + "Beta.md", c + "Gamma.md"})
 
-    def test_only_wiki_and_hubs_without_eta_raw_or_templates_are_scanned(self):
+    def test_only_wiki_and_hubs_without_raw_or_templates_are_scanned(self):
         ids = set(self.notes)
-        for gone in ("wiki/answers/EtaWorld.md", "wiki/answers/EtaQuoted.md", "wiki/sources/imported/notion/Eta-20261014/EtaDir.md",
-                     "wiki/answers/A-ETA-Named.md", "wiki/sources/FromEta.md", "wiki/eta/Inside.md", "eta/Hidden.md",
-                     "wiki/raw/R.md", "wiki/templates/T.md", "projects/P.md"):
+        for gone in ("eta/Hidden.md", "wiki/raw/R.md", "wiki/templates/T.md", "projects/P.md"):
             self.assertNotIn(gone, ids)
-        self.assertEqual(self.eta_skipped, 6)  # world eta x2, imported eta folder, ETA in the name, eta source, wiki/eta/
         self.assertEqual(len(ids), 25)  # 6 concepts, 2 Dup, Hub, Long, Many, 14 fillers
 
     def test_title_is_frontmatter_then_first_heading_then_stem(self):
@@ -144,7 +144,7 @@ class ScanTests(Base):
         note(v, "wiki/notes/" + unicodedata.normalize("NFD", "한글노트") + ".md", "본문")
         note(v, "wiki/notes/Q.md", "[[한글노트]] [[Other]]")
         note(v, "wiki/notes/Other.md", "o")
-        notes, _ = rev.scan(v)
+        notes = rev.scan(v)
         self.assertEqual(notes["wiki/notes/Q.md"]["links"], {"wiki/notes/한글노트.md", "wiki/notes/Other.md"})
 
 
@@ -162,7 +162,7 @@ class CaseTests(Base):
     def setUp(self):
         super().setUp()
         make_vault(self.vault)
-        self.notes, _ = rev.scan(self.vault)
+        self.notes = rev.scan(self.vault)
         self.cases, self.labels = rev.make_cases(self.notes, 40, 0)
         self.by_id = {c["id"]: c for c in self.cases}
         self.rel = {r["id"]: r["relevant"] for r in self.labels}
@@ -198,10 +198,10 @@ class CaseTests(Base):
         self.assertTrue(alpha["task"].startswith("Continue the work in this note: Alpha Note\nAlpha body text."))
         gamma = next(x for x in alpha["candidates"] if x["id"] == "wiki/concepts/Gamma.md")
         self.assertEqual(gamma, {"id": "wiki/concepts/Gamma.md", "title": "Gamma", "text": "Gamma body",
-                                 "source": "obsidian", "path": "wiki/concepts/Gamma.md"})
+                                 "source": "obsidian"})
         self.assertEqual(len(self.by_id["wiki/notes/Long.md"]["task"]), len("Continue the work in this note: Long\n") + 600)
 
-    def test_eta_and_private_content_is_in_no_case_label_or_file(self):
+    def test_private_content_is_in_no_case_label_or_file(self):
         rev.build(self.vault, self.tmp / "out")
         blob = "".join((self.tmp / "out" / f).read_text(encoding="utf-8") for f in (rev.CASES_FILE, rev.LABELS_FILE))
         for leak in LEAKS:
@@ -210,7 +210,7 @@ class CaseTests(Base):
         self.assertNotIn("[Zeta", blob)
         for c in self.cases:
             for x in c["candidates"]:
-                self.assertNotRegex(x["id"], r"(?i)(?<![a-z0-9])(?:eta|endix)(?![a-z0-9])|/raw/|/templates/")  # Beta is fine
+                self.assertNotRegex(x["id"], r"/raw/|/templates/")
                 self.assertNotIn(x["id"], ("wiki/concepts/Zeta.md",) if x["id"] in self.rel[c["id"]] else ())
 
     def test_fewer_eligible_notes_than_asked_gives_all_of_them(self):
@@ -235,7 +235,7 @@ class BuildTests(Base):
 
     def test_the_seed_changes_the_negatives_and_the_same_seed_repeats_them(self):
         make_vault(self.vault)
-        notes, _ = rev.scan(self.vault)
+        notes = rev.scan(self.vault)
         c0, _ = rev.make_cases(notes, 40, 0)
         self.assertEqual(c0, rev.make_cases(notes, 40, 0)[0])
         self.assertNotEqual(c0, rev.make_cases(notes, 40, 1)[0])
@@ -246,7 +246,6 @@ class BuildTests(Base):
         self.assertEqual(code, 0)
         text = "".join((self.eval / f).read_text(encoding="utf-8") for f in (rev.CASES_FILE, rev.LABELS_FILE))
         self.assertIn("cases=4 ko=1 other=3", out)
-        self.assertIn("eta_skipped=6", out)
         self.assertIn(f"{len(text)} characters", out)
         self.assertEqual(self.main(["build", "--vault", str(self.vault), "--cases", "2"])[1].count("cases=2 "), 1)
 
@@ -323,7 +322,7 @@ class EvalDirTests(Base):
 
 def case(id, lang, pos, neg):
     return {"id": id, "task": f"task {id}", "lang": lang,
-            "candidates": [{"id": i, "title": f"title {i}", "text": f"text {i}", "source": "obsidian", "path": f"wiki/{i}.md"}
+            "candidates": [{"id": i, "title": f"title {i}", "text": f"text {i}", "source": "obsidian"}
                            for i in pos + neg]}
 
 
@@ -350,7 +349,7 @@ class RunTests(Base):
             out = rev.run(cases, decide=fake_decide)
         self.assertEqual([r["selected"] for r in out["results"]], [["p1", "p2"], ["p3"]])
         self.assertEqual(out["results"][0], {"id": "c1", "lang": "ko", "candidates": ["p1", "p2", "n1", "n2", "n3"],
-                                             "named": [], "selected": ["p1", "p2"], "unknown": [], "dropped": []})
+                                             "named": [], "selected": ["p1", "p2"], "unknown": []})
 
     def test_named_ids_are_the_candidates_whose_stem_or_title_is_in_the_task(self):
         task = "Continue the work in this note: Gamma note\nsee Beta for details"
@@ -383,18 +382,15 @@ class RunTests(Base):
         self.assertNotIn("LEAKED", json.dumps(calls) + json.dumps(out))
         self.assertEqual(calls[0][2], "records_eval")
 
-    def test_unknown_and_dropped_items_are_not_selected(self):
+    def test_unknown_items_are_not_selected(self):
         self.eval.mkdir()
-        row = case("c1", "ko", ["p1", "p2"], ["n1"])
-        row["candidates"][1]["world"] = "eta"  # not a kept field: stripped, so it is judged like the rest
-        row["candidates"][1]["path"] = "eta/p2.md"  # but a path under eta/ is refused
-        cases = jsonl(self.eval / rev.CASES_FILE, [row])
+        cases = jsonl(self.eval / rev.CASES_FILE, [case("c1", "ko", ["p1", "p2"], ["n1"])])
 
         def decide(input, questions, pilot):
             return [{"name": q["name"], "type": "predicate", "status": "unknown", "reason": "refused"} if "[n1]" in q["instructions"]
                     else {"name": q["name"], "type": "predicate", "status": "ok", "probability": 0.9} for q in questions]
         r = rev.run(cases, decide=decide)["results"][0]
-        self.assertEqual((r["selected"], r["unknown"], r["dropped"]), (["p1"], ["n1"], ["p2"]))
+        self.assertEqual((r["selected"], r["unknown"]), (["p1", "p2"], ["n1"]))
 
     def test_usage_comes_from_a_run_ledger_the_env_is_restored_and_the_main_ledger_gets_the_lines(self):
         self.files()
@@ -403,7 +399,7 @@ class RunTests(Base):
         def post(url, body, headers, timeout):
             return {"answers": [{"name": q["name"], "type": "predicate", "probability": 0.01} for q in body["questions"]],
                     "usage": {"input_tokens": 1_000_000, "input_tokens_details": {"cached_tokens": 400_000}}}
-        env = {"OPENAI_API_KEY": "sk-test-EVALKEY1234567890", "MAENG_ETA_ROOT": str(self.tmp / "eta"), "MAENG_DECISIONS_LEDGER": sentinel}
+        env = {"OPENAI_API_KEY": "sk-test-EVALKEY1234567890", "MAENG_DECISIONS_LEDGER": sentinel}
         with mock.patch.dict(os.environ, env), mock.patch.object(dc, "_post", post):
             os.environ.pop("MAENG_DECISIONS", None)
             out = rev.run()

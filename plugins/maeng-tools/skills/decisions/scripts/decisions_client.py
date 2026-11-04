@@ -5,20 +5,20 @@ decide(input, questions, pilot) -> one dict per question, in question order:
   {"name", "type", "status": "ok"|"unknown", ...}
 An ok answer carries the fields of its type (choice+probabilities+confidence,
 probability, or score+probabilities+confidence). An unknown answer carries
-"reason": refused | missing | http_<code> | timeout | error | off | eta | no_key
-and never a verdict field. Nothing about the API or the network raises;
+"reason": refused | missing | http_<code> | timeout | error | off | no_key
+and never a verdict field; "refused" includes an off-list choice or a value out of range. Nothing about the API or the network raises;
 invalid questions raise ValueError.
 
-No request is sent when MAENG_DECISIONS=off or when the working directory is
-inside the eta checkout (MAENG_ETA_ROOT, default ~/Documents/Project/eta_v1).
+No request is sent when MAENG_DECISIONS=off.
 Every call appends one line to the ledger (MAENG_DECISIONS_LEDGER, default
 ~/Documents/maeng-harness/decisions/ledger.jsonl): the input is stored as a
 sha256 and a character count of the REDACTED text, never the text; the key is
 never stored or printed. latency_ms and token counts are 0 when no request
-was sent (outcome off, eta, no_key).
+was sent (outcome off, no_key).
 """
 import hashlib
 import json
+import math
 import os
 import re
 import socket
@@ -84,13 +84,6 @@ def _api_key():
     return os.environ.get("OPENAI_API_KEY", "").strip() or _keychain_key()
 
 
-def _in_eta(cwd):
-    root = Path(os.environ.get("MAENG_ETA_ROOT") or "~/Documents/Project/eta_v1").expanduser().resolve()
-    here = Path(cwd or os.getcwd()).expanduser().resolve()
-    r, h = [p.casefold() for p in root.parts], [p.casefold() for p in here.parts]
-    return h[:len(r)] == r  # casefolded: macOS volumes are case-insensitive; a false hit only refuses
-
-
 def _post(url, body, headers, timeout):
     req = urllib.request.Request(url, data=json.dumps(body).encode(), headers=headers, method="POST")
     with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -127,7 +120,14 @@ def _unknown(q, reason):
 
 
 def _num(v):
-    return isinstance(v, (int, float)) and not isinstance(v, bool)
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def _allowed(s, v):
+    """A listed choice, a probability in [0, 1], or a score within the level indices of sent question s."""
+    if s["type"] == "choice":
+        return isinstance(v, str) and v in [c.get("value") for c in s.get("choices", []) if isinstance(c, dict)]
+    return _num(v) and 0 <= v <= (1 if s["type"] == "predicate" else len(s.get("levels", [])) - 1)
 
 
 def _parse(questions, sent, resp):
@@ -141,8 +141,8 @@ def _parse(questions, sent, resp):
             continue
         field = _FIELD[q["type"]]
         v = a.get(field)
-        # a type other than the question's (e.g. "refusal") or a missing/ill-typed field is no verdict
-        if a.get("type", q["type"]) != q["type"] or not (bool(v) and isinstance(v, str) if field == "choice" else _num(v)):
+        # a type other than the question's (e.g. "refusal") or a missing, ill-typed or off-list value is no verdict
+        if a.get("type", q["type"]) != q["type"] or not _allowed(s, v):
             out.append(_unknown(q, "refused"))
             continue
         r = {"name": q["name"], "type": q["type"], "status": "ok", field: v}
@@ -176,15 +176,13 @@ def _log(rec):
         print(f"decisions: ledger write failed: {e.strerror}", file=sys.stderr)
 
 
-def decide(input, questions, pilot, *, model=MODEL, timeout=30.0, cwd=None):
+def decide(input, questions, pilot, *, model=MODEL, timeout=30.0):
     _validate(questions)
     safe_input, sent = _walk(input), [_walk(q) for q in questions]
     text = safe_input if isinstance(safe_input, str) else json.dumps(safe_input, sort_keys=True, ensure_ascii=False)
     reason, resp, latency = None, None, 0
     if os.environ.get("MAENG_DECISIONS", "").strip().lower() == "off":
         reason = "off"
-    elif _in_eta(cwd):
-        reason = "eta"
     elif not (key := _api_key()):
         reason = "no_key"
     else:
@@ -193,7 +191,7 @@ def decide(input, questions, pilot, *, model=MODEL, timeout=30.0, cwd=None):
         latency = int((time.monotonic() - t0) * 1000)
     results = [_unknown(q, reason) for q in questions] if reason else _parse(questions, sent, resp)
     if reason:
-        outcome = reason if reason in ("off", "eta", "no_key", "timeout") else "error"
+        outcome = reason if reason in ("off", "no_key", "timeout") else "error"
     else:
         n_ok = sum(r["status"] == "ok" for r in results)
         outcome = "ok" if n_ok == len(results) else "partial" if n_ok else "refused"

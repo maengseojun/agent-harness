@@ -101,67 +101,22 @@ class Base(unittest.TestCase):
         return code, out.getvalue()
 
 
-class RefusalTests(Base):
-    ETA = [
-        ("world eta", cand("W1", "ETA_TEXT_1", world="eta")),
-        ("world ETA, spaced", cand("W2", "ETA_TEXT_2", world=" ETA ")),
-        ("path eta/", cand("P1", "ETA_TEXT_3", path="eta/Notes/x.md", source="obsidian")),
-        ("path ./eta/", cand("P2", "ETA_TEXT_4", path="./eta/x.md", source="obsidian")),
-        ("path ETA/", cand("P3", "ETA_TEXT_5", path="ETA/x.md", source="obsidian")),
-        ("path through ..", cand("P4", "ETA_TEXT_6", path="wiki/../eta/x.md", source="obsidian")),
-        ("absolute vault path", cand("P5", "ETA_TEXT_7", path="/Users/me/Documents/Obsidian Vault/eta/x.md", source="obsidian")),
-        ("imported eta notion", cand("P6", "ETA_TEXT_8", path="wiki/sources/imported/notion/Eta-20261014/eta Docs/x.md", source="obsidian")),
-        ("imported eta linear", cand("P7", "ETA_TEXT_9", path="wiki/sources/imported/linear/Endix/END-1.md", source="obsidian")),
-        ("eta checkout", cand("P8", "ETA_TEXT_10", path="/Users/me/Documents/Project/eta_v1/README.md", source="obsidian")),
-        ("source notion-eta", cand("S1", "ETA_TEXT_11", source="notion-eta")),
-        ("source linear-eta", cand("S2", "ETA_TEXT_12", source="linear-eta")),
-        ("source eta", cand("S3", "ETA_TEXT_13", source="eta")),
-        ("source Notion_ETA", cand("S4", "ETA_TEXT_14", source="Notion_ETA")),
-        ("source notionEta", cand("S5", "ETA_TEXT_15", source="notionEta")),
-    ]
-    PERSONAL = [
-        cand("K1", source="linear-maeng"), cand("K2", source="notion-maeng", world="personal"),
-        cand("K3", source="obsidian", path="wiki/concepts/K-DESIGN.md"), cand("K4", source="beta"),
-        cand("K5", source="meta-ads", path="wiki/notes/zeta-planning.md"), cand("K6", source="notion"),
-    ]
-
-    def test_every_eta_variant_is_dropped_with_its_reason(self):
-        items, dropped = rec.prepare([c for _, c in self.ETA] + self.PERSONAL)
-        self.assertEqual([i["id"] for i in items], ["K1", "K2", "K3", "K4", "K5", "K6"])
-        self.assertEqual([d[0] for d in dropped], [c["id"] for _, c in self.ETA])
-        self.assertEqual(dropped[0][1], "world eta")
-        self.assertEqual(dropped[2][1], "path in an eta area")
-        self.assertEqual(dropped[10][1], "source eta")
-
-    def test_dropped_items_never_appear_in_a_request(self):
-        for command, call in (("related", lambda f: rec.related("the task", f.cands, decide=f)),
-                              ("cleanup", lambda f: rec.cleanup(f.cands, decide=f)),
-                              ("duplicate", lambda f: rec.duplicate("a new thing", f.cands, decide=f))):
-            fake = FakeDecide(lambda qs: [unknown(q["name"]) for q in qs])
-            fake.cands = [c for _, c in self.ETA] + self.PERSONAL
-            call(fake)
-            self.assertEqual(len(fake.calls), 1, command)
-            sent = fake.sent()
-            for label, c in self.ETA:
-                self.assertNotIn(c["id"], sent, f"{command}: {label} id")
-                self.assertNotIn(c["text"], sent, f"{command}: {label} text")
-                self.assertNotIn(c["title"], sent, f"{command}: {label} title")
-            self.assertIn("title K1", sent)  # the personal items did go
-
-    def test_when_every_item_is_eta_nothing_is_sent_and_the_exit_is_zero(self):
-        cands = [c for _, c in self.ETA]
-        for argv in (["related", "--task", "t"], ["cleanup"], ["duplicate", "--new", "n"]):
-            fake = FakeDecide(lambda qs: self.fail("decide must not be called"))
-            code, out = self.cli(argv + ["--candidates", self.cfile(cands)], fake)
-            self.assertEqual((code, fake.calls), (0, []), argv)
-            self.assertIn("nothing was sent", out)
-            for _, c in self.ETA:
-                self.assertIn(f"dropped, not sent: {c['id']} (", out)
+class CandidateTests(Base):
+    def test_eta_items_and_tasks_are_sent_like_any_other(self):
+        cands = [cand("W1", "ETA_TEXT_1", world="eta"), cand("P1", "ETA_TEXT_2", path="eta/x.md", source="obsidian"),
+                 cand("S1", "ETA_TEXT_3", source="notion-eta"), cand("M1", "the EndixGovernor split")]
+        fake = FakeDecide(lambda qs: [unknown(q["name"]) for q in qs])
+        rec.related("port the Endix rules", cands, decide=fake)
+        sent = fake.sent()
+        for needle in ("port the Endix rules", "ETA_TEXT_1", "ETA_TEXT_2", "ETA_TEXT_3", "the EndixGovernor split"):
+            self.assertIn(needle, sent)
 
     def test_an_empty_list_sends_nothing_either(self):
         fake = FakeDecide(lambda qs: self.fail("decide must not be called"))
-        self.assertEqual(self.cli(["cleanup", "--candidates", self.cfile([])], fake)[0], 0)
-        self.assertEqual(fake.calls, [])
+        for argv in (["related", "--task", "t"], ["cleanup"], ["duplicate", "--new", "n"]):
+            code, out = self.cli(argv + ["--candidates", self.cfile([])], fake)
+            self.assertEqual((code, fake.calls), (0, []), argv)
+            self.assertIn("nothing was sent", out)
 
     def test_malformed_candidates_are_refused(self):
         for bad in ([cand("a"), cand("a")], [cand("")], [{"title": "no id"}], ["x"], {"id": "a"}):
@@ -191,11 +146,11 @@ class PrivateTests(Base):
     def test_text_is_cut_after_stripping(self):
         # cut first and the private span would be left open at 4000 chars, so "keep" would vanish
         text = "<private>" + "x" * 5000 + "</private>keep"
-        items, _ = rec.prepare([cand("a", text)])
+        items = rec.prepare([cand("a", text)])
         self.assertEqual(items[0]["text"], "[private omitted]keep")
-        items, _ = rec.prepare([cand("a", "0123456789" * 3)], max_item_chars=12)
+        items = rec.prepare([cand("a", "0123456789" * 3)], max_item_chars=12)
         self.assertEqual(items[0]["text"], "012345678901")
-        items, _ = rec.prepare([cand("a", "y" * 9000)])
+        items = rec.prepare([cand("a", "y" * 9000)])
         self.assertEqual(len(items[0]["text"]), 4000)
 
     def test_the_cli_cuts_with_max_item_chars(self):
@@ -254,19 +209,17 @@ class RelatedTests(Base):
 
     def test_cli_output(self):
         fake = FakeDecide(by_id({"a": 0.9, "b": 0.04, "c": None, "d": 0.7}))
-        cands = [cand("a", source="linear"), cand("b"), cand("c"), cand("d"), cand("eta1", world="eta")]
+        cands = [cand("a", source="linear"), cand("b"), cand("c"), cand("d")]
         code, out = self.cli(["related", "--task", "t", "--candidates", self.cfile(cands)], fake)
         self.assertEqual(code, 0)
-        self.assertEqual(out, "dropped, not sent: eta1 (world eta)\n"
-                              "selected (probability >= 0.05), read these:\n"
+        self.assertEqual(out, "selected (probability >= 0.05), read these:\n"
                               "  0.90 [a] title a (linear, 2026-11-01)\n"
                               "  0.70 [d] title d (linear-maeng, 2026-11-01)\n"
                               "near misses (below the threshold):\n"
                               "  0.04 [b] title b (linear-maeng, 2026-11-01)\n"
                               "unknown, not judged: c\n")
         code, out = self.cli(["related", "--task", "t", "--candidates", self.cfile(cands), "--threshold", "0.8"], fake)
-        self.assertEqual(out, "dropped, not sent: eta1 (world eta)\n"
-                              "selected (probability >= 0.8), read these:\n"
+        self.assertEqual(out, "selected (probability >= 0.8), read these:\n"
                               "  0.90 [a] title a (linear, 2026-11-01)\n"
                               "near misses (below the threshold):\n"
                               "  0.70 [d] title d (linear-maeng, 2026-11-01)\n"
@@ -287,7 +240,7 @@ class RelatedTests(Base):
 class DuplicateTests(Base):
     def test_choices_are_the_candidate_ids_plus_none(self):
         fake = FakeDecide(lambda qs: [choice("none", {"none": 0.9})])
-        rec.duplicate("A new\nthing", [cand("MAE-1", title="One"), cand("wiki/x.md", title=""), cand("MAE-3", world="eta")], decide=fake)
+        rec.duplicate("A new\nthing", [cand("MAE-1", title="One"), cand("wiki/x.md", title="")], decide=fake)
         text, qs, pilot = fake.calls[0]
         self.assertEqual(pilot, "records")
         self.assertEqual(text, "New item:\nA new\nthing\n\nExisting items:\n[MAE-1] One (linear-maeng, 2026-11-01)\nbody"
@@ -334,8 +287,7 @@ class DuplicateTests(Base):
 
     def test_at_most_254_candidates(self):
         fake = FakeDecide(lambda qs: [choice("none", {"none": 1.0})])
-        eta = [cand(f"e{n}", world="eta") for n in range(5)]
-        r = rec.duplicate("n", [cand(f"i{n}") for n in range(254)] + eta, decide=fake)  # the limit counts what is sent
+        r = rec.duplicate("n", [cand(f"i{n}") for n in range(254)], decide=fake)
         self.assertEqual((r["status"], len(fake.calls[0][1][0]["choices"])), ("ok", 255))
         over = FakeDecide(lambda qs: self.fail("decide must not be called"))
         with self.assertRaisesRegex(ValueError, "254"):
@@ -351,15 +303,14 @@ class DuplicateTests(Base):
 class CleanupTests(Base):
     def test_request_and_suggestions(self):
         fake = FakeDecide(by_id({"a": 0.95, "b": 0.6, "c": 0.59, "d": None, "e": 0.8}))
-        cands = [cand(k) for k in "abcde"] + [cand("x", world="eta")]
+        cands = [cand(k) for k in "abcde"]
         code, out = self.cli(["cleanup", "--candidates", self.cfile(cands)], fake)
         text, qs, pilot = fake.calls[0]
         self.assertEqual(pilot, "records")
         self.assertTrue(text.startswith("Items:\n[a] title a (linear-maeng, 2026-11-01)\nbody\n\n[b] "))
         self.assertEqual(qs[0]["instructions"], "According to its own text and the other items listed, is item [a] superseded "
                                                 "by a newer item or already done, so it can be archived or closed?")
-        self.assertEqual(out, "dropped, not sent: x (world eta)\n"
-                              "cleanup suggestions (probability >= 0.6); suggestions only, nothing is archived or closed:\n"
+        self.assertEqual(out, "cleanup suggestions (probability >= 0.6); suggestions only, nothing is archived or closed:\n"
                               "  0.95 [a] title a (linear-maeng, 2026-11-01)\n"
                               "  0.80 [e] title e (linear-maeng, 2026-11-01)\n"
                               "  0.60 [b] title b (linear-maeng, 2026-11-01)\n"
@@ -372,7 +323,7 @@ class CleanupTests(Base):
 
 class NoWriteTests(Base):
     def test_no_command_writes_a_file(self):
-        cands = [cand("a", "text <private>x</private>"), cand("b"), cand("c", world="eta")]
+        cands = [cand("a", "text <private>x</private>"), cand("b")]
         path = self.cfile(cands)
         for argv in (["related", "--task", "t"], ["cleanup"], ["duplicate", "--new", "n"]):
             fake = FakeDecide(lambda qs: [unknown(q["name"]) for q in qs] if qs[0]["type"] == "predicate"

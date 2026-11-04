@@ -10,21 +10,17 @@
   records.py cleanup   --candidates FILE [--threshold 0.6]
       Which items look superseded or done? One predicate per item; suggestions only.
 
-FILE is a JSON list of {"id", "title", "text", "source", "path"?, "world"?, "date"?}; `source` is
+FILE is a JSON list of {"id", "title", "text", "source", "date"?}; `source` is
 linear, notion or obsidian (free text such as "linear-maeng" is fine). Claude builds it from search
 results. Nothing is written, created, changed or closed: output is stdout only (A-10).
 
-Data rule (A-9). An item is dropped before any request, and its id is printed, when its `world` is
-eta, when any segment of its `path` is eta or endix (a vault `eta/` folder, an imported eta Notion
-or Linear folder, an eta checkout), or when its `source` names eta ("notion-eta"). If every item is
-dropped nothing is sent. Every title and text, and the task or new text, goes through the vault's
+Data rule (A-9). Every title and text, and the task or new text, goes through the vault's
 strip_private first; each item's text is then cut to --max-item-chars (default 4000). `unknown`
 answers (error, timeout, refusal, missing or off-list) are never selected, never named as a
 duplicate and never listed as a cleanup suggestion. Pilot name: records.
 """
 import argparse
 import json
-import posixpath
 import re
 import sys
 from pathlib import Path
@@ -45,53 +41,20 @@ MAX_CHOICES = 254  # plus `none`
 NONE = "none"
 NONE_DESC = "None of the items is the same thing as the new one."
 
-# eta as a word ("notion-eta", "eta_v1", "Eta-2026") or camel-cased ("notionEta"), never "beta" or "meta"
-_WORD = re.compile(r"(?<![a-z0-9])(?:eta|endix)(?![a-z0-9])", re.I)
-_CAMEL = re.compile(r"(?<=[a-z])(?:Eta|Endix)(?![a-z])")
-
-
-def _eta_text(s):
-    return bool(_WORD.search(s) or _CAMEL.search(s))
-
-
-def is_eta_path(path):
-    """True when any segment of the path is eta or endix. shortcut: stricter than "eta/ at the
-    vault root" on purpose (imported eta notes live under wiki/sources/imported/); a false hit only drops."""
-    p = posixpath.normpath(str(path or "").replace("\\", "/").strip())
-    return any(_eta_text(seg) for seg in p.split("/"))
-
-
-def refusal(c):
-    """Why an item must never be sent, or None."""
-    if str(c.get("world") or "").strip().lower() == "eta":
-        return "world eta"
-    if is_eta_path(c.get("path")):
-        return "path in an eta area"
-    if _eta_text(str(c.get("source") or "")):
-        return "source eta"
-    return None
-
-
 def _clean(s):
     return strip_private(str(s or ""))[0]
 
 
 def prepare(candidates, max_item_chars=MAX_ITEM_CHARS):
-    """-> (items to send, [(id, reason)] dropped). Raises ValueError for a malformed list."""
+    """-> items to send. Raises ValueError for a malformed list."""
     if not isinstance(candidates, list) or not all(isinstance(c, dict) for c in candidates):
         raise ValueError("candidates must be a list of objects")
     ids = [str(c.get("id") or "") for c in candidates]
     if not all(ids) or len(set(ids)) != len(ids):
         raise ValueError("every candidate needs a unique non-empty id")
-    items, dropped = [], []
-    for c, id_ in zip(candidates, ids):
-        reason = refusal(c)
-        if reason:
-            dropped.append((id_, reason))
-            continue
-        items.append({"id": id_, "title": _clean(c.get("title")), "source": str(c.get("source") or "unknown"),
-                      "date": str(c.get("date") or "undated"), "text": _clean(c.get("text"))[:max_item_chars]})
-    return items, dropped
+    return [{"id": id_, "title": _clean(c.get("title")), "source": str(c.get("source") or "unknown"),
+             "date": str(c.get("date") or "undated"), "text": _clean(c.get("text"))[:max_item_chars]}
+            for c, id_ in zip(candidates, ids)]
 
 
 def load_candidates(path):
@@ -131,8 +94,8 @@ def _predicates(items, text, instruction, decide, pilot):
 
 
 def related(task, candidates, threshold=RELATED_THRESHOLD, *, decide=None, max_item_chars=MAX_ITEM_CHARS, pilot=PILOT):
-    items, dropped = prepare(candidates, max_item_chars)
-    out = {"sent": bool(items), "selected": [], "near": [], "unknown": [], "reasons": [], "dropped": dropped}
+    items = prepare(candidates, max_item_chars)
+    out = {"sent": bool(items), "selected": [], "near": [], "unknown": [], "reasons": []}
     if items:
         text = f"Task:\n{_clean(task)}\n\nItems:\n{_render(items)}"
         scored, out["unknown"], out["reasons"] = _predicates(
@@ -143,8 +106,8 @@ def related(task, candidates, threshold=RELATED_THRESHOLD, *, decide=None, max_i
 
 
 def cleanup(candidates, threshold=0.6, *, decide=None, max_item_chars=MAX_ITEM_CHARS, pilot=PILOT):
-    items, dropped = prepare(candidates, max_item_chars)
-    out = {"sent": bool(items), "suggested": [], "unknown": [], "reasons": [], "dropped": dropped}
+    items = prepare(candidates, max_item_chars)
+    out = {"sent": bool(items), "suggested": [], "unknown": [], "reasons": []}
     if items:
         scored, out["unknown"], out["reasons"] = _predicates(
             items, f"Items:\n{_render(items)}",
@@ -156,13 +119,13 @@ def cleanup(candidates, threshold=0.6, *, decide=None, max_item_chars=MAX_ITEM_C
 
 def duplicate(new, candidates, *, decide=None, max_item_chars=MAX_ITEM_CHARS, pilot=PILOT):
     """-> {"status": "not_sent" | "unknown" | "ok", "chosen": id | "none" | None, "p", "runner_up": (id, p) | None,
-    "dropped", "items"}. Raises ValueError for more than 254 candidates or a candidate with the id `none`."""
-    items, dropped = prepare(candidates, max_item_chars)
+    "items"}. Raises ValueError for more than 254 candidates or a candidate with the id `none`."""
+    items = prepare(candidates, max_item_chars)
     if len(items) > MAX_CHOICES:
         raise ValueError(f"at most {MAX_CHOICES} candidates for a duplicate check, got {len(items)}; narrow the search")
     if any(i["id"] == NONE for i in items):
         raise ValueError(f"the candidate id {NONE!r} is reserved for the no-duplicate choice")
-    out = {"status": "not_sent", "chosen": None, "p": None, "runner_up": None, "dropped": dropped, "items": items}
+    out = {"status": "not_sent", "chosen": None, "p": None, "runner_up": None, "items": items}
     if not items:
         return out
     valid = {i["id"] for i in items} | {NONE}
@@ -193,11 +156,6 @@ def _line(i, p):
     return f"  {_p(p)} [{i['id']}] {i['title']} ({i['source']}, {i['date']})"
 
 
-def _show_dropped(dropped):
-    for id_, why in dropped:
-        print(f"dropped, not sent: {id_} ({why})")
-
-
 def _show_unknown(res):
     if res["unknown"]:
         print("unknown, not judged: " + ", ".join(res["unknown"]))
@@ -206,7 +164,6 @@ def _show_unknown(res):
 
 def cmd_related(a, cands):
     r = related(a.task, cands, a.threshold, max_item_chars=a.max_item_chars)
-    _show_dropped(r["dropped"])
     if not r["sent"]:
         return print("nothing was sent: no candidate left")
     print(f"selected (probability >= {a.threshold:g}), read these:")
@@ -218,7 +175,6 @@ def cmd_related(a, cands):
 
 def cmd_cleanup(a, cands):
     r = cleanup(cands, a.threshold, max_item_chars=a.max_item_chars)
-    _show_dropped(r["dropped"])
     if not r["sent"]:
         return print("nothing was sent: no candidate left")
     print(f"cleanup suggestions (probability >= {a.threshold:g}); suggestions only, nothing is archived or closed:")
@@ -228,7 +184,6 @@ def cmd_cleanup(a, cands):
 
 def cmd_duplicate(a, cands):
     r = duplicate(a.new, cands, max_item_chars=a.max_item_chars)
-    _show_dropped(r["dropped"])
     title = {i["id"]: i["title"] for i in r["items"]}
     named = lambda v, p: f"none (probability {_p(p)})" if v == NONE else f"[{v}] {title[v]} (probability {_p(p)})"
     if r["status"] == "not_sent":

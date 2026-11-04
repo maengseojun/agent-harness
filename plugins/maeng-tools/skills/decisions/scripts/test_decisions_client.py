@@ -22,7 +22,8 @@ Q_CHOICE = {"type": "choice", "name": "topic", "instructions": "Pick the topic."
             "choices": [{"value": "billing", "description": "Money"}, {"value": "bug", "description": "Defect"}]}
 Q_PRED = {"type": "predicate", "name": "urgent", "instructions": "Is it urgent?"}
 Q_SCORE = {"type": "score", "name": "severity", "instructions": "Rate severity.",
-           "levels": [{"label": "Cosmetic", "description": "Looks"}, {"label": "Major", "description": "Breaks"}]}
+           "levels": [{"label": "Cosmetic", "description": "Looks"}, {"label": "Major", "description": "Breaks"},
+                      {"label": "Blocked", "description": "Stops"}]}
 A_CHOICE = {"type": "choice", "name": "topic", "choice": "billing", "confidence": 0.93,
             "probabilities": [{"value": "billing", "probability": 0.95}, {"value": "bug", "probability": 0.05}]}
 A_PRED = {"type": "predicate", "name": "urgent", "probability": 0.92}
@@ -59,7 +60,7 @@ class Base(unittest.TestCase):
         (self.eta / "sub").mkdir(parents=True)
         self.ledger = self.tmp / "led" / "nested" / "ledger.jsonl"
         env = {"HOME": str(self.tmp), "OPENAI_API_KEY": KEY, "MAENG_DECISIONS_LEDGER": str(self.ledger),
-               "MAENG_ETA_ROOT": str(self.eta), "PATH": os.environ.get("PATH", "")}
+               "PATH": os.environ.get("PATH", "")}
         patch_env = mock.patch.dict(os.environ, env, clear=True)
         patch_env.start()
         self.addCleanup(patch_env.stop)
@@ -70,7 +71,7 @@ class Base(unittest.TestCase):
 
     def run_decide(self, fake, questions=None, input="hello", **kw):
         with mock.patch.object(dc, "_post", fake):
-            return dc.decide(input, [Q_CHOICE] if questions is None else questions, "test-pilot", cwd=kw.pop("cwd", self.work), **kw)
+            return dc.decide(input, [Q_CHOICE] if questions is None else questions, "test-pilot", **kw)
 
     def ledger_lines(self):
         return [json.loads(x) for x in self.ledger.read_text().splitlines()] if self.ledger.exists() else []
@@ -141,6 +142,7 @@ class ErrorPathTest(Base):
              "refused", "refused"),
             ("null choice", FakePost({"answers": [dict(A_CHOICE, choice=None)]}), "refused", "refused"),
             ("empty choice", FakePost({"answers": [dict(A_CHOICE, choice="")]}), "refused", "refused"),
+            ("off-list choice", FakePost({"answers": [dict(A_CHOICE, choice="sales")]}), "refused", "refused"),
             ("missing name", FakePost({"answers": [dict(A_CHOICE, name="other")]}), "missing", "refused"),
             ("empty answers", FakePost({"answers": []}), "missing", "refused"),
             ("no answers key", FakePost({"usage": {}}), "missing", "refused"),
@@ -159,6 +161,23 @@ class ErrorPathTest(Base):
                                      {"type": "predicate", "name": "late", "probability": "0.9"}]})
         late = dict(Q_PRED, name="late")
         self.assertAllUnknown(self.run_decide(fake, [Q_PRED, Q_SCORE, late]), "refused")
+
+    def test_values_outside_the_question_are_refused(self):
+        for label, answers in (("negative probability", [dict(A_PRED, probability=-1)]),
+                               ("probability above 1", [dict(A_PRED, probability=1.01)]),
+                               ("nan probability", [dict(A_PRED, probability=float("nan"))]),
+                               ("true as probability", [dict(A_PRED, probability=True)])):
+            with self.subTest(label):
+                self.assertAllUnknown(self.run_decide(FakePost({"answers": answers}), [Q_PRED]), "refused")
+                self.assertEqual(self.ledger_lines()[-1]["outcome"], "refused")
+        for score in (-0.1, 2.01, float("inf")):  # three levels, indices 0 to 2
+            with self.subTest(score=score):
+                res = self.run_decide(FakePost({"answers": [dict(A_SCORE, score=score)]}), [Q_SCORE])
+                self.assertAllUnknown(res, "refused")
+
+    def test_the_edges_of_the_range_are_answers(self):
+        res = self.run_decide(FakePost({"answers": [dict(A_PRED, probability=0), dict(A_SCORE, score=2)]}), [Q_PRED, Q_SCORE])
+        self.assertEqual([r["status"] for r in res], ["ok", "ok"])
 
     def test_one_bad_answer_does_not_spoil_the_others(self):
         fake = FakePost({"answers": [A_PRED, {"type": "refusal", "name": "topic"}]})
@@ -198,36 +217,12 @@ class NoRequestTest(Base):
                 self.assertEqual(len(fake.calls), 1)
                 self.assertEqual(res[0]["status"], "ok")
 
-    def test_eta_checkout_sends_nothing(self):
-        outside = self.tmp / "eta_v1_other"
-        outside.mkdir()
-        cases = [(self.eta / "sub", True), (self.eta, True), (self.tmp / "ETA_V1" / "x", True),
-                 (outside, False), (self.work, False)]
-        for cwd, is_eta in cases:
-            with self.subTest(cwd=str(cwd)):
-                fake = FakePost({"answers": [A_CHOICE]})
-                res = self.run_decide(fake, cwd=cwd)
-                if is_eta:
-                    self.assertEqual(fake.calls, [])
-                    self.assertAllUnknown(res, "eta")
-                    self.assertEqual(self.ledger_lines()[-1]["outcome"], "eta")
-                else:
-                    self.assertEqual(len(fake.calls), 1)
-                    self.assertEqual(res[0]["status"], "ok")
-
-    def test_eta_by_default_cwd_and_default_root(self):
-        old = os.getcwd()
-        self.addCleanup(os.chdir, old)
+    def test_a_call_from_an_eta_checkout_is_sent(self):
+        self.addCleanup(os.chdir, os.getcwd())
         os.chdir(self.eta / "sub")
         fake = FakePost({"answers": [A_CHOICE]})
-        self.assertAllUnknown(self.run_decide(fake, cwd=None), "eta")
-        self.assertEqual(fake.calls, [])
-        # default root is ~/Documents/Project/eta_v1 (HOME is the temp dir here)
-        del os.environ["MAENG_ETA_ROOT"]
-        deep = self.tmp / "Documents" / "Project" / "eta_v1" / "a"
-        deep.mkdir(parents=True)
-        self.assertAllUnknown(self.run_decide(fake, cwd=deep), "eta")
-        self.assertEqual(fake.calls, [])
+        self.assertEqual(self.run_decide(fake)[0]["status"], "ok")
+        self.assertEqual(len(fake.calls), 1)
 
     def test_no_key_sends_nothing(self):
         del os.environ["OPENAI_API_KEY"]
