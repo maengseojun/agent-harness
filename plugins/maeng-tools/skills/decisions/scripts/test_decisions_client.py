@@ -179,6 +179,23 @@ class ErrorPathTest(Base):
         res = self.run_decide(FakePost({"answers": [dict(A_PRED, probability=0), dict(A_SCORE, score=2)]}), [Q_PRED, Q_SCORE])
         self.assertEqual([r["status"] for r in res], ["ok", "ok"])
 
+    def test_malformed_answers_are_unknown_and_still_logged(self):
+        for label, resp in (("list as name", {"answers": [{"name": [], "type": "refusal"}]}),
+                            ("dict as name", {"answers": [{"name": {}}]}),
+                            ("number as answers", {"answers": 3}),
+                            ("list as usage", {"answers": [], "usage": []})):
+            with self.subTest(label):
+                before = len(self.ledger_lines())
+                self.assertAllUnknown(self.run_decide(FakePost(resp)), "missing")
+                self.assertEqual(len(self.ledger_lines()), before + 1)
+
+    def test_huge_numbers_do_not_raise(self):
+        huge = 10 ** 400
+        res = self.run_decide(FakePost({"answers": [dict(A_PRED, probability=huge)],
+                                        "usage": {"input_tokens": huge}}), [Q_PRED])
+        self.assertAllUnknown(res, "refused")
+        self.assertEqual(self.ledger_lines()[-1]["cost_usd"], 0)
+
     def test_one_bad_answer_does_not_spoil_the_others(self):
         fake = FakePost({"answers": [A_PRED, {"type": "refusal", "name": "topic"}]})
         res = self.run_decide(fake, [Q_CHOICE, Q_PRED])
@@ -392,6 +409,27 @@ class LedgerTest(Base):
         self.run_decide(FakePost({"answers": [A_CHOICE]}))
         rec = self.ledger_lines()[-1]
         self.assertEqual((rec["input_tokens"], rec["cached_tokens"], rec["cost_usd"]), (0, 0, 0))
+
+    def test_a_secret_on_the_following_lines_is_redacted(self):
+        v = "OPAQUEvalue0123456789"
+        for label, text in (("block", f"client_secret: |-\n  {v}\n  {v}\nnext: 1\n"),
+                            ("folded", f"api_key: >\n    {v}\nnext: 1\n"),
+                            ("keep marker", f"token: |+\n  {v}\nnext: 1\n"),
+                            ("in a diff", f"+client_secret: |-\n+    {v}\n+next: 1\n"),
+                            ("context lines", f" client_secret: |-\n     {v}\n"),
+                            ("removed lines", f"-password: |\n-  {v}\n"),
+                            ("value alone", f"client_secret:\n  {v}\nnext: 1\n"),
+                            ("value alone, diff", f"+client_secret:\n+  {v}\n")):
+            with self.subTest(label):
+                out = dc.redact(text)
+                self.assertNotIn(v, out)
+                self.assertEqual(dc.redact(out), out)
+                if "next: 1" in text:
+                    self.assertIn("next: 1", out)  # the block ends at the first unindented line
+
+    def test_code_after_a_key_like_name_is_kept(self):
+        code = "for t in tokens:\n    print(t)\nif self.password:\n    check_the_password_now()\n"
+        self.assertEqual(dc.redact(code), code)
 
     def test_list_input_is_hashed_after_redaction_not_stored(self):
         msgs = [{"role": "user", "content": "keep this out OPENAI_API_KEY=hunter2hunter2"}]

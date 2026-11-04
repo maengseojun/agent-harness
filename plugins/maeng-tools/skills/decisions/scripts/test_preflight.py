@@ -221,6 +221,14 @@ class Secrets(Base):
             self.assertIn(kept, body)
         self.assertIn("| AC-1 | met | 0.90 | 0.05 |", out)
 
+    def test_a_multiline_secret_never_reaches_the_request_body(self):
+        value = "OPAQUEvalue0123456789"
+        posts = []
+        self.run_real_client(["ac", "--plan", self.plan, "--evidence", self.ev],
+                             f"+client_secret: |-\n+    {value}\n+next: 1\n", posts)
+        self.assertEqual(len(posts), 1)
+        self.assertNotIn(value, json.dumps(posts[0]))
+
     def test_a_cut_through_a_secret_leaves_no_prefix(self):
         s = self.SECRETS[1]
         diff = "a" * 19 + " " + s  # the cut at 26 falls inside the token

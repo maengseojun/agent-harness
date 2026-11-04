@@ -45,6 +45,13 @@ _AUTH = re.compile(r"(\bAuthorization[\"']?[ \t]*[:=][ \t]*)(?![ \t]|\[REDACTED\
 _BEARER = re.compile(r"(\bBearer\s+)[A-Za-z0-9._~+/=-]{8,}", re.I)
 _KV = re.compile(
     r"(\b[\w.-]*(?:KEY|TOKEN|SECRET|PASSWORD)[\w.-]*[\"']?[ \t]*[:=][ \t]*)(?![ \t]|\[REDACTED\])(\"[^\"\r\n]*\"|'[^'\r\n]*'|\S+)", re.I)
+# A secret key with its value on the following lines, in a file or a diff: a YAML block ("key: |-" and its
+# indented lines) or one opaque indented value ("key:" then the value alone). A wider next-line form would
+# swallow code such as "for t in tokens:" and its body.
+_NEXT_LINES = re.compile(
+    r"(\b[\w.-]*(?:KEY|TOKEN|SECRET|PASSWORD)[\w.-]*[\"']?[ \t]*[:=][ \t]*)"
+    r"(?:[|>][+-]?[0-9]?[ \t]*\r?\n(?:[+\- ]?[ \t]+\S[^\r\n]*(?:\r?\n|\Z))+"
+    r"|\r?\n[+\- ]?[ \t]+[A-Za-z0-9+/=_.~-]{16,}[ \t]*(?:\r?\n|\Z))", re.I)
 _TOKEN = re.compile(
     r"(?<![A-Za-z0-9])(?:sk-[A-Za-z0-9_-]{8,}|gh[pos]_[A-Za-z0-9]{8,}|github_pat_[A-Za-z0-9_]{8,}"
     r"|xox[bpa]-[A-Za-z0-9-]{8,}|glpat-[A-Za-z0-9_-]{8,}|AKIA[0-9A-Z]{16})")
@@ -57,6 +64,7 @@ def redact(text):
     text = _URL_CRED.sub(lambda m: m.group(1) + _R + "@", text)
     text = _AUTH.sub(lambda m: m.group(1) + _R, text)
     text = _BEARER.sub(lambda m: m.group(1) + _R, text)
+    text = _NEXT_LINES.sub(lambda m: m.group(1) + _R + "\n", text)
     text = _KV.sub(lambda m: m.group(1) + _R, text)
     return _TOKEN.sub(_R, text)
 
@@ -120,7 +128,7 @@ def _unknown(q, reason):
 
 
 def _num(v):
-    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+    return isinstance(v, int) and not isinstance(v, bool) or isinstance(v, float) and math.isfinite(v)
 
 
 def _allowed(s, v):
@@ -132,7 +140,8 @@ def _allowed(s, v):
 
 def _parse(questions, sent, resp):
     answers = resp.get("answers") if isinstance(resp, dict) else None
-    by_name = {a.get("name"): a for a in answers if isinstance(a, dict)} if isinstance(answers, list) else {}
+    by_name = {a["name"]: a for a in answers if isinstance(a, dict) and isinstance(a.get("name"), str)} \
+        if isinstance(answers, list) else {}
     out = []
     for q, s in zip(questions, sent):
         a = by_name.get(s["name"])
@@ -157,7 +166,7 @@ def _tokens(resp):
     u = u if isinstance(u, dict) else {}
     d = u.get("input_tokens_details")
     d = d if isinstance(d, dict) else {}
-    n = lambda v: v if isinstance(v, int) and not isinstance(v, bool) and v >= 0 else 0
+    n = lambda v: v if isinstance(v, int) and not isinstance(v, bool) and 0 <= v < 2 ** 53 else 0
     return n(u.get("input_tokens")), n(d.get("cached_tokens")), n(d.get("cache_write_tokens"))
 
 

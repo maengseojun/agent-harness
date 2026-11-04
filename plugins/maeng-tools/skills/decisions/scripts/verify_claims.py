@@ -38,7 +38,9 @@ from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlparse
 
-import decisions_client
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "obsidian-workspace" / "scripts"))
+import decisions_client  # noqa: E402
+from private_filter import strip_private  # noqa: E402
 
 MAX_CHARS = 400_000
 MAX_BYTES = 8_000_000
@@ -156,7 +158,7 @@ def _live(url):
 
 
 def _note_body(note):
-    """The vault note without its YAML frontmatter, or "". Stays inside the vault."""
+    """The vault note without its YAML frontmatter and <private> spans, or "". Stays inside the vault."""
     if not note:
         return ""
     vault = Path(os.environ.get("MAENG_VAULT") or "~/Documents/Obsidian Vault").expanduser().resolve()
@@ -167,7 +169,7 @@ def _note_body(note):
         text = path.read_text(encoding="utf-8")
     except (OSError, ValueError):
         return ""
-    return re.sub(r"\A---[ \t]*\n.*?\n---[ \t]*(?:\n|\Z)", "", text, count=1, flags=re.S).strip()
+    return strip_private(re.sub(r"\A---[ \t]*\n.*?\n---[ \t]*(?:\n|\Z)", "", text, count=1, flags=re.S))[0].strip()
 
 
 def fetch_page(url, note=None, refresh=False):

@@ -106,6 +106,10 @@ class MutationTests(unittest.TestCase):
             self.assertEqual(bce.mutations(claim, bce._norm(text)), ["Released 2026-10-18."], text)
         self.assertEqual(bce.mutations(claim, bce._norm("on 11 October 2026 and 18 Oct 2026")), [])
 
+    def test_the_emitted_abbreviated_spelling_is_checked_too(self):
+        claim = "Published Oct. 8, 2026."
+        self.assertEqual(bce.mutations(claim, bce._norm("released Oct. 11, 2026")), ["Published Oct. 18, 2026."])
+
     def test_an_impossible_date_gives_no_mutation(self):
         self.assertEqual(bce.mutations("Due 2026-13-45.", ""), [])
 

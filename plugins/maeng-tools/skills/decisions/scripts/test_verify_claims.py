@@ -219,6 +219,18 @@ class FetchTests(Base):
         self.assertEqual((meta["url"], meta["source"], meta["truncated"]), ("https://example.com/x", "live", False))
         self.assertIn("fetched_at", meta)
 
+    def test_private_spans_of_the_note_fallback_are_neither_cached_nor_returned(self):
+        note = self.tmp / "vault" / "wiki" / "S-p.md"
+        note.parent.mkdir()
+        note.write_text("---\nid: S-p\n---\nPublic extract.\n<private>PRIVATE_NOTE_TEXT</private>\nMore.\n", encoding="utf-8")
+        self.fake_get({})
+        text, source = vc.fetch_page("https://down.example/", "wiki/S-p.md")
+        self.assertEqual(source, "note")
+        self.assertIn("Public extract.", text)
+        self.assertNotIn("PRIVATE_NOTE_TEXT", text)
+        cached = "".join(p.read_text(encoding="utf-8") for p in (self.tmp / "pages").glob("*.txt"))
+        self.assertNotIn("PRIVATE_NOTE_TEXT", cached)
+
     def test_short_or_failed_fetch_falls_back_to_the_note_body(self):
         note = self.tmp / "vault" / "wiki" / "S-x.md"
         note.parent.mkdir()

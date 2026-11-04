@@ -104,9 +104,10 @@ Revisions:
 - R-4 result (2026-11-04): first live evals. Claim eval passed all floors. Related eval missed recall at threshold 0.5; default moved to 0.05 (A-11), full rerun recall 133/140 = 0.950, unnamed 58/64 = 0.906, selected share 0.350.
 - R-5 result (2026-11-04): first review. Pre-flight refuses to run without evidence; the client treats off-list choices and out-of-range values as `unknown`. The review's eta finding is closed by R-6.
 - R-6 plan scope (2026-11-04): eta gates removed (D-7). The related eval now covers every wiki and hubs note. Final runs at threshold 0.05: claim eval passed all floors (recall 0.981, over-flag 0, p50 392 ms); related eval recall 144/149 = 0.966, unnamed 99/104 = 0.952, selected share 0.370, Korean 54/54, other 90/95.
+- R-7 result (2026-11-04): second review. Redaction covers a secret on the following lines (YAML block, or one opaque value alone); the note fallback strips `<private>` spans; the mutation check includes the emitted date spelling; malformed answer names and huge numbers stay `unknown`.
 
 Close-out:
 - size: (filled at close)
-- revisions: plan 4 / result 2
+- revisions: plan 4 / result 3
 - review rounds to pass:
 - unmet AC at close:
