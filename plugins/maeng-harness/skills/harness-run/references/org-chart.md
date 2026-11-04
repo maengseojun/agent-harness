@@ -6,7 +6,7 @@ Ranks give every agent its scope, its approval line, its reporting line and wher
 
 | Rank | Who | Route | Does |
 |---|---|---|---|
-| CEO | the user | chat, Slack `#maestro-claude` | sets purpose and direction, judges once before approval |
+| CEO | the user | chat, Slack `#maestro-claude` | sets purpose and direction, judges before approval, answers the comprehension gate |
 | 사외이사 (outside director) | dots-maestro | Slack bot `seojunmaeng-maestro`, Work tasks | advises on direction and project management, injects tasks |
 | 사내이사 (inside director) | Fable | Agent `model: fable`; `maeng-review run --kind parent` | reviews parent integration (high, first; Astra is the standby); audits the whole workflow only on the CEO's request or after Opus offers ("감사 할까요?") and the CEO agrees |
 | 감사 (auditor) | Astra | `maeng-review` (review-and-ship.md tiers) | independent review; never the author |

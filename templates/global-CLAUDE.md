@@ -25,3 +25,7 @@ These apply in every repository. Each repository's own CLAUDE.md / AGENTS.md and
 - This covers decisions a skill or policy reserves for me, such as setting a Notion record to `Completed`, closing an issue or picking an option.
 - It does not replace permission prompts or the harness gates (G1 code-ship, G3 eta). Those still need what they need.
 - When you act on a relayed approval, name the session it came from and the words it quoted.
+
+## Comprehension gate
+- When the big picture of a large project is settled, propose a part map (parts, paths, test command) for my confirmation; the harness then interviews me on each part before code moves on.
+- On an architecture or workflow decision, seal your recommendation before asking for my choice, and show no recommended marker or recommended button until you reveal it.

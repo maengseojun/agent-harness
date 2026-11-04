@@ -1156,5 +1156,41 @@ class DesignCli(FakeModel, InterviewCase):
         self.assertIsNotNone(interview.load_open(key, self.sid))
 
 
+class Docs(unittest.TestCase):
+    """AC-10: the skill, the harness-run text, the template and the version."""
+    SKILL = (ROOT / "skills/comprehension-gate/SKILL.md").read_text()
+    RUN = (ROOT / "skills/harness-run/SKILL.md").read_text()
+
+    def test_the_skill_tells_the_protocol(self):
+        head, _, body = self.SKILL.partition("\n# ")
+        self.assertIn("name: comprehension-gate", head)
+        for needed in ("propose parts", "Only after the user confirms", "Relay the question verbatim", "Never read, list or write the interviews",
+                       "exactly `중단`", "`이의 <argument>`", "`면제 #<N> <reason>`", "Any session may explain",
+                       "only when the user types it in their own message", "Start the quiz last, after the review", "`변경: <근거>`",
+                       "fresh subagent", "neutral question", "no \"recommended\" marker, no recommended button", "maeng-interview seal",
+                       "maeng-interview reveal"):
+            self.assertIn(needed, self.SKILL, needed)
+
+    def test_harness_run_no_longer_says_the_user_judges_only_once(self):
+        self.assertNotIn("judges once", self.RUN)
+        self.assertNotIn("judges once", (ROOT / "skills/harness-run/references/org-chart.md").read_text())
+        self.assertIn("comprehension-gate", self.RUN)
+        self.assertIn("a step the comprehension gate blocks", self.RUN)  # the stop list
+        self.assertIn("also needs the user's merge quiz", self.RUN)  # step 11
+        self.assertIn("run the user's design interviews", self.RUN)  # step 1
+        ship = (ROOT / "skills/harness-run/references/review-and-ship.md").read_text()
+        self.assertIn("MAENG_CLAUDE", ship)
+        self.assertIn("Comprehension gate", ship)
+
+    def test_the_template_has_the_map_rule_and_the_seal_rule(self):
+        text = (ROOT.parents[1] / "templates/global-CLAUDE.md").read_text()
+        self.assertIn("propose a part map", text)
+        self.assertIn("seal your recommendation before asking for my choice", text)
+        self.assertIn("comprehension-gate", (ROOT.parents[1] / "README.md").read_text())
+
+    def test_the_plugin_is_0_4_11(self):
+        self.assertEqual(json.loads((ROOT / ".claude-plugin/plugin.json").read_text())["version"], "0.4.11")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -14,8 +14,9 @@ It is a Claude Code plugin marketplace named `maeng` with two plugins:
 1. **Plan.** `harness-run` turns a large request into an interview, a Spec and Plan, and a task tree. `task-brief` prepares a smaller handoff.
 2. **Route.** Each task goes to the model that fits it. The agents in `maeng-tools` are routed by role: `architect` (Opus) for design, `implementer` (Sonnet) for code, `researcher` (Haiku) for reading, `design-reviewer` for rendered UI.
 3. **Verify.** `maeng-verify` checks the result against the working tree it was built on. `maeng-review` sends it to an independent reviewer model.
-4. **Ship.** Hooks block a direct push to the default branch. Merges go through `maeng-ship`, after review and checks pass.
-5. **Record.** `work-records` keeps the task map in Linear and writes the finished outcome to Notion. `skill-feedback` turns a reusable correction into a revision of the skill that caused it.
+4. **Understand.** `comprehension-gate` makes me show, without AI help, that I can explain and defend the work: a design interview per part of the project, and a short quiz built from running the code before a large pull request merges. Until I pass, the next step stays blocked. It also seals an agent's recommendation before I choose, so my choice cannot tilt it.
+5. **Ship.** Hooks block a direct push to the default branch. Merges go through `maeng-ship`, after review and checks pass (and, for a large pull request, the quiz).
+6. **Record.** `work-records` keeps the task map in Linear and writes the finished outcome to Notion. `skill-feedback` turns a reusable correction into a revision of the skill that caused it.
 
 ## Selected skills
 
@@ -33,6 +34,7 @@ It is a Claude Code plugin marketplace named `maeng` with two plugins:
 - `hangul-wrap`: measures Korean line breaks in a real browser and fixes words split in half.
 
 **Code**
+- `comprehension-gate`: the interviews, merge quiz and sealed recommendations behind step 4 (the `maeng-interview` CLI).
 - `solidity-habits`, `foundry-testing`, `writing-a-vault`, `writing-an-auction`, `proof-guided-optimization`.
 - `gh-fix-ci`, `gh-address-comments`, `blockchain-upstream-review`.
 
