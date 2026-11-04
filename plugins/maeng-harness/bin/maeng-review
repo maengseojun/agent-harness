@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
 
-from maeng import evidence, gates, ghcmd, guard, receipts, schema, state, status  # noqa: E402
+from maeng import evidence, gates, ghcmd, guard, receipts, recordcheck, schema, state, status  # noqa: E402
 from maeng import tree as treelib  # noqa: E402
 from maeng.cli_common import checked_load, die, require_personal  # noqa: E402
 from maeng.common import canonical, git, git_out, home_dir, sha256, write_json  # noqa: E402
@@ -208,8 +208,14 @@ def draft_bundle(a):
             text = Path(a.draft).read_text(encoding="utf-8")
         except OSError as exc:
             missing.append(f"draft unreadable: {exc}")
+    evidence = list(a.evidence or [])
+    if a.kind == "research" and not recordcheck.off():
+        if a.claims:
+            evidence.append(a.claims)
+        else:
+            missing.append("claim check (--claims <verify_claims.py --out file>)")
     bundle = {"kind": a.kind, "review_focus": DRAFT_FOCUS[a.kind], "draft_path": a.draft, "draft": text,
-              "sources": read_evidence_files(a.source), "evidence_files": read_evidence_files(a.evidence),
+              "sources": read_evidence_files(a.source), "evidence_files": read_evidence_files(evidence),
               "missing": missing}
     subject = {"kind": a.kind, "repo": None, "pr": None, "base": None, "head": None, "criteria_rev": None,
                "digest": sha256(text) if text else None, "destination": None, "op": "review"}
@@ -451,6 +457,10 @@ def run_review(a, cwd):
             die(f"review round cap: PR #{a.pr} already had {rounds} review runs (max {a.max_rounds}). Stop reviewing: "
                 f"post the CEO brief with the open findings (harness-run, Approval) and ask the user for `승인 #{a.pr}`. "
                 f"Raise --max-rounds only on the user's word.", 2)
+    plan = a.plan or (st.get("binding") or {}).get("plan_doc")
+    code_review = a.kind in ("code", "parent") and a.base and a.head and a.evidence
+    if code_review and plan:
+        decisions_advisory(cwd, "ac", "--plan", plan, "--base", a.base, "--head", a.head, "--evidence", *a.evidence)
     full = schema.load_schema()
     out_schema = {**full["$defs"]["reviewer_output"], "$defs": full["$defs"]}
     with tempfile.TemporaryDirectory(prefix="maeng-review-") as d:
@@ -490,22 +500,59 @@ def run_review(a, cwd):
         verdict_key = None
         receipts.revoke_passes(subject, verdict["verdict"])  # a failed re-review revokes earlier unconsumed passes
     reviews = home_dir() / "reviews"
-    write_json(reviews / f"{sha256(canonical(verdict))[:16]}.json", verdict)
+    stored = reviews / f"{sha256(canonical(verdict))[:16]}.json"
+    earlier = [str(f) for f in round_files(subject["repo"], a.pr)] if subject.get("repo") and a.pr else []
+    write_json(stored, verdict)
     report_review(a, cwd, st, subject, verdict, verdict_key)
+    if code_review and verdict["verdict"] != "pass":
+        decisions_advisory(cwd, "triage", "--findings", str(stored), *(["--previous", *earlier] if earlier else []),
+                           "--base", a.base, "--head", a.head, "--evidence", *a.evidence)
     print(json.dumps({"verdict": verdict["verdict"], "receipt": verdict_key, "findings": verdict["findings"]}, indent=2))
     return 0 if verdict["verdict"] == "pass" else 1
 
 
-def prior_rounds(repo, pr):
+def round_files(repo, pr):
     """Review runs already stored for this repository and PR (every run writes reviews/<hash>.json)."""
-    n = 0
+    found = []
     for f in (home_dir() / "reviews").glob("*.json"):
         try:
             s = json.loads(f.read_text()).get("subject") or {}
         except (OSError, ValueError, AttributeError):
             continue
-        n += s.get("repo") == repo and str(s.get("pr")) == str(pr)
-    return n
+        if s.get("repo") == repo and str(s.get("pr")) == str(pr):
+            found.append(f)
+    return found
+
+
+def prior_rounds(repo, pr):
+    return len(round_files(repo, pr))
+
+
+def preflight_script():
+    """preflight.py lives in the sibling maeng-tools plugin: a plain folder in the repo, version folders in the cache."""
+    if os.environ.get("MAENG_PREFLIGHT"):
+        return Path(os.environ["MAENG_PREFLIGHT"])
+    root = Path(__file__).resolve().parent.parent
+    rel = "skills/decisions/scripts/preflight.py"
+    cached = sorted(root.parent.parent.glob(f"maeng-tools/*/{rel}"),
+                    key=lambda p: [int(n) for n in re.findall(r"\d+", p.parts[-5])])
+    return next((p for p in [root.parent / "maeng-tools" / rel, *reversed(cached)] if p.is_file()), None)
+
+
+def decisions_advisory(cwd, *args):
+    """Run the pre-flight or triage (MAE-320). Advisory: it goes to the agent, not the reviewer, and never stops a review."""
+    if recordcheck.off():
+        return
+    script = preflight_script()
+    if not script:
+        print("warning: Decisions pre-flight not run: preflight.py not found", file=sys.stderr)
+        return
+    try:
+        r = subprocess.run([sys.executable, str(script), *args], cwd=cwd, capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError) as exc:
+        print(f"warning: Decisions pre-flight not run: {exc}", file=sys.stderr)
+        return
+    print(f"=== Decisions {args[0]} (advisory) ===\n{r.stdout}{r.stderr}", file=sys.stderr)
 
 
 def report_review(a, cwd, st, subject, verdict, verdict_key):
@@ -561,6 +608,7 @@ def main(argv=None):
     r.add_argument("--exclusion-reason", help="why excluded files need no review (shown to the reviewer)")
     r.add_argument("--remote", default="origin", help="remote whose repository the receipt is bound to")
     r.add_argument("--evidence", action="append", help="file whose contents are embedded as evidence_files (repeatable)")
+    r.add_argument("--claims", help="research: the verify_claims.py --out file, embedded as evidence")
     r.add_argument("--tool-ref", action="store_true",
                    help="include the installed git/gh help text (tool_reference) in a code bundle; without it "
                         "tool_reference is null and the reviewer reports tool-dependent judgments as needs-external-check")

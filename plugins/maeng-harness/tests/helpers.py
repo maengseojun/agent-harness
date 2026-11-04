@@ -174,6 +174,8 @@ class HarnessCase(unittest.TestCase):
             "MAENG_CLAUDE": str(self.tmp / "no-claude"),
             # `maeng-review store` and fixture receipts are test-only; tests of the default policy pop this.
             "MAENG_TEST_FIXTURES": "1",
+            # Decisions checks are off so no test reaches the API; test_decisions_wiring turns them on.
+            "MAENG_DECISIONS": "off",
         }
         patcher = unittest.mock.patch.dict(os.environ, self.env, clear=True)
         patcher.start()

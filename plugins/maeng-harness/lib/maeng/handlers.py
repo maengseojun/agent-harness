@@ -8,7 +8,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from . import evidence, gates, guard, interview, receipts, state, status, stub
+from . import evidence, gates, guard, interview, receipts, recordcheck, state, status, stub
 from . import tree as treelib
 from .common import git_out, home_dir, now_iso, read_json, sha256, vault_dir
 from .shellparse import ParseError, program, split_segments
@@ -228,6 +228,9 @@ def on_pre(payload):
     why = interview.gate(payload, world)  # K1: before the eta return (D-5)
     if why:
         return deny_out(why)
+    why = recordcheck.duplicate_gate(payload.get("tool_name"), payload.get("tool_input"), st)
+    if why:
+        return deny_out(why)
     if world == guard.ETA:
         return None
     tool, tin, tuid = payload.get("tool_name"), payload.get("tool_input"), payload.get("tool_use_id", "")
@@ -400,10 +403,13 @@ def response_failed(tresp):
 def on_post(payload, failed=False):
     sid, cwd = payload.get("session_id", ""), payload.get("cwd", os.getcwd())
     st0 = state.load(sid, cwd)
-    if world_of(payload, st0) != guard.PERSONAL:
-        return None
     tool, tin = payload.get("tool_name", ""), payload.get("tool_input") or {}
     tresp, tuid = payload.get("tool_response"), payload.get("tool_use_id", "")
+    check = recordcheck.ran(str(tin.get("command", ""))) if tool == "Bash" else None
+    if check and not failed and not response_failed(tresp):  # before the world check: the eta world has this gate too
+        state.update(sid, lambda st: recordcheck.mark(st, check), cwd)
+    if world_of(payload, st0) != guard.PERSONAL:
+        return None
     interrupted = bool(payload.get("is_interrupt"))
     out = {}
     try:

@@ -12,7 +12,7 @@ import uuid
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
 
-from maeng import evidence, state  # noqa: E402
+from maeng import evidence, recordcheck, state  # noqa: E402
 from maeng import tree as treelib  # noqa: E402
 from maeng.cli_common import die, load_state, require_personal, session_for  # noqa: E402
 from maeng.common import atomic_write, home_dir, read_json  # noqa: E402
@@ -28,6 +28,9 @@ def need_tree(cwd):
 
 def cmd_bind(a, cwd):
     sid = session_for(cwd, a.session)
+    why = recordcheck.related_missing(state.load(sid, cwd))
+    if why:
+        die(why)
     binding = evidence.make_binding(
         a.issue, a.plan, a.plan_updated, a.criteria.split(",") if a.criteria else None, a.check or None, a.parent,
         treelib.toplevel(cwd))
