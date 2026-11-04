@@ -1,5 +1,6 @@
 """PreToolUse gates. Only the irreversible ship steps are blocked: a push to the default branch and a merge
-that skips `maeng-ship merge` (review receipt). Everything else (gh, Notion, Linear, eta paths, env) is allowed."""
+that skips `maeng-ship merge` (review receipt). Everything else (gh, Notion, Linear, eta paths, env) is allowed here;
+recordcheck.py asks for the Decisions duplicate check before a new record."""
 import os
 import re
 import shlex

@@ -33,7 +33,8 @@ def ran(command):
     for i, seg in enumerate(segments):
         prog, toks = program(seg.tokens)
         if prog.startswith("python") and len(toks) > 2 and os.path.basename(toks[1]) == "records.py" \
-                and toks[2] in CHECKS and set(ops[i:]) <= {"&&", ""}:
+                and toks[2] in CHECKS and set(ops[i:]) <= {"&&", ""} \
+                and any(t.partition("=")[0] == "--candidates" for t in toks) and not {"-h", "--help"} & set(toks):
             found.append(toks[2])
     return found
 

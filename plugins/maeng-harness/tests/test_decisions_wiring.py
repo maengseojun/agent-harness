@@ -61,7 +61,7 @@ class DuplicateGate(On, HarnessCase):
 
     def test_real_invocations_count(self):
         for command in ("cd /x && python3 /y/scripts/records.py duplicate --new t --candidates c.json",
-                        'python3 "$D/records.py" duplicate --new t --candidates c.json',
+                        'python3 "$D/records.py" duplicate --new t --candidates=c.json',
                         "D=/y; python3 $D/records.py duplicate --new t --candidates c.json",
                         "python3.12 records.py duplicate --new t --candidates c.json"):
             self.assertEqual(recordcheck.ran(command), ["duplicate"], command)
@@ -87,6 +87,9 @@ class DuplicateGate(On, HarnessCase):
                         "python3 records.py related --task t --candidates c.json || true",
                         "python3 records.py related --task t --candidates c.json &",
                         "false && python3 records.py related --task t --candidates c.json; echo ok",
+                        "python3 records.py related --help",
+                        "python3 records.py related --task t --candidates c.json -h",
+                        "python3 records.py related --task t",
                         "python3 /missing/records.py related --task t --candidates c.json; echo done",
                         "python3 /missing/records.py related --task t --candidates c.json\necho done",
                         "python3 /missing/records.py related --task t --candidates c.json | tail -3",
