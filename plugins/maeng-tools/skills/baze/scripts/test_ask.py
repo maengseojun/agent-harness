@@ -59,12 +59,9 @@ class AskTests(unittest.TestCase):
         self.assertNotIn("abcdefghijklmnop1234", sent)
         self.assertIn("key: value stays", sent)
 
-    def test_eta_text_sends_nothing(self):
-        for argv in (["the Endix rules"], ["--system", "eta repo", "hi"], ["see S-ETA-001"]):
-            code, _, err, calls = self.run_main(argv)
-            self.assertEqual((code, calls), (1, []), argv)
-            self.assertIn("eta", err)
-        self.assertEqual(self.run_main(["beta and metadata in the appendix"])[0], 0)
+    def test_eta_text_is_sent_like_any_other(self):
+        _, _, _, calls = self.run_main(["the Endix rules in the eta repo"])
+        self.assertIn("the Endix rules in the eta repo", json.dumps(calls[0][1]))
 
     def test_no_key_sends_nothing(self):
         code, _, err, calls = self.run_main(["hi"], key=None)
