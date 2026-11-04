@@ -6,20 +6,25 @@ decide(input, questions, pilot) -> one dict per question, in question order:
 An ok answer carries the fields of its type (choice+probabilities+confidence,
 probability, or score+probabilities+confidence). An unknown answer carries
 "reason": refused | missing | http_<code> | timeout | error | off | no_key
-and never a verdict field; "refused" includes an off-list choice or a value out of range. Nothing about the API or the network raises;
+and never a verdict field; "refused" includes an off-list choice or a value out of range.
+"disagree" appears only with the model "both". Nothing about the API or the network raises;
 invalid questions raise ValueError.
 
 No request is sent when MAENG_DECISIONS=off.
 
-MAENG_DECISIONS_MODEL or model= picks the engine; a jev-* model goes through the school's BAZE
-gateway with the keychain item baze-api-key, in batches of 32 questions, and its answers are
-turned into the OpenAI shape, so callers see no difference.
+MAENG_DECISIONS_MODEL or model= picks the engine. The default "both" asks gpt-6-luna and Jev at
+once: a choice both give is the answer, a choice they differ on is unknown with reason "disagree",
+so it goes to the researcher re-check; a probability or score is their mean; if only one engine
+answers, its answer stands. A jev-* model goes through the school's BAZE gateway with the keychain
+item baze-api-key, in batches of 32 questions, and its answers are turned into the OpenAI shape,
+so callers see no difference. Each engine writes its own ledger line.
 Every call appends one line to the ledger (MAENG_DECISIONS_LEDGER, default
 ~/Documents/maeng-harness/decisions/ledger.jsonl): the input is stored as a
 sha256 and a character count of the REDACTED text, never the text; the key is
 never stored or printed. latency_ms and token counts are 0 when no request
 was sent (outcome off, no_key).
 """
+import concurrent.futures
 import hashlib
 import json
 import math
@@ -35,7 +40,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 URL = "https://api.openai.com/v1/decisions"
-MODEL = "gpt-6-luna"
+MODEL, LUNA, JEV = "both", "gpt-6-luna", "jev-1.14.0"
 BAZE_URL = "https://api.baze.co/v1/gateway/decisions/"
 JEV_BATCH = 32  # the gateway's limit per request
 PRICE_JEV = 0.042
@@ -261,9 +266,25 @@ def _log(rec):
         print(f"decisions: ledger write failed: {e.strerror}", file=sys.stderr)
 
 
+def _merge(a, b):
+    if a["status"] != "ok" or b["status"] != "ok":
+        return b if b["status"] == "ok" else a
+    if a["type"] == "choice":
+        if a["choice"] == b["choice"]:
+            return a
+        return {"name": a["name"], "type": a["type"], "status": "unknown", "reason": "disagree"}
+    field = "probability" if a["type"] == "predicate" else "score"
+    return {**a, field: (a[field] + b[field]) / 2}
+
+
 def decide(input, questions, pilot, *, model=None, timeout=30.0, redact_by_name=True):
     _validate(questions)
     model = model or os.environ.get("MAENG_DECISIONS_MODEL", "").strip() or MODEL
+    if model == "both":
+        with concurrent.futures.ThreadPoolExecutor(2) as pool:
+            runs = [pool.submit(decide, input, questions, pilot, model=m, timeout=timeout, redact_by_name=redact_by_name)
+                    for m in (LUNA, JEV)]
+        return [_merge(a, b) for a, b in zip(runs[0].result(), runs[1].result())]
     jev = model.startswith("jev-")
     safe_input, sent = _walk(input, redact_by_name), [_walk(q, redact_by_name) for q in questions]
     text = safe_input if isinstance(safe_input, str) else json.dumps(safe_input, sort_keys=True, ensure_ascii=False)

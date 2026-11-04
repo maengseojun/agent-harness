@@ -198,7 +198,7 @@ class Secrets(Base):
             post_calls.append(body)
             return {"answers": [ans("AC-1", "met", {"met": 0.9, "unmet": 0.05, "unclear": 0.05})]}
 
-        env = {"OPENAI_API_KEY": "sk-dummy-ENVKEY0123456789", "MAENG_DECISIONS_LEDGER": str(ledger)}
+        env = {"OPENAI_API_KEY": "sk-dummy-ENVKEY0123456789", "MAENG_DECISIONS_MODEL": "gpt-6-luna", "MAENG_DECISIONS_LEDGER": str(ledger)}
         out, cwd = io.StringIO(), os.getcwd()
         self.addCleanup(os.chdir, cwd)
         os.chdir(work)

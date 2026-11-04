@@ -60,7 +60,7 @@ class Base(unittest.TestCase):
         (self.eta / "sub").mkdir(parents=True)
         self.ledger = self.tmp / "led" / "nested" / "ledger.jsonl"
         env = {"HOME": str(self.tmp), "OPENAI_API_KEY": KEY, "MAENG_DECISIONS_LEDGER": str(self.ledger),
-               "PATH": os.environ.get("PATH", "")}
+               "MAENG_DECISIONS_MODEL": "gpt-6-luna", "PATH": os.environ.get("PATH", "")}
         patch_env = mock.patch.dict(os.environ, env, clear=True)
         patch_env.start()
         self.addCleanup(patch_env.stop)
@@ -230,6 +230,57 @@ class JevTest(Base):
         fake = FakePost({"answers": {}})
         self.assertAllUnknown(self.run_decide(fake, [Q_PRED], model="jev-1.14.0"), "no_key")
         self.assertEqual(fake.calls, [])
+
+
+class BothTest(Base):
+    def run_both(self, luna, jev, questions):
+        self.keychain.return_value = "BAZEKEY"
+
+        def post(url, body, headers, timeout):
+            r = jev if "baze" in url else luna
+            if isinstance(r, Exception):
+                raise r
+            return r
+        os.environ.pop("MAENG_DECISIONS_MODEL", None)
+        with mock.patch.object(dc, "_post", post):
+            return dc.decide("hello", questions, "p")
+
+    def jev_choice(self, c):
+        return {"answers": {"topic": {"type": "choice", "choice": c, "confidence": 0.9, "probabilities": {"billing": 0.5, "bug": 0.5}}}}
+
+    def test_an_agreed_choice_is_the_answer(self):
+        r = self.run_both({"answers": [A_CHOICE]}, self.jev_choice("billing"), [Q_CHOICE])[0]
+        self.assertEqual((r["status"], r["choice"]), ("ok", "billing"))
+
+    def test_a_disputed_choice_is_unknown_with_no_verdict(self):
+        r = self.run_both({"answers": [A_CHOICE]}, self.jev_choice("bug"), [Q_CHOICE])[0]
+        self.assertEqual((r["status"], r["reason"]), ("unknown", "disagree"))
+        self.assertNotIn("choice", r)
+
+    def test_probability_and_score_are_the_mean(self):
+        jev = {"answers": {"urgent": {"type": "noul", "noul": 0.5}, "severity": {"type": "score", "score": 0.5, "probabilities": {}}}}
+        res = self.run_both({"answers": [dict(A_PRED, probability=0.9), dict(A_SCORE, score=1.5)]}, jev, [Q_PRED, Q_SCORE])
+        self.assertAlmostEqual(res[0]["probability"], 0.7)
+        self.assertAlmostEqual(res[1]["score"], 1.0)
+
+    def test_one_failed_engine_leaves_the_other_answer(self):
+        self.assertEqual(self.run_both({"answers": [A_CHOICE]}, http_error(400), [Q_CHOICE])[0]["choice"], "billing")
+        self.assertEqual(self.run_both(http_error(429), self.jev_choice("bug"), [Q_CHOICE])[0]["choice"], "bug")
+
+    def test_both_failing_is_unknown(self):
+        r = self.run_both(http_error(500), http_error(429), [Q_CHOICE])[0]
+        self.assertEqual((r["status"], r["reason"]), ("unknown", "http_500"))
+
+    def test_each_engine_writes_its_own_ledger_line(self):
+        self.run_both({"answers": [A_CHOICE]}, self.jev_choice("billing"), [Q_CHOICE])
+        self.assertEqual(sorted(r["model"] for r in self.ledger_lines()), ["gpt-6-luna", "jev-1.14.0"])
+
+    def test_no_baze_key_falls_back_to_luna(self):
+        self.keychain.return_value = None
+        fake = FakePost({"answers": [A_CHOICE]})
+        del os.environ["MAENG_DECISIONS_MODEL"]
+        self.assertEqual(self.run_decide(fake, [Q_CHOICE])[0]["choice"], "billing")
+        self.assertEqual(len(fake.calls), 1)
 
 
 class ErrorPathTest(Base):

@@ -228,7 +228,7 @@ def verify(claims, *, pilot="claim_verification", decide=None):
                 "id": c["id"], "url": url, "verdict": a["choice"] if ok else "unknown",
                 "probabilities": a.get("probabilities") if ok else None,
                 "confidence": a.get("confidence") if ok else None,
-                "page_source": source, "latency_ms": ms,
+                "page_source": source, "latency_ms": ms, "reason": a.get("reason"),
             }
     return [by_id[i] for i in ids]
 

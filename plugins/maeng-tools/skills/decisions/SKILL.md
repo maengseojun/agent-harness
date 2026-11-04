@@ -11,10 +11,10 @@ Trial skill for MAE-306. The OpenAI Decisions API (`POST /v1/decisions`, `gpt-6-
 
 - **Data.** Public page text and claim text; for the pre-flight the diff, the Plan and the verification output; for records work, Linear, Notion and vault text, eta included (the user's decision, plan D-7). The client redacts known secret patterns; `records.py` strips vault `<private>` spans.
 - **Off.** `MAENG_DECISIONS=off` sends nothing.
-- **Engine.** `gpt-6-luna` on the OpenAI key is the default. `MAENG_DECISIONS_MODEL=jev-1.14.0` uses Jev through the school's BAZE gateway (keychain item `baze-api-key`) for a comparison run; every script works unchanged. Jev takes text only. Its `state` stops at 64,000 characters, so a longer page comes back `unknown`. Its probabilities sit higher: the `related` default of 0.05 selects almost everything, so pass `--threshold` from an eval.
+- **Engines.** By default every question goes to both `gpt-6-luna` (OpenAI key) and `jev-1.14.0` (the school's BAZE gateway, keychain item `baze-api-key`), at once. A choice they agree on is the answer. A choice they differ on comes back `unknown` with reason `disagree`, so the sample re-check sends it to the researcher, who settles it against the source. A probability or score is their mean. If only one engine answers, for example Jev past its 64,000-character limit or without a key, that answer stands. `MAENG_DECISIONS_MODEL=gpt-6-luna` or `=jev-1.14.0` runs one engine, for a comparison; the `related` threshold of 0.25 is set for the mean, so pass `--threshold` then (0.05 suits Luna).
 - **Key.** `OPENAI_API_KEY`, else the macOS keychain item `openai-api-key`. Never print it, never ask the user to paste it into the chat.
-- **Unknown is not a verdict.** An error, timeout, refusal, missing or off-list answer comes back as `unknown`. Treat it as "not checked", never as a pass.
-- **Ledger.** Every call appends one line to `~/Documents/maeng-harness/decisions/ledger.jsonl` (hashes and counts, no text). The Sunday report is computed from it.
+- **Unknown is not a verdict.** An error, timeout, refusal, disagreement, missing or off-list answer comes back as `unknown`. Treat it as "not checked", never as a pass.
+- **Ledger.** Every call to an engine appends one line to `~/Documents/maeng-harness/decisions/ledger.jsonl` (hashes and counts, no text). The Sunday report is computed from it.
 - **Advisory.** Nothing here gates or replaces the Sol review, the researcher re-check or the user's decisions.
 
 Scripts are in this skill's `scripts/` folder; run them with `python3 <this skill>/scripts/<name>`.
@@ -49,4 +49,4 @@ All three take a candidates file: a JSON list of `{"id", "title", "text", "sourc
 - `python3 build_claim_eval.py --check` validates the eval set (claims verified in MAE-303 plus code-made false variants).
 - `python3 eval_claims.py --out <report.json>` runs the claim eval against the plan's floors (coordinator, once per client change).
 - `python3 related_eval.py build --check` and `python3 related_eval.py run --out <report.json>`: the related-pick eval on vault wikilinks, reported for Korean and other notes separately, with recall also on the positives the task text does not name. Its files hold personal vault text, so they live outside the repository (`MAENG_DECISIONS_EVAL_DIR`, default `~/Documents/maeng-harness/decisions/eval/`; the script refuses a folder inside the checkout). agent-harness is a public repository: never commit vault, Linear or Notion text.
-- `python3 report.py --since 2026-11-05 --until 2026-11-08 --eval-report <report.json>` prints the per-use metrics for the Sunday brief.
+- `python3 report.py --since 2026-11-05 --until 2026-11-08 --eval-report <report.json>` prints the per-use metrics for the Sunday brief, per engine.

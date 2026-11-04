@@ -48,7 +48,7 @@ def load(path, since=None, until=None):
 def summarize(rows):
     by = defaultdict(list)
     for r in rows:
-        by[r.get("pilot", "?")].append(r)
+        by[f"{r.get('pilot', '?')} [{r['model']}]" if r.get("model") else r.get("pilot", "?")].append(r)  # engines apart
     out = {}
     for pilot, rs in sorted(by.items()):
         sent = [r for r in rs if r.get("outcome") not in NOT_SENT]

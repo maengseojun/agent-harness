@@ -403,7 +403,7 @@ class RunTests(Base):
             if len(posts) > 1:
                 raise KeyboardInterrupt
             return {"answers": [], "usage": {}}
-        env = {"OPENAI_API_KEY": "sk-test-EVALKEY1234567890", "MAENG_DECISIONS_LEDGER": sentinel}
+        env = {"OPENAI_API_KEY": "sk-test-EVALKEY1234567890", "MAENG_DECISIONS_MODEL": "gpt-6-luna", "MAENG_DECISIONS_LEDGER": sentinel}
         with mock.patch.dict(os.environ, env), mock.patch.object(dc, "_post", post):
             os.environ.pop("MAENG_DECISIONS", None)
             with self.assertRaises(KeyboardInterrupt):
@@ -417,7 +417,7 @@ class RunTests(Base):
         def post(url, body, headers, timeout):
             return {"answers": [{"name": q["name"], "type": "predicate", "probability": 0.01} for q in body["questions"]],
                     "usage": {"input_tokens": 1_000_000, "input_tokens_details": {"cached_tokens": 400_000}}}
-        env = {"OPENAI_API_KEY": "sk-test-EVALKEY1234567890", "MAENG_DECISIONS_LEDGER": sentinel}
+        env = {"OPENAI_API_KEY": "sk-test-EVALKEY1234567890", "MAENG_DECISIONS_MODEL": "gpt-6-luna", "MAENG_DECISIONS_LEDGER": sentinel}
         with mock.patch.dict(os.environ, env), mock.patch.object(dc, "_post", post):
             os.environ.pop("MAENG_DECISIONS", None)
             out = rev.run()

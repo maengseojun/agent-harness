@@ -13,7 +13,8 @@ score(results, labels_path)  results is the run() dict or its results list.
                    negative_recall = share of negatives not judged supported (unknown counts
                    as caught: it goes to the researcher). over_flag = share of positives not
                    judged supported. Wilson 95% intervals. A run with an unknown negative cannot pass: an
-                   outage on the rounds that hold the mutations would otherwise count as caught. Latency is per request group of a page
+                   outage on the rounds that hold the mutations would otherwise count as caught. A
+                   disagreement of the two engines is a judged claim: it goes to the researcher. Latency is per request group of a page
                    (pages with a request only), nearest-rank percentiles. Pass = negative_recall >= 0.95 and
                    its Wilson lower bound >= 0.90 and over_flag <= 0.30 and p50 < 2000 ms.
 
@@ -114,7 +115,7 @@ def score(results, labels_path, usage=None):
            if src != "none"]
     p50, p95 = (_pct(lat, 50), _pct(lat, 95)) if lat else (None, None)
     floors = {
-        "every_negative_judged": not any(r["verdict"] == "unknown" for r in neg),
+        "every_negative_judged": not any(r["verdict"] == "unknown" and r.get("reason") != "disagree" for r in neg),
         "negative_recall": recall is not None and recall >= 0.95,
         "negative_recall_wilson_lower": r_lo is not None and r_lo >= 0.90,
         "over_flag": over is not None and over <= 0.30,

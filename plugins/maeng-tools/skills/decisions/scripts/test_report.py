@@ -80,6 +80,11 @@ class ReportTest(unittest.TestCase):
         self.assertEqual(len(rows), 4)
         self.assertIn("skipped 1 unreadable", err.getvalue())
 
+    def test_engines_are_reported_apart(self):
+        s = report.summarize([{"pilot": "records_related", "model": "gpt-6-luna", "outcome": "ok"},
+                              {"pilot": "records_related", "model": "jev-1.14.0", "outcome": "ok"}])
+        self.assertEqual(sorted(s), ["records_related [gpt-6-luna]", "records_related [jev-1.14.0]"])
+
     def test_missing_ledger_exits_1(self):
         self.assertEqual(report.main(["--ledger", str(Path(self.tmp.name, "none.jsonl"))]), 1)
 

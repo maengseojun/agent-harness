@@ -217,7 +217,7 @@ class RelatedTests(Base):
         cands = [cand("a", source="linear"), cand("b"), cand("c"), cand("d")]
         code, out = self.cli(["related", "--task", "t", "--candidates", self.cfile(cands)], fake)
         self.assertEqual(code, 0)
-        self.assertEqual(out, "selected (probability >= 0.05), read these:\n"
+        self.assertEqual(out, "selected (probability >= 0.25), read these:\n"
                               "  0.90 [a] title a (linear, 2026-11-01)\n"
                               "  0.70 [d] title d (linear-maeng, 2026-11-01)\n"
                               "near misses (below the threshold):\n"
