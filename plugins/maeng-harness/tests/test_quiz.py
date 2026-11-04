@@ -92,12 +92,23 @@ def clones():
     return set(glob.glob(os.path.join(tempfile.gettempdir(), "maeng-quiz-*")))
 
 
+def own_tmp(case):
+    """clones() lists a folder, so under `pytest -n` each test needs its own."""
+    t = case.tmp / "tmp"
+    t.mkdir()
+    case.env["TMPDIR"] = os.environ["TMPDIR"] = str(t)
+    patcher = unittest.mock.patch.object(tempfile, "tempdir", str(t))
+    patcher.start()
+    case.addCleanup(patcher.stop)
+
+
 class ConfirmItems(HarnessCase):
     def setUp(self):
         super().setUp()
         self.proj = self.make_repo("proj", with_remote=False, files=FILES)
         self.runs = self.tmp / "runs.log"
         self.cmd = f"echo run >> {self.runs}; {PYTEST}"
+        own_tmp(self)
         self.before_clones = clones()
 
     def confirm(self, cands, cmd="default", **kw):
@@ -394,6 +405,7 @@ class MergeQuizCli(FakeModel, InterviewCase):
         fake.write_text(f"#!{sys.executable}\nimport os\nprint(open(os.environ['FAKE_GH_JSON']).read())\n")
         fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
         self.env.update(MAENG_GH=str(fake), FAKE_GH_JSON=str(self.pr_json))
+        own_tmp(self)
         self.before_clones = clones()
 
     def set_pr(self, head, base=None):

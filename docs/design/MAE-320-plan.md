@@ -12,7 +12,7 @@ Assumptions:
 - A-3 One duplicate check covers creates for 30 minutes in that session, and one related check covers the session.
 - A-4 Machine-made notes (`wiki/sessions`, `wiki/reviews`, `wiki/sources`, `raw`) need no duplicate check.
 - A-5 The pre-flight table goes to the agent on stderr and not into the review bundle, so the reviewer is not anchored.
-- A-6 The duplicate gate applies in the eta world too, as the user uses Decisions there. The bind gate and `maeng-review` are personal only, like those tools.
+- A-6 The duplicate gate applies in the eta world too, as the user uses Decisions there. The bind gate applies wherever bind runs. `maeng-review` is personal only.
 
 Decisions:
 - D-1 Deny before the create instead of a reminder hook. Wrong if: agents run the check with empty candidates to pass it.
@@ -31,4 +31,4 @@ Verification:
 - `claude plugin validate plugins/maeng-harness`
 
 Close-out:
-- revisions: plan 0 / result 0
+- revisions: plan 1 (A-6 corrected) / result 0

@@ -461,6 +461,8 @@ def run_review(a, cwd):
     code_review = a.kind in ("code", "parent") and a.base and a.head and a.evidence
     if code_review and plan:
         decisions_advisory(cwd, "ac", "--plan", plan, "--base", a.base, "--head", a.head, "--evidence", *a.evidence)
+    elif a.kind in ("code", "parent") and not recordcheck.off():
+        print("warning: Decisions pre-flight not run: it needs --plan and --evidence", file=sys.stderr)
     full = schema.load_schema()
     out_schema = {**full["$defs"]["reviewer_output"], "$defs": full["$defs"]}
     with tempfile.TemporaryDirectory(prefix="maeng-review-") as d:

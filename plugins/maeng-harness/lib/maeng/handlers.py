@@ -405,9 +405,12 @@ def on_post(payload, failed=False):
     st0 = state.load(sid, cwd)
     tool, tin = payload.get("tool_name", ""), payload.get("tool_input") or {}
     tresp, tuid = payload.get("tool_response"), payload.get("tool_use_id", "")
-    check = recordcheck.ran(str(tin.get("command", ""))) if tool == "Bash" else None
-    if check and not failed and not response_failed(tresp):  # before the world check: the eta world has this gate too
-        state.update(sid, lambda st: recordcheck.mark(st, check), cwd)
+    try:  # before the world check: the eta world has this gate too
+        check = recordcheck.ran(str(tin.get("command", ""))) if tool == "Bash" else None
+        if check and not failed and not response_failed(tresp):
+            state.update(sid, lambda st: recordcheck.mark(st, check), cwd)
+    except Exception as exc:
+        warn(f"records check not recorded: {type(exc).__name__}: {exc}")
     if world_of(payload, st0) != guard.PERSONAL:
         return None
     interrupted = bool(payload.get("is_interrupt"))

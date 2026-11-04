@@ -29,8 +29,7 @@ def mark(st, check):
 
 def _new_vault_note(path):
     vault = vault_dir().resolve()
-    p = Path(path).expanduser()
-    p = p.resolve() if p.is_absolute() else (vault / p).resolve()
+    p = (vault / path).resolve()  # an absolute path replaces the vault part
     if p.suffix != ".md" or not p.is_relative_to(vault) or p.exists():
         return False
     return not p.relative_to(vault).as_posix().startswith(GENERATED)

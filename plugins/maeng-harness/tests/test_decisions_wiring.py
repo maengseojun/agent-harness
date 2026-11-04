@@ -63,6 +63,10 @@ class DuplicateGate(On, HarnessCase):
                      str(self.repo))
         self.assertTrue(self.pre(self.repo, LINEAR, {"team": "MAE", "title": "x"})[0])
 
+    def test_a_malformed_call_never_breaks_the_hook(self):
+        rc, _, _ = self.hook("PostToolUse", self.repo, tool_name="Bash", tool_input="x", tool_use_id="tu-1")
+        self.assertEqual(rc, 0)
+
     def test_off_allows_everything(self):
         self.env["MAENG_DECISIONS"] = "off"
         os.environ["MAENG_DECISIONS"] = "off"
@@ -142,6 +146,13 @@ class ReviewWiring(On, ReviewRunFixture):
         bad.write_text("raise SystemExit(3)\n")
         self.assertEqual(self.run_review(bad).returncode, 0)
         self.assertEqual(self.run_review(self.tmp / "gone.py").returncode, 0)
+
+    def test_a_review_without_evidence_says_the_preflight_did_not_run(self):
+        proc = self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
+                                         "--base-ref", "main"], self.repo,
+                        extra_env={"MAENG_CODEX": str(self.codex), "MAENG_PREFLIGHT": str(self.fake)})
+        self.assertIn("pre-flight not run", proc.stderr)
+        self.assertEqual(self.logged(), [])
 
     def test_off_skips_it(self):
         self.env["MAENG_DECISIONS"] = "off"
