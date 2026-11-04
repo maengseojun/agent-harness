@@ -517,6 +517,8 @@ class BashStateGate(GateCase):
         self.assertFalse(self.bash_pre(eta, "maeng-interview start --stage design")[0])
         self.assertTrue(self.bash_pre(eta, "MAENG_CLAUDE=/tmp/fake maeng-interview start --stage design")[0])
         self.assertFalse(self.bash_pre(eta, f"maeng-interview status && ls {self.tmp}")[0])
+        self.assertTrue(self.bash_pre(eta, 'maeng-interview status > "$MAENG_HOME/interviews/k/passes.json"')[0])
+        self.assertTrue(self.bash_pre(eta, f"maeng-interview status > {base}/k/passes.json")[0])
         self.assertTrue(self.bash_pre(eta, f"maeng-interview status && cat {base}/k/open/s.json")[0])  # only its own segment
 
     def test_ordinary_commands_that_mention_the_words_are_allowed(self):

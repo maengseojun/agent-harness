@@ -116,6 +116,9 @@ Revisions:
 - R-14 result quality, second Sol review: test names are parsed by runner form, so a word in a failure message is not an answer.
 - R-15 plan criteria, second Sol review: A-2 says up to 4 keyed items; a shorter quiz is intended. For the CEO brief.
 - R-16 result quality: `gh pr merge --disable-auto` turns auto-merge off and is not gated, found while checking the installed `gh` options.
+- R-17 result quality, third Sol review: a delta item must sit on lines the delta adds, or a pass on old code authorizes the new patch.
+- R-18 result quality, third Sol review: redirects on a `maeng-interview` line are read, so `> .../passes.json` is denied.
+- R-19 result quality, third Sol review: a defect's answer key holds only the lines that really changed.
 - R-6 result quality: the live run returned 3 predict items and 1 defect from 3 and 3 candidates, on test bookkeeping. Found defects now go in first and the candidate prompt asks about what the code does.
 
 Close-out:

@@ -266,7 +266,7 @@ def start_design(a, key, sid, top):
 
 def cand_prompt(files, diff):
     return ("You write quiz candidates about a pull request so its author must show they understand the code. Use only "
-            f"these changed files: {', '.join(files)}. Ask about what the code does, not about test bookkeeping. Give about 6 "
+            f"these changed files and on lines the diff adds: {', '.join(files)}. Ask about what the code does, not about test bookkeeping. Give about 6 "
             "candidates in all, a mix of:\n"
             "- predict: an assertion in a changed TEST file that already passes. Give `file`, the 1-based `line`, `literal` "
             "(the expected value exactly as written on that line) and a short Korean `question`.\n"
@@ -317,7 +317,8 @@ def start_merge(a, key, sid, top):
     kept, missed = [it for it in prev if it["done"]], [it for it in prev if not it["done"]]
     want = sum("rubric" not in it for it in missed) if missed else 1 if delta else 4
     cands = run_model(cand_prompt(files, diff), CANDIDATES, top)["candidates"] if test and want else []  # no tests, no truth
-    keyed = quiz.confirm_items(cands, top, test, changed=set(files), want=want) if want else []
+    touched = quiz.added_lines(top, scope) if delta else None  # a pass on the delta must be about the delta
+    keyed = quiz.confirm_items(cands, top, test, changed=set(files), want=want, touched=touched) if want else []
     if missed:  # one new item per miss
         enough, count = True, len(missed) - len(keyed)
     else:

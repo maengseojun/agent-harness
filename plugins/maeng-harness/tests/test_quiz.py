@@ -140,6 +140,11 @@ class ConfirmItems(HarnessCase):
         self.assertEqual([quiz._other(x) for x in ("5", "1.5", "True", "false", "'neg'", "[]", "a + b", "x")],
                          ["6", "2.5", "False", "true", "'zzneg'", None, None, None])
 
+    def test_an_unchanged_line_inside_a_mutation_is_not_the_answer(self):
+        c = {"kind": "defect", "file": "calc.py", "find": "    if x < lo:\n        return lo\n    if x > hi:",
+             "replace": "    if x > lo:\n        return lo\n    if x < hi:", "question": "q"}
+        self.assertEqual(quiz._defect(c, str(self.proj), self.cmd, None)["changed"], [6, 8])
+
     def test_a_deleted_line_can_only_be_a_failing_test_item(self):
         gone = {"kind": "defect", "file": "calc.py", "find": "    if x > hi:\n        return hi\n", "replace": "", "question": "q"}
         item, = self.confirm([gone], rng=Pick("defect-line"))
@@ -545,6 +550,19 @@ class MergeQuizCli(FakeModel, InterviewCase):
         self.assertIn("calc.py, test_calc.py", self.model_calls()[n]["prompt"])
         self.finish()
         self.assertTrue(interview.passed(self.key, 7, "merge", self.raw_patch(self.base, h2)))
+
+    def test_a_delta_item_must_be_on_the_new_lines(self):
+        self.queue(self.CANDIDATES, self.WRITTEN)
+        self.quiz()
+        self.finish([graded(True)])
+        (self.repo / "test_calc.py").write_text(TESTS + "\n\ndef test_more():\n    assert add(4, 4) == 8\n")
+        h2 = self.commit_all(self.repo, "delta")
+        self.set_pr(h2)
+        self.assertEqual(quiz.added_lines(self.repo, f"{self.h}..{h2}"), {"test_calc.py": {18, 19, 20, 21}})
+        self.queue({"candidates": [PREDICT_ADD]}, self.WRITTEN)  # an unchanged assertion: not about the delta
+        r = self.quiz()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual([("rubric" in it) for it in self.rec()["items"]], [True])
 
     def test_a_head_that_does_not_descend_from_the_passed_one_asks_a_full_quiz(self):
         self.queue(self.CANDIDATES, self.WRITTEN)

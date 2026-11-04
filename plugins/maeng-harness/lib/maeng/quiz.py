@@ -1,5 +1,6 @@
 """Merge-quiz truth: patch ids, a throwaway clone, execution-backed items and keyed grading. Every keyed answer comes from
 a recorded run of the project's own tests (T4); the model only proposes candidates. Nothing here touches the user's checkout."""
+import difflib
 import os
 import random
 import re
@@ -29,6 +30,20 @@ def patch_id(cwd, base, head):
     if rc != 0 or not diff:
         return None
     return sha256("\n".join(ln for ln in diff.splitlines() if not ln.startswith(("index ", "@@ "))))
+
+
+def added_lines(cwd, scope):
+    """{path: set of line numbers} that the git range `scope` adds or changes, in the newer file."""
+    rc, diff, _ = git(cwd, "diff", "-U0", "--no-ext-diff", "--no-textconv", "--no-renames", scope)
+    lines, path = {}, None
+    for row in diff.splitlines() if rc == 0 else []:
+        if row.startswith("+++ "):
+            path = row[6:] if row.startswith("+++ b/") else None
+        hunk = re.match(r"@@ -\S+ \+(\d+)(?:,(\d+))? @@", row)
+        if hunk and path:
+            start, count = int(hunk.group(1)), int(hunk.group(2) or 1)
+            lines.setdefault(path, set()).update(range(start, start + count))
+    return lines
 
 
 def clone(top):
@@ -87,12 +102,14 @@ def _other(literal):
     return text[0] + "zz" + text[1:] if len(text) > 1 and text[0] in "'\"" and text[-1] == text[0] else None
 
 
-def _predict(c, repo, cmd, changed):
+def _predict(c, repo, cmd, changed, touched=None):
     """A masked literal from a test line, else None: the line states an equality, and changing the literal fails the
     tests, so the assertion ran and the value is what the code gives. The question never shows the answer."""
     path, line, literal = c.get("file"), c.get("line"), c.get("literal")
     if not (isinstance(path, str) and TEST_FILE.search(path) and isinstance(line, int) and isinstance(literal, str)
             and literal.strip() and (changed is None or path in changed)):
+        return None
+    if touched is not None and line not in touched.get(path, ()):
         return None
     target = Path(_inside(repo, path) or "/nonexistent")
     try:
@@ -121,7 +138,7 @@ def _predict(c, repo, cmd, changed):
             "key": literal, "reveal": literal}
 
 
-def _defect(c, repo, cmd, changed):
+def _defect(c, repo, cmd, changed, touched=None):
     """A mutation the tests catch -> {file, changed lines, snippet window, failing lines, mutated rows}, else None."""
     path, find, new = c.get("file"), c.get("find"), c.get("replace")
     if not (isinstance(path, str) and isinstance(find, str) and isinstance(new, str) and find.strip() and find != new
@@ -135,6 +152,9 @@ def _defect(c, repo, cmd, changed):
     if orig.count(find) != 1:
         return None
     start = orig[:orig.index(find)].count("\n") + 1  # first line of the find, 1-based
+    before, after = _lines(find), _lines(new)
+    if touched is not None and not touched.get(path, set()) & set(range(start, start + len(before))):
+        return None
     mutated = orig.replace(find, new, 1)
     target.write_text(mutated)
     try:
@@ -143,21 +163,17 @@ def _defect(c, repo, cmd, changed):
         target.write_text(orig)  # restored before the next mutation
     if ok or not failing:  # the tests missed it (an equivalent or untested change), or broke before running
         return None
-    before, after = _lines(find), _lines(new)
-    pre = next((i for i, (x, y) in enumerate(zip(before, after)) if x != y), min(len(before), len(after)))
-    post = 0
-    while post < min(len(before), len(after)) - pre and before[-1 - post] == after[-1 - post]:
-        post += 1
-    deleted = pre + post >= len(after)  # no new line to point at: only `failing-test` can ask about it
-    if deleted and not test_names(failing):
+    ops = difflib.SequenceMatcher(None, before, after, autojunk=False).get_opcodes()
+    moved = [start + j for tag, _, _, j1, j2 in ops if tag != "equal" for j in range(j1, j2)]  # in the mutated file
+    if not moved and not test_names(failing):  # a pure deletion has no new line to point at
         return None
-    first, last = start + pre, start + max(pre, len(after) - post - 1)  # the changed lines in the mutated file
+    first, last = (moved[0], moved[-1]) if moved else (start, start)
     s, e = c.get("snippet_start"), c.get("snippet_end")
     if not (isinstance(s, int) and isinstance(e, int) and 1 <= s <= first and last <= e <= s + 40):
         s, e = max(1, first - 3), last + 3
     rows = _lines(mutated)
-    return {"file": path, "changed": list(range(first, last + 1)), "window": (s, min(e, len(rows))), "failing": failing,
-            "rows": rows, "orig": _lines(orig), "find_span": (start, start + len(before) - 1), "deleted": deleted}
+    return {"file": path, "changed": moved, "window": (s, min(e, len(rows))), "failing": failing,
+            "rows": rows, "orig": _lines(orig), "find_span": (start, start + len(before) - 1), "deleted": not moved}
 
 
 def _shown(rows, s, e):
@@ -194,10 +210,11 @@ def _clean(d, rng):
             "question": _snippet_question(d["file"], _shown(rows, n, n + size - 1))}
 
 
-def confirm_items(candidates, top, test_cmd, changed=None, rng=random, want=4):
+def confirm_items(candidates, top, test_cmd, changed=None, rng=random, want=4, touched=None):
     """Keep what a run of the project's tests proves, in a throwaway clone of `top`: a masked literal from a test line
     that passes at head, and a mutation the tests catch (an equivalent or untested one is dropped). A failing suite at
-    head, no test command or no clone means no truth is available: []. -> up to `want` items."""
+    head, no test command or no clone means no truth is available: []. `touched` (added_lines) keeps a delta quiz on the
+    new lines. -> up to `want` items."""
     if not test_cmd:
         return []
     try:
@@ -212,13 +229,13 @@ def confirm_items(candidates, top, test_cmd, changed=None, rng=random, want=4):
 
         def take(limit):  # each try is a test run, so stop at `limit`
             while queue and len(defects) < limit:
-                d = _defect(queue.pop(0), repo, test_cmd, changed)
+                d = _defect(queue.pop(0), repo, test_cmd, changed, touched)
                 defects.extend([d] if d else [])
 
         take((want + 1) // 2)  # a found defect is closest to supervising, so these come first
         for c in candidates:
             if c.get("kind") == "predict" and len(picked) + len(defects) < want:
-                item = _predict(c, repo, test_cmd, changed)
+                item = _predict(c, repo, test_cmd, changed, touched)
                 picked.extend([item] if item else [])
         take(want - len(picked))
     finally:
