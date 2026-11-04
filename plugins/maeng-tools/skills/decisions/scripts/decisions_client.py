@@ -145,18 +145,27 @@ def _jev_question(q):
     return {**out, "type": "score", "criteria": [v["label"] for v in q["levels"]]}
 
 
-def _from_jev(name, a):
+def _from_jev(q, a):
     """One Jev answer in the OpenAI shape, so _parse judges both engines alike."""
     if not isinstance(a, dict):
         return None
-    if a.get("type") == "noul":
-        return {"name": name, "type": "predicate", "probability": a.get("noul")}
+    name, t = q["name"], q["type"]
+    if a.get("type") != ("noul" if t == "predicate" else t):
+        return {"name": name, "type": "refusal"}
+    if t == "predicate":
+        return {"name": name, "type": t, "probability": a.get("noul")}
     ps = a.get("probabilities")
-    probs = [{"value": k, "probability": v} for k, v in ps.items()] if isinstance(ps, dict) else []
-    return {**a, "name": name, "probabilities": probs}
+    ps = ps if isinstance(ps, dict) else {}
+    if t == "score":  # Jev keys levels by index as a string
+        labels = [v["label"] for v in q["levels"]]
+        ps = [{"value": int(k), "label": labels[int(k)], "probability": v} for k, v in ps.items()
+              if isinstance(k, str) and k.isdigit() and int(k) < len(labels)]
+    else:
+        ps = [{"value": k, "probability": v} for k, v in ps.items()]
+    return {**a, "name": name, "probabilities": ps}
 
 
-def _call_jev(model, state, sent, key, timeout):
+def _call_jev(model, state, sent, key, timeout):  # state is text: Jev cannot read OpenAI message parts
     """-> (reason or None, response in the OpenAI shape).
     shortcut: one failed batch makes the whole call unknown, retry per batch if that proves common."""
     answers, tokens = [], 0
@@ -169,7 +178,7 @@ def _call_jev(model, state, sent, key, timeout):
         tokens += _tokens(resp)[0]
         got = resp.get("answers") if isinstance(resp, dict) else None
         got = got if isinstance(got, dict) else {}
-        answers += [a for a in (_from_jev(q["name"], got.get(q["name"])) for q in part) if a]
+        answers += [a for a in (_from_jev(q, got.get(q["name"])) for q in part) if a]
     return None, {"answers": answers, "usage": {"input_tokens": tokens}}
 
 
@@ -265,7 +274,7 @@ def decide(input, questions, pilot, *, model=None, timeout=30.0, redact_by_name=
         reason = "no_key"
     else:
         t0 = time.monotonic()
-        reason, resp = _call_jev(model, safe_input, sent, key, timeout) if jev else \
+        reason, resp = _call_jev(model, text, sent, key, timeout) if jev else \
             _call({"model": model, "input": safe_input, "questions": sent}, key, timeout)
         latency = int((time.monotonic() - t0) * 1000)
     results = [_unknown(q, reason) for q in questions] if reason else _parse(questions, sent, resp)

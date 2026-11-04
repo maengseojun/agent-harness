@@ -37,9 +37,10 @@ Next, not built: embeddings work (`qwen3.7-text-embedding`, 1,024 dimensions, on
 
 Revisions:
 - R-1 plan scope (2026-11-04): the user left Solar to judgment (`ask.py --model`, no code) and asked to keep rerank and embeddings as context, recorded under Next.
+- R-2 result (2026-11-04): first review. Structured input reaches Jev as text; score probabilities carry numeric levels and labels; an answer of another type is `unknown`.
 
 Close-out:
 - size: (filled at close)
-- revisions: plan 1 / result 0
+- revisions: plan 1 / result 1
 - review rounds to pass:
 - unmet AC at close:

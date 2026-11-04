@@ -146,8 +146,33 @@ class JevTest(Base):
         self.assertEqual([r["status"] for r in res], ["ok", "ok", "ok"])
         self.assertEqual((res[0]["choice"], res[1]["probability"], res[2]["score"]), ("billing", 0.8, 1.5))
         self.assertEqual(res[0]["probabilities"], [{"value": "billing", "probability": 0.9}, {"value": "bug", "probability": 0.1}])
+        self.assertEqual(res[2]["probabilities"], [{"value": 0, "label": "Cosmetic", "probability": 0.1},
+                                                   {"value": 1, "label": "Major", "probability": 0.3},
+                                                   {"value": 2, "label": "Blocked", "probability": 0.6}])
         line = self.ledger_lines()[-1]
         self.assertEqual((line["model"], line["cost_usd"]), ("jev-1.14.0", 0.042))  # 1M tokens at $0.042/1M
+
+    def test_structured_input_reaches_jev_as_text(self):
+        self.keychain.return_value = "BAZEKEY"
+        fake = FakePost({"answers": {"urgent": {"type": "noul", "noul": 0.5}}})
+        self.run_decide(fake, [Q_PRED], input=[{"role": "user", "content": "한글"}], model="jev-1.14.0")
+        self.assertEqual(fake.calls[0][1]["state"], '[{"content": "한글", "role": "user"}]')
+
+    def test_an_answer_of_another_type_is_no_verdict(self):
+        self.keychain.return_value = "BAZEKEY"
+        q = dict(Q_CHOICE)
+        for answers, questions in (({"urgent": {"type": "predicate", "probability": 0.9}}, [Q_PRED]),
+                                   ({"urgent": {"noul": 0.9}}, [Q_PRED]),
+                                   ({"topic": {"choice": "billing"}}, [q]),
+                                   ({"severity": {"type": "choice", "choice": "billing"}}, [Q_SCORE])):
+            with self.subTest(answers):
+                self.assertAllUnknown(self.run_decide(FakePost({"answers": answers}), questions, model="jev-1.14.0"), "refused")
+
+    def test_a_bad_score_key_is_dropped_and_the_score_stands(self):
+        self.keychain.return_value = "BAZEKEY"
+        a = {"type": "score", "score": 1.0, "probabilities": {"1": 0.9, "9": 0.1, "x": 0.0}}
+        res = self.run_decide(FakePost({"answers": {"severity": a}}), [Q_SCORE], model="jev-1.14.0")
+        self.assertEqual(res[0]["probabilities"], [{"value": 1, "label": "Major", "probability": 0.9}])
 
     def test_the_environment_picks_the_engine(self):
         self.keychain.return_value = "BAZEKEY"
