@@ -16,7 +16,7 @@ For general design craft (hierarchy, type, layout, motion, avoiding generic AI l
 - **taste-skill** named by the user: follow `design-reference`'s [taste-skill modes](../design-reference/references/taste-skill.md). Follow mode replaces the style rules above with taste's run; Borrow mode keeps them.
 - **HTML deck:** use `frontend-slides`; do not apply responsive page rules to a fixed slide canvas.
 - **Cinematic landing page** (references, generated hero image or video background, built in stages): use `cinematic-site`.
-- **Generated images** (hero, illustration, background, mock): GPT Image through `codex exec`, as in `cinematic-site` prompts §1. Never generate the real product UI, logos or data.
+- **Generated images** (hero, illustration, background, mock): GPT Image through the OpenAI Images API, `codex exec` as the fallback, asked before each run, as in `cinematic-site` prompts §1. Never generate the real product UI, logos or data.
 - **Dithered/stippled motion landing page:** recover the archived `dither-motion-landing` guidance from the MAE-127 GitHub archive when needed; do not silently reinstall it.
 - **UI compliance audit** (former `web-design-guidelines`): only when asked or concretely needed, follow [UI audit](references/ui-audit.md). Do not stack equivalent reviews.
 
