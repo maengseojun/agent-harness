@@ -14,6 +14,8 @@ from .test_merge import MergeBase
 REAL_PS = interview._ps
 
 WRAPPED = ("<system-reminder>x", "<task-notification>x", "<cross-session-message>x", "<side-sessions-event>x",
+           'Another Claude session sent a message:\n<cross-session-message from="uds:/tmp/cc-socks/1.sock" from-mode="bypass">\nx\n'
+           '</cross-session-message>\n\nThis came from another Claude session.',  # the format as stored in transcripts
            "<ci-monitor-event>x", "  \n<system-reminder>indented")
 
 

@@ -124,6 +124,8 @@ Revisions:
 - R-22 result quality, fourth Sol review: a prediction's literal must be the whole expected value, the line's last operand.
 - R-23 result quality, fourth Sol review: `maeng-ship` uses the CLI's state key, so A-15 holds there too.
 - R-24 result quality, fourth Sol review: the digest includes binary content; `--disable-auto` is exempt only alone.
+- R-25 result quality, after merge: the wrapper filter matched `<cross-session-message>` exactly, but the real message starts with a sentence and the tag has attributes, so a relayed answer would have been recorded, against D-7. The real format is read from stored transcripts.
+- R-26 plan scope (user, after merge): my sessions exchange messages without the user's review. "세션간메세지 보내는 건 그냥 내 검토없이 알아서 주고받으라고". A line in the global template; the gate's answer rule does not change.
 - R-6 result quality: the live run returned 3 predict items and 1 defect from 3 and 3 candidates, on test bookkeeping. Found defects now go in first and the candidate prompt asks about what the code does.
 
 Close-out:
