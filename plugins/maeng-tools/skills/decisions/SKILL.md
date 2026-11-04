@@ -27,7 +27,7 @@ The OpenAI Decisions API (`POST /v1/decisions`, `gpt-6-luna`) answers bounded qu
 | Duplicate check | A new Linear issue, Notion page or vault note is denied until `records.py duplicate` ran in the last 30 minutes of this session. Updates, overwrites and machine-made notes (`wiki/sessions`, `wiki/reviews`, `wiki/sources`, `raw`) pass |
 | Cleanup | The Monday `vault-weekly-maint` task runs it |
 
-When a search found nothing, run the check with an empty candidate list.
+When a search found nothing, run the check with an empty candidate list. Run a check as one plain command: a check followed by `;`, a pipe, `||` or `&`, or inside a substitution, does not count, because the hook sees only the whole command's exit status.
 
 Scripts are in this skill's `scripts/` folder; run them with `python3 <this skill>/scripts/<name>`.
 

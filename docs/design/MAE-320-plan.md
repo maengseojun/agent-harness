@@ -9,7 +9,7 @@ Owns: `plugins/maeng-harness/bin/maeng-review`, `bin/maeng-verify`, `lib/maeng/h
 Assumptions:
 - A-1 "확실하게" covers all decided uses, so records work needs a deny, not a reminder. This goes beyond the sealed recommendation (option B) on the user's word and reverses MAE-306 D-3 ("no hooks") for these checks only.
 - A-2 A check is a run of the script, whatever Decisions answered. An API failure, an expired credit or `unknown` never stops work.
-- A-3 One duplicate check covers creates for 30 minutes in that session, and one related check covers the session. A command form where the check may have been skipped does not count.
+- A-3 One duplicate check covers creates for 30 minutes in that session, and one related check covers the session. A command form whose exit status is not the check's own does not count, so run it as one plain command.
 - A-4 Machine-made notes (`wiki/sessions`, `wiki/reviews`, `wiki/sources`, `raw`) need no duplicate check.
 - A-5 The pre-flight table goes to the agent on stderr and not into the review bundle, so the reviewer is not anchored.
 - A-6 The duplicate gate applies in the eta world too, as the user uses Decisions there. The bind gate applies wherever bind runs. `maeng-review` is personal only.
@@ -31,4 +31,4 @@ Verification:
 - `claude plugin validate plugins/maeng-harness`
 
 Close-out:
-- revisions: plan 2 (A-6 corrected, AC-1 and A-3 after review round 1) / result 0
+- revisions: plan 3 (A-6 corrected, AC-1 and A-3 after review rounds 1 and 3) / result 0

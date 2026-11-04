@@ -18,22 +18,22 @@ def off():
 
 
 def ran(command):
-    """-> the checks this Bash command surely ran. Its exit status proves nothing after `||` or behind `&`, or after
-    `&&` when a later `;` can hide the failure, so those forms do not count."""
+    """-> the checks this Bash command surely ran. on_post sees only the whole command's exit status, so a check counts
+    only when that status is its own: nothing but `&&` may follow it, and no pipe, `||`, `&` or substitution may hide it."""
+    if "$(" in command or "`" in command:
+        return []
     try:
         segments = split_segments(command)
     except ParseError:
         return []
     ops = [seg.op_after for seg in segments]
-    if "||" in ops or "&" in ops:
+    if not set(ops) <= {"&&", ";", "\n", ""}:
         return []
     found = []
     for i, seg in enumerate(segments):
         prog, toks = program(seg.tokens)
-        if not (prog.startswith("python") and len(toks) > 2 and os.path.basename(toks[1]) == "records.py"
-                and toks[2] in CHECKS):
-            continue
-        if not ("&&" in ops[:i] and any(op in (";", "\n") for op in ops[i:])):
+        if prog.startswith("python") and len(toks) > 2 and os.path.basename(toks[1]) == "records.py" \
+                and toks[2] in CHECKS and set(ops[i:]) <= {"&&", ""}:
             found.append(toks[2])
     return found
 
@@ -70,13 +70,14 @@ def duplicate_gate(tool, tin, st):
         return None
     if time.time() - (st.get("records_checks") or {}).get("duplicate", 0) <= WINDOW:
         return None
-    return (f"maeng: run the duplicate check first: search for this item, then `{SCRIPT} duplicate --new \"<title and "
-            f"one-line summary>\" --candidates <file>`. An empty candidate list is fine when the search found nothing.")
+    return (f"maeng: run the duplicate check first, as one plain command: search for this item, then `{SCRIPT} "
+            f"duplicate --new \"<title and one-line summary>\" --candidates <file>`. An empty candidate list is fine "
+            f"when the search found nothing.")
 
 
 def related_missing(st):
     if off() or (st.get("records_checks") or {}).get("related"):
         return None
-    return (f"maeng: run the related check first: search Linear, Notion and the vault for this task, then `{SCRIPT} "
-            f"related --task \"<what you are about to do>\" --candidates <file>`. An empty candidate list is fine when "
-            f"the search found nothing.")
+    return (f"maeng: run the related check first, as one plain command: search Linear, Notion and the vault for this "
+            f"task, then `{SCRIPT} related --task \"<what you are about to do>\" --candidates <file>`. An empty candidate "
+            f"list is fine when the search found nothing.")
