@@ -17,7 +17,7 @@ build [--vault PATH] [--cases N] [--seed S] [--check]
     20 cases. Language is ko when Hangul is over 30% of the letters of the query title and first 600
     characters, else other.
 
-run [--out report.json] [--threshold 0.25]
+run [--out report.json] [--threshold 0.05]
     Live: one `records.related` call per case, built from the cases file only (the labels file is
     never opened while requests are built). Then score().
 

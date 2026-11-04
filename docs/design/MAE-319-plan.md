@@ -14,4 +14,4 @@ Owns: `plugins/maeng-tools/skills/decisions/`, `plugin.json`, this file.
 Verification: `python3 -m unittest discover` in `skills/decisions/scripts`; `python3 -m pytest -q`; `claude plugin validate plugins/maeng-tools`; the live check of AC-4.
 
 Close-out:
-- revisions: plan 0 / result 0
+- revisions: plan 0 / result 1 (the `related_eval.py` usage line kept 0.25; fixed after merge)
