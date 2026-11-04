@@ -8,13 +8,13 @@ Source: the user's request of 2026-11-04. The university gives a BAZE key with 5
 Decisions: D-1 per-call use, not the gateway's setup prompt. That prompt exports the key in the shell profile and points all of Claude Code at the gateway, while the user wants Claude and OpenAI on their subscriptions. Wrong if: the user wants the whole agent on BAZE.
 D-2 Jev answers are converted to the OpenAI shape inside `decide`, so no caller changes. Wrong if: a caller needs a Jev-only field.
 D-3 `gpt-6-luna` stays the default. The Jev switch is `MAENG_DECISIONS_MODEL`, for comparison runs. Whether to change the default is the user's call on Sunday.
-Assumptions: A-1 eta content is not sent to BAZE until the user says so. D-7 of MAE-306 covers OpenAI only. This is a skill rule, not a code check, because Jev is opt-in per run; the comparison ran on notes with no eta mention.
+Assumptions: A-1 eta content is not sent to BAZE until the user says so. D-7 of MAE-306 covers OpenAI only. The client and `ask.py` enforce it: nothing goes to BAZE from the eta checkout or when the text mentions eta or Endix. A false hit only means no answer. The comparison ran on notes with no eta mention.
 A-2 Solar and other gateway models need no code: `ask.py --model`.
 A-3 The key lives only in the keychain item `baze-api-key`.
 Owns: `plugins/maeng-tools/skills/decisions/` (client, its test, SKILL.md), `plugins/maeng-tools/skills/baze/`, `plugins/maeng-tools/.claude-plugin/plugin.json`, this file.
 Exclusions: no change to Claude Code or Codex settings, no shell profile edit, no Baze CLI install. No retry in `ask.py`, since a call can spend credit.
 
-- **AC-1** With a `jev-*` model, `decide` posts the gateway's format to the gateway with the `baze-api-key` key, in batches of 32, and returns the same answer shape; a failed batch, malformed answer or missing key gives `unknown`, never a verdict; the ledger records the model and Jev's price. The OpenAI path is unchanged.
+- **AC-1** With a `jev-*` model, `decide` posts the gateway's format to the gateway with the `baze-api-key` key, in batches of 32, and returns the same answer shape; a failed batch, malformed answer, missing key or eta material gives `unknown`, never a verdict, and eta material sends nothing; the ledger records the model and Jev's price. The OpenAI path is unchanged.
 - **AC-2** `ask.py` sends one chat call with the keychain key, prints the answer to stdout and tokens to stderr, masks secret formats, and exits 1 on a failure or an empty answer.
 - **AC-3** A live comparison of Jev and `gpt-6-luna` on the claim and related evals is recorded here, with no eta text sent to BAZE.
 - **AC-4** maeng-tools is 0.3.16 and `claude plugin validate plugins/maeng-tools` passes; no change under `plugins/maeng-harness` or `harness/`.
@@ -38,9 +38,10 @@ Next, not built: embeddings work (`qwen3.7-text-embedding`, 1,024 dimensions, on
 Revisions:
 - R-1 plan scope (2026-11-04): the user left Solar to judgment (`ask.py --model`, no code) and asked to keep rerank and embeddings as context, recorded under Next.
 - R-2 result (2026-11-04): first review. Structured input reaches Jev as text; score probabilities carry numeric levels and labels; an answer of another type is `unknown`.
+- R-3 result (2026-11-04): Codex finding on the first head. The eta rule moved from skill text to code, because `MAENG_DECISIONS_MODEL` left set would have sent `records.py` text to BAZE.
 
 Close-out:
 - size: (filled at close)
-- revisions: plan 1 / result 1
+- revisions: plan 1 / result 2
 - review rounds to pass:
 - unmet AC at close:

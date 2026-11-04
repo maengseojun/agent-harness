@@ -20,6 +20,8 @@ URL = "https://api.baze.co/v1/gateway/chat/completions/"
 
 def ask(prompt, *, model="gemini-4-argon", system=None, max_tokens=4096, timeout=180):
     """-> (answer, response). Raises RuntimeError with a message safe to print."""
+    if decisions_client.barred_from_baze(f"{system or ''}\n{prompt}"):
+        raise RuntimeError("not sent: eta content does not go to BAZE (the text or the working folder is eta)")
     key = decisions_client._keychain_key("baze-api-key")
     if not key:
         raise RuntimeError("no key: store it in the keychain item baze-api-key")

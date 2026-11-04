@@ -15,7 +15,7 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
-NOT_SENT = {"off", "no_key"}  # no request left the machine; latency and tokens are 0
+NOT_SENT = {"off", "eta", "no_key"}  # no request left the machine; latency and tokens are 0
 
 
 def percentile(values, p):

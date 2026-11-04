@@ -5,7 +5,7 @@ decide(input, questions, pilot) -> one dict per question, in question order:
   {"name", "type", "status": "ok"|"unknown", ...}
 An ok answer carries the fields of its type (choice+probabilities+confidence,
 probability, or score+probabilities+confidence). An unknown answer carries
-"reason": refused | missing | http_<code> | timeout | error | off | no_key
+"reason": refused | missing | http_<code> | timeout | error | off | eta | no_key
 and never a verdict field; "refused" includes an off-list choice or a value out of range. Nothing about the API or the network raises;
 invalid questions raise ValueError.
 
@@ -13,12 +13,13 @@ No request is sent when MAENG_DECISIONS=off.
 
 MAENG_DECISIONS_MODEL or model= picks the engine; a jev-* model goes through the school's BAZE
 gateway with the keychain item baze-api-key, in batches of 32 questions, and its answers are
-turned into the OpenAI shape, so callers see no difference.
+turned into the OpenAI shape, so callers see no difference. Nothing goes to BAZE from the eta
+checkout (MAENG_ETA_ROOT) or when the text mentions eta or Endix: the reason is then "eta".
 Every call appends one line to the ledger (MAENG_DECISIONS_LEDGER, default
 ~/Documents/maeng-harness/decisions/ledger.jsonl): the input is stored as a
 sha256 and a character count of the REDACTED text, never the text; the key is
 never stored or printed. latency_ms and token counts are 0 when no request
-was sent (outcome off, no_key).
+was sent (outcome off, eta, no_key).
 """
 import hashlib
 import json
@@ -134,6 +135,18 @@ def _call(body, key, timeout, url=URL):
         return ("timeout" if isinstance(e.reason, (socket.timeout, TimeoutError)) else "error"), None
     except Exception:
         return "error", None
+
+
+# eta as a word, Endix with anything after it, or camel-cased; never "beta", "meta" or "appendix"
+_ETA_WORD = re.compile(r"(?<![a-z0-9])(?:eta(?![a-z0-9])|endix)", re.I)
+_ETA_CAMEL = re.compile(r"(?<=[a-z])(?:Eta|Endix)(?![a-z])")
+
+
+def barred_from_baze(text):
+    """True for eta material: the user's permission to send eta content covers OpenAI, not BAZE."""
+    root = Path(os.environ.get("MAENG_ETA_ROOT") or "~/Documents/Project/eta_v1").expanduser().resolve()
+    here = Path.cwd().resolve()
+    return here == root or root in here.parents or bool(_ETA_WORD.search(text) or _ETA_CAMEL.search(text))
 
 
 def _jev_question(q):
@@ -270,6 +283,8 @@ def decide(input, questions, pilot, *, model=None, timeout=30.0, redact_by_name=
     reason, resp, latency = None, None, 0
     if os.environ.get("MAENG_DECISIONS", "").strip().lower() == "off":
         reason = "off"
+    elif jev and barred_from_baze(text + json.dumps(sent, ensure_ascii=False)):
+        reason = "eta"
     elif not (key := _api_key(jev)):
         reason = "no_key"
     else:
@@ -279,7 +294,7 @@ def decide(input, questions, pilot, *, model=None, timeout=30.0, redact_by_name=
         latency = int((time.monotonic() - t0) * 1000)
     results = [_unknown(q, reason) for q in questions] if reason else _parse(questions, sent, resp)
     if reason:
-        outcome = reason if reason in ("off", "no_key", "timeout") else "error"
+        outcome = reason if reason in ("off", "eta", "no_key", "timeout") else "error"
     else:
         n_ok = sum(r["status"] == "ok" for r in results)
         outcome = "ok" if n_ok == len(results) else "partial" if n_ok else "refused"

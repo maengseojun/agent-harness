@@ -174,6 +174,32 @@ class JevTest(Base):
         res = self.run_decide(FakePost({"answers": {"severity": a}}), [Q_SCORE], model="jev-1.14.0")
         self.assertEqual(res[0]["probabilities"], [{"value": 1, "label": "Major", "probability": 0.9}])
 
+    def test_eta_material_never_reaches_jev(self):
+        self.keychain.return_value = "BAZEKEY"
+        for input, questions in (("the Endix rules", [Q_PRED]), ("EndixGovernor split", [Q_PRED]), ("from notionEta", [Q_PRED]),
+                                 ("see S-ETA-001", [Q_PRED]), ("hello", [dict(Q_PRED, instructions="Is this eta work?")])):
+            with self.subTest(input):
+                fake = FakePost({"answers": {}})
+                self.assertAllUnknown(self.run_decide(fake, questions, input=input, model="jev-1.14.0"), "eta")
+                self.assertEqual(fake.calls, [])
+                self.assertEqual(self.ledger_lines()[-1]["outcome"], "eta")
+
+    def test_the_eta_checkout_never_reaches_jev_and_still_reaches_openai(self):
+        self.keychain.return_value = "KEY"
+        self.addCleanup(os.chdir, os.getcwd())
+        os.chdir(self.eta / "sub")
+        with mock.patch.dict(os.environ, {"MAENG_ETA_ROOT": str(self.eta)}):
+            fake = FakePost({"answers": {}})
+            self.assertAllUnknown(self.run_decide(fake, [Q_PRED], model="jev-1.14.0"), "eta")
+            self.assertEqual(fake.calls, [])
+            openai = FakePost({"answers": [A_PRED]})
+            self.assertEqual(self.run_decide(openai, [Q_PRED])[0]["status"], "ok")
+
+    def test_beta_meta_and_appendix_are_not_eta(self):
+        self.keychain.return_value = "BAZEKEY"
+        fake = FakePost({"answers": {"urgent": {"type": "noul", "noul": 0.5}}})
+        self.assertEqual(self.run_decide(fake, [Q_PRED], input="beta metadata appendix zeta", model="jev-1.14.0")[0]["status"], "ok")
+
     def test_the_environment_picks_the_engine(self):
         self.keychain.return_value = "BAZEKEY"
         fake = FakePost({"answers": {"urgent": {"type": "noul", "noul": 0.5}}})

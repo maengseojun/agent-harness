@@ -10,7 +10,7 @@ The university gives the user a BAZE key with 5,000 credits a month. This skill 
 ## Rules
 
 - **On request only.** Call it when the user names a model or BAZE. Do not route work here on your own.
-- **Data.** Never send eta content: the eta decision covers OpenAI, not BAZE. Requests pass through the school's account and the gateway's operator. `ask.py` masks recognizable secret formats; `<private>` vault spans are yours to leave out.
+- **Data.** Never send eta content: the eta decision covers OpenAI, not BAZE. `ask.py` refuses from the eta checkout or when the text mentions eta or Endix. Requests pass through the school's account and the gateway's operator. `ask.py` masks recognizable secret formats; `<private>` vault spans are yours to leave out.
 - **Key.** Keychain item `baze-api-key`. Never print it or ask for it in the chat.
 - **Credits.** Argon costs 2 credits per 1K input tokens and 10 per 1K output, so a call with 2K in and 1K out is 14 credits. Prefer a short excerpt to a whole document.
 
