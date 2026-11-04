@@ -39,43 +39,53 @@ PRICE_INPUT, PRICE_CACHED, PRICE_WRITE = 0.10, 0.01, 0.125
 _FIELD = {"choice": "choice", "predicate": "probability", "score": "score"}
 
 _R = "[REDACTED]"
-_PEM = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(?:-----END [A-Z ]*PRIVATE KEY-----|\Z)", re.S)
-_URL_CRED = re.compile(r"([A-Za-z][A-Za-z0-9+.-]*://)[^/\s@]+@")
-_AUTH = re.compile(r"(\bAuthorization[\"']?[ \t]*[:=][ \t]*)(?![ \t]|\[REDACTED\])(\"[^\"\r\n]*\"|'[^'\r\n]*'|[^\r\n]*)", re.I)
+_PEM = re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----(?:.*?-----END [A-Z ]*PRIVATE KEY-----"  # a whole block, or
+                  r"|(?:\r?\n[+\- ]?[ \t]*[A-Za-z0-9+/=]{16,}[ \t]*(?=\r?\n|\Z))*)", re.S)  # only its base64 lines
+_URL_CRED = re.compile(r"([A-Za-z][A-Za-z0-9+.-]*://)[^/\s]*@")
+_SECRET_NAME = r"[\w.-]*(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|PWD)[\w.-]*"
+# after a name: its closing quote or bracket, escaped or not, then the operator
+_ASSIGN = r"\\?[\"']?\]?[ \t]*(?::=|=>|==|:|=)[ \t]*"
+_VALUE = r"\\\".*?\\\"|\"[^\"\r\n]*\"|'[^'\r\n]*'|[^\r\n]+"  # unquoted: the rest of the line, so nothing after a space survives
+_AUTH = re.compile(rf"(\bAuthorization{_ASSIGN})(?![ \t=>]|\[REDACTED\])({_VALUE})", re.I)
 _BEARER = re.compile(r"(\bBearer\s+)[A-Za-z0-9._~+/=-]{8,}", re.I)
-_KV = re.compile(
-    r"(\b[\w.-]*(?:KEY|TOKEN|SECRET|PASSWORD)[\w.-]*[\"']?[ \t]*[:=][ \t]*)(?![ \t]|\[REDACTED\])(\"[^\"\r\n]*\"|'[^'\r\n]*'|\S+)", re.I)
+_KV = re.compile(rf"(\b{_SECRET_NAME}{_ASSIGN})(?![ \t=>]|\[REDACTED\])({_VALUE})", re.I)
+_FLAG = re.compile(r"(--?[\w-]*(?:key|token|secret|password|passwd)[\w-]*[ \t]+)(?!\[REDACTED\])(\"[^\"\r\n]*\"|'[^'\r\n]*'|\S+)", re.I)
 # A secret key with its value on the following lines, in a file or a diff: a YAML block ("key: |-" and its
-# indented lines) or one opaque indented value ("key:" then the value alone). A wider next-line form would
-# swallow code such as "for t in tokens:" and its body.
+# indented lines) or one indented value alone ("key:", then a quoted or opaque value). A wider next-line
+# form would swallow code such as "for t in tokens:" and its body.
 _NEXT_LINES = re.compile(
-    r"(\b[\w.-]*(?:KEY|TOKEN|SECRET|PASSWORD)[\w.-]*[\"']?[ \t]*[:=][ \t]*)"
+    rf"(\b{_SECRET_NAME}{_ASSIGN})"
     r"(?:[|>][+-]?[0-9]?[ \t]*\r?\n(?:[+\- ]?[ \t]+\S[^\r\n]*(?:\r?\n|\Z))+"
-    r"|\r?\n[+\- ]?[ \t]+[A-Za-z0-9+/=_.~-]{16,}[ \t]*(?:\r?\n|\Z))", re.I)
+    r"|\r?\n[+\- ]?[ \t]+(?:\"[^\"\r\n]*\"|'[^'\r\n]*'|[A-Za-z0-9+/=_.~-]{16,}),?[ \t]*(?:\r?\n|\Z))", re.I)
 _TOKEN = re.compile(
-    r"(?<![A-Za-z0-9])(?:sk-[A-Za-z0-9_-]{8,}|gh[pos]_[A-Za-z0-9]{8,}|github_pat_[A-Za-z0-9_]{8,}"
-    r"|xox[bpa]-[A-Za-z0-9-]{8,}|glpat-[A-Za-z0-9_-]{8,}|AKIA[0-9A-Z]{16})")
+    r"(?<![A-Za-z0-9])(?:sk-[A-Za-z0-9_-]{8,}|[sr]k_(?:live|test)_[A-Za-z0-9]{8,}|gh[oprsu]_[A-Za-z0-9]{8,}"
+    r"|github_pat_[A-Za-z0-9_]{8,}|xox[bpa]-[A-Za-z0-9-]{8,}|xapp-[A-Za-z0-9-]{8,}|glpat-[A-Za-z0-9_-]{8,}"
+    r"|lin_api_[A-Za-z0-9]{8,}|ntn_[A-Za-z0-9]{8,}|npm_[A-Za-z0-9]{8,}|AIza[0-9A-Za-z_-]{16,}|AKIA[0-9A-Z]{16})")
 
 
-def redact(text):
+def redact(text, by_name=True):
     """Replace secrets with [REDACTED]. Over-redacts rather than leaks (a prose
-    "key: value" or "Bearer <word>" is also replaced); idempotent."""
+    "key: value" or "Bearer <word>" is also replaced); idempotent. by_name=False keeps only
+    what is recognized by its format: public pages name tokens without holding any, and
+    masking "max_tokens=1" would make a true and a false claim identical."""
     text = _PEM.sub(_R, text)
     text = _URL_CRED.sub(lambda m: m.group(1) + _R + "@", text)
-    text = _AUTH.sub(lambda m: m.group(1) + _R, text)
     text = _BEARER.sub(lambda m: m.group(1) + _R, text)
-    text = _NEXT_LINES.sub(lambda m: m.group(1) + _R + "\n", text)
-    text = _KV.sub(lambda m: m.group(1) + _R, text)
+    if by_name:
+        text = _AUTH.sub(lambda m: m.group(1) + _R, text)
+        text = _NEXT_LINES.sub(lambda m: m.group(1) + _R + "\n", text)
+        text = _KV.sub(lambda m: m.group(1) + _R, text)
+        text = _FLAG.sub(lambda m: m.group(1) + _R, text)
     return _TOKEN.sub(_R, text)
 
 
-def _walk(x):
+def _walk(x, by_name):
     if isinstance(x, str):
-        return redact(x)
+        return redact(x, by_name)
     if isinstance(x, list):
-        return [_walk(i) for i in x]
+        return [_walk(i, by_name) for i in x]
     if isinstance(x, dict):
-        return {k: _walk(v) for k, v in x.items()}
+        return {k: _walk(v, by_name) for k, v in x.items()}
     return x
 
 
@@ -131,11 +141,15 @@ def _num(v):
     return isinstance(v, int) and not isinstance(v, bool) or isinstance(v, float) and math.isfinite(v)
 
 
+def _share(v):
+    return _num(v) and 0 <= v <= 1
+
+
 def _allowed(s, v):
     """A listed choice, a probability in [0, 1], or a score within the level indices of sent question s."""
     if s["type"] == "choice":
         return isinstance(v, str) and v in [c.get("value") for c in s.get("choices", []) if isinstance(c, dict)]
-    return _num(v) and 0 <= v <= (1 if s["type"] == "predicate" else len(s.get("levels", [])) - 1)
+    return _share(v) if s["type"] == "predicate" else _num(v) and 0 <= v <= len(s.get("levels", [])) - 1
 
 
 def _parse(questions, sent, resp):
@@ -156,7 +170,10 @@ def _parse(questions, sent, resp):
             continue
         r = {"name": q["name"], "type": q["type"], "status": "ok", field: v}
         if field != "probability":
-            r["probabilities"], r["confidence"] = a.get("probabilities"), a.get("confidence")
+            ps, c = a.get("probabilities"), a.get("confidence")  # extras of a valid answer: dropped if malformed
+            r["probabilities"] = [p for p in ps if isinstance(p, dict) and _share(p.get("probability"))] \
+                if isinstance(ps, list) else []
+            r["confidence"] = c if _share(c) else None
         out.append(r)
     return out
 
@@ -180,14 +197,14 @@ def _log(rec):
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            f.write(json.dumps(rec) + "\n")  # ASCII: a lone surrogate in an answer cannot fail the write
     except OSError as e:  # the answers still go back; the gap is visible
         print(f"decisions: ledger write failed: {e.strerror}", file=sys.stderr)
 
 
-def decide(input, questions, pilot, *, model=MODEL, timeout=30.0):
+def decide(input, questions, pilot, *, model=MODEL, timeout=30.0, redact_by_name=True):
     _validate(questions)
-    safe_input, sent = _walk(input), [_walk(q) for q in questions]
+    safe_input, sent = _walk(input, redact_by_name), [_walk(q, redact_by_name) for q in questions]
     text = safe_input if isinstance(safe_input, str) else json.dumps(safe_input, sort_keys=True, ensure_ascii=False)
     reason, resp, latency = None, None, 0
     if os.environ.get("MAENG_DECISIONS", "").strip().lower() == "off":
@@ -208,7 +225,7 @@ def decide(input, questions, pilot, *, model=MODEL, timeout=30.0):
     _log({
         "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "pilot": pilot, "model": model, "n_questions": len(questions),
-        "input_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(), "input_chars": len(text),
+        "input_sha256": hashlib.sha256(text.encode("utf-8", "replace")).hexdigest(), "input_chars": len(text),
         "outcome": outcome, "latency_ms": latency,
         "input_tokens": total, "cached_tokens": cached, "cache_write_tokens": writes,
         "cost_usd": _cost(total, cached, writes),

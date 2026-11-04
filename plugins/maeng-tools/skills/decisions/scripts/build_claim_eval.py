@@ -60,8 +60,10 @@ def _date_variants(tok):
         full, abbr = _MONTHS[d.month - 1], _MONTHS[d.month - 1][:3]
         month = full if len(first.rstrip(".")) > 3 or first == "May" else abbr + ("." if first.endswith(".") else "")
         new = d.isoformat() if iso else f"{month} {d.day}, {d.year}"
-        out.append((new, [new, d.isoformat(), f"{full} {d.day}, {d.year}", f"{abbr} {d.day}, {d.year}",
-                          f"{d.day} {full} {d.year}", f"{d.day} {abbr} {d.year}"]))
+        months = (full, abbr, abbr + ".") + (("Sept", "Sept.") if d.month == 9 else ())
+        forms = [f"{m} {d.day}, {d.year}" for m in months] + [f"{d.day} {m} {d.year}" for m in months]
+        numeric = [f"{d.month}/{d.day}/{d.year}", f"{d.year}年{d.month}月{d.day}日", f"{d.year}년 {d.month}월 {d.day}일"]
+        out.append((new, [new, d.isoformat()] + forms + numeric))
     return out
 
 

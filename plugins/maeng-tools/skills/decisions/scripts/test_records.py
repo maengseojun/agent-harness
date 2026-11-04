@@ -143,6 +143,11 @@ class PrivateTests(Base):
             self.assertIn("keep [private omitted] tail", sent)
             self.assertIn("after", sent)
 
+    def test_a_cut_cannot_leave_the_start_of_a_secret(self):
+        token = "gh" "p_abcdefghijklmnop1234"
+        items = rec.prepare([cand("a", "x" * 9 + " " + token)], 15)
+        self.assertNotIn("gh" "p_", items[0]["text"])
+
     def test_text_is_cut_after_stripping(self):
         # cut first and the private span would be left open at 4000 chars, so "keep" would vanish
         text = "<private>" + "x" * 5000 + "</private>keep"
@@ -166,7 +171,7 @@ class RelatedTests(Base):
         rec.related("Plan the trial", [cand("MAE-1", "first text"), cand("wiki/a b/Ä.md", "second", title="Ä", source="obsidian", date=None)],
                     decide=fake)
         text, qs, pilot = fake.calls[0]
-        self.assertEqual(pilot, "records")
+        self.assertEqual(pilot, "records_related")
         self.assertEqual(text, "Task:\nPlan the trial\n\nItems:\n[MAE-1] title MAE-1 (linear-maeng, 2026-11-01)\nfirst text"
                                "\n\n[wiki/a b/Ä.md] Ä (obsidian, undated)\nsecond")
         self.assertEqual([q["type"] for q in qs], ["predicate", "predicate"])
@@ -242,7 +247,7 @@ class DuplicateTests(Base):
         fake = FakeDecide(lambda qs: [choice("none", {"none": 0.9})])
         rec.duplicate("A new\nthing", [cand("MAE-1", title="One"), cand("wiki/x.md", title="")], decide=fake)
         text, qs, pilot = fake.calls[0]
-        self.assertEqual(pilot, "records")
+        self.assertEqual(pilot, "records_duplicate")
         self.assertEqual(text, "New item:\nA new\nthing\n\nExisting items:\n[MAE-1] One (linear-maeng, 2026-11-01)\nbody"
                                "\n\n[wiki/x.md]  (linear-maeng, 2026-11-01)\nbody")
         self.assertEqual(len(qs), 1)
@@ -306,7 +311,7 @@ class CleanupTests(Base):
         cands = [cand(k) for k in "abcde"]
         code, out = self.cli(["cleanup", "--candidates", self.cfile(cands)], fake)
         text, qs, pilot = fake.calls[0]
-        self.assertEqual(pilot, "records")
+        self.assertEqual(pilot, "records_cleanup")
         self.assertTrue(text.startswith("Items:\n[a] title a (linear-maeng, 2026-11-01)\nbody\n\n[b] "))
         self.assertEqual(qs[0]["instructions"], "According to its own text and the other items listed, is item [a] superseded "
                                                 "by a newer item or already done, so it can be archived or closed?")

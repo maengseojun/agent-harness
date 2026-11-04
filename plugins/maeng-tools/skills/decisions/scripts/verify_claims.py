@@ -22,6 +22,7 @@ CLI: python3 verify_claims.py claims.json [--seed N] [--out path]
 """
 import argparse
 import hashlib
+import functools
 import ipaddress
 import json
 import math
@@ -192,8 +193,8 @@ def fetch_page(url, note=None, refresh=False):
         txt.write_text(text, encoding="utf-8")
         meta.write_text(json.dumps({"url": url, "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                                     "source": source, "truncated": truncated}), encoding="utf-8")
-    except OSError as e:  # the text still goes back; the next run fetches again
-        print(f"decisions: page cache write failed: {e.strerror}", file=sys.stderr)
+    except (OSError, ValueError) as e:  # the text still goes back; the next run fetches again
+        print(f"decisions: page cache write failed: {getattr(e, 'strerror', None) or e}", file=sys.stderr)
     return text, source
 
 
@@ -203,7 +204,7 @@ def _question(c):
 
 
 def verify(claims, *, pilot="claim_verification", decide=None):
-    decide = decide or decisions_client.decide
+    decide = decide or functools.partial(decisions_client.decide, redact_by_name=False)
     ids = [c["id"] for c in claims]
     if len(set(ids)) != len(ids):
         raise ValueError("claim ids must be unique")

@@ -166,6 +166,25 @@ class RouteTests(unittest.TestCase):
         self.assertNotEqual(a, vc.route(res, seed=8))
 
 
+class RedactionTests(unittest.TestCase):
+    def test_a_named_value_stays_so_true_and_false_claims_differ(self):
+        posts = []
+
+        def post(url, body, headers, timeout):
+            posts.append(body)
+            return {"answers": []}
+        claims = [{"id": "c1", "claim": "The engine sets max_new_tokens=1.", "url": "u", "note": None},
+                  {"id": "c2", "claim": "The engine sets max_new_tokens=4.", "url": "u", "note": None}]
+        with tempfile.TemporaryDirectory() as d, mock.patch.dict(os.environ, {"OPENAI_API_KEY": "k", "MAENG_DECISIONS_LEDGER": d + "/l"}), \
+                mock.patch.object(vc.decisions_client, "_post", post), \
+                mock.patch.object(vc, "fetch_page", lambda url, note=None, refresh=False: ("sets max_new_tokens=1", "live")):
+            os.environ.pop("MAENG_DECISIONS", None)
+            vc.verify(claims)
+        self.assertIn("max_new_tokens=1", posts[0]["input"])
+        self.assertEqual([q["instructions"].split("\n")[0] for q in posts[0]["questions"]],
+                         ["Claim: The engine sets max_new_tokens=1.", "Claim: The engine sets max_new_tokens=4."])
+
+
 class FetchTests(Base):
     def fake_get(self, mapping):
         calls = []
@@ -230,6 +249,12 @@ class FetchTests(Base):
         self.assertNotIn("PRIVATE_NOTE_TEXT", text)
         cached = "".join(p.read_text(encoding="utf-8") for p in (self.tmp / "pages").glob("*.txt"))
         self.assertNotIn("PRIVATE_NOTE_TEXT", cached)
+
+    def test_a_lone_surrogate_in_a_page_is_returned_though_not_cached(self):
+        self.fake_get({"https://bad.example/": "<p>" + "text \ud83d " * 200 + "</p>"})
+        text, source = vc.fetch_page("https://bad.example/")
+        self.assertEqual(source, "live")
+        self.assertIn("text", text)
 
     def test_short_or_failed_fetch_falls_back_to_the_note_body(self):
         note = self.tmp / "vault" / "wiki" / "S-x.md"

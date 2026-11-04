@@ -3,15 +3,18 @@
 
 run(claims_path)   builds requests from the claims file ONLY and never opens the labels
                    file; keeps just id, claim, url and note of each row, so a stray label
-                   field cannot reach a request. The run writes its own ledger (a temp
+                   field cannot reach a request. Claim ids encode the kind of claim (p, n, mp),
+                   so requests carry neutral names in a seeded order, and a claim never shares
+                   a request with its own mutation. The run writes its own ledger (a temp
                    file via MAENG_DECISIONS_LEDGER, restored afterwards) whose token and
                    cost totals go into the returned usage. -> {results, route, usage}
 score(results, labels_path)  results is the run() dict or its results list.
                    positives = label supported, negatives = every other label.
                    negative_recall = share of negatives not judged supported (unknown counts
                    as caught: it goes to the researcher). over_flag = share of positives not
-                   judged supported. Wilson 95% intervals. Latency is per page (pages with a
-                   request only), nearest-rank percentiles. Pass = negative_recall >= 0.95 and
+                   judged supported. Wilson 95% intervals. A run with an unknown negative cannot pass: an
+                   outage on the rounds that hold the mutations would otherwise count as caught. Latency is per request group of a page
+                   (pages with a request only), nearest-rank percentiles. Pass = negative_recall >= 0.95 and
                    its Wilson lower bound >= 0.90 and over_flag <= 0.30 and p50 < 2000 ms.
 
 CLI: python3 eval_claims.py [--claims ...] [--labels ...] [--out report.json]
@@ -20,6 +23,8 @@ import argparse
 import json
 import math
 import os
+import random
+import re
 import sys
 import tempfile
 from collections import Counter
@@ -36,14 +41,29 @@ def _read(path):
         return [json.loads(ln) for ln in f if ln.strip()]
 
 
+def _blind(claims, seed):
+    """-> ([claims under neutral names, one list per round], {neutral name: real id}). A mutated id ends in -1 or
+    -2, so each mutation level gets its own round, apart from the claim it was made from."""
+    shuffled = list(claims)
+    random.Random(seed).shuffle(shuffled)
+    rounds, real = {}, {}
+    for n, c in enumerate(shuffled):
+        real[f"q{n}"] = c["id"]
+        level = re.fullmatch(r"m.*-(\d+)", c["id"])
+        rounds.setdefault(int(level.group(1)) if level else 0, []).append(dict(c, id=f"q{n}"))
+    return [rounds[k] for k in sorted(rounds)], real
+
+
 def run(claims_path, *, decide=None, seed=0):
     claims = [{k: c.get(k) for k in ("id", "claim", "url", "note")} for c in _read(claims_path)]
+    rounds, real = _blind(claims, seed)
     old = os.environ.get("MAENG_DECISIONS_LEDGER")
     with tempfile.TemporaryDirectory() as d:
         ledger = Path(d) / "ledger.jsonl"
         os.environ["MAENG_DECISIONS_LEDGER"] = str(ledger)
         try:
-            results = vc.verify(claims, pilot="claim_verification_eval", decide=decide)
+            judged = {real[r["id"]]: dict(r, id=real[r["id"]], round=k) for k, group in enumerate(rounds)
+                      for r in vc.verify(group, pilot="claim_verification_eval", decide=decide)}
         finally:
             if old is None:
                 os.environ.pop("MAENG_DECISIONS_LEDGER", None)
@@ -54,6 +74,7 @@ def run(claims_path, *, decide=None, seed=0):
         vc.decisions_client._log(r)
     usage = {"input_tokens": sum(r["input_tokens"] for r in lines), "cached_tokens": sum(r["cached_tokens"] for r in lines),
              "cost_usd": round(sum(r["cost_usd"] for r in lines), 8)}
+    results = [judged[c["id"]] for c in claims]
     return {"results": results, "route": vc.route(results, seed=seed), "usage": usage}
 
 
@@ -89,10 +110,11 @@ def score(results, labels_path, usage=None):
     over = len(flagged) / len(pos) if pos else None
     r_lo, r_hi = wilson(len(neg) - len(missed), len(neg))
     o_lo, o_hi = wilson(len(flagged), len(pos))
-    pages = {r["url"]: (r["page_source"], r["latency_ms"]) for r in results}
-    lat = [ms for src, ms in pages.values() if src != "none"]
+    lat = [ms for src, ms in {(r["url"], r.get("round")): (r["page_source"], r["latency_ms"]) for r in results}.values()
+           if src != "none"]
     p50, p95 = (_pct(lat, 50), _pct(lat, 95)) if lat else (None, None)
     floors = {
+        "every_negative_judged": not any(r["verdict"] == "unknown" for r in neg),
         "negative_recall": recall is not None and recall >= 0.95,
         "negative_recall_wilson_lower": r_lo is not None and r_lo >= 0.90,
         "over_flag": over is not None and over <= 0.30,
@@ -105,7 +127,7 @@ def score(results, labels_path, usage=None):
         "p50_latency_ms": p50, "p95_latency_ms": p95,
         "input_tokens": usage.get("input_tokens", 0), "cached_tokens": usage.get("cached_tokens", 0),
         "cost_usd": usage.get("cost_usd", 0.0),
-        "pages_by_source": dict(Counter(src for src, _ in pages.values())),
+        "pages_by_source": dict(Counter({r["url"]: r["page_source"] for r in results}.values())),
         "unknown": sum(r["verdict"] == "unknown" for r in results),
         "negatives_judged_supported": missed, "positives_not_judged_supported": flagged,
         "floors": floors, "pass": all(floors.values()),

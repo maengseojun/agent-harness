@@ -196,6 +196,19 @@ class ErrorPathTest(Base):
         self.assertAllUnknown(res, "refused")
         self.assertEqual(self.ledger_lines()[-1]["cost_usd"], 0)
 
+    def test_malformed_extras_of_a_valid_answer_are_dropped(self):
+        for bad in ({"confidence": 10 ** 400, "probabilities": 5}, {"confidence": "\ud800", "probabilities": [5, {"value": "bug"}]},
+                    {"confidence": -1, "probabilities": [{"value": "bug", "probability": 10 ** 400}]}):
+            with self.subTest(bad):
+                r = self.run_decide(FakePost({"answers": [dict(A_CHOICE, **bad)]}))[0]
+                self.assertEqual((r["status"], r["choice"], r["confidence"], r["probabilities"]), ("ok", "billing", None, []))
+
+    def test_a_lone_surrogate_cannot_lose_the_answers_or_the_ledger_line(self):
+        before = len(self.ledger_lines())
+        res = self.run_decide(FakePost({"answers": [A_CHOICE]}), input="text \ud83d end")
+        self.assertEqual(res[0]["status"], "ok")
+        self.assertEqual(len(self.ledger_lines()), before + 1)
+
     def test_one_bad_answer_does_not_spoil_the_others(self):
         fake = FakePost({"answers": [A_PRED, {"type": "refusal", "name": "topic"}]})
         res = self.run_decide(fake, [Q_CHOICE, Q_PRED])
@@ -329,7 +342,7 @@ class RedactTest(Base):
 
     def test_exact_outputs_and_ordinary_text_survives(self):
         self.assertEqual(dc.redact("see https://alice:p4ss@example.com/repo"), "see https://[REDACTED]@example.com/repo")
-        self.assertEqual(dc.redact("OPENAI_API_KEY=hunter2 next"), "OPENAI_API_KEY=[REDACTED] next")
+        self.assertEqual(dc.redact("OPENAI_API_KEY=hunter2 next\nother"), "OPENAI_API_KEY=[REDACTED]\nother")
         self.assertEqual(dc.redact("Authorization: Bearer abc12345678"), "Authorization: [REDACTED]")
         plain = "The task-force found risk-based keyboard shortcuts at https://example.com/a?b=c on 2026-11-04."
         self.assertEqual(dc.redact(plain), plain)
@@ -410,6 +423,40 @@ class LedgerTest(Base):
         rec = self.ledger_lines()[-1]
         self.assertEqual((rec["input_tokens"], rec["cached_tokens"], rec["cost_usd"]), (0, 0, 0))
 
+    def test_assignment_and_flag_forms(self):
+        s = "hunter2hunter2"
+        for text in (f'apiKey := "{s}"', f'"password" => "{s}"', f'config["password"] = "{s}"', f"env['api_key'] = '{s}'",
+                     f'headers["Authorization"] = "Basic {s}"', f'{{\\"api_key\\":\\"{s}\\"}}', f"--password {s}",
+                     f'--api-key "{s}"', f'TOKEN = os.getenv("TOKEN", "{s}")', f'api_keys: ["{s}", "{s}"]',
+                     f"password: correct {s} battery", f"if token == '{s}':", f"postgres://admin:p@{s}@db/x"):
+            with self.subTest(text):
+                out = dc.redact(text)
+                self.assertNotIn(s, out)
+                self.assertEqual(dc.redact(out), out)
+
+    def test_recognized_token_formats(self):
+        for token in ("sk" "_live_" + "a1b2c3d4e5", "rk" "_test_" + "a1b2c3d4e5", "gh" "u_a1b2c3d4e5", "gh" "r_a1b2c3d4e5",
+                      "lin" "_api_a1b2c3d4e5", "nt" "n_a1b2c3d4e5", "np" "m_a1b2c3d4e5", "AI" "za" + "a1b2c3d4e5f6g7h8i9"):
+            with self.subTest(token[:6]):
+                self.assertEqual(dc.redact(f"see {token} here"), "see [REDACTED] here")
+
+    def test_a_pem_header_alone_keeps_what_follows(self):
+        header = "-----BEGIN " + "PRIVATE KEY-----"
+        self.assertIn("next_line = 1", dc.redact(f'+assert pem.startswith("{header}")\n+next_line = 1\n'))
+        cut = dc.redact(f"{header}\nMIIEvQIBADANBgkqhkiG9w0B\n+AQEFAASCBKcwggSjAgEAAoIB\nnext line\n")
+        self.assertNotIn("MIIEvQ", cut)
+        self.assertNotIn("AQEFAA", cut)
+        self.assertIn("next line", cut)
+
+    def test_by_name_off_keeps_named_values_and_masks_formats(self):
+        token = "sk" "-test1234567890abcdef"
+        self.assertEqual(dc.redact(f"max_new_tokens=1 and {token}", by_name=False), "max_new_tokens=1 and [REDACTED]")
+        fake = FakePost({"answers": [A_CHOICE]})
+        self.run_decide(fake, input="max_new_tokens=1", redact_by_name=False)
+        self.assertEqual(fake.calls[0][1]["input"], "max_new_tokens=1")
+        self.run_decide(fake, input="max_new_tokens=1")
+        self.assertEqual(fake.calls[1][1]["input"], "max_new_tokens=[REDACTED]")
+
     def test_a_secret_on_the_following_lines_is_redacted(self):
         v = "OPAQUEvalue0123456789"
         for label, text in (("block", f"client_secret: |-\n  {v}\n  {v}\nnext: 1\n"),
@@ -419,10 +466,14 @@ class LedgerTest(Base):
                             ("context lines", f" client_secret: |-\n     {v}\n"),
                             ("removed lines", f"-password: |\n-  {v}\n"),
                             ("value alone", f"client_secret:\n  {v}\nnext: 1\n"),
-                            ("value alone, diff", f"+client_secret:\n+  {v}\n")):
+                            ("value alone, diff", f"+client_secret:\n+  {v}\n"),
+                            ("double quoted", f'client_secret:\n  "{v}"\nnext: 1\n'),
+                            ("single quoted, diff", f"+client_secret:\n+  '{v}'\n+next: 1\n"),
+                            ("short and quoted", f'password:\n  "{v[:6]}"\nnext: 1\n'),
+                            ("json with a comma", f'"api_key":\n    "{v}",\n')):
             with self.subTest(label):
                 out = dc.redact(text)
-                self.assertNotIn(v, out)
+                self.assertNotIn(v[:6], out)
                 self.assertEqual(dc.redact(out), out)
                 if "next: 1" in text:
                     self.assertIn("next: 1", out)  # the block ends at the first unindented line

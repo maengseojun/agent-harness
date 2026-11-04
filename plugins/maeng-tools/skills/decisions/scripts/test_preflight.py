@@ -156,9 +156,16 @@ class AcInput(Base):
         self.assertIn("diff truncated: the first 10 of 14 characters", text)
         self.assertNotIn("ZZZZ", text)
 
-    def test_empty_diff_is_stated_not_dropped(self):
-        _, _, _, d = self.run_pf(["ac", "--plan", self.plan, "--evidence", self.ev], diff="")
-        self.assertIn("(empty diff)", d.calls[0][0])
+    def test_an_empty_diff_sends_nothing(self):
+        code, _, err, d = self.run_pf(["ac", "--plan", self.plan, "--evidence", self.ev], diff="  \n")
+        self.assertEqual((code, d.calls), (0, []))
+        self.assertIn("nothing was sent", err)
+
+    def test_a_diff_limit_below_one_is_an_argument_error(self):
+        d = FakeDecide()
+        with self.assertRaises(SystemExit) as e:
+            self.run_pf(["ac", "--plan", self.plan, "--evidence", self.ev, "--max-diff-chars", "0"], d)
+        self.assertEqual((e.exception.code, d.calls), (2, []))
 
     def test_git_failure_sends_nothing_and_still_exits_zero(self):
         d, out, err = FakeDecide(), io.StringIO(), io.StringIO()
@@ -172,7 +179,7 @@ class AcInput(Base):
     def test_wrong_arguments_exit_2(self):
         for argv in (["ac"], ["ac", "--plan", str(self.tmp / "missing.md")], ["ac", "--plan", self.plan, "--base", "--output=x"],
                      ["ac", "--plan", self.plan, "--evidence", str(self.tmp / "missing.txt")],
-                     ["triage", "--findings", self.plan]):  # not JSON
+                     ["triage", "--findings", self.plan, "--evidence", self.ev]):  # not JSON
             with self.subTest(argv=argv), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as cm:
                 self.run_pf(argv)
             self.assertEqual(cm.exception.code, 2)
@@ -221,13 +228,17 @@ class Secrets(Base):
             self.assertIn(kept, body)
         self.assertIn("| AC-1 | met | 0.90 | 0.05 |", out)
 
-    def test_a_multiline_secret_never_reaches_the_request_body(self):
-        value = "OPAQUEvalue0123456789"
+    def body_for_diff(self, diff):
         posts = []
-        self.run_real_client(["ac", "--plan", self.plan, "--evidence", self.ev],
-                             f"+client_secret: |-\n+    {value}\n+next: 1\n", posts)
+        self.run_real_client(["ac", "--plan", self.plan, "--evidence", self.ev], diff, posts)
         self.assertEqual(len(posts), 1)
-        self.assertNotIn(value, json.dumps(posts[0]))
+        return json.dumps(posts[0])
+
+    def test_a_block_secret_never_reaches_the_request_body(self):
+        self.assertNotIn("OPAQUEvalue", self.body_for_diff("+client_secret: |-\n+    OPAQUEvalue0123456789\n+next: 1\n"))
+
+    def test_a_quoted_next_line_secret_never_reaches_the_request_body(self):
+        self.assertNotIn("OPAQUEvalue", self.body_for_diff('+client_secret:\n+  "OPAQUEvalue0123456789"\n+next: 1\n'))
 
     def test_a_cut_through_a_secret_leaves_no_prefix(self):
         s = self.SECRETS[1]
@@ -268,7 +279,7 @@ class Triage(Base):
         probs = {"f1_repeat": ("repeat", {"new": 0.2, "repeat": 0.8}), "f1_cause": ("bypass", {"this_change": 0.2, "pre_existing": 0.1, "bypass": 0.7}),
                  "f2_repeat": ("new", {"new": 0.9, "repeat": 0.1}), "f2_cause": ("pre_existing", {"this_change": 0.3, "pre_existing": 0.6, "bypass": 0.1})}
         reply = lambda qs: [ans(q["name"], probs[q["name"]][0], probs[q["name"]][1]) for q in qs]  # noqa: E731
-        _, out, _, d = self.run_pf(["triage", "--findings", cur, "--previous", prev], FakeDecide(reply))
+        _, out, _, d = self.run_pf(["triage", "--findings", cur, "--evidence", self.ev, "--previous", prev], FakeDecide(reply))
         text, questions, pilot = d.calls[0]
         self.assertEqual((len(d.calls), pilot), (1, "review_preflight"))
         self.assertEqual([q["name"] for q in questions], ["f1_repeat", "f1_cause", "f2_repeat", "f2_cause"])
@@ -288,13 +299,24 @@ class Triage(Base):
     def test_no_previous_round_and_unknown_answer(self):
         cur = self.write("cur.json", json.dumps({"findings": [{"title": "T"}]}))
         reply = lambda qs: [unknown("f1_repeat"), ans("f1_cause", "other", {"other": 1.0})]  # noqa: E731
-        _, out, _, d = self.run_pf(["triage", "--findings", cur], FakeDecide(reply))
+        _, out, _, d = self.run_pf(["triage", "--findings", cur, "--evidence", self.ev], FakeDecide(reply))
         self.assertIn("No previous round was supplied", d.calls[0][0])
         self.assertEqual(self.rows(out)[0][3:], ["unknown", "unknown"])
 
+    def test_triage_carries_the_verification_output_and_needs_it(self):
+        cur = self.write("cur.json", json.dumps({"findings": [{"title": "t", "severity": "high"}]}))
+        _, _, _, d = self.run_pf(["triage", "--findings", cur, "--evidence", self.ev], FakeDecide(lambda qs: []))
+        self.assertIn("=== VERIFICATION OUTPUT ===\n--- ", d.calls[0][0])
+        self.assertIn("12 tests OK", d.calls[0][0])
+        empty, d = self.write("empty.txt", " "), FakeDecide()
+        for argv in (["triage", "--findings", cur], ["triage", "--findings", cur, "--evidence", empty]):
+            with self.assertRaises(SystemExit):
+                self.run_pf(argv, d)
+        self.assertEqual(d.calls, [])
+
     def test_no_findings_sends_nothing(self):
         cur = self.write("cur.json", json.dumps({"verdict": "pass", "findings": []}))
-        code, out, _, d = self.run_pf(["triage", "--findings", cur])
+        code, out, _, d = self.run_pf(["triage", "--findings", cur, "--evidence", self.ev])
         self.assertEqual((code, d.calls), (0, []))
         self.assertIn("no findings", out)
 
@@ -313,7 +335,7 @@ class NoFileWrites(Base):
             with self.assertRaises(AssertionError):
                 Path(work / "y").write_text("x")
             self.run_pf(["ac", "--plan", self.plan, "--evidence", ev])
-            self.run_pf(["triage", "--findings", findings, "--previous", findings])
+            self.run_pf(["triage", "--findings", findings, "--evidence", self.ev, "--previous", findings])
         self.assertEqual(os.listdir(work), [])
 
 

@@ -37,7 +37,7 @@ def jsonl(path, rows):
     return path
 
 
-def supported_decide(input, questions, pilot):
+def supported_decide(input, questions, pilot, **_):
     return [{"name": q["name"], "type": "choice", "status": "ok", "choice": "supported", "confidence": 0.9,
              "probabilities": [{"value": "supported", "probability": 0.9}]} for q in questions]
 
@@ -81,6 +81,18 @@ class RunTests(Base):
         out = ec.run(claims, decide=lambda *a: calls.append(a) or supported_decide(*a))
         self.assertEqual(len(calls), 1)
         self.assertNotIn("LEAKED", json.dumps(calls) + json.dumps(out))
+
+    def test_requests_carry_no_claim_id_and_a_claim_never_meets_its_mutation(self):
+        ids = ["p001", "n001", "mp001-1", "mp001-2"]
+        claims = jsonl(self.tmp / "claims.jsonl", [{"id": i, "claim": f"claim {i}", "url": "u1", "note": None} for i in ids])
+        self.patch_fetch()
+        calls = []
+        out = ec.run(claims, decide=lambda *a: calls.append(a) or supported_decide(*a))
+        self.assertEqual(sorted(sorted(q["name"][0] for q in c[1]) for c in calls), [["q"], ["q"], ["q", "q"]])
+        groups = [" ".join(q["instructions"] for q in c[1]) for c in calls]
+        for g in groups:
+            self.assertFalse("claim mp001-1" in g and ("claim p001" in g or "claim mp001-2" in g), g)
+        self.assertEqual([r["id"] for r in out["results"]], ids)  # results come back under the real ids
 
     def test_usage_comes_from_a_run_ledger_and_the_env_is_restored(self):
         claims = jsonl(self.tmp / "claims.jsonl", [
@@ -151,13 +163,21 @@ class ScoreTests(Base):
         self.assertEqual(rep["unknown"], 3)
         self.assertEqual(rep["negatives_judged_supported"], ["n10"])
         self.assertEqual(rep["positives_not_judged_supported"], ["p09", "p10"])
-        self.assertEqual(rep["floors"], {"negative_recall": False, "negative_recall_wilson_lower": False,
+        self.assertEqual(rep["floors"], {"every_negative_judged": False, "negative_recall": False, "negative_recall_wilson_lower": False,
                                          "over_flag": True, "p50_latency_ms": True})
         self.assertFalse(rep["pass"])
 
     def perfect(self, n_neg, ms, n_flagged_pos=3):
         out = [res(f"n{i:02d}", "contradicted" if i % 2 == 0 else "not_in_page", "u", ms=ms) for i in range(1, n_neg + 1)]
         return out + [res(f"p{i:02d}", "not_in_page" if i > 10 - n_flagged_pos else "supported", "u", ms=ms) for i in range(1, 11)]
+
+    def test_an_outage_on_the_negatives_cannot_pass(self):
+        # 100 negatives unknown (counted as caught) and all positives supported: every other floor holds
+        results = [res(f"n{i:02d}", "unknown", "A") for i in range(1, 11)] + [res(f"p{i:02d}", "supported", "A") for i in range(1, 11)]
+        rep = ec.score(results, self.labels(10, 10))
+        self.assertEqual((rep["negative_recall"], rep["over_flag"]), (1.0, 0.0))
+        self.assertFalse(rep["floors"]["every_negative_judged"])
+        self.assertFalse(rep["pass"])
 
     def test_the_floors_pass_exactly_at_their_edges(self):
         # 35 of 35 negatives caught: Wilson lower bound 35 / (35 + 1.96^2) = 0.9011 >= 0.90
@@ -166,7 +186,7 @@ class ScoreTests(Base):
         self.assertEqual(rep["negative_recall"], 1.0)
         self.assertAlmostEqual(rep["negative_recall_wilson"][0], 0.9011, places=4)
         self.assertAlmostEqual(rep["over_flag"], 0.3)
-        self.assertEqual(rep["floors"], {"negative_recall": True, "negative_recall_wilson_lower": True,
+        self.assertEqual(rep["floors"], {"every_negative_judged": True, "negative_recall": True, "negative_recall_wilson_lower": True,
                                          "over_flag": True, "p50_latency_ms": True})
         self.assertTrue(rep["pass"])
         self.assertEqual(rep["cost_usd"], 0.0)  # no usage given
@@ -180,7 +200,7 @@ class ScoreTests(Base):
         self.assertFalse(rep["pass"])
         # 4 of 10 positives flagged: 0.4 > 0.30
         rep = ec.score(self.perfect(35, 1999, n_flagged_pos=4), self.labels(35, 10))
-        self.assertEqual(rep["floors"], {"negative_recall": True, "negative_recall_wilson_lower": True,
+        self.assertEqual(rep["floors"], {"every_negative_judged": True, "negative_recall": True, "negative_recall_wilson_lower": True,
                                          "over_flag": False, "p50_latency_ms": True})
         # p50 of 2000 is not under 2000
         rep = ec.score(self.perfect(35, 2000), self.labels(35, 10))

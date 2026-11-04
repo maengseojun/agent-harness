@@ -33,7 +33,7 @@ Scripts are in this skill's `scripts/` folder; run them with `python3 <this skil
 3. Read the table. Fix a clear `unmet` before requesting the review; leave `unclear` for the reviewer. Never skip or delay the review because of a `met`.
 4. After the review, add one line to the bound Linear issue: which `unmet` flags the review also raised or you fixed (real) and which were wrong (false). The Sunday criterion counts these.
 
-After a failed round, `python3 preflight.py triage --findings <this round.json> --previous <earlier round.json> ...` sorts each finding into new or repeat, and this change, pre-existing or approval bypass (the review-round rule).
+After a failed round, `python3 preflight.py triage --findings <this round.json> --evidence <file> --previous <earlier round.json> ...` sorts each finding into new or repeat, and this change, pre-existing or approval bypass (the review-round rule).
 
 ## Linear, Notion and Obsidian work (MAE-311)
 

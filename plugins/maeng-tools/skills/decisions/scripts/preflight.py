@@ -86,11 +86,13 @@ def _git_diff(base, head):
 def _diff_section(base, head, limit):
     # redact before cutting, so a cut cannot leave the unredacted start of a secret
     diff = decisions_client.redact(_git_diff(base, head))
+    if not diff.strip():
+        raise RuntimeError("the diff is empty")
     note = ""
     if len(diff) > limit:
         note = f"[diff truncated: the first {limit} of {len(diff)} characters are shown]\n"
         diff = diff[:limit]
-    return f"=== DIFF (git diff {base}...{head}) ===\n{note}{diff or '(empty diff)'}"
+    return f"=== DIFF (git diff {base}...{head}) ===\n{note}{diff}"
 
 
 def _verdict(a, allowed):
@@ -136,19 +138,24 @@ def _diff_or_none(args, limit):
         print(f"preflight: no diff, so nothing was sent ({e})", file=sys.stderr)
 
 
+def _evidence(ap, paths):
+    """The verification output for the request; an empty one ends the run before anything is sent."""
+    texts = [(p, _read(ap, p)) for p in paths]
+    if not any(t.strip() for _, t in texts):
+        ap.error("the --evidence files are empty; nothing was sent")
+    return "\n\n".join(f"--- {p} ---\n{t}" for p, t in texts)
+
+
 def cmd_ac(ap, args):
     plan = _read(ap, args.plan)
     acs = parse_acs(plan)
     if not acs:
         print(f"preflight: no acceptance criteria (AC-n) found in {args.plan}")
         return
-    evidence = [(p, _read(ap, p)) for p in args.evidence]
-    if not any(t.strip() for _, t in evidence):
-        ap.error("the --evidence files are empty; nothing was sent")
+    ev = _evidence(ap, args.evidence)
     diff = _diff_or_none(args, args.max_diff_chars)
     if diff is None:
         return
-    ev = "\n\n".join(f"--- {p} ---\n{t}" for p, t in evidence)
     text = f"=== PLAN ({args.plan}) ===\n{plan}\n\n{diff}\n\n=== VERIFICATION OUTPUT ===\n{ev}"
     questions = [{"type": "choice", "name": n, "choices": AC_CHOICES,
                   "instructions": f"Criterion {n}: {t}\nJudge only from the plan, diff and verification output above."}
@@ -209,12 +216,13 @@ def cmd_triage(ap, args):
     diff = _diff_or_none(args, MAX_DIFF)
     if diff is None:
         return
+    ev = _evidence(ap, args.evidence)
     parts = [f"=== CURRENT FINDINGS ({args.findings}) ===", *(_finding_text(f, i) for i, f in enumerate(cur, 1))]
     for p, fs in prev:
         parts += [f"=== PREVIOUS ROUND ({p}) ===", *([_finding_text(f) for f in fs] or ["(no findings)"])]
     if not prev:
         parts.append("=== PREVIOUS ROUNDS ===\nNo previous round was supplied.")
-    answers = _ask("\n\n".join(parts + [diff]), triage_questions(cur))
+    answers = _ask("\n\n".join(parts + [diff, f"=== VERIFICATION OUTPUT ===\n{ev}"]), triage_questions(cur))
     rows, counts, unknown = [], Counter(), []
     for i, f in enumerate(cur, 1):
         cells = []
@@ -248,12 +256,13 @@ def main(argv=None):
     p = sub.add_parser("triage", parents=[refs], help="sort the findings of a review round")
     p.add_argument("--findings", required=True)
     p.add_argument("--previous", nargs="+", action="extend", default=[], metavar="FILE")
+    p.add_argument("--evidence", nargs="+", action="extend", required=True, metavar="FILE")
     p.set_defaults(run=cmd_triage)
     args = ap.parse_args(argv)
     if args.base.startswith("-") or args.head.startswith("-"):  # a ref like --output=x would make git write a file
         ap.error("--base and --head must be git refs, not options")
-    if args.cmd == "ac" and args.max_diff_chars < 0:
-        ap.error("--max-diff-chars must be >= 0")
+    if args.cmd == "ac" and args.max_diff_chars < 1:
+        ap.error("--max-diff-chars must be >= 1")
     args.run(ap, args)
     return 0
 

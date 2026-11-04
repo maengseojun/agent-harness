@@ -110,6 +110,14 @@ class MutationTests(unittest.TestCase):
         claim = "Published Oct. 8, 2026."
         self.assertEqual(bce.mutations(claim, bce._norm("released Oct. 11, 2026")), ["Published Oct. 18, 2026."])
 
+    def test_a_dotted_page_spelling_counts_for_an_iso_seed(self):
+        claim = "Released 2026-10-08."
+        for text in ("on Oct. 11, 2026", "on 11 Oct. 2026"):
+            self.assertEqual(bce.mutations(claim, bce._norm(text)), ["Released 2026-10-18."], text)
+        self.assertEqual(bce.mutations("Released 2026-09-08.", bce._norm("on Sept. 11, 2026")), ["Released 2026-09-18."])
+        for text in ("on 10/11/2026", "on 2026年10月11日", "on 2026년 10월 11일"):
+            self.assertEqual(bce.mutations(claim, bce._norm(text)), ["Released 2026-10-18."], text)
+
     def test_an_impossible_date_gives_no_mutation(self):
         self.assertEqual(bce.mutations("Due 2026-13-45.", ""), [])
 

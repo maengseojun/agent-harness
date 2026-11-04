@@ -17,7 +17,8 @@ results. Nothing is written, created, changed or closed: output is stdout only (
 Data rule (A-9). Every title and text, and the task or new text, goes through the vault's
 strip_private first; each item's text is then cut to --max-item-chars (default 4000). `unknown`
 answers (error, timeout, refusal, missing or off-list) are never selected, never named as a
-duplicate and never listed as a cleanup suggestion. Pilot name: records.
+duplicate and never listed as a cleanup suggestion. Pilot names: records_related, records_duplicate,
+records_cleanup.
 """
 import argparse
 import json
@@ -32,7 +33,6 @@ import decisions_client  # noqa: E402
 from private_filter import strip_private  # noqa: E402
 
 DECIDE = decisions_client.decide  # tests replace this
-PILOT = "records"
 # Plan A-11: chosen on half of the related eval's cases, confirmed on the other half.
 RELATED_THRESHOLD = 0.05
 MAX_ITEM_CHARS = 4000
@@ -53,7 +53,7 @@ def prepare(candidates, max_item_chars=MAX_ITEM_CHARS):
     if not all(ids) or len(set(ids)) != len(ids):
         raise ValueError("every candidate needs a unique non-empty id")
     return [{"id": id_, "title": _clean(c.get("title")), "source": str(c.get("source") or "unknown"),
-             "date": str(c.get("date") or "undated"), "text": _clean(c.get("text"))[:max_item_chars]}
+             "date": str(c.get("date") or "undated"), "text": decisions_client.redact(_clean(c.get("text")))[:max_item_chars]}
             for c, id_ in zip(candidates, ids)]
 
 
@@ -93,7 +93,8 @@ def _predicates(items, text, instruction, decide, pilot):
     return sorted(scored, key=lambda x: -x[1]), unknown, sorted(set(reasons))
 
 
-def related(task, candidates, threshold=RELATED_THRESHOLD, *, decide=None, max_item_chars=MAX_ITEM_CHARS, pilot=PILOT):
+def related(task, candidates, threshold=RELATED_THRESHOLD, *, decide=None, max_item_chars=MAX_ITEM_CHARS,
+            pilot="records_related"):
     items = prepare(candidates, max_item_chars)
     out = {"sent": bool(items), "selected": [], "near": [], "unknown": [], "reasons": []}
     if items:
@@ -105,7 +106,7 @@ def related(task, candidates, threshold=RELATED_THRESHOLD, *, decide=None, max_i
     return out
 
 
-def cleanup(candidates, threshold=0.6, *, decide=None, max_item_chars=MAX_ITEM_CHARS, pilot=PILOT):
+def cleanup(candidates, threshold=0.6, *, decide=None, max_item_chars=MAX_ITEM_CHARS, pilot="records_cleanup"):
     items = prepare(candidates, max_item_chars)
     out = {"sent": bool(items), "suggested": [], "unknown": [], "reasons": []}
     if items:
@@ -117,7 +118,7 @@ def cleanup(candidates, threshold=0.6, *, decide=None, max_item_chars=MAX_ITEM_C
     return out
 
 
-def duplicate(new, candidates, *, decide=None, max_item_chars=MAX_ITEM_CHARS, pilot=PILOT):
+def duplicate(new, candidates, *, decide=None, max_item_chars=MAX_ITEM_CHARS, pilot="records_duplicate"):
     """-> {"status": "not_sent" | "unknown" | "ok", "chosen": id | "none" | None, "p", "runner_up": (id, p) | None,
     "items"}. Raises ValueError for more than 254 candidates or a candidate with the id `none`."""
     items = prepare(candidates, max_item_chars)
