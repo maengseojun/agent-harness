@@ -328,9 +328,9 @@ def case(id, lang, pos, neg):
 
 
 def fake_decide(input, questions, pilot):
-    """0.9 for items whose id starts with p, 0.1 for the rest."""
+    """0.9 for items whose id starts with p, 0.01 for the rest."""
     return [{"name": q["name"], "type": "predicate", "status": "ok",
-             "probability": 0.9 if re.search(r"item \[p", q["instructions"]) else 0.1} for q in questions]
+             "probability": 0.9 if re.search(r"item \[p", q["instructions"]) else 0.01} for q in questions]
 
 
 class RunTests(Base):
@@ -401,7 +401,7 @@ class RunTests(Base):
         sentinel = str(self.tmp / "main-ledger.jsonl")
 
         def post(url, body, headers, timeout):
-            return {"answers": [{"name": q["name"], "type": "predicate", "probability": 0.2} for q in body["questions"]],
+            return {"answers": [{"name": q["name"], "type": "predicate", "probability": 0.01} for q in body["questions"]],
                     "usage": {"input_tokens": 1_000_000, "input_tokens_details": {"cached_tokens": 400_000}}}
         env = {"OPENAI_API_KEY": "sk-test-EVALKEY1234567890", "MAENG_ETA_ROOT": str(self.tmp / "eta"), "MAENG_DECISIONS_LEDGER": sentinel}
         with mock.patch.dict(os.environ, env), mock.patch.object(dc, "_post", post):
@@ -410,7 +410,7 @@ class RunTests(Base):
             self.assertEqual(os.environ["MAENG_DECISIONS_LEDGER"], sentinel)
         main = [json.loads(ln) for ln in Path(sentinel).read_text(encoding="utf-8").splitlines()]
         self.assertEqual([r["pilot"] for r in main], ["records_eval"] * 2)
-        self.assertEqual([r["selected"] for r in out["results"]], [[], []])  # 0.2 is under the threshold
+        self.assertEqual([r["selected"] for r in out["results"]], [[], []])  # 0.01 is under the threshold
         # two cases, two calls; each: 600000 fresh * $0.10/1M + 400000 cached * $0.01/1M = $0.064
         self.assertEqual(out["usage"], {"input_tokens": 2_000_000, "cached_tokens": 800_000, "cost_usd": 0.128})
 

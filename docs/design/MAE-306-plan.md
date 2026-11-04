@@ -25,6 +25,7 @@ Assumptions (A-n; the user approved the plan on 2026-11-03 with "승인, 진행�
 - A-8 Pre-flight is advisory: it prints verdicts and never edits files or gates anything; the Sol review runs as before.
 - A-9 Records data rule (extends A-7 for MAE-311): personal Linear, Notion and vault content may be sent. Refused by code: any item marked `world: eta`, vault paths under `eta/`, items whose `source` names the eta Linear or Notion workspace. Vault `<private>` spans are stripped with obsidian-workspace's `strip_private` before sending. Instructions are English; item text is sent as-is (no translation); the eval reports Korean and other items separately so the Korean question (MAE-304 Phase 2) gets data.
 - A-10 Records outputs are suggestions: `related` prints the selected items and the three nearest misses; `duplicate` names a candidate for Claude to open before deciding; `cleanup` lists candidates. Nothing is created, changed or closed by the script.
+- A-11 `related` selects at probability ≥ 0.05, not 0.5. The first live eval at 0.5 missed the floor (recall 121/140 = 0.864, selected share 0.25). The floor did not change. The threshold was chosen from the stored probabilities on one seeded half of the cases (21 cases, highest passing threshold) and confirmed on the other half (19 cases: recall 62/64 = 0.969, selected share 0.315). `related` now keeps everything the model is not nearly sure is irrelevant, so it reads about 35% of candidates, not 25%.
 
 Owns: `plugins/maeng-tools/skills/decisions/**`, `plugins/maeng-tools/skills/aside-research/SKILL.md`, `plugins/maeng-tools/.claude-plugin/plugin.json`, this file. The records pilot imports `strip_private` from `plugins/maeng-tools/skills/obsidian-workspace/scripts/private_filter.py` without changing it.
 
@@ -99,9 +100,10 @@ Revisions:
 - R-1 plan scope (2026-11-03): MAE-304 folded into the trial week; client shared.
 - R-2 plan scope (2026-11-04): guards dropped (D-3), Haiku shadow replaced by comparison with earlier sessions (D-2), one skill instead of a new plugin (D-4), everything through the Thursday plan done now.
 - R-3 plan scope (2026-11-04): records pilot added (D-6, A-9, A-10, AC-8, AC-9, MAE-311).
+- R-4 result (2026-11-04): first live evals. Claim eval passed all floors. Related eval missed recall at threshold 0.5; default moved to 0.05 (A-11), full rerun recall 133/140 = 0.950, unnamed 58/64 = 0.906, selected share 0.350.
 
 Close-out:
 - size: (filled at close)
-- revisions: plan 2 / result 0
+- revisions: plan 3 / result 1
 - review rounds to pass:
 - unmet AC at close:

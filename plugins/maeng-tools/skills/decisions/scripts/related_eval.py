@@ -18,7 +18,7 @@ build [--vault PATH] [--cases N] [--seed S] [--check]
     20 cases. Language is ko when Hangul is over 30% of the letters of the query title and first 600
     characters, else other.
 
-run [--out report.json] [--threshold 0.5]
+run [--out report.json] [--threshold 0.05]
     Live: one `records.related` call per case, built from the cases file only (the labels file is
     never opened while requests are built). Then score().
 
@@ -170,7 +170,7 @@ def named_ids(task, candidates):
     return [c["id"] for c in candidates if any(t and t in task for t in (Path(c["id"]).stem, c.get("title")))]
 
 
-def run(cases_path=None, *, decide=None, threshold=0.5):
+def run(cases_path=None, *, decide=None, threshold=records.RELATED_THRESHOLD):
     """Builds every request from the cases file only; keeps just id, task, lang and the candidate fields
     (so a stray label field cannot reach a request). Own ledger (a temp file via MAENG_DECISIONS_LEDGER,
     restored afterwards), copied to the main ledger once the run is over. -> {results, usage}"""
@@ -263,7 +263,7 @@ def main(argv=None):
     p.add_argument("--check", action="store_true", help="rebuild into a temp dir and compare with eval/")
     p = sub.add_parser("run", help="run the eval live and score it")
     p.add_argument("--out", help="write the JSON report here")
-    p.add_argument("--threshold", type=float, default=0.5)
+    p.add_argument("--threshold", type=float, default=records.RELATED_THRESHOLD)
     a = ap.parse_args(argv)
     try:
         out = eval_dir()

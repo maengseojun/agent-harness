@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Linear, Notion and vault records with the Decisions API (MAE-306 / MAE-311, AC-8). Stdlib only.
 
-  records.py related   --task TEXT --candidates FILE [--threshold 0.5]
+  records.py related   --task TEXT --candidates FILE [--threshold 0.05]
       Which items should someone doing the task read? One predicate per item; prints the selected
       items by probability, the 3 nearest misses, and the ids that were not judged.
   records.py duplicate --new TEXT --candidates FILE
@@ -37,6 +37,8 @@ from private_filter import strip_private  # noqa: E402
 
 DECIDE = decisions_client.decide  # tests replace this
 PILOT = "records"
+# Plan A-11: chosen on half of the related eval's cases, confirmed on the other half.
+RELATED_THRESHOLD = 0.05
 MAX_ITEM_CHARS = 4000
 MAX_PREDICATES = 400  # the client's limit per request
 MAX_CHOICES = 254  # plus `none`
@@ -128,7 +130,7 @@ def _predicates(items, text, instruction, decide, pilot):
     return sorted(scored, key=lambda x: -x[1]), unknown, sorted(set(reasons))
 
 
-def related(task, candidates, threshold=0.5, *, decide=None, max_item_chars=MAX_ITEM_CHARS, pilot=PILOT):
+def related(task, candidates, threshold=RELATED_THRESHOLD, *, decide=None, max_item_chars=MAX_ITEM_CHARS, pilot=PILOT):
     items, dropped = prepare(candidates, max_item_chars)
     out = {"sent": bool(items), "selected": [], "near": [], "unknown": [], "reasons": [], "dropped": dropped}
     if items:
@@ -249,7 +251,7 @@ def main(argv=None):
     common.add_argument("--max-item-chars", type=int, default=MAX_ITEM_CHARS)
     p = sub.add_parser("related", parents=[common], help="pick the items worth reading for a task")
     p.add_argument("--task", required=True)
-    p.add_argument("--threshold", type=float, default=0.5)
+    p.add_argument("--threshold", type=float, default=RELATED_THRESHOLD)
     p.set_defaults(run=cmd_related)
     p = sub.add_parser("duplicate", parents=[common], help="is the new item a duplicate of an existing one")
     p.add_argument("--new", required=True)
