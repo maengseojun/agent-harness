@@ -13,8 +13,8 @@ from . import tree as treelib
 from .common import git, git_out, home_dir, locked, now_iso, read_json, sha256, write_json
 from .shellparse import SHELLS, ParseError, program, split_segments
 
-WRAPPERS = ("<system-reminder>", "<task-notification>", "<cross-session-message>", "<side-sessions-event>",
-            "<ci-monitor-event>")
+WRAPPERS = ("<system-reminder>", "<task-notification>", "<cross-session-message", "Another Claude session sent a message:",
+            "<side-sessions-event>", "<ci-monitor-event>")
 MODEL = "claude-opus-5-5"  # D-4: the interviewer is Opus in both worlds
 OVERALL, LIMIT = "overall", 150  # LIMIT: changed lines at which a PR needs a merge pass (what harness-run calls one task)
 WAIVE_PR = re.compile(r"\s*면제\s+#(\d+)\s+(\S.*)", re.S)
