@@ -57,7 +57,7 @@ def merge(a, cwd):
     ok, reasons = evidence.Verifier(st, top, common).ship_verified(treelib.commit_tree(cwd, head))
     if not ok:
         die("head tree is not ship-verified: " + "; ".join(reasons))
-    why = interview.require_merge(cwd, repo, a.pr, base, head)  # K3: the user's merge quiz, before any receipt counts
+    why = interview.require_merge(cwd, a.pr, base, head)  # K3: the user's merge quiz, before any receipt counts
     if why:
         die(why)
     rev = (st.get("binding") or {}).get("plan_updated_at")

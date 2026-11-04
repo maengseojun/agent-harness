@@ -140,6 +140,14 @@ class ConfirmItems(HarnessCase):
         self.assertEqual([quiz._other(x) for x in ("5", "1.5", "True", "false", "'neg'", "[]", "a + b", "x")],
                          ["6", "2.5", "False", "true", "'zzneg'", None, None, None])
 
+    def test_a_delta_quiz_stays_on_the_delta(self):
+        item, = self.confirm([ADD_MINUS], want=1, rng=Pick("defect-line"), touched={"calc.py": {2}})
+        self.assertEqual(item["key"]["lines"], [2])  # never swapped for a clean snippet of old code
+        two = {"kind": "defect", "file": "calc.py", "find": "def add(a, b):\n    return a + b",
+               "replace": "def add(a, b):\n    return a - b", "question": "q"}
+        self.assertEqual(self.confirm([two], touched={"calc.py": {1}}), [])  # only line 2 changes
+        self.assertEqual(len(self.confirm([two], touched={"calc.py": {2}}, rng=Pick("failing-test"))), 1)
+
     def test_an_unchanged_line_inside_a_mutation_is_not_the_answer(self):
         c = {"kind": "defect", "file": "calc.py", "find": "    if x < lo:\n        return lo\n    if x > hi:",
              "replace": "    if x > lo:\n        return lo\n    if x < hi:", "question": "q"}
@@ -201,6 +209,8 @@ class ConfirmItems(HarnessCase):
             {**PREDICT_ADD, "line": 17},                                  # the literal is not on that line
             {**PREDICT_ADD, "file": "calc.py", "line": 2, "literal": "a"},  # not a test file
             {**PREDICT_ADD, "line": 99}, {**PREDICT_ADD, "literal": ""}, {**PREDICT_ADD, "file": "../proj-secret/test_x.py"},
+            {**PREDICT_ADD, "literal": "2"}, {**PREDICT_ADD, "literal": "3"},  # arguments, not the expected value
+            {**PREDICT_HIGH, "literal": "0"},                              # a piece of the expected 10
             {**ADD_MINUS, "find": "return"},                              # not unique in the file
             {**ADD_MINUS, "find": "nothing like this"},
             {**ADD_MINUS, "replace": "return a + b"},                      # no change
@@ -316,6 +326,16 @@ class Keyed(HarnessCase):
 class PatchId(HarnessCase):
     def raw(self, repo, base, head):
         return plain_patch(self.git(repo, "diff", f"{base}...{head}").stdout)
+
+    def test_two_binary_edits_get_different_ids(self):
+        repo = self.make_repo("proj", files=FILES)
+        base = self.head(repo)
+        self.git(repo, "checkout", "-qb", "feat")
+        (repo / "blob.bin").write_bytes(b"\0\1\2one")
+        one = self.commit_all(repo, "one")
+        (repo / "blob.bin").write_bytes(b"\0\1\2two")
+        two = self.commit_all(repo, "two")
+        self.assertNotEqual(quiz.patch_id(repo, base, one), quiz.patch_id(repo, base, two))
 
     def test_an_indentation_change_gets_another_id(self):  # `git patch-id` would call these the same
         repo = self.make_repo("proj", files=FILES)

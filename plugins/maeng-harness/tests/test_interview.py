@@ -620,6 +620,7 @@ class MergeGateEta(GateCase):
     def test_turning_auto_merge_off_is_not_a_merge(self):
         self.set_pr(151, ["feat.py"])
         self.assertFalse(self.merge("gh pr merge 7 --disable-auto")[0])
+        self.assertTrue(self.merge("gh pr merge 7 --disable-auto --squash")[0])
 
     def test_the_gh_call_reads_the_named_pr_and_repo(self):
         self.set_pr(10, ["feat.py"])
@@ -759,6 +760,10 @@ class ShipGate(MergeBase):
         interview.record_waiver(self.key, "pr", 7, "r")
         self.assertEqual(self.ship().returncode, 0)
 
+    def test_a_repository_with_no_origin_has_no_merge_gate(self):  # A-15
+        self.git(self.repo, "remote", "rename", "origin", "upstream")
+        self.assertIsNone(interview.require_merge(self.repo, 7, "HEAD", "HEAD"))
+
     def test_a_rebase_with_the_same_patch_keeps_the_pass_and_a_changed_diff_does_not(self):
         head = self.grow(160)
         interview.record_pass(self.key, "merge", pr=7, patch=self.patch(self.base, head), head=head)
@@ -772,11 +777,10 @@ class ShipGate(MergeBase):
         new_base = self.git(self.repo, "rev-parse", "origin/main").stdout.strip()
         new_head = self.head(self.repo)
         self.assertNotEqual(new_head, head)
-        repo = guard.normalize_repo(str(self.remote))
-        self.assertIsNone(interview.require_merge(self.repo, repo, 7, new_base, new_head))
+        self.assertIsNone(interview.require_merge(self.repo, 7, new_base, new_head))
         (self.repo / "big.py").write_text("changed = 1\n" + (self.repo / "big.py").read_text())
         changed = self.commit_all(self.repo, "edit")
-        self.assertIn("merge-quiz pass", interview.require_merge(self.repo, repo, 7, new_base, changed))
+        self.assertIn("merge-quiz pass", interview.require_merge(self.repo, 7, new_base, changed))
 
 
 FAKE_CLAUDE = """#!PY

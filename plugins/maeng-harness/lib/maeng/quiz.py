@@ -26,7 +26,7 @@ TEST_ID = re.compile(r"^\S*::(\w+)(?:\[[^\]]*\])?(?=\s|$)|^\[[^\]]*\]\s*(test\w+
 def patch_id(cwd, base, head):
     """A digest of base...head that a rebase keeping the diff does not change (no blob ids, no hunk positions); None
     when it cannot be read. Not `git patch-id`: it ignores whitespace, so a Python indentation change would keep a pass."""
-    rc, diff, _ = git(cwd, "diff", "--no-ext-diff", "--no-textconv", "--no-renames", f"{base}...{head}")
+    rc, diff, _ = git(cwd, "diff", "--binary", "--no-ext-diff", "--no-textconv", "--no-renames", f"{base}...{head}")
     if rc != 0 or not diff:
         return None
     return sha256("\n".join(ln for ln in diff.splitlines() if not ln.startswith(("index ", "@@ "))))
@@ -123,9 +123,9 @@ def _predict(c, repo, cmd, changed, touched=None):
     asked = c.get("question") if isinstance(c.get("question"), str) and literal not in c["question"] else \
         "기대값이 가려진 테스트 줄입니다. 코드가 실제로 내는 값은 무엇입니까?"
     row, at = rows[line - 1], rows[line - 1].rindex(literal)  # the expected value is the last one on an assert line
-    other = _other(literal)
-    if other is None:
-        return None
+    left, right, other = row[:at].rstrip(), row[at + len(literal):], _other(literal)
+    if other is None or not left.endswith(("==", " is", ",", "(")) or not re.fullmatch(r"[)\s;]*(?:(?:#|//).*)?", right):
+        return None  # the literal must be the whole expected value: the line's last operand
     changed_rows = [*rows[:line - 1], row[:at] + other + row[at + len(literal):], *rows[line:]]
     target.write_text("\n".join(changed_rows) + ("\n" if text.endswith("\n") else ""))
     try:
@@ -153,7 +153,9 @@ def _defect(c, repo, cmd, changed, touched=None):
         return None
     start = orig[:orig.index(find)].count("\n") + 1  # first line of the find, 1-based
     before, after = _lines(find), _lines(new)
-    if touched is not None and not touched.get(path, set()) & set(range(start, start + len(before))):
+    ops = difflib.SequenceMatcher(None, before, after, autojunk=False).get_opcodes()
+    edited = {start + i for tag, i1, i2, _, _ in ops if tag != "equal" for i in range(i1, max(i2, i1 + 1))}
+    if touched is not None and not touched.get(path, set()) & edited:
         return None
     mutated = orig.replace(find, new, 1)
     target.write_text(mutated)
@@ -163,7 +165,6 @@ def _defect(c, repo, cmd, changed, touched=None):
         target.write_text(orig)  # restored before the next mutation
     if ok or not failing:  # the tests missed it (an equivalent or untested change), or broke before running
         return None
-    ops = difflib.SequenceMatcher(None, before, after, autojunk=False).get_opcodes()
     moved = [start + j for tag, _, _, j1, j2 in ops if tag != "equal" for j in range(j1, j2)]  # in the mutated file
     if not moved and not test_names(failing):  # a pure deletion has no new line to point at
         return None
@@ -245,7 +246,7 @@ def confirm_items(candidates, top, test_cmd, changed=None, rng=random, want=4, t
     items = picked + found
     rng.shuffle(items)
     lines = [it for it in items if it["kind"] == "defect-line"]
-    if lines:  # one defect-line item becomes a clean snippet of the same file, so `없음` is a real answer
+    if lines and touched is None:  # one becomes a clean snippet, so `없음` is a real answer; a delta quiz stays on the delta
         swap = rng.choice(lines)
         clean = _clean(by[id(swap)], rng)
         if clean:

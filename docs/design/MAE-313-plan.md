@@ -119,6 +119,11 @@ Revisions:
 - R-17 result quality, third Sol review: a delta item must sit on lines the delta adds, or a pass on old code authorizes the new patch.
 - R-18 result quality, third Sol review: redirects on a `maeng-interview` line are read, so `> .../passes.json` is denied.
 - R-19 result quality, third Sol review: a defect's answer key holds only the lines that really changed.
+- R-20 result quality, fourth Sol review: a delta quiz keeps its defect item; it is never swapped for a clean snippet of old code.
+- R-21 result quality, fourth Sol review: the delta check reads the lines a mutation really changes, not its whole find span.
+- R-22 result quality, fourth Sol review: a prediction's literal must be the whole expected value, the line's last operand.
+- R-23 result quality, fourth Sol review: `maeng-ship` uses the CLI's state key, so A-15 holds there too.
+- R-24 result quality, fourth Sol review: the digest includes binary content; `--disable-auto` is exempt only alone.
 - R-6 result quality: the live run returned 3 predict items and 1 defect from 3 and 3 candidates, on test bookkeeping. Found defects now go in first and the candidate prompt asks about what the code does.
 
 Close-out:

@@ -291,6 +291,7 @@ MERGE_MCP = re.compile(r"mcp__.+__merge_pull_request")
 # through. Upgrade if agents do that.
 STATE_PATH = re.compile(r"maeng-harness/interviews|MAENG_HOME\}?/interviews")
 PR_FIELDS = "number,additions,deletions,files,baseRefOid,headRefOid"
+MERGES = {"--auto", "--admin", "--merge", "-m", "--rebase", "-r", "--squash", "-s"}
 HIDDEN = ("maeng: the interview state ({what}) belongs to the CLI and the user; the agent does not read or write the "
           "questions, rubrics or answers (comprehension-gate skill). Use `maeng-interview`.")
 NEED = ("maeng: PR #{pr} {why}, and has no merge-quiz pass for patch {patch}. In a clean checkout of the PR head run "
@@ -349,11 +350,15 @@ def _bash_gate(command, world, cwd):
     return None
 
 
+def _only_disables_auto(toks):
+    return "--disable-auto" in toks and not MERGES & {t.partition("=")[0] for t in toks}
+
+
 def _merge_calls(command):
     """Token lists of the `gh pr merge` calls in the command (also in `sh -c` and `eval`), with or without --auto."""
     try:
         return [toks for prog, toks in gates.simple_commands(command)
-                if prog == "gh" and not {"--help", "-h", "--disable-auto"} & set(toks) and ghcmd.parse_gh(toks)["pos"][:2] == ["pr", "merge"]]
+                if prog == "gh" and not {"--help", "-h"} & set(toks) and not _only_disables_auto(toks) and ghcmd.parse_gh(toks)["pos"][:2] == ["pr", "merge"]]
     except ParseError:
         if re.search(r"\bgh\b.*\bmerge\b", command, re.S):
             raise Refused("maeng: cannot parse this command and it mentions `gh ... merge`; run the merge as a simpler command.")
@@ -435,15 +440,18 @@ def _merge_refusal(key, pr, lines, paths, patch_of):
                        patch=patch[:12] if patch else "unknown (fetch the PR head)")
 
 
-def require_merge(cwd, repo, pr, base, head):
+def require_merge(cwd, pr, base, head):
     """maeng-ship (K3): why this PR may not merge without a merge pass, else None."""
+    key = repo_key(cwd)  # the CLI's key, so no origin means no gate here too (A-15)
+    if not key:
+        return None
     try:
         rc, out, _ = git(cwd, "diff", "--numstat", "-z", "--no-renames", f"{base}...{head}")
         if rc != 0:
             raise Refused("maeng: cannot read the PR diff to size it, so the comprehension gate denies the merge.")
         rows = [r.split("\t", 2) for r in out.split("\0") if r]
         lines = sum(int(a) + int(d) for a, d, _ in rows if a.isdigit() and d.isdigit())  # a binary file counts 0
-        return _merge_refusal(slug(repo), pr, lines, [p for *_, p in rows], lambda: quiz.patch_id(cwd, base, head))
+        return _merge_refusal(key, pr, lines, [p for *_, p in rows], lambda: quiz.patch_id(cwd, base, head))
     except Refused as why:
         return str(why)
 
