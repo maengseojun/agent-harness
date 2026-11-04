@@ -33,7 +33,7 @@ Run it every time the skill is used and name the revision it prints in one line.
 Read `<skill>/SKILL.md` whole and run it as written: page or app screen, the run (brief, argument, draw, idea, words, build, gate, look, move, report), its house rules and its gate. Adopt the dealt direction sheet; do not blend it with your own layout or with `frontend-design` taste. Its rules replace the user's general style preferences for this task; these still hold because they do not contradict it:
 
 - Brand colours and typefaces enter through taste's `--keep`, naming only what the brand fixes (`palette`, `type`, or `palette,type`); a field left out is dealt, and the flag keeps nothing else. The logo and every other fixed fact or accepted `DESIGN.md` choice go into the brief and the build as constraints (taste's "existing brand" case: keep the asset, say so, `--allow <rule>` for a house rule it breaks). Record the dealt direction (id and seed) in `DESIGN.md` as a new dated line.
-- Generated images go through `codex exec` (`cinematic-site` prompts §1), asked before each run. Taste's own picture search (`assets.mjs`) needs no extra approval.
+- Generated images go through the OpenAI Images API, `codex exec` as the fallback (`cinematic-site` prompts §1), asked before each run. Taste's own picture search (`assets.mjs`) needs no extra approval.
 - Korean UI: run `hangul-wrap` after taste's gate.
 - An HTML prototype keeps `html-prototype-interview`'s working flows and interview; taste decides how its screens look.
 - `.taste-skill/` holds working files; keep it out of commits unless the user wants it.

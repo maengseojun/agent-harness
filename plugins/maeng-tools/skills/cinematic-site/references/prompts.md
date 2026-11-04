@@ -2,9 +2,30 @@
 
 Fill the `{braces}`. Write image and video prompts in English (the models follow it best); talk to the user in their language. Source: Viktor Oddy's tutorial (YouTube `YhF8Qg2GL80`); the wording below is what worked there, adapted.
 
-## 1. Image request (`codex exec`)
+## 1. Image request
 
-Run from the work folder; codex generates with GPT Image and saves the file itself. The prompt goes before `-i` (`-i` takes every following argument as an image). The quoted heredoc keeps the prompt's own quotes intact, and the `.prompt.txt` stays as the record of what was asked.
+### OpenAI Images API (default)
+
+Run from the work folder, with `{skill}` as this skill's folder. `openai-image.sh` reads the key from the Keychain, calls the API and saves the file; other skills use this same script. Each call spends API credit, so ask the user before each run or batch. The quoted heredoc keeps the prompt's own quotes intact, and the `.prompt.txt` stays as the record of what was asked.
+
+```bash
+cd ~/Documents/maeng-harness/cinematic/{slug}
+cat > {stage}/{A}.prompt.txt <<'EOF'
+{prompt}
+EOF
+{skill}/scripts/openai-image.sh {stage}/{A}.prompt.txt {stage}/{A}.png 1536x864 low refs/1-{role}.png refs/2-{role}.png &&
+  sips -g pixelWidth -g pixelHeight {stage}/{A}.png
+```
+
+- Arguments: prompt file, output, size, quality (`low`, `medium`, `high`), then any reference images (PNG or JPEG). With no references it generates from the prompt alone.
+- Images are numbered in argument order, so "image 1" in the prompt is the first reference.
+- Sizes: `1536x864` is 16:9, `864x1536` vertical, `1024x1024` square. Both sides must divide by 16, the ratio stays within 3:1, and sizes above `2560x1440` are experimental.
+- The script does not retry, and a failed call leaves any earlier image at that path. On a non-zero exit, read the API's message. When the credit is out or the call keeps failing, use the fallback below instead of repeating it.
+- Verified live 2026-11-04: one `1024x1024` `low` call without references, and one with a single reference, whose color, framing and proportions the result kept. Several references, other sizes and `high` have not run live; report it if the first such run fails.
+
+### `codex exec` (fallback)
+
+Codex generates with GPT Image and saves the file itself. The prompt goes before `-i` (`-i` takes every following argument as an image), and it adds the save line.
 
 ```bash
 cd ~/Documents/maeng-harness/cinematic/{slug}
@@ -16,7 +37,7 @@ codex exec --skip-git-repo-check -s workspace-write "$(cat {stage}/{A}.prompt.tx
 sips -g pixelWidth -g pixelHeight {stage}/{A}.png
 ```
 
-Images are numbered in `-i` order, so "image 1" in the prompt is the first `-i`.
+Images are numbered in `-i` order here too.
 
 ## 2. Mock (stage 2)
 
