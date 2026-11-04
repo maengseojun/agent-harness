@@ -1,6 +1,7 @@
 """MAE-320: each decided Decisions use runs because the harness makes it run."""
 import json
 import os
+from pathlib import Path
 import stat
 import sys
 import time
@@ -12,6 +13,7 @@ from .test_cli import ReviewRunFixture, load_bin
 LINEAR = "mcp__linear-maeng__save_issue"
 NOTION = "mcp__notion-maeng__notion-create-pages"
 NOTE = "mcp__obsidian_vault__write_note"
+PREFLIGHT = Path(__file__).resolve().parents[2] / "maeng-tools/skills/decisions/scripts/preflight.py"
 
 
 class On:
@@ -33,6 +35,7 @@ class DuplicateGate(On, HarnessCase):
 
     def test_every_new_record_is_denied_until_the_check_ran(self):
         for tool, tin in ((LINEAR, {"team": "MAE", "title": "x"}), (NOTION, {"pages": []}),
+                          ("mcp__notion-maeng__notion-duplicate-page", {"page_id": "p"}),
                           (NOTE, {"path": "wiki/notes/NOTE-new.md", "content": "x"}),
                           ("Write", {"file_path": str(self.vault / "wiki/notes/NOTE-new.md"), "content": "x"})):
             denied, why = self.pre(self.repo, tool, tin)
@@ -75,6 +78,11 @@ class DuplicateGate(On, HarnessCase):
         self.ran(command)
         self.assertFalse(self.pre(self.repo, LINEAR, {"team": "MAE", "title": "x"})[0])
         self.assertEqual(recordcheck.ran(command.replace(" && ", "; ")), ["duplicate"])  # only the last status is known
+
+    def test_an_interrupted_run_does_not_count(self):
+        self.hook("PostToolUse", self.repo, tool_name="Bash", tool_use_id="tu-1", tool_response={"stdout": ""},
+                  is_interrupt=True, tool_input={"command": "python3 records.py duplicate --new t --candidates c.json"})
+        self.assertTrue(self.pre(self.repo, LINEAR, {"team": "MAE", "title": "x"})[0])
 
     def test_a_background_launch_does_not_count(self):
         self.hook("PostToolUse", self.repo, tool_name="Bash", tool_use_id="tu-1", tool_response={"stdout": ""},
@@ -180,6 +188,31 @@ class ReviewWiring(On, ReviewRunFixture):
         self.assertEqual([c[0] for c in calls], ["ac", "triage", "ac", "triage"])
         self.assertNotIn("--previous", calls[1])
         self.assertIn("--previous", calls[3])
+
+    def real_preflight(self):
+        """The real script with its argument parser, sending nothing: only the wrapper turns Decisions off."""
+        wrapper = self.tmp / "real.py"
+        wrapper.write_text(f"import os, runpy\nos.environ['MAENG_DECISIONS'] = 'off'\n"
+                           f"runpy.run_path({str(PREFLIGHT)!r}, run_name='__main__')\n")
+        return wrapper
+
+    def test_the_real_script_accepts_what_the_review_passes(self):
+        plan = self.tmp / "plan.md"
+        plan.write_text("- **AC-1** feature works\n\n## Verification\nAC-1: pytest\n")
+        self.cli("maeng-verify", ["bind", "MAE-221", "--plan", str(plan), "--parent", "MAE-216"], self.repo,
+                 extra_env={"MAENG_DECISIONS": "off"}, check=True)
+        self.cli("maeng-verify", ["plan", "--met", "AC-1"], self.repo, check=True)
+        proc = self.run_review(self.real_preflight())
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("advisory only", proc.stderr)
+        self.assertNotIn("failed with exit code", proc.stderr)
+        for title in ("t", "t2"):  # the second round passes --previous too
+            self.result.write_text(json.dumps({"verdict": "fail", "findings": [
+                {"severity": "high", "title": title, "body": "b", "file": None, "line": None}]}))
+            proc = self.run_review(self.real_preflight())
+            self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+            self.assertIn("=== Decisions triage (advisory) ===", proc.stderr)
+            self.assertNotIn("failed with exit code", proc.stderr)
 
     def test_a_broken_preflight_never_stops_the_review(self):
         bad = self.tmp / "bad.py"

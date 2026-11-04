@@ -55,7 +55,7 @@ def creates(tool, tin):
     """Does this call create a new Linear issue, Notion page or vault note?"""
     if tool.endswith("__save_issue"):
         return not tin.get("id")
-    if tool.endswith("__notion-create-pages"):
+    if tool.endswith(("__notion-create-pages", "__notion-duplicate-page")):
         return True
     if tool == "mcp__obsidian_vault__write_note":
         return bool(tin.get("path")) and _new_vault_note(str(tin["path"]))

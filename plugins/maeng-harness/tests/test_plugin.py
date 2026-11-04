@@ -29,7 +29,7 @@ class PluginLayout(unittest.TestCase):
         pre = self.hooks["PreToolUse"]
         self.assertEqual(len(pre), 1)
         self.assertEqual(pre[0]["hooks"][0]["onFailure"], "block")
-        self.assertEqual(pre[0]["matcher"], "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__.*__(merge_pull_request|update_pull_request_branch|push_files|create_or_update_file|delete_file|save_issue|notion-create-pages|write_note)")
+        self.assertEqual(pre[0]["matcher"], "Bash|Edit|Write|MultiEdit|NotebookEdit|mcp__.*__(merge_pull_request|update_pull_request_branch|push_files|create_or_update_file|delete_file|save_issue|notion-create-pages|notion-duplicate-page|write_note)")
         for event, g, h in self.commands():
             if event != "PreToolUse":
                 self.assertNotEqual(h.get("onFailure"), "block", event)

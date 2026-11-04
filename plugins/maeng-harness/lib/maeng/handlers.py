@@ -408,7 +408,7 @@ def on_post(payload, failed=False):
     try:  # before the world check: the eta world has this gate too
         foreground = tool == "Bash" and not tin.get("run_in_background")
         checks = recordcheck.ran(str(tin.get("command", ""))) if foreground else []
-        if checks and not failed and not response_failed(tresp):
+        if checks and not failed and not payload.get("is_interrupt") and not response_failed(tresp):
             state.update(sid, lambda st: recordcheck.mark(st, checks), cwd)
     except Exception as exc:
         warn(f"records check not recorded: {type(exc).__name__}: {exc}")
