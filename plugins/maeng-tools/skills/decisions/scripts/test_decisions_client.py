@@ -125,6 +125,80 @@ class ParseTest(Base):
         self.assertAllUnknown(self.run_decide(FakePost({"answers": []}), ok), "missing")
 
 
+class JevTest(Base):
+    def test_a_jev_model_uses_the_gateway_format_and_key_and_returns_the_usual_shape(self):
+        self.keychain.return_value = "BAZEKEY"
+        q_choice = dict(Q_CHOICE, name="topic")
+        fake = FakePost({"answers": {
+            "topic": {"type": "choice", "choice": "billing", "confidence": 0.9, "probabilities": {"billing": 0.9, "bug": 0.1}},
+            "urgent": {"type": "noul", "noul": 0.8},
+            "severity": {"type": "score", "score": 1.5, "confidence": 0.6, "probabilities": {"0": 0.1, "1": 0.3, "2": 0.6}}},
+            "usage": {"input_tokens": 1_000_000}})
+        res = self.run_decide(fake, [q_choice, Q_PRED, Q_SCORE], model="jev-1.14.0")
+        url, body, headers, _ = fake.calls[0]
+        self.assertEqual(url, "https://api.baze.co/v1/gateway/decisions/")
+        self.assertEqual(headers["Authorization"], "Bearer BAZEKEY")
+        self.keychain.assert_called_once_with("baze-api-key")
+        self.assertEqual(body, {"model": "jev-1.14.0", "state": "hello", "questions": {
+            "topic": {"type": "choice", "instructions": "Pick the topic.", "criteria": {"billing": "Money", "bug": "Defect"}},
+            "urgent": {"type": "noul", "instructions": "Is it urgent?"},
+            "severity": {"type": "score", "instructions": "Rate severity.", "criteria": ["Cosmetic", "Major", "Blocked"]}}})
+        self.assertEqual([r["status"] for r in res], ["ok", "ok", "ok"])
+        self.assertEqual((res[0]["choice"], res[1]["probability"], res[2]["score"]), ("billing", 0.8, 1.5))
+        self.assertEqual(res[0]["probabilities"], [{"value": "billing", "probability": 0.9}, {"value": "bug", "probability": 0.1}])
+        line = self.ledger_lines()[-1]
+        self.assertEqual((line["model"], line["cost_usd"]), ("jev-1.14.0", 0.042))  # 1M tokens at $0.042/1M
+
+    def test_the_environment_picks_the_engine(self):
+        self.keychain.return_value = "BAZEKEY"
+        fake = FakePost({"answers": {"urgent": {"type": "noul", "noul": 0.5}}})
+        with mock.patch.dict(os.environ, {"MAENG_DECISIONS_MODEL": "jev-1.14.0"}):
+            self.run_decide(fake, [Q_PRED])
+        self.assertEqual(fake.calls[0][1]["model"], "jev-1.14.0")
+
+    def test_questions_go_in_batches_of_32_and_answers_keep_their_order(self):
+        self.keychain.return_value = "BAZEKEY"
+        qs = [dict(Q_PRED, name=f"q{i}") for i in range(70)]
+        calls = []
+
+        def post(url, body, headers, timeout):
+            calls.append(len(body["questions"]))
+            return {"answers": {n: {"type": "noul", "noul": 0.5} for n in body["questions"]}, "usage": {"input_tokens": 10}}
+        with mock.patch.object(dc, "_post", post):
+            res = dc.decide("x", qs, "p", model="jev-1.14.0")
+        self.assertEqual(calls, [32, 32, 6])
+        self.assertEqual([r["name"] for r in res], [q["name"] for q in qs])
+        self.assertEqual(self.ledger_lines()[-1]["input_tokens"], 30)
+
+    def test_a_failed_batch_makes_every_answer_unknown_and_keeps_the_spent_tokens(self):
+        self.keychain.return_value = "BAZEKEY"
+        qs = [dict(Q_PRED, name=f"q{i}") for i in range(40)]
+        calls = []
+
+        def post(url, body, headers, timeout):
+            calls.append(1)
+            if len(calls) > 1:
+                raise http_error(429)
+            return {"answers": {}, "usage": {"input_tokens": 10}}
+        with mock.patch.object(dc, "_post", post):
+            res = dc.decide("x", qs, "p", model="jev-1.14.0")
+        self.assertEqual({r["reason"] for r in res}, {"http_429"})
+        self.assertEqual(self.ledger_lines()[-1]["input_tokens"], 10)
+
+    def test_a_malformed_or_refused_jev_answer_is_unknown(self):
+        self.keychain.return_value = "BAZEKEY"
+        for answers, reason in (({"urgent": {"type": "noul", "noul": 2}}, "refused"), ({"urgent": {"type": "refusal"}}, "refused"),
+                                ({"urgent": 5}, "missing"), ({}, "missing"), ([], "missing")):
+            with self.subTest(answers):
+                self.assertAllUnknown(self.run_decide(FakePost({"answers": answers}), [Q_PRED], model="jev-1.14.0"), reason)
+
+    def test_no_baze_key_sends_nothing_and_the_openai_key_is_not_used(self):
+        self.keychain.return_value = None
+        fake = FakePost({"answers": {}})
+        self.assertAllUnknown(self.run_decide(fake, [Q_PRED], model="jev-1.14.0"), "no_key")
+        self.assertEqual(fake.calls, [])
+
+
 class ErrorPathTest(Base):
     def test_errors_become_unknown_with_reason_and_never_a_verdict(self):
         cases = [

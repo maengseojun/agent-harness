@@ -11,6 +11,7 @@ Trial skill for MAE-306. The OpenAI Decisions API (`POST /v1/decisions`, `gpt-6-
 
 - **Data.** Public page text and claim text; for the pre-flight the diff, the Plan and the verification output; for records work, Linear, Notion and vault text, eta included (the user's decision, plan D-7). The client redacts known secret patterns; `records.py` strips vault `<private>` spans.
 - **Off.** `MAENG_DECISIONS=off` sends nothing.
+- **Engine.** `gpt-6-luna` on the OpenAI key is the default. `MAENG_DECISIONS_MODEL=jev-1.14.0` uses Jev through the school's BAZE gateway (keychain item `baze-api-key`) for a comparison run; every script works unchanged. Jev takes text only and never eta content: the eta decision covers OpenAI, not BAZE (MAE-315). Its `state` stops at 64,000 characters, so a longer page comes back `unknown`. Its probabilities sit higher: the `related` default of 0.05 selects almost everything, so pass `--threshold` from an eval.
 - **Key.** `OPENAI_API_KEY`, else the macOS keychain item `openai-api-key`. Never print it, never ask the user to paste it into the chat.
 - **Unknown is not a verdict.** An error, timeout, refusal, missing or off-list answer comes back as `unknown`. Treat it as "not checked", never as a pass.
 - **Ledger.** Every call appends one line to `~/Documents/maeng-harness/decisions/ledger.jsonl` (hashes and counts, no text). The Sunday report is computed from it.

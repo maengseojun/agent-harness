@@ -10,6 +10,10 @@ and never a verdict field; "refused" includes an off-list choice or a value out 
 invalid questions raise ValueError.
 
 No request is sent when MAENG_DECISIONS=off.
+
+MAENG_DECISIONS_MODEL or model= picks the engine; a jev-* model goes through the school's BAZE
+gateway with the keychain item baze-api-key, in batches of 32 questions, and its answers are
+turned into the OpenAI shape, so callers see no difference.
 Every call appends one line to the ledger (MAENG_DECISIONS_LEDGER, default
 ~/Documents/maeng-harness/decisions/ledger.jsonl): the input is stored as a
 sha256 and a character count of the REDACTED text, never the text; the key is
@@ -32,6 +36,9 @@ from pathlib import Path
 
 URL = "https://api.openai.com/v1/decisions"
 MODEL = "gpt-6-luna"
+BAZE_URL = "https://api.baze.co/v1/gateway/decisions/"
+JEV_BATCH = 32  # the gateway's limit per request
+PRICE_JEV = 0.042
 # USD per 1M input tokens; output is not charged. Cached and cache-write
 # tokens are included in input_tokens.
 PRICE_INPUT, PRICE_CACHED, PRICE_WRITE = 0.10, 0.01, 0.125
@@ -95,17 +102,17 @@ def _walk(x, by_name):
     return x
 
 
-def _keychain_key():
+def _keychain_key(service="openai-api-key"):
     try:
-        r = subprocess.run(["security", "find-generic-password", "-s", "openai-api-key", "-w"],
+        r = subprocess.run(["security", "find-generic-password", "-s", service, "-w"],
                            capture_output=True, text=True, timeout=5)
     except (OSError, subprocess.SubprocessError):
         return None
     return (r.stdout.strip() or None) if r.returncode == 0 else None
 
 
-def _api_key():
-    return os.environ.get("OPENAI_API_KEY", "").strip() or _keychain_key()
+def _api_key(jev=False):
+    return _keychain_key("baze-api-key") if jev else os.environ.get("OPENAI_API_KEY", "").strip() or _keychain_key()
 
 
 def _post(url, body, headers, timeout):
@@ -114,11 +121,11 @@ def _post(url, body, headers, timeout):
         return json.loads(r.read())
 
 
-def _call(body, key, timeout):
+def _call(body, key, timeout, url=URL):
     """-> (reason or None, response). Every failure becomes a reason."""
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     try:
-        return None, _post(URL, body, headers, timeout)
+        return None, _post(url, body, headers, timeout)
     except urllib.error.HTTPError as e:
         return f"http_{e.code}", None
     except (socket.timeout, TimeoutError):
@@ -127,6 +134,43 @@ def _call(body, key, timeout):
         return ("timeout" if isinstance(e.reason, (socket.timeout, TimeoutError)) else "error"), None
     except Exception:
         return "error", None
+
+
+def _jev_question(q):
+    out = {"instructions": q["instructions"]}
+    if q["type"] == "predicate":
+        return {**out, "type": "noul"}
+    if q["type"] == "choice":
+        return {**out, "type": "choice", "criteria": {c["value"]: c.get("description", "") for c in q["choices"]}}
+    return {**out, "type": "score", "criteria": [v["label"] for v in q["levels"]]}
+
+
+def _from_jev(name, a):
+    """One Jev answer in the OpenAI shape, so _parse judges both engines alike."""
+    if not isinstance(a, dict):
+        return None
+    if a.get("type") == "noul":
+        return {"name": name, "type": "predicate", "probability": a.get("noul")}
+    ps = a.get("probabilities")
+    probs = [{"value": k, "probability": v} for k, v in ps.items()] if isinstance(ps, dict) else []
+    return {**a, "name": name, "probabilities": probs}
+
+
+def _call_jev(model, state, sent, key, timeout):
+    """-> (reason or None, response in the OpenAI shape).
+    shortcut: one failed batch makes the whole call unknown, retry per batch if that proves common."""
+    answers, tokens = [], 0
+    for i in range(0, len(sent), JEV_BATCH):
+        part = sent[i:i + JEV_BATCH]
+        body = {"model": model, "state": state, "questions": {q["name"]: _jev_question(q) for q in part}}
+        reason, resp = _call(body, key, timeout, BAZE_URL)
+        if reason:
+            return reason, {"usage": {"input_tokens": tokens}}
+        tokens += _tokens(resp)[0]
+        got = resp.get("answers") if isinstance(resp, dict) else None
+        got = got if isinstance(got, dict) else {}
+        answers += [a for a in (_from_jev(q["name"], got.get(q["name"])) for q in part) if a]
+    return None, {"answers": answers, "usage": {"input_tokens": tokens}}
 
 
 def _validate(questions):
@@ -193,9 +237,9 @@ def _tokens(resp):
     return n(u.get("input_tokens")), n(d.get("cached_tokens")), n(d.get("cache_write_tokens"))
 
 
-def _cost(total, cached, writes):
+def _cost(total, cached, writes, price=PRICE_INPUT):
     fresh = max(total - cached - writes, 0)
-    return round((fresh * PRICE_INPUT + cached * PRICE_CACHED + writes * PRICE_WRITE) / 1e6, 8)
+    return round((fresh * price + cached * PRICE_CACHED + writes * PRICE_WRITE) / 1e6, 8)
 
 
 def _log(rec):
@@ -208,18 +252,21 @@ def _log(rec):
         print(f"decisions: ledger write failed: {e.strerror}", file=sys.stderr)
 
 
-def decide(input, questions, pilot, *, model=MODEL, timeout=30.0, redact_by_name=True):
+def decide(input, questions, pilot, *, model=None, timeout=30.0, redact_by_name=True):
     _validate(questions)
+    model = model or os.environ.get("MAENG_DECISIONS_MODEL", "").strip() or MODEL
+    jev = model.startswith("jev-")
     safe_input, sent = _walk(input, redact_by_name), [_walk(q, redact_by_name) for q in questions]
     text = safe_input if isinstance(safe_input, str) else json.dumps(safe_input, sort_keys=True, ensure_ascii=False)
     reason, resp, latency = None, None, 0
     if os.environ.get("MAENG_DECISIONS", "").strip().lower() == "off":
         reason = "off"
-    elif not (key := _api_key()):
+    elif not (key := _api_key(jev)):
         reason = "no_key"
     else:
         t0 = time.monotonic()
-        reason, resp = _call({"model": model, "input": safe_input, "questions": sent}, key, timeout)
+        reason, resp = _call_jev(model, safe_input, sent, key, timeout) if jev else \
+            _call({"model": model, "input": safe_input, "questions": sent}, key, timeout)
         latency = int((time.monotonic() - t0) * 1000)
     results = [_unknown(q, reason) for q in questions] if reason else _parse(questions, sent, resp)
     if reason:
@@ -234,7 +281,7 @@ def decide(input, questions, pilot, *, model=MODEL, timeout=30.0, redact_by_name
         "input_sha256": hashlib.sha256(text.encode("utf-8", "replace")).hexdigest(), "input_chars": len(text),
         "outcome": outcome, "latency_ms": latency,
         "input_tokens": total, "cached_tokens": cached, "cache_write_tokens": writes,
-        "cost_usd": _cost(total, cached, writes),
+        "cost_usd": _cost(total, cached, writes, PRICE_JEV if jev else PRICE_INPUT),
         "answers": [{k: r[k] for k in ("name", "status", "reason", "choice", "probability", "score", "confidence") if k in r}
                     for r in results],
     })
