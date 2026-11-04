@@ -11,10 +11,10 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
 
-from maeng import interview  # noqa: E402
+from maeng import interview, quiz  # noqa: E402
 from maeng import tree as treelib  # noqa: E402
 from maeng.cli_common import die  # noqa: E402
-from maeng.common import now_iso, read_json, write_json  # noqa: E402
+from maeng.common import git, git_out, now_iso, read_json  # noqa: E402
 from maeng.interview import OVERALL, run_model  # noqa: E402
 
 QUESTION = {"type": "object", "required": ["layer", "topic", "question", "rubric"], "additionalProperties": False,
@@ -31,6 +31,14 @@ GRADE_FOLLOWUP = {"type": "object", "required": ["met", "followup"], "additional
 APPEAL = {"type": "object", "required": ["items"], "additionalProperties": False,
           "properties": {"items": {"type": "array", "items": {"type": "object", "required": ["id", "met"],
                                                                 "properties": {"id": {"type": "integer"}, "met": MET}}}}}
+CANDIDATE = {"type": "object", "required": ["kind", "file", "question"],
+             "properties": {"kind": {"enum": ["predict", "defect"]}, "file": {"type": "string"}, "question": {"type": "string"},
+                            "line": {"type": "integer"}, "literal": {"type": "string"}, "find": {"type": "string"},
+                            "replace": {"type": "string"}, "snippet_start": {"type": "integer"},
+                            "snippet_end": {"type": "integer"}}}
+CANDIDATES = {"type": "object", "required": ["candidates"], "additionalProperties": False,
+              "properties": {"candidates": {"type": "array", "items": CANDIDATE}}}
+DIFF_LIMIT = 60_000  # characters of diff in a prompt
 SIZES = {"part": 3, "overall": 4}  # A-2: questions asked up front; Q1's follow-up makes it 4 and 5 exchanges
 RELAY = ("Relay the question to the user verbatim, without hints. Their next message is recorded as the answer; "
          "then run `maeng-interview next`.")
@@ -77,7 +85,9 @@ def numbered(rubric):
 
 
 def misses(it):
-    return [r for r, ok in zip(it["rubric"], it["met"]) if not ok]
+    if "rubric" in it:
+        return [r for r, ok in zip(it["rubric"], it["met"]) if not ok]
+    return [] if it["done"] else [f"the answer is `{it['reveal']}` (found by running the code)"]
 
 
 def show(it):
@@ -136,6 +146,8 @@ def appeal_prompt(missed, argument):
 
 
 def grade(it, answer, top, followup=False):
+    if "rubric" not in it:  # a keyed item: the answer came from running the code, no model is asked (T4)
+        return [quiz.grade_keyed(it, answer)], None
     out = run_model(grade_prompt(it, answer, followup), GRADE_FOLLOWUP if followup else GRADE, top, tools="")
     if len(out["met"]) != len(it["rubric"]) or (followup and not out["followup"]["rubric"]):
         raise interview.Refused("the grader's answer does not match the rubric; nothing was recorded. Run `next` again.")
@@ -252,34 +264,105 @@ def start_design(a, key, sid, top):
     show(current(rec))
 
 
+def cand_prompt(files, diff):
+    return ("You write quiz candidates about a pull request so its author must show they understand the code. Use only "
+            f"these changed files: {', '.join(files)}. Give about 6 candidates in all, a mix of:\n"
+            "- predict: an assertion in a changed TEST file that already passes. Give `file`, the 1-based `line`, `literal` "
+            "(the expected value exactly as written on that line) and a short Korean `question`.\n"
+            "- defect: a find/replace that introduces a plausible bug the tests should catch. Give `file`, `find` (it appears "
+            "exactly once in the file) and `replace` (each at most 3 lines), a short Korean `question`, and "
+            "`snippet_start`/`snippet_end` (1-based lines around the change, at most 12 lines).\n"
+            f"Read the files for their exact text.\n<diff>\n{diff[:DIFF_LIMIT]}\n</diff>")
+
+
+def written_prompt(material, diff, count, design):
+    task = ("Write exactly one question in Korean on what the code does differently from the design below (or in addition "
+            "to it); its rubric lists the differences a correct answer names." if design else
+            f"Write exactly {count} question{'s' if count > 1 else ''} in Korean on what the diff does and why it is built "
+            "that way; each rubric lists the facts a correct answer states.")
+    return (f"You write a written question for a merge quiz. {task} Layer 2, a short topic label, 2 to 6 rubric items each "
+            "judgeable from the answer alone. You may read the repository.\n"
+            f"<design>\n{material}\n</design>\n<diff>\n{diff[:DIFF_LIMIT]}\n</diff>")
+
+
+def start_merge(a, key, sid, top):
+    if not a.pr:
+        die("--pr <N> is required for the merge quiz", 2)
+    pr = interview._read_pr(top, str(a.pr), None)
+    base, head, number = pr["baseRefOid"], pr["headRefOid"], pr["number"]
+    if git_out(top, "status", "--porcelain") != "" or git_out(top, "rev-parse", "HEAD") != head:
+        die(f"run the merge quiz in a clean checkout of PR #{number}'s head ({head[:10]}): the quiz runs the code at that "
+            f"commit", 2)
+    patch = quiz.patch_id(top, base, head)
+    if not patch:
+        die("cannot read the PR diff", 2)
+    if interview.passed(key, number, "merge", patch):
+        print(f"PR #{number} already has a merge pass (or waiver) for this patch.")
+        return
+    old = interview.load_open(key, sid)
+    retry = bool(old and old.get("kind") == "merge" and str(old.get("pr")) == str(number) and old.get("awaiting") == "retry")
+    if old and not retry:
+        die("an interview, quiz or seal is already open in this session; finish it or have the user send `중단`", 2)
+    old = old if retry else {}
+    material = Path(a.material).read_text(encoding="utf-8") if a.material else old.get("material", "")
+    passes = [r for r in interview._load_passes(key)["merge"] if str(r["pr"]) == str(number)]
+    prior = max(passes, key=lambda r: r["at"], default=None)  # AC-3: an older pass of this PR whose head is an ancestor
+    delta = bool(prior and git(top, "merge-base", "--is-ancestor", prior["head"], head)[0] == 0)
+    scope = f"{prior['head']}..{head}" if delta else f"{base}...{head}"
+    files = (git_out(top, "diff", "--name-only", "--no-renames", scope) or "").splitlines()
+    diff = git_out(top, "diff", "--no-renames", scope) or ""
+    test = (interview.load_map(key) or {}).get("test") or next(iter(treelib.load_policy(top)["required"]), None)  # A-8
+    cands = run_model(cand_prompt(files, diff), CANDIDATES, top)["candidates"] if test else []  # no tests, no truth
+    keyed = quiz.confirm_items(cands, top, test, changed=set(files), want=1 if delta else 4)
+    enough = len(keyed) >= (1 if delta else 2)
+    count = (0 if enough else 1) if delta else (1 if enough else 2)
+    written = []
+    if count:
+        written = run_model(written_prompt(material, diff, count, enough), QUESTIONS, top)["questions"]
+        usable(written, count)
+    rec = {"kind": "merge", "stage": "merge", "pr": number, "head": head, "base": base, "patch": patch, "items": [], "seq": 0,
+           "attempts": old.get("attempts", 0) + 1, "appeals": old.get("appeals", 0), "appeal_upheld": old.get("appeal_upheld", 0),
+           "followup": True, "material": material, "opened_at": now_iso(), "awaiting": "answer", "answer": None, "appeal": None}
+    for it in keyed if enough else []:
+        rec["seq"] += 1
+        rec["items"].append({**it, "id": rec["seq"], "topic": it["kind"], "given": None, "met": None, "done": False})
+    add_items(rec, written)
+    interview.save_open(key, sid, rec)  # T5: keys and rubrics are stored before the first question is printed
+    show(current(rec))
+
+
 def cmd_start(a, cwd):
     key, sid, top = context(a, cwd)
     if interview.headless():
         die("this is a headless run (`claude -p` or a dots task): it cannot start an interview. End with `needs input:` "
             "and have the user run it in their own session.", 2)
-    start_design(a, key, sid, top)
+    (start_design if a.stage == "design" else start_merge)(a, key, sid, top)
 
 
 def conclude(key, sid, rec):
     """Every item has been asked: a pass, or what was missed and a wait for the user's next move."""
     left = [it for it in rec["items"] if not it["done"]]
     if not left:
-        part = rec["part"]
-        interview.record_pass(key, "design", part=part)
-        interview.ledger(key, stage="design", part=part, attempts=rec["attempts"],
+        design = rec["stage"] == "design"
+        what = {"part": rec["part"]} if design else {"pr": str(rec["pr"])}
+        if design:
+            interview.record_pass(key, "design", part=rec["part"])
+        else:
+            interview.record_pass(key, "merge", pr=rec["pr"], patch=rec["patch"], head=rec["head"])
+        interview.ledger(key, stage=rec["stage"], **what, attempts=rec["attempts"],
                          first_try=rec["attempts"] == 1 and rec["appeals"] == 0, appeals=rec["appeals"],
                          appeal_upheld=rec["appeal_upheld"], waived=False)
-        interview.close_open(key, sid)  # questions, rubrics and answers go (A-7)
-        print(f"PASSED: the design interview of `{part}`. Tell the user.")
+        interview.close_open(key, sid)  # questions, rubrics, answers and keys go (A-7)
+        print(f"PASSED: the {rec['stage']} {'interview of `' + rec['part'] + '`' if design else 'quiz of PR #' + str(rec['pr'])}. Tell the user.")
         return
     rec["awaiting"], rec["answer"] = "retry", None
     interview.save_open(key, sid, rec)
-    print("NOT YET. Every rubric item must be met. Tell the user plainly what was missing, so they can study:")
+    print("NOT YET. Every item must be right. Tell the user plainly what was missing, so they can study:")
     for it in left:
         for r in misses(it):
             print(f"- ({it['topic']}) {r}")
-    print("\nThey can ask for new questions on these topics only (run `maeng-interview start` again), appeal with "
-          "`이의 <argument>` (then run `maeng-interview appeal`), or stop with `중단`.")
+    print("\nThey can ask for new questions (run `maeng-interview start` again with the same arguments), appeal a written "
+          "answer with `이의 <argument>` (then run `maeng-interview appeal`), or stop with `중단`.")
 
 
 def cmd_next(a, cwd):
@@ -337,8 +420,9 @@ def main(argv=None):
     s = sub.add_parser("map"); s.add_argument("file")
     s = sub.add_parser("switch"); s.add_argument("part")
     s = sub.add_parser("reopen"); s.add_argument("part")
-    s = sub.add_parser("start"); s.add_argument("--stage", choices=["design"], required=True)
+    s = sub.add_parser("start"); s.add_argument("--stage", choices=["design", "merge"], required=True)
     s.add_argument("--part"); s.add_argument("--overall", action="store_true"); s.add_argument("--material")
+    s.add_argument("--pr")
     sub.add_parser("next")
     sub.add_parser("appeal")
     s = sub.add_parser("seal"); s.add_argument("file")
