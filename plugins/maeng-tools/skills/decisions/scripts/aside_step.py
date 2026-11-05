@@ -6,17 +6,18 @@
       Decisions could not judge stays in `open`. Writes triage.json.
   aside_step.py claims --run ID --claims FILE [--seed N]
       Verify claims. Each page is read by a Python request, then by `aside repl` (the user's
-      logged-in browser, no model) when that gave no readable page, then from the source note.
-      A page only the user can open goes to needs-login.json, and its claims stay `unknown`. Run the
-      same command again after the user signs in: pages already read are kept. Writes claims.json,
+      logged-in browser, no model) when that gave no readable page. A page only the user can open
+      goes to needs-login.json, and its claims stay `unknown`. Run the same command again after the
+      user signs in: pages already read are kept. A page that is gone or empty falls back on its
+      source note. Writes claims.json,
       the file `maeng-review --claims` takes, with the verify_claims.py fields plus `gaps`.
   aside_step.py check --run ID
       Lists what the run has and what is missing. Exit 1 when claims.json is missing.
 
 Run folders are under MAENG_DECISIONS_RUNS (default ~/Documents/maeng-harness/decisions/runs), and
 pages/ there holds logged-in page text: it stays local. Only the page's main content is read.
-Pilot names: aside_triage, aside_access, claim_verification. When Decisions gives no answer on
-access, a page with enough text counts as readable, so a dead API never stops a run.
+Pilot names: aside_triage, aside_access, claim_verification. A page Decisions gave no access answer
+on is never treated as readable or kept. A dead API ends the run at once, with every page as a gap.
 """
 import argparse
 import concurrent.futures
@@ -93,43 +94,48 @@ def run_dir(run):
     return d
 
 
-def _page_file(d, url):
-    return d / "pages" / f"{hashlib.sha256(url.encode('utf-8')).hexdigest()[:16]}.txt"
+def _page_file(d, url, source):
+    return d / "pages" / f"{hashlib.sha256(url.encode('utf-8')).hexdigest()[:16]}.{source}.txt"
 
 
 def read_pages(d, claims):
-    """-> ({url: (text, source)}, {url: kind for a page nobody could read})."""
+    """-> ({url: (text, source)}, {url: kind for a page with no text to judge against})."""
     notes = {}
     for c in claims:
         notes[c["url"]] = notes.get(c["url"]) or c.get("note")
-    pages, gaps = {}, {}
-    for url in notes:
-        if _page_file(d, url).is_file():
-            pages[url] = (_page_file(d, url).read_text(encoding="utf-8"), "aside")
+    pages = {u: (_page_file(d, u, s).read_text(encoding="utf-8"), s)
+             for u in notes for s in ("live", "aside") if _page_file(d, u, s).is_file()}
     todo = [u for u in notes if u not in pages]
     with concurrent.futures.ThreadPoolExecutor(LIVE_WORKERS) as pool:
         live = dict(zip(todo, pool.map(vc._live, todo)))
-    kinds = judge_access({u: t for u, t in live.items() if len(t) >= vc.MIN_LIVE_CHARS})
-    rest = []
+    enough = {u: t for u, t in live.items() if len(t) >= vc.MIN_LIVE_CHARS}
+    kinds = judge_access(enough)
+    if enough and not kinds:  # Decisions is down: nothing can be judged, so no browser is opened
+        return {**pages, **dict.fromkeys(todo, ("", "none"))}, dict.fromkeys(todo, "no_judgment")
+    rest, gaps = [], {}
     for u in todo:
-        if len(live[u]) >= vc.MIN_LIVE_CHARS and kinds.get(u, "readable") == "readable":
-            pages[u] = (live[u][:vc.MAX_CHARS], "live")
+        if kinds.get(u) == "readable":
+            pages[u] = _keep(d, u, live[u], "live")
         else:
             rest.append(u)
     texts = {u: aside_read(u) for u in rest}  # one at a time: these are the user's own sessions
     kinds = judge_access({u: t for u, t in texts.items() if t.strip()})
     for u in rest:
-        text = texts[u][:vc.MAX_CHARS]
-        kind = kinds.get(u, "readable") if text.strip() else "aside_failed"
+        kind = kinds.get(u, "no_judgment") if texts[u].strip() else "aside_failed"
         if kind == "readable":
-            _page_file(d, u).write_text(text, encoding="utf-8")
-            pages[u] = (text, "aside")
+            pages[u] = _keep(d, u, texts[u], "aside")
             continue
-        note = vc._note_body(notes[u])
+        note = "" if kind in NEEDS_USER else vc._note_body(notes[u])  # a sign-in beats an old copy
         pages[u] = (note[:vc.MAX_CHARS], "note") if note else ("", "none")
         if not note:
             gaps[u] = kind
     return pages, gaps
+
+
+def _keep(d, url, text, source):
+    text = text[:vc.MAX_CHARS]
+    _page_file(d, url, source).write_text(text, encoding="utf-8")
+    return text, source
 
 
 def cmd_claims(a, d):

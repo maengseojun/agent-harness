@@ -109,12 +109,19 @@ class ReadingOrder(Base):
         self.assertEqual(doc["gaps"], {"https://a": "aside_failed"})
         self.assertEqual(needs, [])
 
-    def test_the_note_answers_when_nobody_can_read_the_page(self):
-        self.serve({"https://a": WALL}, {"https://a": WALL})
+    def test_the_note_answers_for_a_page_that_is_gone(self):
+        self.serve({"https://a": ""}, {})
         with mock.patch.object(st.vc, "_note_body", lambda n: "note text " * 30 if n else ""):
             doc, needs = self.claims([claim("c1", "https://a", "wiki/sources/S-a.md")])
         self.assertEqual(doc["results"][0]["page_source"], "note")
         self.assertEqual(needs, [])
+
+    def test_a_note_never_replaces_the_sign_in(self):
+        self.serve({"https://a": WALL}, {"https://a": WALL})
+        with mock.patch.object(st.vc, "_note_body", lambda n: "note text " * 30 if n else ""):
+            doc, needs = self.claims([claim("c1", "https://a", "wiki/sources/S-a.md")])
+        self.assertEqual(doc["results"][0]["verdict"], "unknown")
+        self.assertEqual(needs[0]["kind"], "login_required")
 
     def test_after_the_user_signs_in_only_the_blocked_page_is_read_again(self):
         self.serve({"https://a": WALL, "https://b": WALL}, {"https://a": BODY, "https://b": WALL})
@@ -127,12 +134,35 @@ class ReadingOrder(Base):
         self.assertEqual([r["verdict"] for r in doc["results"]], ["supported", "supported"])
         self.assertEqual(needs, [])
 
-    def test_a_dead_decisions_never_stops_the_run(self):
+    def test_a_dead_decisions_ends_the_run_with_gaps_and_no_browser(self):
         self.serve({"https://a": BODY, "https://b": ""}, {"https://b": BODY})
         with mock.patch.object(st, "DECIDE", FakeDecide(answer=False)):
             doc, needs = self.claims([claim("c1", "https://a"), claim("c2", "https://b")])
-        self.assertEqual([r["page_source"] for r in doc["results"]], ["live", "aside"])
         self.assertEqual([r["verdict"] for r in doc["results"]], ["unknown", "unknown"])
+        self.assertEqual(doc["gaps"], {"https://a": "no_judgment", "https://b": "no_judgment"})
+        self.assertEqual(self.seen, [])
+        self.assertEqual(needs, [])
+        self.assertEqual(list((self.d / "pages").iterdir()), [])
+
+    def test_a_page_with_no_access_answer_is_never_kept(self):
+        self.serve({"https://a": ""}, {"https://a": BODY})
+        with mock.patch.object(st, "judge_access", lambda pages: {}):
+            doc, _ = self.claims([claim("c1", "https://a")])
+        self.assertEqual(doc["gaps"], {"https://a": "no_judgment"})
+        self.assertEqual(doc["results"][0]["verdict"], "unknown")
+        self.assertEqual(list((self.d / "pages").iterdir()), [])
+
+    def test_a_rerun_reads_only_the_blocked_page(self):
+        reads = []
+        self.serve({"https://a": BODY, "https://b": WALL}, {"https://b": WALL})
+        items = [claim("c1", "https://a"), claim("c2", "https://b")]
+        self.claims(items)
+        self.serve({"https://a": WALL, "https://b": WALL}, {"https://b": BODY})
+        real = st.vc._live
+        with mock.patch.object(st.vc, "_live", lambda u: reads.append(u) or real(u)):
+            doc, needs = self.claims(items)
+        self.assertEqual(reads, ["https://b"])
+        self.assertEqual([r["page_source"] for r in doc["results"]], ["live", "aside"])
         self.assertEqual(needs, [])
 
     def test_the_result_fits_the_review_gate(self):

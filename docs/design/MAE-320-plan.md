@@ -23,7 +23,7 @@ Decisions:
 - **AC-3** A new Linear issue, Notion page or vault note is denied unless `records.py duplicate` ran in this session in the last 30 minutes. An update, an overwrite and a machine-made note are not denied.
 - **AC-4** `maeng-verify bind` refuses until `records.py related` ran in this session.
 - **AC-5** `MAENG_DECISIONS=off` turns off AC-1 to AC-4.
-- **AC-7** `aside_step.py claims` reads each page by Python, then `aside repl`, then the note. A login wall of any length is not treated as the page, and is never kept.
+- **AC-7** `aside_step.py claims` reads each page by Python, then `aside repl`, with the note only for a page that is gone or empty. A login wall of any length, or a page with no access answer, is not treated as the page and is never kept.
 - **AC-8** A page only the user can open goes to `needs-login.json`, its claims stay `unknown`, and rerunning reads only those pages.
 - **AC-9** `aside_step.py triage` lists which results to open and keeps every item it could not judge.
 - **AC-10** If Decisions or Aside fails, the run still ends, with gaps listed.
@@ -36,4 +36,4 @@ Verification:
 - `python3 -m unittest discover` in `plugins/maeng-tools/skills/decisions/scripts`
 
 Close-out:
-- revisions: plan 4 (A-6 corrected, AC-1 and A-3 after review rounds 1 and 3, MAE-322 added) / result 0
+- revisions: plan 5 (A-6 corrected, AC-1 and A-3 after review rounds 1 and 3, MAE-322 added, AC-7 after round 5) / result 0
