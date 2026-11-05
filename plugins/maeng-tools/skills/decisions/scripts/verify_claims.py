@@ -14,7 +14,8 @@ verify(claims) -> one result per claim, in input order: {id, url, verdict,
 probabilities, confidence, page_source, latency_ms}. One decide call per page (400
 questions per call at most). verdict is supported | contradicted | not_in_page, or
 "unknown" for any refusal, error, missing or off-list answer and for a page with
-source "none" (no request is sent for it). latency_ms is per page.
+source "none" (no request is sent for it). latency_ms is per page. pages={url: (text, source)}
+replaces fetch_page for those URLs (aside_step.py reads them).
 
 route(results) -> ids for the researcher re-check (plan A-4).
 
@@ -203,17 +204,17 @@ def _question(c):
             "instructions": f"Claim: {c['claim']}\nJudge the claim only against the page text above."}
 
 
-def verify(claims, *, pilot="claim_verification", decide=None):
+def verify(claims, *, pilot="claim_verification", decide=None, pages=None):
     decide = decide or functools.partial(decisions_client.decide, redact_by_name=False)
     ids = [c["id"] for c in claims]
     if len(set(ids)) != len(ids):
         raise ValueError("claim ids must be unique")
-    pages = {}
+    groups = {}
     for c in claims:
-        pages.setdefault(c["url"], []).append(c)
+        groups.setdefault(c["url"], []).append(c)
     by_id = {}
-    for url, group in pages.items():
-        text, source = fetch_page(url, next((c["note"] for c in group if c.get("note")), None))
+    for url, group in groups.items():
+        text, source = (pages or {}).get(url) or fetch_page(url, next((c["note"] for c in group if c.get("note")), None))
         answers, ms = {}, 0
         if source != "none":
             for i in range(0, len(group), 400):

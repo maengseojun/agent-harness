@@ -1,6 +1,6 @@
 ---
 name: decisions
-description: Use for the uses the user decided on for the OpenAI Decisions API - verifying research claims against their pages in aside-research stage 3, reading the pre-flight and triage that `maeng-review run` prints (are the Plan's AC-n met by the diff and the verification output), picking which Linear issues, Notion pages or Obsidian notes to read when resuming work, a duplicate check before creating a Linear issue, Notion record or vault note, cleanup candidates for the weekly vault or Linear tidy, and the evals. For personal and eta work alike. Sends public page text, a redacted diff, Plan and test output, or Linear/Notion/vault text, eta included (private spans stripped), to OpenAI.
+description: Use for the uses the user decided on for the OpenAI Decisions API - verifying research claims against their pages in aside-research stage 3, logged-in pages included, picking which search results to open, reading the pre-flight and triage that `maeng-review run` prints (are the Plan's AC-n met by the diff and the verification output), picking which Linear issues, Notion pages or Obsidian notes to read when resuming work, a duplicate check before creating a Linear issue, Notion record or vault note, cleanup candidates for the weekly vault or Linear tidy, and the evals. For personal and eta work alike. Sends page text, logged-in pages included, a redacted diff, Plan and test output, or Linear/Notion/vault text, eta included (private spans stripped), to OpenAI.
 ---
 
 # decisions (Decisions API)
@@ -9,7 +9,7 @@ The OpenAI Decisions API (`POST /v1/decisions`, `gpt-6-luna`) answers bounded qu
 
 ## Rules
 
-- **Data.** Public page text and claim text; for the pre-flight the diff, the Plan and the verification output; for records work, Linear, Notion and vault text, eta included (the user's decision, plan D-7). The client redacts known secret patterns; `records.py` strips vault `<private>` spans.
+- **Data.** Page text, main content only, and claim text. That covers logged-in pages too (the user's decision, MAE-322); for the pre-flight the diff, the Plan and the verification output; for records work, Linear, Notion and vault text, eta included (the user's decision, plan D-7). The client redacts known secret patterns; `records.py` strips vault `<private>` spans.
 - **Off.** `MAENG_DECISIONS=off` sends nothing.
 - **Engines.** By default every question goes to `gpt-6-luna` on the OpenAI key. Jev stays off by default because the school's BAZE gateway adds about 5 credits of masking to every request, whatever the model, and only the school's admin can change that (MAE-319). For a comparison, `MAENG_DECISIONS_MODEL=jev-1.14.0` runs Jev alone (keychain item `baze-api-key`) and `=both` asks both engines at once. With `both`, a choice they agree on is the answer. A choice they differ on comes back `unknown` with reason `disagree`, so the sample re-check sends it to the researcher, who settles it against the source. A probability or score is their mean. If only one engine answers, for example Jev past its 64,000-character limit or without a key, that answer stands. The `related` threshold of 0.05 is set for Luna, so pass `--threshold 0.25` with `both`.
 - **Key.** `OPENAI_API_KEY`, else the macOS keychain item `openai-api-key`. Never print it, never ask the user to paste it into the chat.
@@ -26,6 +26,7 @@ The OpenAI Decisions API (`POST /v1/decisions`, `gpt-6-luna`) answers bounded qu
 | Related pick | `maeng-verify bind` refuses until `records.py related` ran in this session |
 | Duplicate check | A new Linear issue, Notion page or vault note is denied until `records.py duplicate` ran in the last 30 minutes of this session. Updates, overwrites and machine-made notes (`wiki/sessions`, `wiki/reviews`, `wiki/sources`, `raw`) pass |
 | Cleanup | The Monday `vault-weekly-maint` task runs it |
+| Picking search results | Step 6 of an `aside-collect` bulk run: `aside_step.py triage` |
 
 When a search found nothing, run the check with an empty candidate list. Run a check as one plain command: a check followed by `;`, a pipe, `||` or `&`, or inside a substitution, does not count, because the hook sees only the whole command's exit status.
 
@@ -34,7 +35,8 @@ Scripts are in this skill's `scripts/` folder; run them with `python3 <this skil
 ## Claim verification (aside-research stage 3, `decisions` mode)
 
 1. Write the claims you intend to cite as a JSON list `[{"id": "c1", "claim": "...", "url": "...", "note": "wiki/sources/S-....md"}]` (one atomic claim each: one number, one name, one statement).
-2. `python3 verify_claims.py claims.json --seed <n> --out result.json`. One request per page; verdict per claim: `supported`, `contradicted`, `not_in_page` or `unknown`. Page text comes from the live page (GitHub and PyPI through their raw or JSON routes), else the source note's extract; never a WebFetch summary.
+2. `python3 aside_step.py claims --run <run id> --claims claims.json --seed <n>`. It writes `claims.json` in the run folder, the file `maeng-review --claims` takes. One request per page; verdict per claim: `supported`, `contradicted`, `not_in_page` or `unknown`. Each page is read in this order: a Python request (GitHub and PyPI through their raw or JSON routes), then `aside repl` when that gave a login wall or too little text, then the source note. Never a WebFetch summary. `aside repl` reads the user's logged-in pages in a few seconds with no model, so nothing on a page can instruct an agent.
+   A page only the user can open (sign-in, paywall, CAPTCHA) goes to `needs-login.json`, and its claims stay `unknown`. Do not stop for it: finish the run, then ask once, listing those pages, for the user to sign in inside Aside. Run the same command again: pages already read are kept, and only those pages are read again. Never type a password or solve a CAPTCHA. A claim still `unknown` is not cited.
 3. Sample re-check (the risk prevention): send every id in `route` to the `researcher` agent as in the `researcher` mode. `route` holds every verdict other than `supported` plus a seeded 20% sample of `supported` (at least 3).
 4. If the researcher finds any sampled `supported` claim wrong, re-check every remaining claim of that run with the researcher.
 5. Record in the source note `verified_via: decisions` (claims only Decisions checked), or `decisions+researcher` (re-checked). Note the run's numbers on the research issue: claims, routed, sampled wrong.
