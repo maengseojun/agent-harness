@@ -52,4 +52,16 @@ class EvidenceTests(ShipBase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("dirty submodule", r.stderr)
 
+    def test_default_ship_check_is_pytest_n8_not_narrowed_or_auto(self):
+        def ship():
+            return json.loads(self.cli("maeng-verify", ["status"], self.repo).stdout)["ship_verified"]
+
+        self.run_check(self.repo, "python3 -m pytest -q -n 8")
+        self.assertTrue(ship())                                # the default ship check passes on this tree
+        for i, cmd in enumerate(("python3 -m pytest -q -k name", "python3 -m pytest -q -n auto")):
+            (self.repo / f"mod{i}.py").write_text(f"X = {i}\n")
+            self.commit_all(self.repo, f"change {i}")          # a new tree: earlier evidence no longer counts
+            self.run_check(self.repo, cmd)
+            self.assertFalse(ship(), cmd)
+
 

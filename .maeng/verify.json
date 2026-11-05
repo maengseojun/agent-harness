@@ -7,7 +7,7 @@
     "tests/live/evidence/**"
   ],
   "_tiers": {
-    "_comment": "Read by agents writing Plans (verification.md 'Verification tiers'); the gate reads only non_code_globs/required/protected_branches/formatter. Ship runs from the repo root, where pytest.ini limits collection to plugins/maeng-harness/tests; add -n <number> (not -n auto) to run it in parallel.",
+    "_comment": "Read by agents writing Plans (verification.md 'Verification tiers'); the gate reads only non_code_globs/required/protected_branches/formatter. Ship runs from the repo root, where pytest.ini limits collection to plugins/maeng-harness/tests, in parallel with -n 8 (-n auto is not default-mode evidence).",
     "docs-only": {
       "when": "every changed path matches non_code_globs",
       "while_working": [],
@@ -18,7 +18,7 @@
         "python3 plugins/maeng-harness/tests/impact.py run"
       ],
       "ship": [
-        "python3 -m pytest -q"
+        "python3 -m pytest -q -n 8"
       ]
     },
     "gate-code": {
@@ -27,7 +27,7 @@
         "python3 plugins/maeng-harness/tests/impact.py run"
       ],
       "ship": [
-        "python3 -m pytest -q"
+        "python3 -m pytest -q -n 8"
       ],
       "before_merge_if_entry_points_changed": "HARNESS_TEST_PROCESS=1 full suite"
     }
