@@ -93,7 +93,8 @@ Close-out: filled when the bundle closes.
 - S4 done 2026-11-06 (implementer on Haiku at medium, commit after c4598b7). The planner re-ran the Done commands: 9 tests pass in `test_evidence.py` and `test_docs_sync.py`; `verify.json` gives `python3 -m pytest -q -n 8` for both tiers. A-5 held: the gate needed no change. Two lines of `verification.md` keep `python3 -m pytest -q` as an example of the plain command form.
 - S5 done 2026-11-06 (implementer on Haiku at medium, commit c4598b7). The planner re-ran the test: 3 pass. `BASE_BYTES` is 20,651 over 49 skills, counted with continuation lines; a first-line-only count gives 20,041.
 - Open for S8: `loopstats.py` counts skill bytes with a first-line parser (20,053). Make it use the count of `test_skill_budget.py`, or drop its skill rows.
-- S3 waits for the user's decision on the scope of the role table and the definitions (sealed recommendation d46e0615c421). S6 and S7 wait for the design passes.
+- S3: the user chose option 가 on 2026-11-06 ("가"): the role table and the three definitions stay as planned. The sealed recommendation d46e0615c421 is not revealed yet: `maeng-interview reveal` did not record the answer, which arrived together with a relayed session note. S3 is with an implementer on Sonnet at medium. S6 and S7 wait for the design passes.
+- Known gap: the SubagentStop report check applies only to agent types ending in `implementer`, so the new `standard` definition states the report format in its body and no hook enforces it. The parent plan keeps that hook condition (P5-3); bundle 2 decides.
 
 ## S2 findings
 
