@@ -1,6 +1,6 @@
 # MAE-323 bundle 1 Spec/Plan: settings and measurement
 
-Linear: MAE-323. Parent plan: `docs/design/MAE-323-plan.md` (criteria approved by the user on 2026-11-06, "승인"). Date: 2026-11-06. Status: draft. This sub-plan adds no criterion beyond the parent's; its own choices are the `A-n` below and go to the user in the CEO brief.
+Linear: MAE-325 (parent MAE-323). Parent plan: `docs/design/MAE-323-plan.md` (criteria approved by the user on 2026-11-06, "승인"). Date: 2026-11-06. Status: draft. This sub-plan adds no criterion beyond the parent's; its own choices are the `A-n` below and go to the user in the CEO brief.
 
 Parent criteria are cited by number in words ("parent 12"), never in the criterion pattern, because the binding reads every such pattern in this file as a criterion of this plan.
 
