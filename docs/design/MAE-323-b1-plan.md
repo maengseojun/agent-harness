@@ -12,7 +12,7 @@ Decisions: D-1, D-4 and D-9 of the parent plan.
 
 Assumptions:
 - A-1 The three personal-flow agent definitions go in `plugins/maeng-tools/agents/` as `quick.md`, `standard.md` and `design.md`. The four shared definitions are not edited. Both plugins load in eta checkouts, so no location hides the new files from eta; nothing in eta calls them. Rejected: a new `plugins/maeng-harness/agents/` directory, which isolates no better.
-- A-2 Documented precedence, from research on 2026-11-06 (documentation pages read through a summarizer, not yet observed): `CLAUDE_CODE_EFFORT_LEVEL` beats a per-call `effort` (2.1.292 and later), which beats the definition's `effort`, which beats the session's effort; the session's effort reaches a subagent only when it runs on the main model. From 2.1.317 a subagent on a different model uses that model's saved or default effort. `CLAUDE_CODE_SUBAGENT_EFFORT` (2.1.316) applies "when nothing else names one"; its exact rank is not documented. S1 observes this before S3 relies on it.
+- A-2 Documented precedence, from research on 2026-11-06 (documentation pages read through a summarizer; the per-call and different-model parts were then observed, see "S1 results"): `CLAUDE_CODE_EFFORT_LEVEL` beats a per-call `effort` (2.1.292 and later), which beats the definition's `effort`, which beats the session's effort; the session's effort reaches a subagent only when it runs on the main model. From 2.1.317 a subagent on a different model uses that model's saved or default effort. `CLAUDE_CODE_SUBAGENT_EFFORT` (2.1.316) applies "when nothing else names one"; its exact rank is not documented. S1 observes this before S3 relies on it.
 - A-3 `deep` has no definition of its own: the planner starts `standard` with a per-call `effort: high` (parent P1-3).
 - A-4 The size cap is the number the new test's own count gives on the base commit, recorded in the test. The parent's 20,693 bytes came from an earlier count; a recount on 2026-11-06 with a single-line parser gave 20,065 bytes for 49 skills.
 - A-5 `python3 -m pytest -q -n 8` already counts as default-mode evidence: `evidence.py` lists `-n` and a number among the benign pytest flags. Parent 4 therefore needs a config and rule-text change and one test, not a gate change. S4 proves it with the test.
@@ -55,7 +55,7 @@ Sub-tasks:
 | # | Do | Grade | Writes | Interfaces | Done | Fails-if | After |
 |---|---|---|---|---|---|---|---|
 | S1 | Observe: the running CLI version (terminal and desktop), whether `CLAUDE_CODE_EFFORT_LEVEL`, `CLAUDE_CODE_SUBAGENT_EFFORT` or a settings effort key is set, and the effective effort of a subagent in four cases: no effort named, definition effort, per-call effort, a subagent on a different model. Answer OQ-1 and OQ-4 | planner | section "S1 results" of this file; temporary probe definitions under `.claude/agents/`, removed after | produces: the transcript field that carries effort and model, and the observed precedence | the results table has an observed value and a transcript path for every case | a case is filled from documentation instead of a transcript; the probe definitions are left in the tree | - |
-| S2 | Measurement script from the kept analysis scripts: window arguments, comparison with the baseline table, the new metrics, the scorecard cells | standard | `tools/testperf/loopstats.py`, `plugins/maeng-harness/tests/test_loopstats.py` | consumes: transcripts under `~/.claude/projects`, the harness state folder, the field names from S1 | `python3 tools/testperf/loopstats.py --until 2026-11-05 --days 7` prints every baseline row with `match` or a stated difference; the unit test passes on a fixture transcript | it prints a table for a window with no transcripts instead of an error; it drops files it cannot parse without counting them; expected values in the test come from running the script | S1 |
+| S2 | Measurement script from the kept analysis scripts: window arguments, comparison with the baseline table, the new metrics, the scorecard cells | standard | `tools/testperf/loopstats.py`, `plugins/maeng-harness/tests/test_loopstats.py` | consumes: transcripts under `~/.claude/projects`, the harness state folder, the field names from S1 | `python3 tools/testperf/loopstats.py --until 2026-11-05 --days 7` prints every baseline row with `match` or a stated difference; the unit test passes on a fixture transcript | it prints a table for a window with no transcripts instead of an error; it drops files it cannot parse without counting them; expected values in the test come from running the script; the xhigh share is one number across CLI versions (it must be split at 2.1.317) | S1 |
 | S3 | `roles.json`, the three definitions, the `Grade` column, "planner" in place of "Opus session", the sync test | standard | `plugins/maeng-harness/policy/roles.json`, `plugins/maeng-tools/agents/{quick,standard,design}.md`, `skills/harness-run/SKILL.md`, `skills/harness-run/references/{spec-plan,org-chart,review-and-ship}.md`, `plugins/maeng-harness/tests/test_roles.py` | produces for S6: `roles.json` with `roles.<kind>` = `{model, effort, range, standby: [{model, effort}], sourceUrl, verifiedAt}` and `grades.<grade>` = `{agent, model, effort, ceiling, standby, sourceUrl, verifiedAt}`; kinds: `code_child`, `code_small`, `parent`, `docs`, `research`, `notion`, `plan` | `python3 -m pytest -q plugins/maeng-harness/tests/test_roles.py` passes; `git diff --stat feat/harness-v1 -- plugins/maeng-tools/agents/architect.md plugins/maeng-tools/agents/design-reviewer.md plugins/maeng-tools/agents/implementer.md plugins/maeng-tools/agents/researcher.md` prints nothing | the sync test still passes after a definition's effort is changed away from the table; a grade named in the template has no row; a row lacks `sourceUrl` or `verifiedAt` and the test passes | S1 |
 | S4 | Default ship check `-n 8` | quick | `.maeng/verify.json`, `skills/harness-run/references/verification.md`, `plugins/maeng-harness/tests/test_evidence.py` | - | `python3 -m pytest -q plugins/maeng-harness/tests/test_evidence.py plugins/maeng-harness/tests/test_docs_sync.py` passes, with a new test that a passing `python3 -m pytest -q -n 8` run satisfies the default ship check | the new test also accepts a narrowed run such as `-k name` or `-n auto`; a rule document still gives the default without `-n 8` | - |
 | S5 | Size test for skill names and descriptions | quick | `plugins/maeng-harness/tests/test_skill_budget.py` | - | the test passes on the base; adding 1 KB to one description makes it fail (shown once, then reverted) | it counts fewer than 40 skills and passes; it reads only one plugin | - |
@@ -82,9 +82,37 @@ Review focus: does any review kind get a different model or effort than today be
 
 Revisions:
 - R-1 plan order: parent P1-6 moved to bundle 2 with the reviewer selection rules (A-6).
+- R-2 plan verification: S1 observed on 2026-11-06; the measurement must split the effort share by CLI version (S2).
 
 Close-out: filled when the bundle closes.
 
 ## S1 results
 
-Not run yet.
+Observed on 2026-11-06 in the desktop app, CLI 2.1.317 (`AI_AGENT=claude-code_2-1-317_agent` in the Bash environment), session model Fable at xhigh. Each row is one probe subagent that answered one word. The values are the `effort`, `perTurnEffort` and `params.output_config.effort` fields of its transcript, which agreed in every probe. Transcripts: `~/.claude/projects/-Users-maengseojun-Documents-Project-agent-harness/d594eac0-a644-4925-a39a-6d8f0063d4d3/subagents/agent-<id>.jsonl`.
+
+| Case | Agent type | Effort named | Model that ran | Effort that ran | Probe id |
+|---|---|---|---|---|---|
+| different model, nothing named | `maeng-tools:researcher` | none | claude-haiku-5-5 | medium | a68e7e07c85179d4a |
+| different model, nothing named | `maeng-tools:implementer` | none | claude-sonnet-5-5 | medium | a8173a6d53c32804e |
+| per-call effort | `maeng-tools:implementer` | call: low | claude-sonnet-5-5 | low | a710cb3c47e5929c0 |
+| different model with a saved level | `maeng-tools:architect` | none | claude-opus-5-5 | high | a925174f796b799c9 |
+| same model as the session | `general-purpose` | none | claude-fable-5-1 | xhigh | ab1d23c2f2fd3b201 |
+
+Settings and environment at the time: `~/.claude/settings.json` has `modelSettings.claude-opus-5-5.effortLevel: high`; no `CLAUDE_CODE_EFFORT_LEVEL`, `CLAUDE_CODE_SUBAGENT_EFFORT` or `CLAUDE_CODE_SUBAGENT_MODEL` is set.
+
+What this shows:
+1. On 2.1.317 a subagent on a different model does not inherit the session's effort. Sonnet and Haiku ran at medium, Opus at its saved level.
+2. A per-call `effort` is honoured.
+3. A subagent on the session's model inherits the session's effort (xhigh here).
+4. The transcript carries model and effort per request, so the measurement can read them without OpenTelemetry.
+
+Consequences for this bundle:
+- The baseline "92% of subagent activity at xhigh or above" was measured on the 7 days before 2026-11-05. It may include requests from CLI versions before 2.1.317. S2 reports the share per CLI version where the transcript records one, so the platform's change is not counted as this patch's effect.
+- The table's values for quick, standard and design equal what the platform already does today for the typed agents. What the definitions still add: values that do not depend on platform defaults or saved settings, a `tools` limit (start context, bundle 2), and a ceiling to measure against. The remaining xhigh inheritance is the same-model case: `general-purpose` and forks.
+
+Not observed:
+- A definition's own `effort` field (needs a new definition to be loaded, so it is checked after S3 in a fresh session).
+- The rank of `CLAUDE_CODE_SUBAGENT_EFFORT`.
+- The terminal CLI 2.1.314.
+- Whether a hook process sees `AI_AGENT` (it was read in a Bash tool call). OQ-4 stays open until a hook reads it.
+- OQ-1: the session's model is in the transcript (`message.model`); whether `maeng-review` can reach the transcript path of the calling session is not checked.
