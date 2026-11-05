@@ -463,16 +463,16 @@ def main(argv=None):
     import time
     t0 = time.perf_counter()
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--until", default=dt.date.today().isoformat(), help="YYYY-MM-DD; window ends at 00:00 local of that day")
+    ap.add_argument("--until", default=dt.date.today().isoformat(), help="YYYY-MM-DD (window ends at 00:00 local of that day) or YYYY-MM-DDTHH:MM")
     ap.add_argument("--days", type=int, default=7)
     ap.add_argument("--roles", help="roles.json, for the count of requests above the grade ceiling")
     ap.add_argument("--projects", default=os.path.expanduser("~/.claude/projects"))
     ap.add_argument("--state", help="harness state folder (default MAENG_HOME or ~/.local/share/maeng-harness)")
     args = ap.parse_args(argv)
     try:
-        until = dt.datetime.strptime(args.until, "%Y-%m-%d")
+        until = dt.datetime.strptime(args.until, "%Y-%m-%dT%H:%M" if "T" in args.until else "%Y-%m-%d")
     except ValueError:
-        sys.exit("loopstats: --until must be YYYY-MM-DD")
+        sys.exit("loopstats: --until must be YYYY-MM-DD or YYYY-MM-DDTHH:MM")
     hi = until.timestamp()
     lo = hi - args.days * 86400
     grades = read_roles(args.roles) if args.roles else None
@@ -483,7 +483,7 @@ def main(argv=None):
         return 2
     repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     rows, x = build_rows(data, rv, repo, True)
-    base = args.until == "2026-11-05" and args.days == 7
+    base = args.until.startswith("2026-11-05") and args.days == 7
     print("window %s .. %s (local, end exclusive); transcripts read: %d files" % (
         dt.datetime.fromtimestamp(lo).date(), until.date(), data["files"]))
     print("files that could not be parsed: %d (transcripts %d, review files %d)" % (

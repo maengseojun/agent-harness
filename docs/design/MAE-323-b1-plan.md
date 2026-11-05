@@ -86,6 +86,20 @@ Revisions:
 
 Close-out: filled when the bundle closes.
 
+## Progress
+
+- S1 done 2026-11-06 (planner). See "S1 results".
+- S2 done 2026-11-06 (implementer on Sonnet at medium, commit 0b06c2c; the planner added a time of day to `--until`). The planner re-ran the three Done commands: the unit test passes (4 tests), the empty window exits 2 with the error, and the baseline window prints every row with `match` or a stated difference.
+
+## S2 findings
+
+1. Stop blocks in the baseline week are 99, not 164. The first count read copies of the same event in resumed-session files: 168 raw lines, 99 events by uuid and by timestamp. An independent count by the planner gave the same two numbers. The parent plan and the design notes are corrected.
+2. With the window ending at 2026-11-05 11:06, the time the baseline data was extracted, the rows for full test hours, time after the first review, review pass ratio and both PR counts fall within 5%. With the window ending at 00:00 they do not. The baseline scripts ran at different times of that day, so no single end time reproduces every row.
+3. Every subagent in the baseline window ran CLI 2.1.309. The 2.1.317 bucket is empty there. The "before" numbers of this bundle must come from a window after the app moved to 2.1.317.
+4. Rows that still differ, with the cause the script prints: record writes (765 against 621: the baseline's set of tools was not recorded), direct `codex exec` calls (66 to 70 against 73: the baseline script was not kept).
+5. Not measured by the script: mutation detection (needs a `mutate.py` run), interview and quiz passes (the state is closed to agents), requests above the grade ceiling (needs `roles.json` from S3).
+6. The xhigh share counts each subagent's active time under its most common effort (91.2%). By request count it is 84.5%. The old script `a15.py` reported active hours, so the time basis is kept.
+
 ## S1 results
 
 Observed on 2026-11-06 in the desktop app, CLI 2.1.317 (`AI_AGENT=claude-code_2-1-317_agent` in the Bash environment), session model Fable at xhigh. Each row is one probe subagent that answered one word. The values are the `effort`, `perTurnEffort` and `params.output_config.effort` fields of its transcript, which agreed in every probe. Transcripts: `~/.claude/projects/-Users-maengseojun-Documents-Project-agent-harness/d594eac0-a644-4925-a39a-6d8f0063d4d3/subagents/agent-<id>.jsonl`.
