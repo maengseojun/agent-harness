@@ -12,7 +12,7 @@ Ranks give every agent its scope, its approval line, its reporting line and wher
 | 감사 (auditor) | Astra | `maeng-review` (review-and-ship.md tiers) | independent review; never the author |
 | 컨설턴트 (consultant) | Astra medium | `aside-research` | research whose scope or stakes are large (vision, strategy, a decision that is hard to undo) |
 | 리서치팀장 (research lead) | Opus | `aside-research`; splits topics to Sonnet or Sol at effort high | ordinary research |
-| 상무 (executive) | the Opus session | this session | plans, delegates, integrates, writes the CEO brief |
+| 상무 (executive) | the planner (the session's model, Opus or Fable) | this session | plans, delegates, integrates, writes the CEO brief |
 | 부장/차장 (general manager) | a middle Opus | `maeng-tools:architect` for design, or an agent with `model: opus` that owns a sub-tree | only on large projects: a parent with several child PRs or more than one repo |
 | 팀장~대리 (team lead) | Sonnet; Sol 6.1 when Codex tokens are available | `maeng-tools:implementer`; Codex through `task-brief` / `execute-code-brief`; `maeng-tools:design-reviewer` for a rendered UI | executes one task, or reviews one rendered UI |
 | 신입~대리 (junior) | Haiku | `maeng-tools:researcher` (read-only); small edits through `maeng-tools:implementer` with `model: haiku` | light research and small, exact edits |
@@ -39,7 +39,7 @@ Every rank is trusted to judge. When something seems to need a decision above it
 
 The approval lines say what a rank may decide in general. The DRI (directly responsible individual) names who decides one piece of work: it decides, executes and records what was learned. Decided by the CEO on 2026-10-21 (MAE-259).
 
-- **The line.** In a task tree every parent and child Linear issue carries `DRI: <agent>`, a plain name such as `Opus session` without a rank (not the Spec/Plan, which the reviewer reads). By default the parent's DRI is the Opus session and a child's is the agent that executes it, inside its Spec. A sub-agent DRI owns the how and reports what it learned; the parent's DRI passes it the earlier learnings that bear on its task, writes the learning lines and judges every `D-n` of the tree at close. Small work without a tree needs no line; the session is the DRI.
+- **The line.** In a task tree every parent and child Linear issue carries `DRI: <agent>`, a plain name such as `Opus session` without a rank (not the Spec/Plan, which the reviewer reads). By default the parent's DRI is the planner (the session's model, Opus or Fable) and a child's is the agent that executes it, inside its Spec. A sub-agent DRI owns the how and reports what it learned; the parent's DRI passes it the earlier learnings that bear on its task, writes the learning lines and judges every `D-n` of the tree at close. Small work without a tree needs no line; the session is the DRI.
 - **Three layers.** Each decision has one owner. Others give input (a finding, a `Dissent:` line, a question); the owner decides.
 
   | Layer | Covers | Owner |

@@ -15,14 +15,16 @@ Commands (tier is picked from the bound issue; see the table below):
 
 Store payloads under the session repo's `publish/` directory (`publish/<id>.json`, git-ignored) so the reviewed bytes and the published bytes are the same file.
 
+The values below come from `policy/roles.json`; a sync test compares them.
+
 | Subject | Codex reviewer | Effort | Claude fallback | Use when |
 |---|---|---|---|---|
-| Child-task PR in a structured implementation | Sol | xhigh | Opus medium | the bound issue has a parent and the task has a Plan with `AC-n` |
+| Child-task PR in a structured implementation | Sol | xhigh | Opus high | the bound issue has a parent and the task has a Plan with `AC-n` |
 | Parent integration / boundary (children meet) | Astra (standby only) | high | Fable high (first) | children merged; review the combined diff against the parent Spec/Plan and child contracts |
 | Architecture, rules, design documents | Astra | medium | Opus high | document review of a `--draft`; not a merge receipt |
 | Small implementation without a task tree | Sol | high | Opus high | no parent/child structure |
 | Either code row above, written by Sol/Codex | none (skipped) | - | Opus high | `--kind code --author codex` |
-| Notion outcome payload | Sol | medium | Opus medium | `work-records` flow |
+| Notion outcome payload | Sol | medium | Opus high | `work-records` flow |
 | Research draft | Sol | xhigh | Opus high | `aside-research`, with a devil's-advocate lens |
 
 ## Bundle (reviewer reports `blocked` if anything is missing)
