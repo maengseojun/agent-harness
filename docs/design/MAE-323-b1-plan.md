@@ -90,6 +90,10 @@ Close-out: filled when the bundle closes.
 
 - S1 done 2026-11-06 (planner). See "S1 results".
 - S2 done 2026-11-06 (implementer on Sonnet at medium, commit 0b06c2c; the planner added a time of day to `--until`). The planner re-ran the three Done commands: the unit test passes (4 tests), the empty window exits 2 with the error, and the baseline window prints every row with `match` or a stated difference.
+- S4 done 2026-11-06 (implementer on Haiku at medium, commit after c4598b7). The planner re-ran the Done commands: 9 tests pass in `test_evidence.py` and `test_docs_sync.py`; `verify.json` gives `python3 -m pytest -q -n 8` for both tiers. A-5 held: the gate needed no change. Two lines of `verification.md` keep `python3 -m pytest -q` as an example of the plain command form.
+- S5 done 2026-11-06 (implementer on Haiku at medium, commit c4598b7). The planner re-ran the test: 3 pass. `BASE_BYTES` is 20,651 over 49 skills, counted with continuation lines; a first-line-only count gives 20,041.
+- Open for S8: `loopstats.py` counts skill bytes with a first-line parser (20,053). Make it use the count of `test_skill_budget.py`, or drop its skill rows.
+- S3 waits for the user's decision on the scope of the role table and the definitions (sealed recommendation d46e0615c421). S6 and S7 wait for the design passes.
 
 ## S2 findings
 
