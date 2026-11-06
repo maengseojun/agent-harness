@@ -73,6 +73,7 @@ Ranks are a protocol for what each message carries, not a status. What changes a
 A delegation starts with `[sender rank→recipient rank] task` and states the recipient's approval line (for 신입: "edit only, do not commit"). The head routes the message; the body describes the job and never casts the recipient as unskilled. It also carries:
 
 - `Why:` the purpose and the `AC-n` it serves. A reason lets the agent handle cases the brief did not list.
+- The range, for reading or research: the exact file list or URL list, not a description of a scope. The sender checks what was read against that list (the tool log, or the last line of each file) and re-runs what is missing. An agent given only a scope stops when it judges it has read enough.
 - When to stop: "keep going until <check> passes; stop to ask only when you cannot go on without an answer, or before a stop-list action". When two readings of the brief would produce materially different work, the recipient asks instead of guessing.
 
 Write plainly: a reason instead of capitals, CRITICAL or MUST, which current models over-apply. Add the line for the recipient's model:

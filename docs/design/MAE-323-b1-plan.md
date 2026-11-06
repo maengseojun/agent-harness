@@ -41,6 +41,7 @@ Requirements -> acceptance:
 - **AC-6** A session with no code change of its own since its last stop gets no UNVERIFIED when another session changed code in the same checkout. A session that changed code is still flagged. Covers T3 (parent 7, the clause on sessions that changed no code).
 - **AC-7** A test fails when the total bytes of skill names and descriptions exceed the recorded base value. (parent 8, second clause)
 - **AC-8** `tools/testperf/loopstats.py` reproduces each row of the parent's baseline table for the 7 days before 2026-11-05 within 5%, or prints the difference with its cause. It also prints the median time per branch, the share of PRs with three or more reviews, the count of requests whose effort exceeded the grade ceiling, a classification of the direct `codex exec` calls, and the scorecard cells G1 to G5 with "미측정" for a cell without a value. Covers A2 (parent 10, 13, 20).
+- **AC-9** `roles.json` lists the resources the user can use and a route for each kind of work (resource, model, effort, what forces the route, who decided it). The two research collection routes carry the user's choice of 2026-11-07: light runs on Sol high, deep runs on Astra medium. `aside-collect` passes that model and effort to `aside exec`, and the sync test fails when the skill and the table differ, when a route names an unlisted resource, or when the routes are removed. Added on the user's instruction of 2026-11-07; it is not in the parent's criteria.
 
 ## Plan
 
@@ -62,6 +63,7 @@ Sub-tasks:
 | S6 | `maeng-review` reads `roles.json`; tier constants removed; error on a missing or invalid file | deep | `plugins/maeng-harness/bin/maeng-review`, `plugins/maeng-harness/tests/test_review_roles.py` | consumes `roles.json` from S3 | `python3 -m pytest -q plugins/maeng-harness/tests/test_review_roles.py` passes: for every kind and both backends the pair equals the table, and the Opus standby for a child-task PR and for Notion is high | deleting a row still yields a model (a hidden default); a broken JSON file still starts a review; a kind's pair differs from today's except the two raised rows | S3, and the user's design passes for `overall` and `evidence` |
 | S7 | No UNVERIFIED for a session without a code change of its own | deep | `plugins/maeng-harness/lib/maeng/handlers.py` (`compute_missing`), `plugins/maeng-harness/tests/test_stop_hooks.py` | - | two new tests pass: another session's change gives no UNVERIFIED; the session's own change does | a session that changed code through Bash instead of Edit is silenced; the own-change test passes without the fix | the user's design passes for `overall` and `gates` |
 | S8 | Versions of both plugins, the before-numbers report, the full check | planner | the two `plugin.json` files, `docs/design/MAE-323-b1-report.md` | - | the commands of the Verification section pass on the final tree | a manifest version is unchanged; the report has a row without a number or "미측정" | S2 to S7 |
+| S9 | Resources and routes in `roles.json`; `aside-collect` passes `--model` and `--effort` from the two research routes; the range rule in the delegation format | standard | `plugins/maeng-harness/policy/roles.json`, `plugins/maeng-tools/skills/aside-collect/SKILL.md`, `plugins/maeng-tools/skills/aside-research/SKILL.md`, `skills/harness-run/references/org-chart.md`, `plugins/maeng-harness/tests/test_roles.py` | produces `routes` for bundle 2 (code that sits on a route reads it) | `python3 -m pytest -q plugins/maeng-harness/tests/test_roles.py` passes with 8 tests; one real `aside exec` run per collection route records the passed model in its sidecar | the three new mutation tests pass on an unchanged tree (they must fail the check); the Aside model ids `openai/gpt-6.1-sol` and `openai/gpt-6-astra` are refused by the CLI | S3 |
 
 Steps:
 1. S1, then S2 to S5 in order (they share no file; run one after another by default). Done when AC-1, AC-3, AC-5, AC-7 and AC-8 hold and AC-2 has its observed table.
@@ -83,10 +85,13 @@ Review focus: does any review kind get a different model or effort than today be
 Revisions:
 - R-1 plan order: parent P1-6 moved to bundle 2 with the reviewer selection rules (A-6).
 - R-2 plan verification: S1 observed on 2026-11-06; the measurement must split the effort share by CLI version (S2).
+- R-3 plan scope: AC-9 and S9 added on the user's instruction of 2026-11-07 ("이러한 것들을 다 리스트업해두고 필요한 부분에 있어서는 반드시 라우팅 되도록"; research through Aside: "astra면 medium 정도는 해야할듯 sol은 high", light runs for a re-check, one fact or bulk gathering, Astra for deep research). No pilot of the assignment ("배정은 재지 않아도 되고"). The enforcement of routes by code is bundle 2; the periodic update is bundle 3 (parent P8).
 
 Close-out: filled when the bundle closes.
 
 ## Progress
+
+- S9 (2026-11-07): the table, the skill texts and the sync test are written; 8 tests pass. Not done: the two real `aside exec` runs. Three Aside sessions of the user were running, which is the cap, so the model ids are not verified against the CLI yet. The light route's model (Sol) is read from the user's two statements, not stated in one sentence.
 
 - S1 done 2026-11-06 (planner). See "S1 results".
 - S2 done 2026-11-06 (implementer on Sonnet at medium, commit 0b06c2c; the planner added a time of day to `--until`). The planner re-ran the three Done commands: the unit test passes (4 tests), the empty window exits 2 with the error, and the baseline window prints every row with `match` or a stated difference.

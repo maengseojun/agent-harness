@@ -162,5 +162,215 @@
       "sourceUrl": "https://docs.claude.com/en/docs/about-claude/models/overview",
       "verifiedAt": "2026-11-06"
     }
+  },
+  "_comment_routes": "resources lists what the user can use. routes sends each kind of work to the resource that fits it. enforcedBy says what makes the work take that route: code (a script refuses otherwise), hook, or skill (text only, not forced). decidedBy is the source of the choice. verifiedAt is the date the route last ran as written; null means not run yet.",
+  "resources": {
+    "claude_code": {
+      "plan": "Claude Code Ultra (subscription)",
+      "gives": [
+        "session",
+        "subagents",
+        "workflows"
+      ],
+      "models": [
+        "claude-fable-5-1",
+        "claude-opus-5-5",
+        "claude-sonnet-5-5",
+        "claude-haiku-5-5"
+      ],
+      "note": "model and effort of subagents: grades above"
+    },
+    "gpt_pro": {
+      "plan": "GPT Pro (subscription)",
+      "gives": [
+        "Codex CLI"
+      ],
+      "models": [
+        "gpt-6.1-sol",
+        "gpt-6-astra"
+      ],
+      "note": "review model and effort: roles above"
+    },
+    "claude_api": {
+      "plan": "Claude API key",
+      "gives": [
+        "Claude outside a session"
+      ],
+      "models": [],
+      "note": "no harness part uses it as of 2026-11-07"
+    },
+    "openai_api": {
+      "plan": "OpenAI API key",
+      "gives": [
+        "Decisions API",
+        "Images API"
+      ],
+      "models": [
+        "gpt-6-luna"
+      ],
+      "note": "credit recorded on 2026-11-04 as ending 2026-11-20 with no payment method; not re-checked"
+    },
+    "aside": {
+      "plan": "Aside browser",
+      "gives": [
+        "aside exec (browser agent)",
+        "aside repl (no model)"
+      ],
+      "models": [
+        "gpt-6.1-sol",
+        "gpt-6-astra"
+      ],
+      "note": "the default model is set in the Aside app and is not visible from the CLI; pass --model"
+    },
+    "baze": {
+      "plan": "school BAZE gateway",
+      "gives": [
+        "Argon",
+        "Solar",
+        "Jev"
+      ],
+      "models": [],
+      "note": "on request only; about 5 credits of masking per request"
+    },
+    "weave": {
+      "plan": "Weave credits",
+      "gives": [
+        "video generation"
+      ],
+      "models": [],
+      "note": "ask before each credit run"
+    }
+  },
+  "routes": {
+    "research_collect_light": {
+      "when": "quick, bulk or watch research: one fact, bulk gathering, re-check of a known scope. No judgment; the range is fixed",
+      "resource": "aside",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "standby": [],
+      "enforcedBy": "skill",
+      "where": "plugins/maeng-tools/skills/aside-collect/SKILL.md",
+      "decidedBy": "user 2026-11-07 (effort stated; the model follows from Astra being named for deep research)",
+      "verifiedAt": null
+    },
+    "research_collect_deep": {
+      "when": "deep research, from the start or built on the facts of a light run",
+      "resource": "aside",
+      "model": "gpt-6-astra",
+      "effort": "medium",
+      "standby": [],
+      "enforcedBy": "skill",
+      "where": "plugins/maeng-tools/skills/aside-collect/SKILL.md",
+      "decidedBy": "user 2026-11-07",
+      "verifiedAt": null
+    },
+    "research_triage": {
+      "when": "choosing which search results to open",
+      "resource": "openai_api",
+      "model": "gpt-6-luna",
+      "effort": null,
+      "standby": [],
+      "enforcedBy": "skill",
+      "where": "plugins/maeng-tools/skills/decisions/scripts/aside_step.py triage",
+      "decidedBy": "MAE-320",
+      "verifiedAt": "2026-11-04"
+    },
+    "research_page_read": {
+      "when": "reading a page for claim checks, logged-in pages included",
+      "resource": "aside",
+      "model": null,
+      "effort": null,
+      "standby": [],
+      "enforcedBy": "code",
+      "where": "plugins/maeng-tools/skills/decisions/scripts/aside_step.py claims",
+      "decidedBy": "MAE-322",
+      "verifiedAt": "2026-11-04"
+    },
+    "claim_check": {
+      "when": "checking a claim against the text of its source",
+      "resource": "openai_api",
+      "model": "gpt-6-luna",
+      "effort": null,
+      "standby": [
+        {
+          "agent": "researcher"
+        }
+      ],
+      "enforcedBy": "code",
+      "where": "maeng-review run --kind research needs --claims",
+      "decidedBy": "MAE-306",
+      "verifiedAt": "2026-11-04"
+    },
+    "records_duplicate": {
+      "when": "before a new Linear issue, Notion record or vault note; picking related records",
+      "resource": "openai_api",
+      "model": "gpt-6-luna",
+      "effort": null,
+      "standby": [],
+      "enforcedBy": "hook",
+      "where": "plugins/maeng-tools/skills/decisions/scripts/records.py",
+      "decidedBy": "MAE-311",
+      "verifiedAt": "2026-11-07"
+    },
+    "review": {
+      "when": "independent review of code, plans, documents, research drafts and Notion payloads",
+      "resource": "gpt_pro",
+      "model": null,
+      "effort": null,
+      "standby": [],
+      "enforcedBy": "code",
+      "where": "maeng-review; model and effort per kind: roles above",
+      "decidedBy": "MAE-296, MAE-323",
+      "verifiedAt": "2026-11-06"
+    },
+    "bulk_reading": {
+      "when": "reading many files or pages to the end",
+      "resource": "claude_code",
+      "model": "claude-sonnet-5-5",
+      "effort": "medium",
+      "standby": [],
+      "enforcedBy": "skill",
+      "where": "harness-run references/org-chart.md, Delegation and reports: exact file list, reads checked against it",
+      "decidedBy": "user 2026-11-07",
+      "verifiedAt": "2026-11-07"
+    },
+    "image": {
+      "when": "generated images",
+      "resource": "openai_api",
+      "model": null,
+      "effort": null,
+      "standby": [
+        {
+          "resource": "gpt_pro",
+          "note": "codex exec"
+        }
+      ],
+      "enforcedBy": "skill",
+      "where": "plugins/maeng-tools/skills/cinematic-site/scripts/openai-image.sh",
+      "decidedBy": "user 2026-11-04; ask before each credit run",
+      "verifiedAt": "2026-11-06"
+    },
+    "video": {
+      "when": "generated video",
+      "resource": "weave",
+      "model": null,
+      "effort": null,
+      "standby": [],
+      "enforcedBy": "skill",
+      "where": "plugins/maeng-tools/skills/motion-studio",
+      "decidedBy": "user 2026-11-04; ask before each credit run",
+      "verifiedAt": null
+    },
+    "web_page": {
+      "when": "opening any web page, public or private",
+      "resource": "aside",
+      "model": null,
+      "effort": null,
+      "standby": [],
+      "enforcedBy": "skill",
+      "where": "plugins/maeng-tools/skills/aside-browser/SKILL.md",
+      "decidedBy": "user 2026-11-04",
+      "verifiedAt": "2026-11-06"
+    }
   }
 }

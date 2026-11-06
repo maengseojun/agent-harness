@@ -11,10 +11,13 @@ ROLES = REPO / "plugins/maeng-harness/policy/roles.json"
 AGENTS = REPO / "plugins/maeng-tools/agents"
 SKILL = REPO / "plugins/maeng-harness/skills/harness-run/SKILL.md"
 REVIEW = REPO / "plugins/maeng-harness/skills/harness-run/references/review-and-ship.md"
+COLLECT = REPO / "plugins/maeng-tools/skills/aside-collect/SKILL.md"
 
 KINDS = ["code_child", "code_small", "parent", "docs", "research", "notion", "plan"]
 GRADES = ["quick", "standard", "deep", "design"]
 EFFORTS = ["low", "medium", "high", "xhigh", "max"]
+ENFORCED = ["code", "hook", "skill"]
+COLLECT_ROUTES = ["research_collect_light", "research_collect_deep"]
 NAMES = {"Sol": "gpt-6.1-sol", "Astra": "gpt-6-astra", "Opus": "claude-opus-5-5", "Fable": "claude-fable-5-1"}
 # review-and-ship.md subject prefix -> roles.json kind
 TIER_ROWS = {"Child-task PR": "code_child", "Parent integration": "parent", "Architecture, rules": "docs",
@@ -37,13 +40,49 @@ def _pair(cell):
     return (NAMES.get(m.group(1)), m.group(2)) if m and m.group(1) in NAMES else None
 
 
-def problems(roles_path, agents_dir, skill_md, review_md):
+def route_problems(d, collect_md):
+    """resources and routes: every route names a listed resource, says what forces it, and the
+    collection skill carries the same model and effort as the two research routes."""
+    out = []
+    resources, routes = d.get("resources", {}), d.get("routes", {})
+    if not resources or not routes:
+        return ["resources or routes missing"]
+    for name, r in routes.items():
+        for key in ("when", "resource", "enforcedBy", "where", "decidedBy"):
+            if not r.get(key):
+                out.append(f"routes.{name}.{key} missing")
+        if r.get("resource") not in resources:
+            out.append(f"routes.{name}.resource {r.get('resource')!r} is not in resources")
+        if r.get("enforcedBy") not in ENFORCED:
+            out.append(f"routes.{name}.enforcedBy {r.get('enforcedBy')!r} is not one of {ENFORCED}")
+        if r.get("effort") is not None and r["effort"] not in EFFORTS:
+            out.append(f"routes.{name} has effort {r['effort']!r}, not one of {EFFORTS}")
+        v = r.get("verifiedAt")
+        if v is not None and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(v)):
+            out.append(f"routes.{name}.verifiedAt is neither null nor an ISO date")
+    text = Path(collect_md).read_text()
+    for name in COLLECT_ROUTES:
+        r = routes.get(name)
+        if not r:
+            out.append(f"routes.{name} missing")
+            continue
+        flag = f"--model openai/{r.get('model')} --effort {r.get('effort')}"
+        if flag not in text:
+            out.append(f"aside-collect SKILL.md does not carry {flag!r} of routes.{name}")
+    if "aside exec --effort low" in text:
+        out.append("aside-collect SKILL.md still runs aside exec without a model")
+    return out
+
+
+def problems(roles_path, agents_dir, skill_md, review_md, collect_md=None):
     out = []
     try:
         d = json.loads(Path(roles_path).read_text())
     except (OSError, ValueError) as e:
         return [f"roles.json unreadable: {e}"]
     roles, grades = d.get("roles", {}), d.get("grades", {})
+    if collect_md is not None:
+        out += route_problems(d, collect_md)
     for k in KINDS:
         if k not in roles:
             out.append(f"roles.{k} missing")
@@ -119,16 +158,18 @@ class RolesSync(unittest.TestCase):
         shutil.copytree(AGENTS, self.tmp / "agents")
         shutil.copy(SKILL, self.tmp / "SKILL.md")
         shutil.copy(REVIEW, self.tmp / "review.md")
+        shutil.copy(COLLECT, self.tmp / "collect.md")
 
     def check(self):
-        return problems(self.tmp / "roles.json", self.tmp / "agents", self.tmp / "SKILL.md", self.tmp / "review.md")
+        return problems(self.tmp / "roles.json", self.tmp / "agents", self.tmp / "SKILL.md", self.tmp / "review.md",
+                        self.tmp / "collect.md")
 
     def edit(self, name, fn):
         p = self.tmp / name
         p.write_text(fn(p.read_text()))
 
     def test_real_tree_agrees(self):
-        self.assertEqual(problems(ROLES, AGENTS, SKILL, REVIEW), [])
+        self.assertEqual(problems(ROLES, AGENTS, SKILL, REVIEW, COLLECT), [])
         self.assertEqual(self.check(), [])
 
     def test_definition_effort_changed(self):
@@ -150,6 +191,27 @@ class RolesSync(unittest.TestCase):
     def test_review_cell_back_to_medium(self):
         self.edit("review.md", lambda t: re.sub(r"(Child-task PR[^\n]*\| )Opus high", r"\1Opus medium", t))
         self.assertTrue(any("Child-task PR" in p for p in self.check()))
+
+
+    def test_collect_effort_changed(self):
+        self.edit("collect.md", lambda t: t.replace("openai/gpt-6-astra --effort medium", "openai/gpt-6-astra --effort low"))
+        self.assertTrue(any("routes.research_collect_deep" in p for p in self.check()))
+
+    def test_route_names_unknown_resource(self):
+        def f(t):
+            d = json.loads(t)
+            d["routes"]["claim_check"]["resource"] = "nowhere"
+            return json.dumps(d)
+        self.edit("roles.json", f)
+        self.assertTrue(any("claim_check.resource" in p for p in self.check()))
+
+    def test_routes_section_removed(self):
+        def f(t):
+            d = json.loads(t)
+            del d["routes"]
+            return json.dumps(d)
+        self.edit("roles.json", f)
+        self.assertTrue(any("resources or routes missing" in p for p in self.check()))
 
 
 if __name__ == "__main__":
