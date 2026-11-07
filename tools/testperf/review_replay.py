@@ -314,7 +314,8 @@ def run_case(case, a, repo, out_schema):
         res["status"] = "would_run"
         return res
     result, err = run_reviewer(case, prompt, out_schema, str(repo))
-    err = err or mr.response_error(result, out_schema, "code")
+    # a baseline prompt never promised the V-1..V-6 location rule: validate only schema and verdict consistency
+    err = err or mr.response_error(result, out_schema, "docs" if getattr(a, "prompt_from", None) else "code")
     res["duration_s"] = round(time.time() - t0, 1)
     if err:
         res.update(status="error", error=str(err)[-500:])
