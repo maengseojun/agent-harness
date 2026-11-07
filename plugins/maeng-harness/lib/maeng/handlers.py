@@ -435,7 +435,7 @@ def post_bash(sid, cwd, st0, tin, tuid, failed, interrupted, payload):
     key = tuid or sha256(command)[:16]
     pend = st0["pending"].get(key) or {}
     run_cwd = pend.get("cwd") or cwd
-    need_tree = bool(pend.get("checks")) or (not failed and bash_may_change(command))
+    need_tree = bool(pend.get("checks")) or bash_may_change(command)  # a failed or interrupted command may still have written
     tree = None
     if need_tree:
         tree, _ = treelib.tree_id(run_cwd)
@@ -451,7 +451,7 @@ def post_bash(sid, cwd, st0, tin, tuid, failed, interrupted, payload):
             evidence.post_runner(st, key, not failed, tree)
         elif pend:
             st["pending"].pop(key, None)
-        if tree and top and not failed:
+        if tree and top:
             changed = st.get("last_tree") is None or treelib.relevant_diff(top, st["last_tree"], tree) != []
             if changed:
                 st["last_change_seq"] = evidence.bump(st)
@@ -466,11 +466,14 @@ def post_bash(sid, cwd, st0, tin, tuid, failed, interrupted, payload):
     return {}
 
 
+ROLES_PATH = Path(__file__).resolve().parents[2] / "policy" / "roles.json"
+
+
 def review_reminder(binding):
-    if binding and binding.get("parent"):
-        tier = "Sol gpt-6.1-sol, xhigh (child-task PR)"
-    else:
-        tier = "Sol gpt-6.1-sol, high (small implementation)"
+    kind = "code_child" if binding and binding.get("parent") else "code_small"
+    row = ((read_json(ROLES_PATH) or {}).get("roles") or {}).get(kind) or {}
+    label = "child-task PR" if kind == "code_child" else "small implementation"
+    tier = f"{row.get('model', 'see roles.json')}, {row.get('effort', '?')} ({label})"
     return f"PR created. Next: run `maeng-review` ({tier}) before `maeng-ship merge`."
 
 
@@ -495,7 +498,11 @@ def post_edit(sid, cwd, tool, tin, tresp):
 
     def mark(st):
         if tree and top:
-            if st.get("last_tree") is None or treelib.relevant_diff(top, st["last_tree"], tree) != []:
+            if st.get("last_tree") is None:  # no earlier tree to diff: judge the edited path itself
+                rel = os.path.relpath(path, top) if path else ""
+                if not rel or treelib.is_relevant(rel, treelib.load_policy(top)):
+                    st["last_change_seq"] = evidence.bump(st)
+            elif treelib.relevant_diff(top, st["last_tree"], tree) != []:
                 st["last_change_seq"] = evidence.bump(st)
             st["last_tree"] = tree
         if record:

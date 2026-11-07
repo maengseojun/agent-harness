@@ -557,8 +557,10 @@ class FailsOpen(GateCase):
         after = (ROOT / "tests/test_stop_hooks.py").read_text()
 
         def eta_test(source):
-            cls = next(n for n in ast.parse(source).body if isinstance(n, ast.ClassDef) and n.name == "EtaAndUnknown")
-            return ast.get_source_segment(source, cls)
+            classes = [n for n in ast.parse(source).body
+                       if isinstance(n, ast.ClassDef) and n.name in ("EtaAndUnknown", "SessionRootOutsideCheckout")]
+            assert len(classes) == 2, "both eta behaviour tests must stay"
+            return [ast.get_source_segment(source, c) for c in classes]
 
         self.assertEqual(eta_test(before), eta_test(after))
 

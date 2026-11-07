@@ -81,3 +81,13 @@ def test_requests_above_the_grade_ceiling_need_roles(tmp_path):
     # A and B ran as `quick` (ceiling high): A's 3 xhigh requests are above it, B's 3 high requests are not
     p = run(root, tmp_path, "--roles", str(roles))
     assert "requests above the grade ceiling: 3 of 6 checked subagent requests" in p.stdout
+
+
+def test_two_full_runs_in_one_second_are_two_runs():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("loopstats", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    data = {"tools": [{"name": "Bash", "id": "x", "t": 10.2, "br": "b"}, {"name": "Bash", "id": "y", "t": 10.4, "br": "b"}],
+            "results": {"x": (0, 300, 36), "y": (0, 310, 72)}}
+    assert mod.full_tests(data) == (2, (36 + 72) / 3600, 1)

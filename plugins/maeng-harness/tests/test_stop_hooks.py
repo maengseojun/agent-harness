@@ -79,6 +79,27 @@ class StopTests(StopBase):
         self.change_code("print('own change after a clean stop')\n")
         self.assertIn("UNVERIFIED", self.stop()[1]["reason"])
 
+    def test_own_bash_code_change_that_exits_nonzero_requires_verification(self):
+        # Round-1 review of PR #102: a script that writes and then fails still changed code.
+        command = "python3 -c \"from pathlib import Path; Path('app.py').write_text('print(7)\\n'); raise SystemExit(1)\""
+        (self.repo / "app.py").write_text("print(7)\n")  # what the failing command wrote before it exited 1
+        self.hook("PostToolUse", self.repo, tool_name="Bash", tool_input={"command": command},
+                  tool_response={"exit_code": 1})
+        self.assertIn("UNVERIFIED", self.stop()[1]["reason"])
+
+    def test_doc_only_edit_without_checkout_baseline_needs_no_verification(self):
+        # Review finding on PR #102: a session that starts outside git and edits only a doc has no code change.
+        self.sid += "-outside-doc"
+        self.start(self.tmp)
+        self.assertIsNone(self.load_state()["baseline_tree"])
+        (self.repo / "README.md").write_text("notes\n")
+        self.hook("PostToolUse", self.repo, tool_name="Edit", tool_input={"file_path": str(self.repo / "README.md")},
+                  tool_response={})
+        self.record()
+        self.assertIsNone(self.stop()[1])
+        self.change_code()
+        self.assertIn("UNVERIFIED", self.stop()[1]["reason"])
+
     def test_own_bash_code_change_requires_verification(self):
         command = "python3 -c \"from pathlib import Path; Path('app.py').write_text('print(42)\\n')\""
         denied, reason = self.bash_pre(self.repo, command)

@@ -43,6 +43,10 @@ Routing: implement <model/tool>, review <model/tool>, research <tool, if any>; l
 Steps:
   1. <step> - done when: <criterion, numbered AC-n it advances>
   2. ...
+Sub-tasks:         # harness-run "Sub-tasks"; Grade = quick | standard | deep | design | planner (policy/roles.json grades)
+  | # | Do | Grade | Writes | Interfaces | Done | Fails-if | After |
+  |---|---|---|---|---|---|---|---|
+  | S1 | <one deliverable> | <grade> | <files> | <names consumed or produced> | <one command and its expected output> | <what makes it not done, incl. a vacuous pass> | <rows it waits for> |
 Verification tier: docs-only | code | gate-code   # verification.md "Verification tiers": what runs while working
                                                   # (affected tests) vs once at the final tree (ship check)
 Verification:      # one line per criterion; this is what the gates read (ship checks only, not the inner loop)

@@ -31,7 +31,7 @@ BASELINE = {
     "post_first_review_share": 68.0,
     "review_pass_pct": 34.0,
     "prs_4plus_reviews": 12.0, "prs_total": 26.0,
-    "stop_blocks": 164.0,
+    "stop_blocks": 99.0,  # the parent's table said 164 (copies in resumed-session files); corrected to 99 on 2026-11-06
     "record_writes": 621.0, "record_per_turn": 1.3,
     "verify_skips": 67.0,
     "implementer_delegations": 13.0, "main_edits": 792.0,
@@ -294,7 +294,7 @@ def full_tests(data):
         if t["name"] == "Bash":
             r = data["results"].get(t["id"])
             if r and r[1] >= 300:  # 300 or more tests passed: a full run, not a targeted one
-                runs[round(t["t"])] = (r[2], t["br"])
+                runs[t["id"]] = (r[2], t["br"])  # keyed by tool-use id: two runs in one second are two runs
     return len(runs), sum(v[0] for v in runs.values()) / 3600, len({v[1] for v in runs.values()})
 
 
@@ -434,7 +434,7 @@ def build_rows(data, rv, repo, compare_baseline):
         ("PRs with 4 or more review runs", sum(1 for v in pr_runs.values() if v >= 4), "prs_4plus_reviews", "file mtime window, baseline window ended later on 2026-11-05"),
         ("PRs with a review run", len(pr_runs), "prs_total", "file mtime window, baseline window ended later on 2026-11-05"),
         ("Stop blocks", len(data["blocks"]), "stop_blocks",
-         "counted once per uuid; raw lines incl. copies in resumed-session files: %d" % data["blocks_raw"]),
+         "counted once per uuid (the parent's original 164 counted copies in resumed-session files); raw lines: %d" % data["blocks_raw"]),
         ("record writes by the main thread (Linear save_*, Obsidian write/patch/frontmatter, Notion pages)", rec, "record_writes",
          "baseline subset of tools not recorded; without save_issue and update_frontmatter the count is %d"
          % sum(1 for t in main_t if RECORD_TOOLS.match(t["name"]) and not t["name"].endswith(("save_issue", "update_frontmatter")))),

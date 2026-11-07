@@ -12,6 +12,7 @@ AGENTS = REPO / "plugins/maeng-tools/agents"
 SKILL = REPO / "plugins/maeng-harness/skills/harness-run/SKILL.md"
 REVIEW = REPO / "plugins/maeng-harness/skills/harness-run/references/review-and-ship.md"
 COLLECT = REPO / "plugins/maeng-tools/skills/aside-collect/SKILL.md"
+TEMPLATE = REPO / "plugins/maeng-harness/skills/harness-run/references/spec-plan.md"
 
 KINDS = ["code_child", "code_small", "parent", "docs", "research", "notion", "plan"]
 GRADES = ["quick", "standard", "deep", "design"]
@@ -74,7 +75,7 @@ def route_problems(d, collect_md):
     return out
 
 
-def problems(roles_path, agents_dir, skill_md, review_md, collect_md=None):
+def problems(roles_path, agents_dir, skill_md, review_md, collect_md=None, template_md=None):
     out = []
     try:
         d = json.loads(Path(roles_path).read_text())
@@ -129,6 +130,10 @@ def problems(roles_path, agents_dir, skill_md, review_md, collect_md=None):
     for named in re.findall(r"`(quick|standard|deep|design|\w+)`", grow[0]) if grow else []:
         if named not in grades:
             out.append(f"SKILL.md Grade row names {named!r}, not in grades")
+    if template_md is not None:  # the Plan template a planner copies, not only the SKILL.md glossary (AC-3)
+        tsec = Path(template_md).read_text().split("Sub-tasks:", 1)[-1].split("\nVerification", 1)[0]
+        if not any("| Grade |" in l for l in tsec.split("\n")):
+            out.append("spec-plan.md Sub-tasks block has no Grade column")
     for line in Path(review_md).read_text().split("\n"):
         c = _cells(line) if line.startswith("|") else []
         kind = next((k for p, k in TIER_ROWS.items() if c and c[0].startswith(p)), None)
@@ -159,22 +164,27 @@ class RolesSync(unittest.TestCase):
         shutil.copy(SKILL, self.tmp / "SKILL.md")
         shutil.copy(REVIEW, self.tmp / "review.md")
         shutil.copy(COLLECT, self.tmp / "collect.md")
+        shutil.copy(TEMPLATE, self.tmp / "spec-plan.md")
 
     def check(self):
         return problems(self.tmp / "roles.json", self.tmp / "agents", self.tmp / "SKILL.md", self.tmp / "review.md",
-                        self.tmp / "collect.md")
+                        self.tmp / "collect.md", self.tmp / "spec-plan.md")
 
     def edit(self, name, fn):
         p = self.tmp / name
         p.write_text(fn(p.read_text()))
 
     def test_real_tree_agrees(self):
-        self.assertEqual(problems(ROLES, AGENTS, SKILL, REVIEW, COLLECT), [])
+        self.assertEqual(problems(ROLES, AGENTS, SKILL, REVIEW, COLLECT, TEMPLATE), [])
         self.assertEqual(self.check(), [])
 
     def test_definition_effort_changed(self):
         self.edit("agents/standard.md", lambda t: t.replace("effort: medium", "effort: high"))
         self.assertTrue(any("standard.md: effort" in p for p in self.check()))
+
+    def test_template_grade_column_deleted(self):
+        self.edit("spec-plan.md", lambda s: s.replace("| Grade |", "|"))
+        self.assertTrue(any("spec-plan.md" in p for p in self.check()))
 
     def test_grade_row_deleted(self):
         self.edit("SKILL.md", lambda t: "\n".join(l for l in t.split("\n") if not l.startswith("| Grade |")))

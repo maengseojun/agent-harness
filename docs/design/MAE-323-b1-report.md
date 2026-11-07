@@ -9,15 +9,15 @@ Every row has a number or `미측정` with the reason. The numbers come from `py
 | Row | Now | Baseline | Match within 5% | Cause of a difference |
 |---|---|---|---|---|
 | subagent active time at xhigh or above, % | 91.2 | 92 | yes | all 196 subagents of the window ran CLI 2.1.309; the 2.1.317 bucket is empty |
-| full test runs (300+ passed) | 99 | 107 | no (-7.5%) | baseline window ended at the measurement time on 2026-11-05, this one at 00:00 |
-| full test hours | 6.2 | 6.8 | no (-8.4%) | same |
+| full test runs (300+ passed) | 100 | 107 | no (-6.5%) | baseline window ended at the measurement time on 2026-11-05, this one at 00:00. Runs are keyed by tool-use id (review finding on PR #102); the first count keyed them by second and lost one |
+| full test hours | 6.3 | 6.8 | no (-7.6%) | same |
 | full test runs per branch | 3.8 | 4 | yes | |
 | impact-test runs | 0 | 0 | yes | |
 | time share after the first review, % | 63.7 | 68 | no (-6.3%) | same window cause; 21 branches |
 | review pass ratio, % | 35 | 34 | yes | |
 | PRs with 4 or more review runs | 11 | 12 | no (-8.3%) | file mtime window |
 | PRs with a review run | 25 | 26 | yes | |
-| Stop blocks | 99 | 164 | no (-39.6%) | counted once per uuid; the baseline counted copies in resumed-session files (168 raw lines). The parent's 164 is corrected to 99 |
+| Stop blocks | 99 | 99 (the parent's original 164 counted copies in resumed-session files; corrected 2026-11-06) | yes | counted once per uuid; 168 raw lines |
 | record writes by the main thread | 765 | 621 | no (+23.2%) | the baseline's set of tools was not recorded; without `save_issue` and `update_frontmatter` the count is 621 |
 | record writes per human turn | 1.4 | 1.3 | yes | |
 | maeng-verify skip calls | 65 | 67 | yes | |
@@ -33,7 +33,7 @@ Every row has a number or `미측정` with the reason. The numbers come from `py
 | skills over 260 bytes | 38 | 38 | yes | |
 | mutation detection | 미측정 | 9 of 20 sampled | - | needs a run of `tools/testperf/mutate.py` |
 
-Reproduced within 5%: 16 of 23 rows. The 7 others print their cause.
+Reproduced within 5%: 17 of 23 rows. The 6 others print their cause.
 
 ## New metrics
 
@@ -51,13 +51,13 @@ Reproduced within 5%: 16 of 23 rows. The 7 others print their cause.
 |---|---|
 | G1 result quality | 미측정 (MAE-324 defines the measure) |
 | G2 comprehension gates | interview and quiz passes 미측정 (state closed to agents); review runs 120, passes 42 |
-| G3 efficiency | full test hours 6.2; time share after the first review 63.7%; median wall time per branch 31 min |
+| G3 efficiency | full test hours 6.3; time share after the first review 63.7%; median wall time per branch 31 min |
 | G4 role performance | xhigh+ subagent time 91.2%; requests above ceiling: no data; implementer delegations 13; delegation calls naming an effort 1 of 163 |
-| G5 improvability | the script runs in 4 s; baseline rows reproduced 16 of 23 |
+| G5 improvability | the script runs in 4-14 s; baseline rows reproduced 17 of 23 |
 
 ## Effort observation (S1, 2026-11-06, CLI 2.1.317)
 
-A subagent on a different model does not inherit the session's effort (Sonnet and Haiku ran at medium, Opus at its saved level); a per-call `effort` is honoured; a subagent on the session's model inherits the session's effort. Full table in the plan, "S1 results". Not observed yet: the `effort` of the three new definitions (`quick`, `standard`, `design`) and `deep`; that needs a fresh session on the released plugin (AC-2).
+A subagent on a different model does not inherit the session's effort (Sonnet and Haiku ran at medium, Opus at its saved level); a per-call `effort` is honoured; a subagent on the session's model inherits the session's effort. Full table in the plan, "S1 results". AC-2 was then observed on 2026-11-07 through headless sessions that load the plugin from the working tree (`claude -p --plugin-dir plugins/maeng-tools`, CLI 2.1.314), not the released plugin: quick ran Haiku medium, standard Sonnet medium, deep (standard with a per-call effort) Sonnet high, design Opus high, with the session at medium effort for the design probe so the definition's own `effort` is what shows. All four match the table (plan, "AC-2 observation").
 
 ## What this bundle changed
 
@@ -71,6 +71,6 @@ A subagent on a different model does not inherit the session's effort (Sonnet an
 
 ## Not verified
 
-- AC-2 (the effort the three definitions get) waits for a fresh session on the released plugin.
+- AC-2 was observed with `--plugin-dir` on CLI 2.1.314, not in the desktop app's 2.1.317 on the released plugin.
 - Mutation detection was not re-run.
 - The "after" window does not exist yet; nothing here claims an improvement.

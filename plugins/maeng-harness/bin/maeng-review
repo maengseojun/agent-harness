@@ -134,7 +134,10 @@ def review_tier(kind, binding, review_backend, roles=None):
     row = roles[kind]
     for pair in [row, *row["standby"]]:
         if pair["model"].startswith("claude-") == (review_backend == "claude"):
-            return pair["model"], pair["effort"]
+            effort = pair["effort"]
+            if kind == "parent" and review_backend == "claude":  # plan A-7: the override stays, changed only on the user's request
+                effort = os.environ.get("MAENG_FABLE_EFFORT") or effort
+            return pair["model"], effort
     raise ValueError(f"roles.{kind} has no {review_backend} reviewer")
 
 

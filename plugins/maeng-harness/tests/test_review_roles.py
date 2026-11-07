@@ -174,3 +174,12 @@ class TestCodexAuthor(test_cli.ReviewRunFixture):
         reviewer = receipt["verdict"]["reviewer"]
         self.assertEqual((reviewer["model"], reviewer["effort"], reviewer["author"]),
                          ("claude-opus-5-5", "high", "codex"))
+
+
+def test_parent_fable_effort_override_is_kept(review, monkeypatch):
+    # Plan A-7: MAENG_FABLE_EFFORT stays for parent reviews; it does not touch the codex standby.
+    monkeypatch.setenv("MAENG_FABLE_EFFORT", "medium")
+    assert review.tier_for("parent", None) == ("claude-fable-5-1", "medium")
+    assert review._codex_tier("parent", None) == ("gpt-6-astra", "high")
+    monkeypatch.delenv("MAENG_FABLE_EFFORT")
+    assert review.tier_for("parent", None) == ("claude-fable-5-1", "high")
