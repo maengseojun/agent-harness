@@ -230,6 +230,9 @@ Close-out: filled when the bundle closes.
 
 ## Progress
 
+- Step 1 done 2026-11-07 (standard at medium, commit a23f430): the pass-receipt store holds no high findings, so `review_replay.py build` reads the review store (`<home>/reviews/*.json`) too; 209 code/parent verdicts scanned, 49 cases with 127 expected-blocking findings enrolled, all 49 reconstructable (shas present). `plan_path` is null everywhere (review subjects carry no plan field); the old `criteria_rev` values are mtime-based, so S8 recomputes the digest from the head's plan text. The planner re-ran `check` and the 2 tests.
+- S1 done 2026-11-07 (standard at high): `evidence.criteria_rev(text)` (acceptance section between the `Requirements -> acceptance:` label or an `## Acceptance` heading and the next heading, fences ignored, None when absent, ambiguous or without an AC id); bind stores it in the binding's `plan_updated_at` field (name kept; `--plan-updated` still overrides, which the Linear-timestamp flow uses); `committed_plan()` in `maeng-review` computes the same digest; `find_code` treats a null revision as matching nothing; receipts gain `coverage` (list of file+mode), `previous_head`, `review_mode` and a `plan` subject kind with `find_plan(issue, criteria_rev)`. Three test files moved off "null equals null". The planner re-ran `test_criteria_rev.py` (14 pass) and the full suite (609 pass). Known shortcut: the label form ends at the next heading or a blank line plus unindented prose.
+
 - Draft preparation only. No implementation, tests, probes, provider calls, CI runs, releases or external writes were performed.
 - Read the parent plan, bundle 1 plan, template, all 58 candidates and the full supplied code-reading source. Only its "그대로 쓸 수 있는 것" rows are used as code-reading sources here.
 - Listed the harness test files and plugin test-suite locations. Existing files assigned changes were read; new proposed files do not yet exist.

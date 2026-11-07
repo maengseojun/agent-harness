@@ -187,10 +187,10 @@ def codex_command(model, effort, schema_path, out_path):
 
 def committed_plan(cwd, head, path):
     """Binding-like criteria from a Spec/Plan file as committed at the reviewed head. No session binding is needed:
-    the receipt pins the head, so a changed plan is a new head and a new review (criteria_rev stays None)."""
+    the receipt pins the head; plan_updated_at is the same acceptance digest `maeng-verify bind` computes."""
     text = git_out(cwd, "show", f"{head}:{path}") or ""
     ids = sorted(set(re.findall(r"\bAC-\d+\b", text)), key=lambda x: int(x[3:]))
-    return {"criteria": ids, "plan_text": text} if ids else {}
+    return {"criteria": ids, "plan_text": text, "plan_updated_at": evidence.criteria_rev(text)} if ids else {}
 
 
 def plan_text(binding):
@@ -467,6 +467,9 @@ def run_review(a, cwd):
         subject = {"kind": a.kind, "repo": bundle.get("repo"), "pr": a.pr, "base": a.base, "head": a.head,
                    "criteria_rev": bundle.get("criteria_rev"), "digest": diff_digest,
                    "files_reviewed": bundle.get("files_reviewed", []),
+                   # round one reviews every file in full; the S3 narrowing logic fills delta/round2/previous_head
+                   "coverage": [{"file": f, "mode": "full"} for f in bundle.get("files_reviewed", [])], "previous_head": None,
+                   "review_mode": "initial",
                    "files_excluded": (bundle.get("scope") or {}).get("excluded_files", []),
                    "files_delegated": (bundle.get("scope") or {}).get("delegated_files", []),
                    "exclusion_reason": (bundle.get("scope") or {}).get("exclusion_reason"),

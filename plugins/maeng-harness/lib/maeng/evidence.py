@@ -375,6 +375,54 @@ def parse_plan_text(text):
     return criteria, checks
 
 
+_FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
+_HEADING = re.compile(r"^(#+)\s")
+_ACCEPT = r"(?:requirements\s*->\s*)?acceptance"
+_ACCEPT_LABEL = re.compile(r"^\s*(?:[-*]\s*)?\**" + _ACCEPT + r"\**\s*:?\**\s*$", re.I)
+_ACCEPT_HEAD = re.compile(r"^#+\s*" + _ACCEPT + r"(?:\s+criteria)?\s*$", re.I)
+_CRITERION_START = re.compile(r"^(?:[-*+|]|\d+[.)]|\**AC-\d)")
+
+
+def criteria_rev(text):
+    """SHA-256 of a Plan text's acceptance section, or None when it is absent, ambiguous or has no AC-n.
+    The section is the body of the one `Requirements -> acceptance:` label or `## Acceptance` heading outside code
+    fences: the lines after it (CRLF -> LF, blank edge lines dropped, joined by \\n) up to the next heading (a headed
+    section: one of the same or a higher level), or for the label form a blank line then an unindented non-list line.
+    shortcut: the label form has no end marker of its own, so prose glued to the last criterion is read as part of it."""
+    sections, cur, fence = [], None, None
+    for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        f = _FENCE.match(line)
+        if fence or f:
+            if f and (not fence or (f.group(1)[0] == fence[0] and len(f.group(1)) >= len(fence))):
+                fence = None if fence else f.group(1)
+            if cur:
+                cur[2].append(line)
+            continue
+        head = _HEADING.match(line)
+        if cur and (head and (cur[0] == "label" or len(head.group(1)) <= cur[1]) or
+                    cur[0] == "label" and line.strip() and not line[0].isspace() and not _CRITERION_START.match(line)
+                    and cur[2] and not cur[2][-1].strip()):
+            sections.append(cur)
+            cur = None
+        if cur:
+            cur[2].append(line)
+        elif _ACCEPT_LABEL.match(line):
+            cur = ("label", 0, [])
+        elif _ACCEPT_HEAD.match(line):
+            cur = ("head", len(head.group(1)), [])
+    if cur:
+        sections.append(cur)
+    if len(sections) != 1:
+        return None
+    body = sections[0][2]
+    while body and not body[-1].strip():
+        body.pop()
+    while body and not body[0].strip():
+        body.pop(0)
+    joined = "\n".join(body)
+    return hashlib.sha256(joined.encode()).hexdigest() if re.search(r"\bAC-\d+\b", joined) else None
+
+
 def make_binding(issue, plan_doc=None, plan_updated=None, criteria=None, checks=None, parent=None, repo=None,
                  world="personal"):
     b = {"issue": issue, "plan_doc": plan_doc, "plan_updated_at": plan_updated, "criteria": criteria or [],
@@ -385,13 +433,8 @@ def make_binding(issue, plan_doc=None, plan_updated=None, criteria=None, checks=
         b["criteria"] = criteria or c
         b["checks"] = checks or ch
         b["plan_hash"] = hashlib.sha256(text.encode()).hexdigest()[:16]
-        b["plan_updated_at"] = plan_updated or time_of(plan_doc)
+        b["plan_updated_at"] = plan_updated or criteria_rev(text)  # the criteria revision; `--plan-updated` overrides
     return b
-
-
-def time_of(path):
-    import time
-    return time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(Path(path).stat().st_mtime))
 
 
 def plan_is_stale(binding):

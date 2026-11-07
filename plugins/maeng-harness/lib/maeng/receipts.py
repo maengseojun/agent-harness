@@ -37,12 +37,14 @@ def subject_key(subject):
     kind = subject["kind"]
     if kind == "notion":
         return "notion-{}-{}".format(subject["digest"][:16], sha256(f"{subject['destination']}|{subject['op']}")[:8])
+    if kind == "plan":  # task identity + criteria digest; never tree-bound
+        return "plan-" + sha256(f"{subject.get('issue')}|{subject.get('criteria_rev')}")[:24]
     core = {k: subject.get(k) for k in ("kind", "repo", "pr", "base", "head", "criteria_rev", "digest",
                                          "destination", "op",
                                          "files_reviewed", "files_excluded")}
     if subject.get("files_delegated"):
         core["files_delegated"] = subject["files_delegated"]
-    for k in ("issue", "parent"):
+    for k in ("issue", "parent", "coverage", "previous_head", "review_mode"):
         if subject.get(k):
             core[k] = subject[k]
     return "code-" + sha256(canonical(core))[:24]
@@ -199,7 +201,7 @@ def find_code(cwd, repo, base, head, ref, criteria_rev, files=None, issue=None):
         if rec.get("revoked"):
             revoked = True
             continue
-        if (s.get("criteria_rev") or None) != (criteria_rev or None):
+        if not criteria_rev or (s.get("criteria_rev") or None) != criteria_rev:  # null never equals null
             if issue and s.get("parent") == issue and s.get("issue"):
                 cur = child_binding_rev(s["issue"])  # unknown child (None) is stale, never "None == None"
                 if cur is None or (s.get("criteria_rev") or None) != cur:
@@ -250,6 +252,17 @@ def find_code(cwd, repo, base, head, ref, criteria_rev, files=None, issue=None):
                       " (each changed file must be in some receipt's files_reviewed, or in a parent receipt's files_excluded; "
                       "files_delegated are NOT covered by the parent and need their own pass receipt)")
     return used, ""
+
+
+def find_plan(issue, criteria_rev):
+    """The unrevoked pass receipt of a plan review for exactly this task and criteria digest, else None. Either
+    value missing or null never matches (a null revision equals nothing)."""
+    if not issue or not criteria_rev:
+        return None
+    rec = load("plan-" + sha256(f"{issue}|{criteria_rev}")[:24])
+    if rec and rec["verdict"]["verdict"] == "pass" and usable_provenance(rec) and not rec.get("revoked"):
+        return rec
+    return None
 
 
 def find_notion(digest, destination, op):

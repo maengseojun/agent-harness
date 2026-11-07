@@ -115,7 +115,7 @@ class ReviewRunFixture(HarnessCase):
             f"open(out, 'w').write(open({str(self.result)!r}).read())\n")
         self.codex.chmod(self.codex.stat().st_mode | stat.S_IEXEC)
         plan = self.tmp / "plan.md"
-        plan.write_text("AC-1 feature works\n## Verification\nAC-1: pytest\n")
+        plan.write_text("Requirements -> acceptance:\nAC-1 feature works\n\n## Verification\nAC-1: pytest\n")
         self.cli("maeng-verify", ["bind", "MAE-221", "--plan", str(plan), "--parent", "MAE-216"], self.repo)
         self.cli("maeng-verify", ["plan", "--met", "AC-1"], self.repo)
 

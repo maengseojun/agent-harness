@@ -288,7 +288,7 @@ class R2_G_DelegatedSubjectInShipFlow(MergeBase):
     def store_subject(self, files, delegated=()):
         v = {"verdict": "pass", "reviewer": {"model": "gpt-6-astra", "effort": "xhigh"}, "findings": [],
              "subject": {"kind": "parent", "repo": str(self.remote.resolve()), "pr": 7, "base": self.base,
-                         "head": self.h, "criteria_rev": None, "digest": self.digest(self.base, self.h, files),
+                         "head": self.h, "criteria_rev": "rev-1", "digest": self.digest(self.base, self.h, files),
                          "destination": "refs/heads/main", "op": "merge", "files_reviewed": files,
                          "files_excluded": list(delegated), "files_delegated": list(delegated),
                          "exclusion_reason": None}}

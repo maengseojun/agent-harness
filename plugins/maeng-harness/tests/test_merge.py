@@ -6,6 +6,9 @@ from maeng import receipts
 from .helpers import HarnessCase
 
 
+REV = "rev-1"
+
+
 class MergeBase(HarnessCase):
     def setUp(self):
         super().setUp()
@@ -20,6 +23,8 @@ class MergeBase(HarnessCase):
         self.git(self.repo, "push", "-q", "origin", "feat")
         self.start(self.repo)
         self.run_check(self.repo, "pytest -q")
+        # null never equals null: a merge needs a bound criteria revision, and receipts default to it
+        self.cli("maeng-verify", ["bind", "MAE-1", "--plan-updated", REV], self.repo)
         self.pr_json = self.tmp / "pr.json"
         self.set_pr(self.base, self.h)
         self.fake_gh = self.tmp / "fake-gh"
@@ -39,7 +44,7 @@ class MergeBase(HarnessCase):
         out = self.git(self.repo, "diff", "--no-renames", f"{base}...{head}", "--", *files).stdout
         return hashlib.sha256(out.strip().encode()).hexdigest()
 
-    def verdict(self, base=None, head=None, criteria_rev=None, verdict="pass", kind="code", files=None,
+    def verdict(self, base=None, head=None, criteria_rev=REV, verdict="pass", kind="code", files=None,
                 excluded=None, repo="__remote__", pr=7, digest=None, issue=None, parent=None):
         base, head = base or self.base, head or self.h
         files = self.changed(base, head) if files is None else files
