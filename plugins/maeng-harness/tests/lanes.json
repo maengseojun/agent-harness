@@ -1,0 +1,296 @@
+{
+  "version": 1,
+  "lanes": {
+    "gate": [
+      {
+        "id": "maeng-harness",
+        "cwd": ".",
+        "command": [
+          "python3",
+          "-m",
+          "pytest",
+          "-q",
+          "-n",
+          "8",
+          "-p",
+          "no:cacheprovider"
+        ],
+        "covers": [
+          "plugins/maeng-harness/tests"
+        ],
+        "required": true,
+        "deps": [
+          "pytest",
+          "xdist"
+        ],
+        "pip": [
+          "pytest",
+          "pytest-xdist"
+        ]
+      },
+      {
+        "id": "harness",
+        "cwd": ".",
+        "command": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "harness",
+          "-p",
+          "test_*.py"
+        ],
+        "covers": [
+          "harness"
+        ],
+        "required": true,
+        "deps": [],
+        "pip": []
+      },
+      {
+        "id": "aside-collect",
+        "cwd": "plugins/maeng-tools/skills/aside-collect/scripts",
+        "command": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          ".",
+          "-p",
+          "test_*.py"
+        ],
+        "covers": [
+          "plugins/maeng-tools/skills/aside-collect/scripts"
+        ],
+        "required": true,
+        "deps": [],
+        "pip": []
+      },
+      {
+        "id": "baze",
+        "cwd": "plugins/maeng-tools/skills/baze/scripts",
+        "command": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          ".",
+          "-p",
+          "test_*.py"
+        ],
+        "covers": [
+          "plugins/maeng-tools/skills/baze/scripts"
+        ],
+        "required": true,
+        "deps": [],
+        "pip": []
+      },
+      {
+        "id": "cinematic-site",
+        "cwd": "plugins/maeng-tools/skills/cinematic-site/scripts",
+        "command": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          ".",
+          "-p",
+          "test_*.py"
+        ],
+        "covers": [
+          "plugins/maeng-tools/skills/cinematic-site/scripts"
+        ],
+        "required": true,
+        "deps": [],
+        "pip": []
+      },
+      {
+        "id": "decisions",
+        "cwd": "plugins/maeng-tools/skills/decisions/scripts",
+        "command": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          ".",
+          "-p",
+          "test_*.py"
+        ],
+        "covers": [
+          "plugins/maeng-tools/skills/decisions/scripts"
+        ],
+        "required": true,
+        "deps": [],
+        "pip": []
+      },
+      {
+        "id": "easy-understanding",
+        "cwd": "plugins/maeng-tools/skills/easy-understanding/scripts",
+        "command": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          ".",
+          "-p",
+          "test_*.py"
+        ],
+        "covers": [
+          "plugins/maeng-tools/skills/easy-understanding/scripts"
+        ],
+        "required": true,
+        "deps": [],
+        "pip": []
+      },
+      {
+        "id": "graphify-repository",
+        "cwd": "plugins/maeng-tools/skills/graphify-repository/scripts",
+        "command": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          ".",
+          "-p",
+          "test_*.py"
+        ],
+        "covers": [
+          "plugins/maeng-tools/skills/graphify-repository/scripts"
+        ],
+        "required": true,
+        "deps": [],
+        "pip": []
+      },
+      {
+        "id": "maeng-archive",
+        "cwd": "plugins/maeng-tools/skills/maeng-archive/scripts",
+        "command": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          ".",
+          "-p",
+          "test_*.py"
+        ],
+        "covers": [
+          "plugins/maeng-tools/skills/maeng-archive/scripts"
+        ],
+        "required": true,
+        "deps": [],
+        "pip": []
+      },
+      {
+        "id": "diagram-explainer",
+        "cwd": "plugins/maeng-tools/skills/diagram-explainer/scripts",
+        "command": [
+          "python3",
+          "-m",
+          "pytest",
+          "-q",
+          "-p",
+          "no:cacheprovider"
+        ],
+        "covers": [
+          "plugins/maeng-tools/skills/diagram-explainer/scripts"
+        ],
+        "required": true,
+        "deps": [
+          "pytest"
+        ],
+        "pip": [
+          "pytest"
+        ]
+      },
+      {
+        "id": "motion-studio",
+        "cwd": "plugins/maeng-tools/skills/motion-studio/scripts",
+        "command": [
+          "python3",
+          "-m",
+          "pytest",
+          "-q",
+          "-p",
+          "no:cacheprovider"
+        ],
+        "covers": [
+          "plugins/maeng-tools/skills/motion-studio/scripts"
+        ],
+        "required": true,
+        "deps": [
+          "pytest"
+        ],
+        "pip": [
+          "pytest"
+        ]
+      },
+      {
+        "id": "obsidian-workspace",
+        "cwd": "plugins/maeng-tools/skills/obsidian-workspace/scripts",
+        "command": [
+          "python3",
+          "-B",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          ".",
+          "-p",
+          "test_*.py"
+        ],
+        "covers": [
+          "plugins/maeng-tools/skills/obsidian-workspace/scripts"
+        ],
+        "required": true,
+        "deps": [
+          "docx",
+          "pptx",
+          "pypdf",
+          "reportlab"
+        ],
+        "pip": [
+          "python-docx",
+          "python-pptx",
+          "pypdf",
+          "reportlab"
+        ]
+      }
+    ],
+    "periodic": [
+      {
+        "id": "mutation-sample",
+        "cwd": ".",
+        "command": [
+          "python3",
+          "tools/testperf/mutate.py"
+        ],
+        "covers": [],
+        "required": false,
+        "reason": "periodic lane; needs mutmut and prepared copies of the plugin",
+        "deps": [
+          "mutmut"
+        ],
+        "pip": [
+          "mutmut"
+        ],
+        "manual": "sampled mutation per the tools/testperf/mutate.py docstring: run on COPIES of plugins/maeng-harness (the mutated file is written in place), with a mutants.db; never against the checkout"
+      }
+    ]
+  }
+}
