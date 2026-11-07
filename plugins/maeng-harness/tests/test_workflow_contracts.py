@@ -196,46 +196,6 @@ class ExecutableExamples(unittest.TestCase):
         self.assertEqual(example_problems("python3 -m pytest -q -n 8"), [])
 
 
-class ContextMeasurement(unittest.TestCase):
-    """tools/testperf/subagent_context.py: an unknown count is unknown, never zero (AC-11)."""
-
-    def check(self, **std):
-        with tempfile.TemporaryDirectory() as d:
-            ev = Path(d) / "ev.json"
-            base = {"status": "observed", "agent_type": "maeng-tools:standard", "model": "m", "cli_version": "1",
-                    "input_tokens": 2, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 0,
-                    "total_input_tokens": 102}
-            base.update(std)
-            ev.write_text(json.dumps({"standard": base, "plugin": {"version": "1"},
-                                      "omit_claude_md_trial": {"result": "supported"}}))
-            return subprocess.run([sys.executable, str(CONTEXT), "--evidence", str(ev), "--max-input-tokens", "20000",
-                                   "--require-observed"], capture_output=True, text=True)
-
-    def test_observed_within_limit_passes(self):
-        self.assertEqual(self.check().returncode, 0)
-
-    def test_over_limit_fails(self):
-        self.assertEqual(self.check(total_input_tokens=20001).returncode, 1)
-        self.assertEqual(self.check(total_input_tokens=20000).returncode, 0)
-
-    def test_unknown_usage_fails_and_is_not_zero(self):
-        self.assertEqual(self.check(status="unknown", total_input_tokens=None).returncode, 1)
-        self.assertEqual(self.check(cache_read_input_tokens=None).returncode, 1)
-
-    def test_other_definition_fails(self):
-        self.assertEqual(self.check(agent_type="maeng-tools:design").returncode, 1)
-
-    def test_transcript_without_usage_is_unknown(self):
-        with tempfile.TemporaryDirectory() as d:
-            t = Path(d) / "agent-x.jsonl"
-            t.write_text(json.dumps({"type": "assistant", "version": "1", "message": {"model": "m"}}) + "\n")
-            (Path(d) / "agent-x.meta.json").write_text(json.dumps({"agentType": "maeng-tools:standard"}))
-            ev = Path(d) / "ev.json"
-            p = subprocess.run([sys.executable, str(CONTEXT), "--evidence", str(ev), "--standard", str(t),
-                                "--require-observed"], capture_output=True, text=True)
-            self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
-            self.assertIsNone(json.loads(ev.read_text())["standard"]["total_input_tokens"])
-
-
+# The context-measurement cases live in test_subagent_context.py (they need a transcript fixture).
 if __name__ == "__main__":
     unittest.main()

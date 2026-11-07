@@ -88,3 +88,13 @@ class SubagentContext(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+    def test_over_the_limit_fails_and_the_limit_itself_passes(self):
+        big = copy.deepcopy(LINES)
+        big[1]["message"]["usage"] = {"input_tokens": 2, "cache_creation_input_tokens": 19999, "cache_read_input_tokens": 0}
+        r = self.run_check(lines=big, total=20001, std={"cache_creation_input_tokens": 19999, "cache_read_input_tokens": 0})
+        self.assertEqual(r.returncode, 1)
+        big[1]["message"]["usage"]["cache_creation_input_tokens"] = 19998
+        r = self.run_check(lines=big, total=20000, std={"cache_creation_input_tokens": 19998, "cache_read_input_tokens": 0})
+        self.assertEqual((r.returncode, r.stderr), (0, ""))
