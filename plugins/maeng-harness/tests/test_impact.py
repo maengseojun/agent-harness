@@ -165,3 +165,20 @@ class NodeIds(unittest.TestCase):
                          "tests/test_r1.py::R1_11_ReviewBundle::test_x")
         self.assertEqual(impact._nodeid("tests.test_cli.ClaudeBackend.test_y"), "tests/test_cli.py::ClaudeBackend::test_y")
         self.assertIsNone(impact._nodeid("maeng.evidence.x"))
+
+
+class Dedupe(unittest.TestCase):
+    def test_node_ids_under_a_selected_file_are_dropped(self):
+        with tempfile.TemporaryDirectory() as d:
+            m = Path(d, "map.json")
+            m.write_text(json.dumps({"base": "HEAD", "files": {"lib/maeng/evidence.py": {
+                "test_count": ["tests/test_evidence.py::Recognition::test_recognized_runners",
+                               "tests/test_cli.py::ClaudeBackend::test_codex_backend_stays_selectable"]}}}))
+            with mock.patch.object(impact, "MAP", m), mock.patch.object(impact, "_old_text", return_value=(
+                    impact.PLUGIN / "lib/maeng/evidence.py").read_text()):
+                line = next(i for i, ln in enumerate((impact.PLUGIN / "lib/maeng/evidence.py").read_text().splitlines(), 1)
+                            if ln.startswith("def test_count")) + 1
+                ids, _ = impact.select(changes={"lib/maeng/evidence.py": {line}, "tests/test_evidence.py": None})
+        self.assertIn("tests/test_evidence.py", ids)
+        self.assertNotIn("tests/test_evidence.py::Recognition::test_recognized_runners", ids)
+        self.assertIn("tests/test_cli.py::ClaudeBackend::test_codex_backend_stays_selectable", ids)

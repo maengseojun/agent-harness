@@ -336,7 +336,9 @@ def select(base=None, changes=None):
     twins = boundary_twins(picked)
     if twins:
         why.append(f"boundary twins of selected tests: {len(twins)}")
-    return sorted(picked | twins), why
+    picked |= twins
+    files = {p for p in picked if "::" not in p}  # a whole file already runs its node ids: pytest would run them twice
+    return sorted(p for p in picked if "::" not in p or p.split("::")[0] not in files), why
 
 
 def boundary_twins(picked):
