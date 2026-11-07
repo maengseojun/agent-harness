@@ -1,0 +1,591 @@
+{
+ "recorded_at": "2026-11-07T17:02:56Z",
+ "partial": false,
+ "impact_sha256": "558b3fa2a0a803c81f910644189ba9e567902a47954b2a1a072c2b0a09ade069",
+ "commits_selected_by": "newest commits whose diff against the first parent touches ^plugins/maeng-harness/(lib/|bin/|hooks/|tests/|schemas/|config/|policy/|requirements|\\.claude-plugin/)",
+ "cases": [
+  {
+   "sha": "53450a77a253795bb19611286b634d9df4f6182a",
+   "parent": "e87935f7fee2a9d547d6d2ecb2e13738b276bf6e",
+   "subject": "fix(MAE-323): a selected whole test file drops its own node ids (pytest ran them twice)",
+   "code_files": [
+    "plugins/maeng-harness/tests/impact.py",
+    "plugins/maeng-harness/tests/test_impact.py"
+   ],
+   "map": "built in 129.7s",
+   "select": {
+    "count": null,
+    "all": true,
+    "reasons": [
+     "tests/impact.py: shared test/plugin input -> all"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "all",
+    "selected": null,
+    "fallback": null,
+    "tests_run": 805,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 106.8
+  },
+  {
+   "sha": "c6bc84395d4d0ba6ee9e6de9f66532b43868ff35",
+   "parent": "d6201ee2da92dcd6fdc0f9587f4885a918229ed1",
+   "subject": "feat(MAE-323): review replay baseline (--prompt-from) and compare: blockers the old prompt kept and the new one lost, on the same bundles",
+   "code_files": [
+    "plugins/maeng-harness/tests/test_review_replay.py"
+   ],
+   "map": "built in 136.0s",
+   "select": {
+    "count": 1,
+    "all": false,
+    "reasons": [
+     "tests/test_review_replay.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 1,
+    "fallback": null,
+    "tests_run": 14,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 3.1
+  },
+  {
+   "sha": "d6201ee2da92dcd6fdc0f9587f4885a918229ed1",
+   "parent": "65283109f9fdd938ceb37a832750227d6c29bc5f",
+   "subject": "fix(MAE-323): a test class built inside a function gets its module-level node id (the impact rc-5 defect)",
+   "code_files": [
+    "plugins/maeng-harness/tests/impact.py",
+    "plugins/maeng-harness/tests/test_impact.py"
+   ],
+   "map": "cached",
+   "select": {
+    "count": null,
+    "all": true,
+    "reasons": [
+     "tests/impact.py: shared test/plugin input -> all"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "all",
+    "selected": null,
+    "fallback": null,
+    "tests_run": 799,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 111.4
+  },
+  {
+   "sha": "65283109f9fdd938ceb37a832750227d6c29bc5f",
+   "parent": "86b80200109336676cb4d2bd4cdc09887e083bc5",
+   "subject": "feat(MAE-323): historical review replay with the new prompt (S8 replay mode)",
+   "code_files": [
+    "plugins/maeng-harness/tests/test_review_replay.py"
+   ],
+   "map": "cached",
+   "select": {
+    "count": 1,
+    "all": false,
+    "reasons": [
+     "tests/test_review_replay.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 1,
+    "fallback": null,
+    "tests_run": 9,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 2.9
+  },
+  {
+   "sha": "86b80200109336676cb4d2bd4cdc09887e083bc5",
+   "parent": "e98253b24e2969ce6a26ec8f1ceeea2d648f4162",
+   "subject": "feat(MAE-323): test-suite lanes, an isolated runner for every plugin suite and one informational CI aggregate (S7)",
+   "code_files": [
+    "plugins/maeng-harness/tests/lanes.json",
+    "plugins/maeng-harness/tests/test_plugin_checks.py"
+   ],
+   "map": "cached",
+   "select": {
+    "count": null,
+    "all": true,
+    "reasons": [
+     "tests/lanes.json: unknown input -> all"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "all",
+    "selected": null,
+    "fallback": null,
+    "tests_run": 791,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 116.1
+  },
+  {
+   "sha": "e98253b24e2969ce6a26ec8f1ceeea2d648f4162",
+   "parent": "1f04c88caa2723b404abfb0dea8dd4e771be9415",
+   "subject": "feat(MAE-323): impact selection with reported fallbacks, executed-test counts and flaky evidence, the 16-commit impact replay (S5)",
+   "code_files": [
+    "plugins/maeng-harness/bin/maeng-verify",
+    "plugins/maeng-harness/lib/maeng/evidence.py",
+    "plugins/maeng-harness/lib/maeng/handlers.py",
+    "plugins/maeng-harness/tests/impact.py",
+    "plugins/maeng-harness/tests/test_evidence_integrity.py",
+    "plugins/maeng-harness/tests/test_impact.py",
+    "plugins/maeng-harness/tests/test_impact_replay.py"
+   ],
+   "map": "cached",
+   "select": {
+    "count": null,
+    "all": true,
+    "reasons": [
+     "tests/impact.py: shared test/plugin input -> all"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "all",
+    "selected": null,
+    "fallback": null,
+    "tests_run": 771,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 108.0
+  },
+  {
+   "sha": "1f04c88caa2723b404abfb0dea8dd4e771be9415",
+   "parent": "e0dc2830cc2558e9bbe8180da7ff14087c07c6f6",
+   "subject": "fix(MAE-323): round-2 review of PR 2a: confirmation covers only reviewed files; context probe hashes the launched plugin directory",
+   "code_files": [
+    "plugins/maeng-harness/bin/maeng-review",
+    "plugins/maeng-harness/tests/test_review_rounds.py",
+    "plugins/maeng-harness/tests/test_subagent_context.py"
+   ],
+   "map": "cached",
+   "select": {
+    "count": 187,
+    "all": false,
+    "reasons": [
+     "bin/maeng-review: apply_rounds -> 203 tests",
+     "tests/test_review_rounds.py: test file itself",
+     "tests/test_subagent_context.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 187,
+    "fallback": null,
+    "tests_run": 236,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 64.7
+  },
+  {
+   "sha": "e0dc2830cc2558e9bbe8180da7ff14087c07c6f6",
+   "parent": "1fac3e50f9bfd0bf6521ba88fc81119310bfad43",
+   "subject": "fix(MAE-323): round-1 review of PR 2a: confirmation coverage and scope aggregation, author identity required, plan-receipt revocation, digest-only authorization, label-form continuations, bound context probe",
+   "code_files": [
+    "plugins/maeng-harness/bin/maeng-review",
+    "plugins/maeng-harness/bin/maeng-ship",
+    "plugins/maeng-harness/bin/maeng-verify",
+    "plugins/maeng-harness/lib/maeng/evidence.py",
+    "plugins/maeng-harness/lib/maeng/gates.py",
+    "plugins/maeng-harness/lib/maeng/receipts.py",
+    "plugins/maeng-harness/tests/test_cli.py",
+    "plugins/maeng-harness/tests/test_criteria_rev.py",
+    "plugins/maeng-harness/tests/test_decisions_wiring.py",
+    "plugins/maeng-harness/tests/test_interview.py",
+    "plugins/maeng-harness/tests/test_mae233.py",
+    "plugins/maeng-harness/tests/test_merge.py",
+    "plugins/maeng-harness/tests/test_plan_notices.py",
+    "plugins/maeng-harness/tests/test_plan_review.py",
+    "plugins/maeng-harness/tests/test_r2.py",
+    "plugins/maeng-harness/tests/test_r7.py",
+    "plugins/maeng-harness/tests/test_review_policy.py",
+    "plugins/maeng-harness/tests/test_review_rounds.py",
+    "plugins/maeng-harness/tests/test_route_enforcement.py",
+    "plugins/maeng-harness/tests/test_status.py",
+    "plugins/maeng-harness/tests/test_subagent_context.py"
+   ],
+   "map": "cached",
+   "select": {
+    "count": 33,
+    "all": false,
+    "reasons": [
+     "bin/maeng-review: apply_rounds, code_bundle, committed_plan, run_review -> 205 tests",
+     "bin/maeng-ship: merge -> 58 tests",
+     "bin/maeng-verify: cmd_bind -> 68 tests",
+     "lib/maeng/evidence.py: static graph -> 32 test files",
+     "lib/maeng/gates.py: check_merge_push -> 14 tests",
+     "lib/maeng/receipts.py: child_binding_rev, revoke_passes -> 30 tests",
+     "tests/test_cli.py: test file itself",
+     "tests/test_criteria_rev.py: test file itself",
+     "tests/test_decisions_wiring.py: test file itself",
+     "tests/test_interview.py: test file itself",
+     "tests/test_mae233.py: test file itself",
+     "tests/test_merge.py: test file itself",
+     "tests/test_plan_notices.py: test file itself",
+     "tests/test_plan_review.py: test file itself",
+     "tests/test_r2.py: test file itself",
+     "tests/test_r7.py: test file itself",
+     "tests/test_review_policy.py: test file itself",
+     "tests/test_review_rounds.py: test file itself",
+     "tests/test_route_enforcement.py: test file itself",
+     "tests/test_status.py: test file itself",
+     "tests/test_subagent_context.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 33,
+    "fallback": null,
+    "tests_run": 717,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 305.4
+  },
+  {
+   "sha": "1fac3e50f9bfd0bf6521ba88fc81119310bfad43",
+   "parent": "b08b6556134cb91e4d350c4ac1987ee48f0b4736",
+   "subject": "test(MAE-323): context-measurement cases move to the transcript-backed test file",
+   "code_files": [
+    "plugins/maeng-harness/tests/test_subagent_context.py",
+    "plugins/maeng-harness/tests/test_workflow_contracts.py"
+   ],
+   "map": "unbuilt: impact build: the suite failed; the map is only built from a passing run",
+   "select": {
+    "count": 2,
+    "all": false,
+    "reasons": [
+     "tests/test_subagent_context.py: test file itself",
+     "tests/test_workflow_contracts.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 2,
+    "fallback": null,
+    "tests_run": 24,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 1.8
+  },
+  {
+   "sha": "b08b6556134cb91e4d350c4ac1987ee48f0b4736",
+   "parent": "8060838a348c982ae6c7088ca726dcf6492038d6",
+   "subject": "fix(MAE-323): the acceptance digest authorizes even with a timestamp override; the context check re-reads its transcript (plan review round 2)",
+   "code_files": [
+    "plugins/maeng-harness/bin/maeng-review",
+    "plugins/maeng-harness/bin/maeng-ship",
+    "plugins/maeng-harness/bin/maeng-verify",
+    "plugins/maeng-harness/lib/maeng/gates.py",
+    "plugins/maeng-harness/lib/maeng/receipts.py",
+    "plugins/maeng-harness/tests/test_criteria_rev.py",
+    "plugins/maeng-harness/tests/test_subagent_context.py"
+   ],
+   "map": "cached",
+   "select": {
+    "count": 227,
+    "all": false,
+    "reasons": [
+     "bin/maeng-review: code_bundle -> 195 tests",
+     "bin/maeng-ship: merge -> 57 tests",
+     "bin/maeng-verify: cmd_bind -> 67 tests",
+     "lib/maeng/gates.py: check_merge_push -> 14 tests",
+     "lib/maeng/receipts.py: child_binding_rev -> 8 tests",
+     "tests/test_criteria_rev.py: test file itself",
+     "tests/test_subagent_context.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 227,
+    "fallback": null,
+    "tests_run": 266,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 68.5
+  },
+  {
+   "sha": "dddbb5c923327c0a27bcee3d908c2e801a6b73fb",
+   "parent": "a98b0fae82b95b3a0621ec249066a1398aa9ba68",
+   "subject": "fix(MAE-323): confirmation anchors to the newest distinct head; plan notices compare the acceptance digest (review findings on PR #103)",
+   "code_files": [
+    "plugins/maeng-harness/bin/maeng-review",
+    "plugins/maeng-harness/lib/maeng/evidence.py",
+    "plugins/maeng-harness/lib/maeng/receipts.py",
+    "plugins/maeng-harness/tests/test_plan_notices.py",
+    "plugins/maeng-harness/tests/test_review_rounds.py"
+   ],
+   "map": "cached",
+   "select": {
+    "count": 187,
+    "all": false,
+    "reasons": [
+     "bin/maeng-review: apply_rounds -> 194 tests",
+     "lib/maeng/evidence.py: make_binding -> 41 tests",
+     "lib/maeng/receipts.py: plan_notices -> 102 tests",
+     "tests/test_plan_notices.py: test file itself",
+     "tests/test_review_rounds.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 187,
+    "fallback": null,
+    "tests_run": 232,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 60.2
+  },
+  {
+   "sha": "8c1198c5669253fdde2c150339899301e80c3835",
+   "parent": "b864b2874a27940346d30cd3ccb88c0d1b2aa2a9",
+   "subject": "test(MAE-323): the Stop handler-error test runs in-process only",
+   "code_files": [
+    "plugins/maeng-harness/tests/test_stop_hooks.py"
+   ],
+   "map": "cached",
+   "select": {
+    "count": 1,
+    "all": false,
+    "reasons": [
+     "tests/test_stop_hooks.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 1,
+    "fallback": null,
+    "tests_run": 37,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 12.4
+  },
+  {
+   "sha": "b864b2874a27940346d30cd3ccb88c0d1b2aa2a9",
+   "parent": "cc1968225816cc2f0416ee8803ca45ff1f138906",
+   "subject": "feat(MAE-323): Stop notifies instead of blocking, plan-receipt notices, rule documents and definitions for bundle 2, SubagentStop for the personal-flow definitions (S4, S6)",
+   "code_files": [
+    "plugins/maeng-harness/bin/maeng-review",
+    "plugins/maeng-harness/lib/maeng/handlers.py",
+    "plugins/maeng-harness/lib/maeng/receipts.py",
+    "plugins/maeng-harness/tests/test_boundary.py",
+    "plugins/maeng-harness/tests/test_docs_sync.py",
+    "plugins/maeng-harness/tests/test_interview.py",
+    "plugins/maeng-harness/tests/test_plan_notices.py",
+    "plugins/maeng-harness/tests/test_status.py",
+    "plugins/maeng-harness/tests/test_stop_hooks.py",
+    "plugins/maeng-harness/tests/test_workflow_contracts.py"
+   ],
+   "map": "cached",
+   "select": {
+    "count": 32,
+    "all": false,
+    "reasons": [
+     "bin/maeng-review: run_review -> 200 tests",
+     "lib/maeng/handlers.py: static graph -> 25 test files",
+     "lib/maeng/receipts.py: static graph -> 30 test files",
+     "skills/execute-code-brief/SKILL.md: doc/skill -> doc tests",
+     "skills/harness-run/SKILL.md: doc/skill -> doc tests",
+     "skills/harness-run/references/org-chart.md: doc/skill -> doc tests",
+     "skills/harness-run/references/review-and-ship.md: doc/skill -> doc tests",
+     "skills/harness-run/references/spec-plan.md: doc/skill -> doc tests",
+     "skills/harness-run/references/verification.md: doc/skill -> doc tests",
+     "skills/task-brief/SKILL.md: doc/skill -> doc tests",
+     "tests/test_boundary.py: test file itself",
+     "tests/test_docs_sync.py: test file itself",
+     "tests/test_interview.py: test file itself",
+     "tests/test_plan_notices.py: test file itself",
+     "tests/test_status.py: test file itself",
+     "tests/test_stop_hooks.py: test file itself",
+     "tests/test_workflow_contracts.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 32,
+    "fallback": null,
+    "tests_run": 699,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 285.7
+  },
+  {
+   "sha": "cc1968225816cc2f0416ee8803ca45ff1f138906",
+   "parent": "c519c4254953b84d3ea95bebbc6b1b38727f00dc",
+   "subject": "feat(MAE-323): plan review kind, V-1..V-6 verdict rules, distinct-head rounds with guarded narrowing, one confirmation run (S3)",
+   "code_files": [
+    "plugins/maeng-harness/bin/maeng-review",
+    "plugins/maeng-harness/lib/maeng/receipts.py",
+    "plugins/maeng-harness/tests/test_decisions_wiring.py",
+    "plugins/maeng-harness/tests/test_plan_review.py",
+    "plugins/maeng-harness/tests/test_review_policy.py",
+    "plugins/maeng-harness/tests/test_review_rounds.py",
+    "plugins/maeng-harness/tests/test_status.py"
+   ],
+   "map": "cached",
+   "select": {
+    "count": 29,
+    "all": false,
+    "reasons": [
+     "bin/maeng-review: static graph -> 20 test files",
+     "lib/maeng/receipts.py: static graph -> 28 test files",
+     "tests/test_decisions_wiring.py: test file itself",
+     "tests/test_plan_review.py: test file itself",
+     "tests/test_review_policy.py: test file itself",
+     "tests/test_review_rounds.py: test file itself",
+     "tests/test_status.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 29,
+    "fallback": null,
+    "tests_run": 658,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 277.3
+  },
+  {
+   "sha": "c519c4254953b84d3ea95bebbc6b1b38727f00dc",
+   "parent": "098b67bf7e5582feaf978205c2c59c8ce91e21ca",
+   "subject": "feat(MAE-323): route and reviewer resolver from roles.json; explicit Decisions model on the claim and duplicate routes (S2)",
+   "code_files": [
+    "plugins/maeng-harness/bin/maeng-review",
+    "plugins/maeng-harness/lib/maeng/routing.py",
+    "plugins/maeng-harness/policy/roles.json",
+    "plugins/maeng-harness/schemas/verdict.schema.json",
+    "plugins/maeng-harness/tests/test_cli.py",
+    "plugins/maeng-harness/tests/test_r2.py",
+    "plugins/maeng-harness/tests/test_review_roles.py",
+    "plugins/maeng-harness/tests/test_roles.py",
+    "plugins/maeng-harness/tests/test_route_enforcement.py"
+   ],
+   "map": "cached",
+   "select": {
+    "count": null,
+    "all": true,
+    "reasons": [
+     "policy/roles.json: unknown input -> all"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "all",
+    "selected": null,
+    "fallback": null,
+    "tests_run": 630,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 67.2
+  },
+  {
+   "sha": "098b67bf7e5582feaf978205c2c59c8ce91e21ca",
+   "parent": "a23f430b3a7fbf0ee6cd979a13aff34ab3d3f07b",
+   "subject": "feat(MAE-323): one criteria digest for bind, review, ship and the lease gate; receipt coverage fields and plan receipts (S1)",
+   "code_files": [
+    "plugins/maeng-harness/bin/maeng-review",
+    "plugins/maeng-harness/lib/maeng/evidence.py",
+    "plugins/maeng-harness/lib/maeng/receipts.py",
+    "plugins/maeng-harness/schemas/verdict.schema.json",
+    "plugins/maeng-harness/tests/test_cli.py",
+    "plugins/maeng-harness/tests/test_criteria_rev.py",
+    "plugins/maeng-harness/tests/test_merge.py",
+    "plugins/maeng-harness/tests/test_r2.py"
+   ],
+   "map": "cached",
+   "select": {
+    "count": 26,
+    "all": false,
+    "reasons": [
+     "bin/maeng-review: committed_plan, run_review -> 151 tests",
+     "lib/maeng/evidence.py: static graph -> 25 test files",
+     "lib/maeng/receipts.py: static graph -> 24 test files",
+     "schemas/verdict.schema.json: static graph -> 24",
+     "tests/test_cli.py: test file itself",
+     "tests/test_criteria_rev.py: test file itself",
+     "tests/test_merge.py: test file itself",
+     "tests/test_r2.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 26,
+    "fallback": null,
+    "tests_run": 590,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 216.9
+  }
+ ],
+ "summary": {
+  "cases": 16,
+  "completed": 16,
+  "selector_errors": [],
+  "fallbacks": [],
+  "all_by_rule": [
+   "53450a77a253",
+   "d6201ee2da92",
+   "86b802001093",
+   "e98253b24e29",
+   "c519c4254953"
+  ],
+  "test_failures": [],
+  "count_unavailable": [],
+  "median_tests_run": 610,
+  "median_tests_run_narrow_only": 236
+ }
+}
