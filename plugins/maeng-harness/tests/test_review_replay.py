@@ -1,6 +1,7 @@
 """review_replay.py on a temporary receipts directory with two hand-written receipts."""
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -49,3 +50,127 @@ def test_check_fails_on_empty(tmp_path):
     f = tmp_path / "e.json"
     f.write_text(json.dumps({"receipts_scanned": 3, "cases_enrolled": 0, "cases_reconstructable": 0, "cases": []}))
     assert run(tmp_path, "check", "--manifest", str(f)).returncode == 1
+
+
+# ---- replay subcommand: temp git repo, injected reviewer and enrolled-cases loader ----
+import importlib.util  # noqa: E402
+
+import pytest  # noqa: E402
+
+_spec = importlib.util.spec_from_file_location("review_replay_tool", SCRIPT)
+rr = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(rr)
+
+PLAN = "# Plan\n\nRequirements -> acceptance:\n- **AC-1** the app greets\n\nVerification:\n- AC-1 `pytest`\n"
+
+
+def _g(repo, *args):
+    return subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@x", *args],
+                          capture_output=True, text=True, check=True).stdout.strip()
+
+
+@pytest.fixture
+def world(tmp_path, monkeypatch):
+    monkeypatch.setenv("MAENG_HOME", str(tmp_path / "home"))
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _g(repo, "init", "-q", "-b", "main")
+    (repo / "app.py").write_text("print('a')\n")
+    _g(repo, "add", "."), _g(repo, "commit", "-qm", "c0")
+    c0 = _g(repo, "rev-parse", "HEAD")
+    (repo / "app.py").write_text("print('b')\n")
+    _g(repo, "commit", "-qam", "c1")
+    c1 = _g(repo, "rev-parse", "HEAD")
+    (repo / "app.py").write_text("print('c')\n")
+    (repo / "docs/design").mkdir(parents=True)
+    (repo / "docs/design/MAE-9-plan.md").write_text(PLAN)
+    _g(repo, "add", "."), _g(repo, "commit", "-qm", "c2")
+    c2 = _g(repo, "rev-parse", "HEAD")
+    exp = [{"severity": "high", "title": "Missing validation of input", "file": "app.py", "line": 10,
+            "expected_blocking": True},
+           {"severity": "critical", "title": "Race condition in cache refresh handler", "file": "lib.py",
+            "line": 100, "expected_blocking": True}]
+    case = {"id": "abc0000000000001", "repo": "r/x", "pr": 1, "base": c1, "head": c2, "base_ref": "refs/heads/main",
+            "plan_path": None, "criteria_rev": "old", "reviewer": {"model": "gpt-x", "effort": "high"},
+            "verdict": "fail", "reconstructable": True, "findings": exp}
+    man = tmp_path / "cases.json"
+    man.write_text(json.dumps({"cases": [case]}))
+    w = type("W", (), {})()
+    w.repo, w.case, w.exp, w.man, w.tmp, w.c0, w.c1, w.c2, w.calls = repo, case, exp, man, tmp_path, c0, c1, c2, []
+    w.enrolled = [case]
+    w.found = [{"severity": "high", "title": "Totally different words", "body": "b", "file": "app.py", "line": 15}]
+    w.err = None
+    monkeypatch.setattr(rr, "enrolled_cases", lambda commit, path: w.enrolled)
+
+    def fake(case, prompt, out_schema, cwd):
+        w.calls.append(prompt)
+        if w.err:
+            return None, w.err
+        return {"verdict": "fail", "findings": w.found}, None
+
+    monkeypatch.setattr(rr, "run_reviewer", fake)
+
+    def go(*extra):
+        res = tmp_path / "out" / "results.json"
+        rc = rr.main(["replay", "--manifest", str(man), "--results", str(res), "--repo", str(repo), *extra])
+        return rc, (json.loads(res.read_text()) if res.exists() else None)
+
+    w.go = go
+    return w
+
+
+def test_integrity_mismatch_runs_nothing(world, capsys):
+    world.enrolled = []
+    rc, res = world.go()
+    assert rc == 1 and res is None and world.calls == []
+    assert "manifest changed since enrollment" in capsys.readouterr().out
+
+
+def test_lost_blocker_threshold(world):
+    rc, res = world.go("--max-lost-blockers", "0")
+    assert rc == 1 and [x["title"] for x in res["lost_blockers"]] == [world.exp[1]["title"]]
+    assert res["cases"][0]["expected"][0]["matched"]["line"] == 15
+    rc, res = world.go("--max-lost-blockers", "1", "--force")
+    assert rc == 0 and res["cases_run"] == 1 and res["verdicts"] == {"fail": 1}
+
+
+def test_title_similarity_and_severity(world):
+    world.found.append({"severity": "high", "title": "Race condition in the cache refresh handler", "body": "b",
+                        "file": "other.py", "line": 1})
+    rc, res = world.go("--max-lost-blockers", "0")
+    assert rc == 0 and res["lost_blockers"] == []
+    world.found[1]["severity"] = "medium"
+    rc, res = world.go("--max-lost-blockers", "0", "--force")
+    assert rc == 1 and len(res["lost_blockers"]) == 1
+
+
+def test_reviewer_error_fails_require_complete(world):
+    world.err = "boom"
+    rc, res = world.go("--require-complete")
+    assert rc == 1 and res["cases"][0]["status"] == "error" and res["lost_blockers"] == []
+    rc, _ = world.go("--max-lost-blockers", "0", "--force")
+    assert rc == 0
+
+
+def test_expected_verbatim_and_no_rerun(world):
+    rc, res = world.go()
+    assert res["expected"] == {world.case["id"]: world.exp}
+    assert len(world.calls) == 1
+    world.go()
+    assert len(world.calls) == 1
+    world.go("--force")
+    assert len(world.calls) == 2
+
+
+def test_plan_resolution(world):
+    b, path, how = rr.reconstruct(world.repo, world.case)
+    assert (path, how) == ("docs/design/MAE-9-plan.md", "changed-single")
+    assert re.fullmatch(r"[0-9a-f]{64}", b["criteria_rev"]) and b["criteria"] == ["AC-1"]
+    assert b["files_reviewed"] == ["app.py", "docs/design/MAE-9-plan.md"] and b["changed_files"]["app.py"] == "print('c')"
+    b, path, how = rr.reconstruct(world.repo, dict(world.case, base=world.c0, head=world.c1))
+    assert (path, how, b["criteria"], b["plan_text"], b["criteria_rev"]) == (None, "none", None, None, None)
+
+
+def test_too_large(world):
+    rc, res = world.go("--max-bytes", "10", "--require-complete")
+    assert rc == 1 and res["cases"][0]["status"] == "too_large" and world.calls == []
