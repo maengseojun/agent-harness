@@ -237,3 +237,15 @@ class Compare(unittest.TestCase):
         self.assertNotIn("V-1 to V-6", old)
         self.assertIn("V-1 to V-6", rr.review_prompt(argparse.Namespace(prompt_from=None)))
         rr._PROMPT = None
+
+
+def test_pinned_plan_path_wins_and_the_cap_counts_utf8_bytes(world):
+    """Codex findings on PR #104: a manifest plan_path is honoured at head before any heuristic; prompt_bytes is the
+    UTF-8 length, so a non-ASCII bundle cannot slip under --max-bytes by code-point count."""
+    repo = world.repo
+    case = dict(world.case, plan_path="docs/design/MAE-9-plan.md")
+    path, how = rr.resolve_plan(repo, case)
+    assert (path, how) == ("docs/design/MAE-9-plan.md", "pinned")
+    path, how = rr.resolve_plan(repo, dict(case, plan_path="docs/design/absent-plan.md"))
+    assert how != "pinned"
+    assert len("한글".encode("utf-8")) == 6 and len("한글") == 2  # the unit the cap must use

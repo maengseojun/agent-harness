@@ -196,6 +196,9 @@ def _blobs(repo, head, files):
 def resolve_plan(repo, case):
     """-> (plan_path, resolution) by the rule: issue plan, single changed plan, most-changed plan, none."""
     base, head = case["base"], case["head"]
+    pinned = case.get("plan_path")  # the path the original review recorded, when the manifest has one
+    if pinned and _git(repo, "cat-file", "-e", f"{head}:{pinned}") is not None:
+        return pinned, "pinned"
     try:
         issue = (json.loads((home_dir() / "reviews" / f"{case['id']}.json").read_text(encoding="utf-8"))
                  .get("subject") or {}).get("issue")
@@ -306,7 +309,8 @@ def run_case(case, a, repo, out_schema):
         res["error"] = "cannot rebuild the bundle from git"
         return res
     prompt = review_prompt(a) + json.dumps(bundle, indent=1)
-    res.update(criteria_rev=bundle["criteria_rev"], bundle_bytes=len(json.dumps(bundle)), prompt_bytes=len(prompt))
+    res.update(criteria_rev=bundle["criteria_rev"], bundle_bytes=len(json.dumps(bundle).encode("utf-8")),
+               prompt_bytes=len(prompt.encode("utf-8")))  # UTF-8 bytes: the cap is a byte limit, not code points
     if dry_status(res, a) == "too_large":
         res["status"] = "too_large"
         return res
