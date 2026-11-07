@@ -489,7 +489,11 @@ def apply_rounds(a, cwd, bundle, subject):
         elif receipts.confirmation_used(subject["repo"], a.pr):
             why = "the one confirmation of this PR was already used"
         else:
-            last = runs[-1]
+            order = []  # heads in order of first completed review: the round-two head is the newest distinct one,
+            for v in runs:  # not whichever head was rerun last (review finding on PR #103)
+                if v["subject"]["head"] not in order:
+                    order.append(v["subject"]["head"])
+            last = [v for v in runs if v["subject"]["head"] == order[-1]][-1]
             open_ = [f for f in last["findings"] if f["severity"] in BLOCKING]
             broke = scope_break(cwd, subject, last)
             if last["verdict"] != "fail" or not open_:

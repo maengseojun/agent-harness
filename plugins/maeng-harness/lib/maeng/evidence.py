@@ -433,7 +433,8 @@ def make_binding(issue, plan_doc=None, plan_updated=None, criteria=None, checks=
         b["criteria"] = criteria or c
         b["checks"] = checks or ch
         b["plan_hash"] = hashlib.sha256(text.encode()).hexdigest()[:16]
-        b["plan_updated_at"] = plan_updated or criteria_rev(text)  # the criteria revision; `--plan-updated` overrides
+        b["criteria_rev"] = criteria_rev(text)  # the acceptance digest, always (plan receipts are keyed by it)
+        b["plan_updated_at"] = plan_updated or b["criteria_rev"]  # the criteria revision; `--plan-updated` overrides
     return b
 
 

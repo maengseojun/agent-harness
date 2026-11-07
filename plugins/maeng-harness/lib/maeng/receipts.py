@@ -314,7 +314,7 @@ def plan_notices(binding):
         isinstance(v, dict) and v.get("parent") == issue for v in registry.values())
     lines = []
     if children or rows >= 2:
-        status = plan_receipt_status(issue, binding.get("plan_updated_at"))
+        status = plan_receipt_status(issue, binding.get("criteria_rev") or binding.get("plan_updated_at"))
         if status != "valid":
             lines.append(f"maeng: large task {issue} has no valid plan review receipt ({status}); "
                          f"`maeng-review run --kind plan` records one. Notice only: review and merge are not blocked.")

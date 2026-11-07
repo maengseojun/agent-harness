@@ -179,6 +179,17 @@ class Confirmation(Rounds):
         self.assertEqual([x["verdict"]["subject"]["review_mode"] for x in recs or []], ["confirmation"], problem)
         self.assertEqual(recs[0]["status"], "unconsumed")
 
+    def test_confirmation_anchors_to_the_newest_distinct_head_not_the_last_rerun(self):
+        # Review finding on PR #103: a rerun of the round-one head after round two must not move the anchor.
+        self.reply("fail", [HIGH])
+        self.assertEqual(self.run_at(self.h).returncode, 1)  # the older head reviewed again, later by mtime
+        self.reply("pass")
+        r = self.confirm()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        bundle = self.bundle()
+        self.assertEqual(self.stored_subject(r)["previous_head"], self.h2)
+        self.assertEqual(bundle["diff"], self.git(self.repo, "diff", "--no-renames", self.h2, self.h3).stdout.strip())
+
     def test_a_second_confirmation_is_refused_whatever_the_first_said(self):
         self.reply("fail", [HIGH])
         self.assertEqual(self.confirm().returncode, 1)

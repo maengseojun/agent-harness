@@ -69,6 +69,15 @@ class LargeTaskBoundaries(NoticeBase):
         self.assertIn("(stale)", receipts.plan_notices(changed)[0])
         self.assertEqual(receipts.plan_notices(self.bind("MAE-52", rows=2))[0].count("(missing)"), 1)  # another task
 
+    def test_a_timestamp_binding_still_matches_the_plan_receipt_by_digest(self):
+        # Review finding on PR #103: --plan-updated keeps the Linear timestamp, so the notice compares the digest.
+        binding = self.bind("MAE-50", "--plan-updated", "2026-11-07T10:00:00+0900", rows=2)
+        self.assertEqual(binding["plan_updated_at"], "2026-11-07T10:00:00+0900")
+        self.assertEqual(binding["criteria_rev"], sha(AC))
+        self.assertIn("(missing)", receipts.plan_notices(binding)[0])
+        pass_receipt("MAE-50", sha(AC))
+        self.assertEqual(receipts.plan_notices(binding), [])
+
     def test_a_table_without_a_grade_column_is_read_as_standard_with_one_line(self):
         self.assertEqual(receipts.plan_notices(self.bind(rows=1, grade=False)),
                          ["maeng: the Plan's Sub-tasks table has no Grade column; read as standard."])
