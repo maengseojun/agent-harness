@@ -172,8 +172,13 @@ def _scope(funcs, line):
 
 
 def _nodeid(context):
-    """coverage test_function context 'tests.test_x.Class.test_y' -> 'tests/test_x.py::Class::test_y'."""
+    """coverage test_function context 'tests.test_x.Class.test_y' -> 'tests/test_x.py::Class::test_y'.
+    A class built inside a function (`tests.test_x._cases.<locals>.Class.test_y`) is addressed by the module-level
+    name it is bound to: the maker and `<locals>` are dropped (pytest exit 5 on three such ids was the rc-5 defect)."""
     parts = [p for p in context.split(".") if p]
+    if "<locals>" in parts:
+        i = parts.index("<locals>")
+        parts = parts[:i - 1] + parts[i + 1:]
     for i in range(len(parts), 0, -1):
         f = PLUGIN / Path(*parts[:i]).with_suffix(".py")
         if f.is_file() and f.name.startswith("test_"):

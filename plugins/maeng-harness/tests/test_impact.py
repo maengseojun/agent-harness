@@ -157,3 +157,11 @@ class Main(unittest.TestCase):
         rc, out, _ = self.run_main(["select", "--json"], select=mock.Mock(side_effect=ValueError("boom")))
         self.assertEqual(rc, 1)
         self.assertIn("boom", json.loads(out)["error"])
+
+
+class NodeIds(unittest.TestCase):
+    def test_a_class_built_inside_a_function_is_addressed_by_its_module_level_name(self):
+        self.assertEqual(impact._nodeid("tests.test_r1._review_cases.<locals>.R1_11_ReviewBundle.test_x"),
+                         "tests/test_r1.py::R1_11_ReviewBundle::test_x")
+        self.assertEqual(impact._nodeid("tests.test_cli.ClaudeBackend.test_y"), "tests/test_cli.py::ClaudeBackend::test_y")
+        self.assertIsNone(impact._nodeid("maeng.evidence.x"))
