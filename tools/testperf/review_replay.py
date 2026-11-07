@@ -10,6 +10,7 @@ Sources: <home>/receipts (pass receipts only) and <home>/reviews (every review r
 blocking findings live). They overlap; a verdict is counted once. Finding bodies are never copied (public repo).
 """
 import argparse
+import ast
 import concurrent.futures
 import hashlib
 import importlib.machinery
@@ -131,6 +132,30 @@ def maeng_review():
         _MR = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(_MR)
     return _MR
+
+
+_PROMPT = None
+
+
+def review_prompt(a):
+    """The review prompt the replay sends: maeng-review's current PROMPT, or with --prompt-from, the PROMPT literal of
+    bin/maeng-review at that commit (the pre-change baseline on the same reconstructed bundles)."""
+    global _PROMPT
+    if _PROMPT is None:
+        commit = getattr(a, "prompt_from", None)
+        if not commit:
+            _PROMPT = maeng_review().PROMPT
+        else:
+            src = _git(ROOT, "show", f"{commit}:plugins/maeng-harness/bin/maeng-review")
+            if src is None:
+                raise SystemExit(f"--prompt-from {commit}: bin/maeng-review not found at that commit")
+            tree = ast.parse(src)
+            lit = next((n.value for n in tree.body if isinstance(n, ast.Assign)
+                        and any(isinstance(t, ast.Name) and t.id == "PROMPT" for t in n.targets)), None)
+            if not isinstance(lit, ast.Constant) or not isinstance(lit.value, str):
+                raise SystemExit(f"--prompt-from {commit}: no PROMPT string literal in bin/maeng-review")
+            _PROMPT = lit.value
+    return _PROMPT
 
 
 def enrolled_cases(commit, path):
@@ -280,7 +305,7 @@ def run_case(case, a, repo, out_schema):
     if bundle is None:
         res["error"] = "cannot rebuild the bundle from git"
         return res
-    prompt = mr.PROMPT + json.dumps(bundle, indent=1)
+    prompt = review_prompt(a) + json.dumps(bundle, indent=1)
     res.update(criteria_rev=bundle["criteria_rev"], bundle_bytes=len(json.dumps(bundle)), prompt_bytes=len(prompt))
     if dry_status(res, a) == "too_large":
         res["status"] = "too_large"
@@ -358,7 +383,8 @@ def aggregate(a, m, rdir):
     out = {"cases_total": len(m["cases"]), "cases_reconstructable": sum(bool(c["reconstructable"]) for c in m["cases"]),
            "cases_run": ran, "cases_not_run": not_run, "verdicts": verdicts, "lost_blockers": [
                {"id": i, "title": t} for i, t in lost], "rule": RULE, "kind_note": KIND_NOTE,
-           "prompt_sha256": hashlib.sha256(mr.PROMPT.encode()).hexdigest(), "enrolled_at": a.enrolled_at,
+           "prompt_sha256": hashlib.sha256(review_prompt(a).encode()).hexdigest(),
+           "prompt_from": getattr(a, "prompt_from", None) or "working tree", "enrolled_at": a.enrolled_at,
            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "cases": rows,
            "expected": {c["id"]: c["findings"] for c in m["cases"]}}
     write_json(Path(a.results), out)
@@ -376,9 +402,52 @@ def aggregate(a, m, rdir):
     return 1 if bad else 0
 
 
+def compare(a):
+    """Baseline (old prompt) vs results (new prompt) on the same bundles. An expected finding is `kept` in a run when
+    its `matched` is set. lost_vs_baseline = kept by the baseline and not by the new run: the blockers the prompt change
+    itself lost. The absolute counts are printed too; the enrolled expectations stay the anchor of both runs."""
+    base = json.loads(Path(a.baseline).read_text(encoding="utf-8"))
+    new = json.loads(Path(a.results).read_text(encoding="utf-8"))
+    if base.get("expected") != new.get("expected"):
+        print("the two runs do not share the enrolled expectations")
+        return 1
+    bcase = {c["id"]: c for c in base["cases"]}
+    ncase = {c["id"]: c for c in new["cases"]}
+    out = {"baseline_prompt": base.get("prompt_from"), "new_prompt": new.get("prompt_from"), "cases_compared": 0,
+           "expected": 0, "kept_baseline": 0, "kept_new": 0, "lost_vs_baseline": [], "gained_vs_baseline": [],
+           "lost_by_both": 0, "cases_not_in_both": []}
+    for cid, nc in ncase.items():
+        bc = bcase.get(cid)
+        if not bc or bc.get("status") != "ok" or nc.get("status") != "ok":
+            out["cases_not_in_both"].append(cid)
+            continue
+        out["cases_compared"] += 1
+        for be, ne in zip(bc["expected"], nc["expected"]):
+            out["expected"] += 1
+            kb, kn = bool(be.get("matched")), bool(ne.get("matched"))
+            out["kept_baseline"] += kb
+            out["kept_new"] += kn
+            if kb and not kn:
+                out["lost_vs_baseline"].append({"id": cid, "title": be.get("title")})
+            elif kn and not kb:
+                out["gained_vs_baseline"].append({"id": cid, "title": ne.get("title")})
+            elif not kb and not kn:
+                out["lost_by_both"] += 1
+    print(json.dumps(out, indent=1))
+    if a.max_lost is not None and len(out["lost_vs_baseline"]) > a.max_lost:
+        print(f"FAIL: {len(out['lost_vs_baseline'])} blockers kept by the baseline prompt are lost by the new prompt "
+              f"(> {a.max_lost})", file=sys.stderr)
+        return 1
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
+    c = sub.add_parser("compare")
+    c.add_argument("--baseline", required=True)
+    c.add_argument("--results", required=True)
+    c.add_argument("--max-lost", type=int)
     sub.add_parser("build").add_argument("--out", required=True)
     sub.add_parser("check").add_argument("--manifest", required=True)
     r = sub.add_parser("replay")
@@ -394,9 +463,13 @@ def main(argv=None):
     r.add_argument("--dry-run", action="store_true")
     r.add_argument("--require-complete", action="store_true")
     r.add_argument("--max-lost-blockers", type=int)
+    r.add_argument("--prompt-from", help="commit whose bin/maeng-review PROMPT is sent instead of the current one "
+                                         "(the pre-change baseline on the same bundles)")
     a = ap.parse_args(argv)
     if a.cmd == "replay":
         return replay(a)
+    if a.cmd == "compare":
+        return compare(a)
     if a.cmd == "build":
         m = build_manifest()
         Path(a.out).write_text(json.dumps(m, indent=2, sort_keys=True) + "\n", encoding="utf-8")

@@ -54,6 +54,8 @@ def test_check_fails_on_empty(tmp_path):
 
 # ---- replay subcommand: temp git repo, injected reviewer and enrolled-cases loader ----
 import importlib.util  # noqa: E402
+import tempfile  # noqa: E402
+import unittest  # noqa: E402
 
 import pytest  # noqa: E402
 
@@ -174,3 +176,64 @@ def test_plan_resolution(world):
 def test_too_large(world):
     rc, res = world.go("--max-bytes", "10", "--require-complete")
     assert rc == 1 and res["cases"][0]["status"] == "too_large" and world.calls == []
+
+
+class Compare(unittest.TestCase):
+    """`compare`: blockers the baseline prompt kept and the new prompt lost, on the same bundles."""
+
+    def run_compare(self, base_cases, new_cases, max_lost=None):
+        import io
+        from contextlib import redirect_stdout, redirect_stderr
+        with tempfile.TemporaryDirectory() as d:
+            b, n = Path(d, "b.json"), Path(d, "n.json")
+            expected = {"c1": [{"title": "t1"}, {"title": "t2"}]}
+            b.write_text(json.dumps({"expected": expected, "prompt_from": "old", "cases": base_cases}))
+            n.write_text(json.dumps({"expected": expected, "prompt_from": "new", "cases": new_cases}))
+            out, err = io.StringIO(), io.StringIO()
+            argv = ["compare", "--baseline", str(b), "--results", str(n)]
+            if max_lost is not None:
+                argv += ["--max-lost", str(max_lost)]
+            with redirect_stdout(out), redirect_stderr(err):
+                rc = rr.main(argv)
+        return rc, json.loads(out.getvalue()) if out.getvalue().startswith("{") else out.getvalue(), err.getvalue()
+
+    def case(self, m1, m2, status="ok"):
+        return {"id": "c1", "status": status, "expected": [{"title": "t1", "matched": m1}, {"title": "t2", "matched": m2}]}
+
+    def test_lost_is_kept_by_baseline_and_not_by_new(self):
+        rc, out, err = self.run_compare([self.case({"x": 1}, None)], [self.case(None, {"y": 1})], max_lost=0)
+        self.assertEqual(rc, 1)
+        self.assertEqual([l["title"] for l in out["lost_vs_baseline"]], ["t1"])
+        self.assertEqual([g["title"] for g in out["gained_vs_baseline"]], ["t2"])
+        self.assertEqual((out["kept_baseline"], out["kept_new"], out["lost_by_both"]), (1, 1, 0))
+        self.assertIn("lost by the new prompt", err)
+
+    def test_lost_by_both_is_not_charged_to_the_new_prompt(self):
+        rc, out, _ = self.run_compare([self.case(None, None)], [self.case(None, None)], max_lost=0)
+        self.assertEqual((rc, out["lost_vs_baseline"], out["lost_by_both"]), (0, [], 2))
+
+    def test_a_case_missing_or_not_ok_in_one_run_is_not_compared(self):
+        rc, out, _ = self.run_compare([self.case({"x": 1}, {"x": 1}, status="error")], [self.case(None, None)], max_lost=0)
+        self.assertEqual((rc, out["cases_compared"], out["cases_not_in_both"]), (0, 0, ["c1"]))
+
+    def test_runs_with_different_expectations_are_refused(self):
+        with tempfile.TemporaryDirectory() as d:
+            b, n = Path(d, "b.json"), Path(d, "n.json")
+            b.write_text(json.dumps({"expected": {"c1": [{"title": "t1"}]}, "cases": []}))
+            n.write_text(json.dumps({"expected": {"c1": [{"title": "t2"}]}, "cases": []}))
+            import io
+            from contextlib import redirect_stdout
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(rr.main(["compare", "--baseline", str(b), "--results", str(n)]), 1)
+
+    def test_prompt_from_reads_the_literal_at_a_commit(self):
+        import argparse
+        rr._PROMPT = None
+        try:
+            old = rr.review_prompt(argparse.Namespace(prompt_from="a23f430"))
+        finally:
+            rr._PROMPT = None
+        self.assertTrue(old.startswith("You are an independent, adversarial reviewer"))
+        self.assertNotIn("V-1 to V-6", old)
+        self.assertIn("V-1 to V-6", rr.review_prompt(argparse.Namespace(prompt_from=None)))
+        rr._PROMPT = None
