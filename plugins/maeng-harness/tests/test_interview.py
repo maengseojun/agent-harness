@@ -722,6 +722,7 @@ class ShipGate(MergeBase):
         self.git(self.repo, "push", "-q", "origin", "feat")
         self.set_pr(self.base, head)
         self.run_check(self.repo, "pytest -q")
+        self.cli("maeng-verify", ["plan", "--met", "AC-1"], self.repo)  # the bound Plan has AC-1; the new tree needs its record
         self.verdict(head=head)
         return head
 

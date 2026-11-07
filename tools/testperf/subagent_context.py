@@ -1,29 +1,56 @@
 #!/usr/bin/env python3
 """MAE-323 AC-11: what a subagent's first request carries, read from its Claude Code transcript.
 
-Record an observation (path given, or the newest transcript modified after a probe) into the evidence JSON, then
-check it. A missing usage field is `unknown`, never zero, and `--require-observed` fails on unknown. Stdlib only.
+`record` launches the probe itself (fresh session, nonce in the prompt, candidate definition hashed) so the
+transcript is bound to the launch; the check re-reads it and verifies nonce, definition hash and plugin version.
+A missing usage field is `unknown`, never zero, and `--require-observed` fails on unknown. Stdlib only.
 
-  subagent_context.py --evidence E --standard agent-x.jsonl --omit-trial agent-y.jsonl   # record, then check
+  subagent_context.py record --plugin-dir plugins/maeng-tools --out E                    # launch, record, check
+  subagent_context.py --evidence E --omit-trial agent-y.jsonl                            # record the trial, check
   subagent_context.py --evidence E --max-input-tokens 20000 --require-observed          # check only
 """
 import argparse
 import glob
+import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
+import uuid
 
 CACHE = ("cache_creation_input_tokens", "cache_read_input_tokens")
 STANDARD = "maeng-tools:standard"
 TRIAL = "maeng-tools:design"
 
 
-def newest_after(projects, epoch):
-    slug = re.sub(r"[^A-Za-z0-9]", "-", os.getcwd())
-    files = [f for f in glob.glob(os.path.join(projects, slug, "*", "subagents", "agent-*.jsonl"))
-             if os.path.getmtime(f) > epoch]
-    return max(files, key=os.path.getmtime) if files else None
+def first_user_text(path):
+    """Text of the first user message of a transcript ('' when there is none)."""
+    for l in open(path, encoding="utf-8"):
+        r = json.loads(l) if l.strip() else {}
+        if r.get("type") == "user":
+            c = (r.get("message") or {}).get("content")
+            return c if isinstance(c, str) else " ".join(x.get("text", "") for x in c or [] if isinstance(x, dict))
+    return ""
+
+
+def definition_sha256(repo):
+    return hashlib.sha256(open(os.path.join(repo, "plugins", "maeng-tools", "agents", "standard.md"), "rb").read()).hexdigest()
+
+
+def probe(repo, plugin_dir, projects):
+    """Launch one headless session that spawns the standard agent with a nonce; return the binding fields."""
+    nonce, sid = os.urandom(8).hex(), str(uuid.uuid4())
+    prompt = (f"Call the Agent tool exactly once with subagent_type {STANDARD} and the prompt "
+              f"'probe {nonce}: reply with the single word ok'. Then reply done.")
+    # prompt before the variadic --allowedTools, which swallows a following argument
+    r = subprocess.run(["claude", "-p", prompt, "--session-id", sid, "--plugin-dir", plugin_dir,
+                        "--allowedTools", "Agent"], capture_output=True, text=True, cwd=repo)
+    slug = re.sub(r"[^A-Za-z0-9]", "-", repo)
+    files = [f for f in glob.glob(os.path.join(projects, slug, sid, "subagents", "agent-*.jsonl"))]
+    if r.returncode or not files:
+        raise SystemExit(f"probe failed (exit {r.returncode}, {len(files)} subagent transcripts): {r.stderr[-300:]}")
+    return {"nonce": nonce, "session_id": sid, "plugin_dir": plugin_dir, "path": files[0]}
 
 
 def observe(path):
@@ -61,6 +88,21 @@ def trial_result(std, trial):
         else "unsupported"
 
 
+def binding_problems(std, repo):
+    """The transcript must carry the launch nonce and the candidate definition must be the one that was hashed."""
+    out = []
+    path = os.path.expanduser(std.get("transcript") or "")
+    if not std.get("nonce"):
+        out.append("standard: nonce missing")
+    elif os.path.isfile(path) and std["nonce"] not in first_user_text(path):
+        out.append("standard: nonce not in the transcript's first user message (not the recorded launch)")
+    if not std.get("definition_sha256"):
+        out.append("standard: definition_sha256 missing")
+    elif std["definition_sha256"] != definition_sha256(repo):
+        out.append("standard: definition_sha256 differs from this checkout's agents/standard.md")
+    return out
+
+
 def transcript_problems(std, repo):
     """Re-read the recorded transcript and compare it with the JSON; the JSON alone proves nothing."""
     path = os.path.expanduser(std.get("transcript") or "")
@@ -75,7 +117,7 @@ def transcript_problems(std, repo):
     total = seen["total_input_tokens"]
     if not isinstance(total, int) or total <= 0:
         out.append(f"standard: transcript usage total is {total!r}, not a positive count (unknown, not zero)")
-    return out
+    return out + binding_problems(std, repo)
 
 
 def problems(ev, limit, require, repo=None):
@@ -103,26 +145,37 @@ def problems(ev, limit, require, repo=None):
 
 
 def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    rec = bool(argv) and argv[0] == "record"
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--evidence", required=True, help="evidence JSON, read and (when recording) written")
+    ap.add_argument("--evidence", required=not rec, help="evidence JSON, read and (when recording) written")
+    ap.add_argument("--out", help="record: evidence JSON to write (default --evidence)")
+    ap.add_argument("--plugin-dir", default="plugins/maeng-tools", help="record: candidate plugin tree")
     ap.add_argument("--max-input-tokens", type=int, default=20000)
     ap.add_argument("--require-observed", action="store_true", help="fail on unknown usage")
-    ap.add_argument("--standard", help="transcript of the standard-agent probe")
     ap.add_argument("--omit-trial", help="transcript of the omitClaudeMd trial on the design agent")
-    ap.add_argument("--after", type=float, help="use the newest transcript modified after this epoch instead of a path")
     ap.add_argument("--projects-dir", default=os.path.expanduser("~/.claude/projects"))
-    a = ap.parse_args(argv)
+    a = ap.parse_args(argv[1:] if rec else argv)
     repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if rec:
+        a.evidence, a.require_observed = a.out or a.evidence, True
+        if not a.evidence:
+            ap.error("record needs --out")
     ev = json.load(open(a.evidence)) if os.path.exists(a.evidence) else {}
-    for key, given in (("standard", a.standard), ("omit_claude_md_trial", a.omit_trial)):
-        if given:
-            path = newest_after(a.projects_dir, a.after) if given == "newest" else given
-            if not path:
-                print(f"no transcript after {a.after}", file=sys.stderr)
-                return 2
-            ev[key] = observe(path)
-    if a.standard or a.omit_trial:
+    if rec:
+        # the definition and version are hashed before the launch; the transcript is read after it
+        sha, ver = definition_sha256(repo), plugin_info(repo)["version"]
+        bind = probe(repo, a.plugin_dir, a.projects_dir)
+        std = observe(bind.pop("path"))
+        if bind["nonce"] not in first_user_text(std["transcript"]):
+            print("nonce not in the subagent transcript's first user message", file=sys.stderr)
+            return 2
+        ev["standard"] = {**bind, "definition_sha256": sha, **std}
+    if a.omit_trial:
+        ev["omit_claude_md_trial"] = observe(a.omit_trial)
+    if rec or a.omit_trial:
         ev["plugin"] = plugin_info(repo)
+        ev["plugin"]["loaded_with"] = f"--plugin-dir {a.plugin_dir}"
         ev["cli_version"] = (ev.get("standard") or {}).get("cli_version")
         if "standard" in ev and "omit_claude_md_trial" in ev:
             ev["omit_claude_md_trial"].update(

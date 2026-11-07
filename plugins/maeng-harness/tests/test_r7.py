@@ -102,7 +102,7 @@ class R7_B_RunReceiptsAreUsable(ReviewRunFixture):
         self.assertIsNotNone(rec, why)
 
     def review(self, *extra):
-        return self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
+        return self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
                                          "--base-ref", "main", *extra], self.repo,
                         extra_env={"MAENG_CODEX": str(self.codex)})
 

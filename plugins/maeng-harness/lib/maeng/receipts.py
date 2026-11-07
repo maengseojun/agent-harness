@@ -84,6 +84,17 @@ def revoke_passes(subject, by):
     Consumed/pending receipts are untouched (their merge already happened or is in flight). -> revoked keys."""
     if subject.get("kind") == "notion":
         return _revoke_notion(subject, by)
+    if subject.get("kind") == "plan":  # one receipt per task and criteria digest: a later fail/blocked retires it
+        rec = load(subject_key(subject))
+        if rec is None or rec["verdict"]["verdict"] != "pass" or rec.get("revoked"):
+            return []
+
+        def mark_plan(r):
+            if r["verdict"]["verdict"] == "pass" and not r.get("revoked"):
+                r["revoked"] = {"at": now_iso(), "by": by}
+                r["history"].append({"at": now_iso(), "event": "revoked:" + by})
+        _mutate(rec["key"], mark_plan)
+        return [rec["key"]]
     if subject.get("kind") not in ("code", "parent"):
         return []
     revoked = []
@@ -168,7 +179,7 @@ def child_binding_rev(issue):
     """The current criteria rev `maeng-verify bind` last recorded for `issue` (None when unknown)."""
     try:
         b = (read_json(home_dir() / "bindings.json", {}) or {}).get(issue) or {}
-        return b.get("criteria_rev") or b.get("plan_updated_at")
+        return b.get("criteria_rev")
     except ValueError:
         return None
 

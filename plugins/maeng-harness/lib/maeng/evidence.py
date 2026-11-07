@@ -380,15 +380,17 @@ _HEADING = re.compile(r"^(#+)\s")
 _ACCEPT = r"(?:requirements\s*->\s*)?acceptance"
 _ACCEPT_LABEL = re.compile(r"^\s*(?:[-*]\s*)?\**" + _ACCEPT + r"\**\s*:?\**\s*$", re.I)
 _ACCEPT_HEAD = re.compile(r"^#+\s*" + _ACCEPT + r"(?:\s+criteria)?\s*$", re.I)
-_CRITERION_START = re.compile(r"^(?:[-*+|]|\d+[.)]|\**AC-\d)")
+_LABEL_END = re.compile(r"^[A-Za-z][A-Za-z /-]*:\s*$")  # a top-level label line: `Verification:`, `Failure / change handling:`
 
 
 def criteria_rev(text):
     """SHA-256 of a Plan text's acceptance section, or None when it is absent, ambiguous or has no AC-n.
     The section is the body of the one `Requirements -> acceptance:` label or `## Acceptance` heading outside code
     fences: the lines after it (CRLF -> LF, blank edge lines dropped, joined by \\n) up to the next heading (a headed
-    section: one of the same or a higher level), or for the label form a blank line then an unindented non-list line.
-    shortcut: the label form has no end marker of its own, so prose glued to the last criterion is read as part of it."""
+    section: one of the same or a higher level), or for the label form the next heading or top-level label line
+    (`Verification:`, `Steps:`; column 0, letters/spaces/slashes/hyphens, nothing after the colon). Prose paragraphs
+    inside the section are part of it.
+    shortcut: a column-0 label-shaped line inside the label form (e.g. `Note:`) ends the section; upgrade on a miss."""
     sections, cur, fence = [], None, None
     for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
         f = _FENCE.match(line)
@@ -400,8 +402,7 @@ def criteria_rev(text):
             continue
         head = _HEADING.match(line)
         if cur and (head and (cur[0] == "label" or len(head.group(1)) <= cur[1]) or
-                    cur[0] == "label" and line.strip() and not line[0].isspace() and not _CRITERION_START.match(line)
-                    and cur[2] and not cur[2][-1].strip()):
+                    cur[0] == "label" and (_LABEL_END.match(line) or _ACCEPT_LABEL.match(line))):
             sections.append(cur)
             cur = None
         if cur:

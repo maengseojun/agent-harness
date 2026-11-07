@@ -11,7 +11,7 @@ from .helpers import BIN, HOOK, HarnessCase, run
 from .test_cli import ReviewRunFixture
 from .test_g1 import ShipBase
 from .test_g2_g3 import CREATE, DB, G2Tests
-from .test_merge import MergeBase
+from .test_merge import REV, MergeBase
 
 ETA_URL = "git@github.com:endix-foundation-v1/web.git"
 
@@ -288,7 +288,7 @@ class R2_G_DelegatedSubjectInShipFlow(MergeBase):
     def store_subject(self, files, delegated=()):
         v = {"verdict": "pass", "reviewer": {"model": "gpt-6-astra", "effort": "xhigh"}, "findings": [],
              "subject": {"kind": "parent", "repo": str(self.remote.resolve()), "pr": 7, "base": self.base,
-                         "head": self.h, "criteria_rev": "rev-1", "digest": self.digest(self.base, self.h, files),
+                         "head": self.h, "criteria_rev": REV, "digest": self.digest(self.base, self.h, files),
                          "destination": "refs/heads/main", "op": "merge", "files_reviewed": files,
                          "files_excluded": list(delegated), "files_delegated": list(delegated),
                          "exclusion_reason": None}}

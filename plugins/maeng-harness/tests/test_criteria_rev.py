@@ -53,6 +53,16 @@ class Helper(HarnessCase):
         inner = "- **AC-1** shows:\n```\n## Not a heading\nAC-7: example\n```\n- **AC-2** ok."
         self.assertEqual(evidence.criteria_rev("Requirements -> acceptance:\n" + inner + "\n\n## Plan\n"), sha(inner))
 
+    def test_f_prose_paragraphs_belong_to_the_label_section_until_a_label_line(self):
+        # Review finding on PR #103: the second paragraph used to be discarded after a blank line.
+        sec = "AC-1: Authenticate requests.\n\nRequests without a token must fail."
+        plan = lambda body, ver="- AC-1: pytest": f"Requirements -> acceptance:\n{body}\n\nVerification:\n{ver}\n"
+        self.assertEqual(evidence.criteria_rev(plan(sec)), sha(sec))
+        self.assertNotEqual(evidence.criteria_rev(plan(sec.replace("must fail", "may pass"))), sha(sec))
+        self.assertEqual(evidence.criteria_rev(plan(sec, "- AC-1: something else")), sha(sec))  # the label line ends it
+        for label in ("Steps:", "Revisions:", "Close-out:", "Failure / change handling:"):
+            self.assertEqual(evidence.criteria_rev(f"Requirements -> acceptance:\n{sec}\n\n{label}\nAC-9 elsewhere\n"), sha(sec), label)
+
     def test_e_no_usable_section_is_none_not_the_empty_digest(self):
         for text in ("", "# Plan\n\n## Verification\n- AC-1: pytest\n", "Requirements -> acceptance:\n\nnone yet\n\n## Plan\n",
                      "Requirements -> acceptance:\n- AC-1 a\n\n## Plan\n\n## Acceptance\n- AC-1 b\n"):
@@ -67,11 +77,11 @@ class BindAndReview(HarnessCase):
         head = self.commit_all(repo, "plan")
         self.start(repo)
         self.assertEqual(self.cli("maeng-verify", ["bind", "MAE-1", "--plan", str(repo / "plan.md")], repo).returncode, 0)
-        bound = json.loads((home_dir() / "bindings.json").read_text())["MAE-1"]["plan_updated_at"]
+        bound = json.loads((home_dir() / "bindings.json").read_text())["MAE-1"]["criteria_rev"]
         mod = importlib.util.module_from_spec(spec := importlib.util.spec_from_loader(
             "maeng_review_mod", importlib.machinery.SourceFileLoader("maeng_review_mod", str(BIN / "maeng-review"))))
         spec.loader.exec_module(mod)
-        reviewed = mod.committed_plan(repo, head, "plan.md")["plan_updated_at"]
+        reviewed = mod.committed_plan(repo, head, "plan.md")["criteria_rev"]
         self.assertEqual((bound, reviewed), (DIGEST, DIGEST))
 
 
@@ -106,6 +116,22 @@ class Gates(MergeBase):
         r = self.ship()
         self.assertEqual(r.returncode, 0, r.stderr)
 
+    def test_a_timestamp_alone_never_authorizes_ship_or_the_lease_gate(self):
+        # Review finding on PR #103: no acceptance section -> unknown digest; `--plan-updated` is not a fallback.
+        plan = self.tmp / "plan.md"
+        plan.write_text("AC-1 x\n## Verification\nAC-1: pytest\n")
+        ts = "2026-11-07T10:00:00+0900"
+        self.cli("maeng-verify", ["bind", "MAE-9", "--plan", str(plan), "--plan-updated", ts], self.repo)
+        binding = self.load_state()["binding"]
+        self.assertEqual((binding["plan_updated_at"], binding["criteria_rev"]), (ts, None))
+        self.cli("maeng-verify", ["plan", "--met", "AC-1"], self.repo)
+        self.verdict(criteria_rev=ts)
+        r = self.ship()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertEqual(self.remote_main(), self.base)
+        denied, _ = self.bash_pre(self.repo, self.lease())
+        self.assertTrue(denied)
+
     def test_ship_rejects_a_receipt_from_other_criteria(self):
         self.bind_plan(ONE_PLAN)
         self.verdict(criteria_rev=sha("- **AC-1** x works differently."))
@@ -126,7 +152,7 @@ class Gates(MergeBase):
 
     def test_null_receipt_and_null_binding_do_not_match(self):
         self.bind_plan("Requirements -> acceptance:\n\nnone\n\n## Verification\nAC-1: pytest\n")  # no AC -> no digest
-        self.assertIsNone(json.loads((home_dir() / "bindings.json").read_text())["MAE-9"]["plan_updated_at"])
+        self.assertIsNone(json.loads((home_dir() / "bindings.json").read_text())["MAE-9"]["criteria_rev"])
         self.verdict(criteria_rev=None)
         r = self.ship()
         self.assertNotEqual(r.returncode, 0)

@@ -199,10 +199,10 @@ def codex_command(model, effort, schema_path, out_path):
 
 def committed_plan(cwd, head, path):
     """Binding-like criteria from a Spec/Plan file as committed at the reviewed head. No session binding is needed:
-    the receipt pins the head; plan_updated_at is the same acceptance digest `maeng-verify bind` computes."""
+    the receipt pins the head; criteria_rev is the same acceptance digest `maeng-verify bind` computes."""
     text = git_out(cwd, "show", f"{head}:{path}") or ""
     ids = sorted(set(re.findall(r"\bAC-\d+\b", text)), key=lambda x: int(x[3:]))
-    return {"criteria": ids, "plan_text": text, "plan_updated_at": evidence.criteria_rev(text)} if ids else {}
+    return {"criteria": ids, "plan_text": text, "criteria_rev": evidence.criteria_rev(text)} if ids else {}
 
 
 def plan_text(binding):
@@ -400,7 +400,7 @@ def code_bundle(a, cwd, st):
                       "delegate": delegate, "delegated_files": delegated,
                       "exclusion_reason": a.exclusion_reason},
             "base": base, "head": head, "diff": diff, "changed_files": contents,
-            "criteria": binding.get("criteria"), "criteria_rev": binding.get("criteria_rev") or binding.get("plan_updated_at"),
+            "criteria": binding.get("criteria"), "criteria_rev": binding.get("criteria_rev"),
             "plan_text": plan_text(binding), "required_checks": binding.get("checks"),
             "evidence": ev, "evidence_binding": evidence_binding, "ship_verified": ok, "ship_verified_reasons": reasons, "missing": missing}
 
@@ -493,10 +493,15 @@ def apply_rounds(a, cwd, bundle, subject):
             for v in runs:  # not whichever head was rerun last (review finding on PR #103)
                 if v["subject"]["head"] not in order:
                     order.append(v["subject"]["head"])
-            last = [v for v in runs if v["subject"]["head"] == order[-1]][-1]
-            open_ = [f for f in last["findings"] if f["severity"] in BLOCKING]
+            on_head = [v for v in runs if v["subject"]["head"] == order[-1]]
+            last = on_head[-1]
+            latest = {}  # per scope (the file set reviewed) the newest verdict: a rerun supersedes only its own scope
+            for v in on_head:
+                latest[frozenset(v["subject"].get("files_reviewed") or [])] = v
+            open_ = [f for v in latest.values() if v["verdict"] == "fail" for f in v["findings"]
+                     if f["severity"] in BLOCKING]
             broke = scope_break(cwd, subject, last)
-            if last["verdict"] != "fail" or not open_:
+            if not open_:
                 why = "the round-two verdict leaves no critical/high finding"
             elif broke:
                 why = broke + " since the round-two head; the PR has no review budget left (`승인 #N` or a new PR)"
@@ -506,10 +511,13 @@ def apply_rounds(a, cwd, bundle, subject):
         prev = last["subject"]["head"]
         touched = set((git_out(cwd, "diff", "--name-only", "--no-renames", f"{prev}..{a.head}", "--", *files) or "")
                       .splitlines()) if files else set()
-        subject.update(review_mode="confirmation", previous_head=prev,
-                       coverage=[{"file": f, "mode": "delta"} for f in files])
-        bundle.update(review_mode="confirmation", previous_head=prev, open_findings=open_,
-                      diff=diff_of(cwd, f"{prev}..{a.head}", files),
+        seen = {f for v in on_head for f in v["subject"].get("files_reviewed") or []}
+        reviewed = [f for f in files if f in seen or f in touched]  # a file nobody reviewed is not covered by this receipt
+        subject.update(review_mode="confirmation", previous_head=prev, files_reviewed=reviewed,
+                       digest=sha256(diff_of(cwd, f"{a.base}...{a.head}", reviewed).strip()),
+                       coverage=[{"file": f, "mode": "delta"} for f in reviewed])
+        bundle.update(review_mode="confirmation", previous_head=prev, open_findings=open_, files_reviewed=reviewed,
+                      diff=diff_of(cwd, f"{prev}..{a.head}", reviewed),
                       changed_files={f: v for f, v in bundle["changed_files"].items() if f in touched})
         return {f["title"] for f in open_}
     last = next((v for v in reversed(runs) if v["subject"]["head"] != a.head), None)
@@ -614,6 +622,9 @@ def run_review(a, cwd):
     if a.kind in ("code", "parent"):  # P9: notices only, the review runs either way
         for line in receipts.plan_notices(st.get("binding")):
             print(line, file=sys.stderr)
+    if not (a.author or a.author_model):  # nothing in the state records the author, so it must be named
+        die("the author of the change must be named, so its own model is not chosen to review it: "
+            "--author-model <exact model id> or --author claude|codex", 2)
     try:  # before any bundle work: a missing row, resource or planner model starts nothing
         sel = select(roles, a.kind, st.get("binding"), a)
     except ValueError as exc:

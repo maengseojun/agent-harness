@@ -61,7 +61,7 @@ def merge(a, cwd):
     if why:
         die(why)
     b = st.get("binding") or {}
-    rev = b.get("criteria_rev") or b.get("plan_updated_at")  # the acceptance digest; `--plan-updated` keeps only the source timestamp
+    rev = b.get("criteria_rev")  # the acceptance digest only; `--plan-updated` keeps the source timestamp and never authorizes
     recs, problem = receipts.find_code(cwd, repo, base, head, ref, rev, issue=(st.get("binding") or {}).get("issue"))
     if not recs:
         approval = receipts.find_approval(repo, a.pr, head)

@@ -139,7 +139,7 @@ class CommittedPlan(StatusBase):
         (self.repo / "docs/plan.md").write_text("- **AC-2** two\n- **AC-1** one, see AC-1\n")
         (self.repo / "notes.md").write_text("no criteria here\n")
         head = self.commit_all(self.repo)
-        r = self.cli("maeng-review", ["run", "--pr", "9", "--base", base, "--head", head, "--base-ref", "main", *extra],
+        r = self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--pr", "9", "--base", base, "--head", head, "--base-ref", "main", *extra],
                      self.repo)
         return json.loads(r.stdout)["findings"][0]["body"]
 
@@ -183,7 +183,7 @@ class RoundCap(StatusBase):
 
     def review(self, *extra):
         base = self.head(self.repo)
-        return self.cli("maeng-review", ["run", "--pr", "7", "--base", base, "--head", base, "--base-ref", "main", *extra],
+        return self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--pr", "7", "--base", base, "--head", base, "--base-ref", "main", *extra],
                         self.repo)
 
     def test_incomplete_bundle_at_the_cap_is_blocked_locally_not_capped(self):
@@ -201,7 +201,7 @@ class RoundCap(StatusBase):
         self.start(self.repo)
         self.run_check(self.repo, "pytest -q")
         self.seed(2, str((self.tmp / "repo-remote.git").resolve()))
-        r = self.cli("maeng-review", ["run", "--pr", "7", "--base", head, "--head", head, "--base-ref", "main",
+        r = self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--pr", "7", "--base", head, "--head", head, "--base-ref", "main",
                                       "--plan", "docs/plan.md"], self.repo)
         self.assertEqual(r.returncode, 2, r.stdout)
         self.assertIn("review round cap", r.stderr)

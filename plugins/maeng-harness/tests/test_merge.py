@@ -1,3 +1,4 @@
+import hashlib
 import json
 import stat
 import sys
@@ -6,7 +7,15 @@ from maeng import receipts
 from .helpers import HarnessCase
 
 
-REV = "rev-1"
+def section(tag):
+    return f"- **AC-1** The widget works ({tag})."
+
+
+def plan_text(tag):
+    return "Requirements -> acceptance:\n\n" + section(tag) + "\n\n## Verification\nAC-1: pytest\n"
+
+
+REV = hashlib.sha256(section("base").encode()).hexdigest()  # the literal acceptance section of the setUp Plan
 
 
 class MergeBase(HarnessCase):
@@ -23,8 +32,11 @@ class MergeBase(HarnessCase):
         self.git(self.repo, "push", "-q", "origin", "feat")
         self.start(self.repo)
         self.run_check(self.repo, "pytest -q")
-        # null never equals null: a merge needs a bound criteria revision, and receipts default to it
-        self.cli("maeng-verify", ["bind", "MAE-1", "--plan-updated", REV], self.repo)
+        # null never equals null: a merge needs a bound acceptance digest, and receipts default to it
+        base_plan = self.tmp / "base-plan.md"
+        base_plan.write_text(plan_text("base"))
+        self.cli("maeng-verify", ["bind", "MAE-1", "--plan", str(base_plan)], self.repo)
+        self.cli("maeng-verify", ["plan", "--met", "AC-1"], self.repo)
         self.pr_json = self.tmp / "pr.json"
         self.set_pr(self.base, self.h)
         self.fake_gh = self.tmp / "fake-gh"
@@ -169,36 +181,50 @@ class MaengShipMerge(MergeBase):
         self.assertIn("no pass receipt", self.ship().stderr)
         self.verdict(base=self.c1)                      # reviewed a different base
         self.assertIn("no pass receipt", self.ship().stderr)
-        plan = self.tmp / "plan.md"
-        plan.write_text("AC-1 x\n## Verification\nAC-1: pytest\n")
-        self.cli("maeng-verify", ["bind", "MAE-3", "--plan", str(plan), "--plan-updated", "2026-10-17T10:00"], self.repo)
-        self.cli("maeng-verify", ["plan", "--met", "AC-1"], self.repo)
-        self.verdict(criteria_rev="2026-10-16T10:00")   # review predates the current criteria
+        new = self.bind("MAE-3", "new")
+        self.verdict(criteria_rev=REV)                  # review predates the current criteria
         r = self.ship()
         self.assertIn("stale", r.stderr)
         self.assertEqual(self.remote_main(), self.base)
-        self.verdict(criteria_rev="2026-10-17T10:00")
+        self.verdict(criteria_rev=new)
         self.assertEqual(self.ship().returncode, 0)
 
-    def bind(self, issue, rev, parent=None):
+    def test_a_timestamp_never_authorizes_without_an_acceptance_digest(self):
         plan = self.tmp / "plan.md"
-        plan.write_text("AC-1 x\n## Verification\nAC-1: pytest\n")
-        args = ["bind", issue, "--plan", str(plan), "--plan-updated", rev] + (["--parent", parent] if parent else [])
+        plan.write_text("AC-1 x\n## Verification\nAC-1: pytest\n")  # no acceptance section: the digest is unknown
+        ts = "2026-10-17T10:00"
+        self.cli("maeng-verify", ["bind", "MAE-3", "--plan", str(plan), "--plan-updated", ts], self.repo)
+        self.cli("maeng-verify", ["plan", "--met", "AC-1"], self.repo)
+        self.assertEqual(json.loads((self.maeng_home / "bindings.json").read_text())["MAE-3"], {"parent": None, "criteria_rev": None})
+        self.verdict(criteria_rev=ts)
+        r = self.ship()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("stale", r.stderr)
+        self.assertEqual(self.remote_main(), self.base)
+        denied, _ = self.bash_pre(self.repo, f"git push --force-with-lease=refs/heads/main:{self.base} origin {self.h}:refs/heads/main")
+        self.assertTrue(denied)
+
+    def bind(self, issue, tag, parent=None):
+        """Bind a Plan whose acceptance section is `section(tag)`; returns its digest (hashlib over the literal text)."""
+        plan = self.tmp / "plan.md"
+        plan.write_text(plan_text(tag))
+        args = ["bind", issue, "--plan", str(plan)] + (["--parent", parent] if parent else [])
         self.assertEqual(self.cli("maeng-verify", args, self.repo).returncode, 0)
         self.cli("maeng-verify", ["plan", "--met", "AC-1"], self.repo)
+        return hashlib.sha256(section(tag).encode()).hexdigest()
 
     def test_child_receipt_covers_parent_merge(self):
-        self.bind("MAE-222", "2026-10-16T10:00", parent="MAE-216")
-        self.verdict(criteria_rev="2026-10-16T10:00", issue="MAE-222", parent="MAE-216")
-        self.bind("MAE-216", "2026-10-17T10:00")
+        child = self.bind("MAE-222", "child", parent="MAE-216")
+        self.verdict(criteria_rev=child, issue="MAE-222", parent="MAE-216")
+        self.bind("MAE-216", "parent")
         r = self.ship()
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(self.remote_main(), self.h)
 
     def test_non_child_receipt_with_other_criteria_is_stale(self):
-        self.bind("MAE-300", "2026-10-16T10:00", parent="MAE-999")
-        self.verdict(criteria_rev="2026-10-16T10:00", issue="MAE-300", parent="MAE-999")
-        self.bind("MAE-216", "2026-10-17T10:00")
+        child = self.bind("MAE-300", "child", parent="MAE-999")
+        self.verdict(criteria_rev=child, issue="MAE-300", parent="MAE-999")
+        self.bind("MAE-216", "parent")
         r = self.ship()
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("stale", r.stderr)
@@ -206,18 +232,18 @@ class MaengShipMerge(MergeBase):
         self.assertEqual(self.remote_main(), self.base)
 
     def test_receipt_without_issue_fields_is_stale(self):
-        self.verdict(criteria_rev="2026-10-16T10:00")
-        self.bind("MAE-216", "2026-10-17T10:00")
+        self.verdict(criteria_rev=hashlib.sha256(section("child").encode()).hexdigest())
+        self.bind("MAE-216", "parent")
         r = self.ship()
         self.assertIn("stale", r.stderr)
         self.assertNotIn("stale child receipt", r.stderr)
         self.assertEqual(self.remote_main(), self.base)
 
     def test_child_receipt_with_changed_child_criteria_is_denied(self):
-        self.bind("MAE-222", "2026-10-16T10:00", parent="MAE-216")
-        self.verdict(criteria_rev="2026-10-16T10:00", issue="MAE-222", parent="MAE-216")
-        self.bind("MAE-222", "2026-10-16T12:00", parent="MAE-216")   # child plan changed after the review
-        self.bind("MAE-216", "2026-10-17T10:00")
+        child = self.bind("MAE-222", "child", parent="MAE-216")
+        self.verdict(criteria_rev=child, issue="MAE-222", parent="MAE-216")
+        self.bind("MAE-222", "child-edited", parent="MAE-216")   # child plan changed after the review
+        self.bind("MAE-216", "parent")
         r = self.ship()
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("stale child receipt", r.stderr)

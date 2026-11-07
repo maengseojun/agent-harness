@@ -1,27 +1,31 @@
 """MAE-233 items kept after slim gates: unknown child binding is stale (1), zero-test output of non-Python runners is
 not evidence (2b), maeng-ship --session/--remote (4)."""
+import hashlib
 import json
 import uuid
 
 from .test_g1 import ShipBase
-from .test_merge import MergeBase
+from .test_merge import MergeBase, plan_text, section
+
+
+CHILD = hashlib.sha256(section("child").encode()).hexdigest()
 
 
 class M233_1_UnknownChildBindingIsStale(MergeBase):
     """`child_binding_rev` returns None for a child nobody bound; `None == None` must not accept the receipt."""
 
-    def bind(self, issue, rev, parent=None):
+    def bind(self, issue, tag, parent=None):
         plan = self.tmp / "plan.md"
-        plan.write_text("AC-1 x\n## Verification\nAC-1: pytest\n")
-        args = ["bind", issue, "--plan", str(plan), "--plan-updated", rev] + (["--parent", parent] if parent else [])
+        plan.write_text(plan_text(tag))
+        args = ["bind", issue, "--plan", str(plan)] + (["--parent", parent] if parent else [])
         self.assertEqual(self.cli("maeng-verify", args, self.repo).returncode, 0)
         self.cli("maeng-verify", ["plan", "--met", "AC-1"], self.repo)
 
-    def merge_with_child_receipt(self, child_rev="2026-10-16T10:00", registry=None):
+    def merge_with_child_receipt(self, child_rev=CHILD, registry=None):
         """Receipt reviewed under child MAE-222 for parent MAE-216; the session is bound to the parent only, then
         `registry` (the text of bindings.json) is written over whatever the bind left."""
         self.verdict(criteria_rev=child_rev, issue="MAE-222", parent="MAE-216")
-        self.bind("MAE-216", "2026-10-17T10:00")
+        self.bind("MAE-216", "parent")
         if registry is not None:
             (self.maeng_home / "bindings.json").write_text(registry)
         return self.ship()
@@ -51,9 +55,9 @@ class M233_1_UnknownChildBindingIsStale(MergeBase):
         self.assertIn("stale", r.stderr)
 
     def test_receipt_naming_another_parent_is_stale_not_child_accepted(self):
-        self.bind("MAE-222", "2026-10-16T10:00", parent="MAE-999")
-        self.verdict(criteria_rev="2026-10-16T10:00", issue="MAE-222", parent="MAE-999")
-        self.bind("MAE-216", "2026-10-17T10:00")
+        self.bind("MAE-222", "child", parent="MAE-999")
+        self.verdict(criteria_rev=CHILD, issue="MAE-222", parent="MAE-999")
+        self.bind("MAE-216", "parent")
         r = self.ship()
         self.assertNotEqual(r.returncode, 0)
         self.assertNotIn("stale child receipt", r.stderr)
@@ -61,25 +65,22 @@ class M233_1_UnknownChildBindingIsStale(MergeBase):
 
     def test_receipt_missing_its_issue_is_stale(self):
         """A receipt that names a parent but no child issue cannot be checked against a child binding."""
-        self.verdict(criteria_rev="2026-10-16T10:00", parent="MAE-216")
-        self.bind("MAE-216", "2026-10-17T10:00")
+        self.verdict(criteria_rev=CHILD, parent="MAE-216")
+        self.bind("MAE-216", "parent")
         r = self.ship()
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("stale", r.stderr)
         self.assertNotIn("stale child receipt", r.stderr)
 
     def test_session_without_an_issue_never_takes_the_child_path(self):
-        self.verdict(criteria_rev="2026-10-16T10:00", issue="MAE-222", parent="MAE-216")
-        plan = self.tmp / "plan.md"
-        plan.write_text("AC-1 x\n## Verification\nAC-1: pytest\n")
-        self.cli("maeng-verify", ["bind", "MAE-216", "--plan", str(plan), "--plan-updated", "2026-10-17T10:00"], self.repo)
-        self.cli("maeng-verify", ["plan", "--met", "AC-1"], self.repo)
+        self.verdict(criteria_rev=CHILD, issue="MAE-222", parent="MAE-216")
+        self.bind("MAE-216", "parent")
         r = self.ship()
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("stale", r.stderr)
 
     def test_a_bound_child_with_an_unchanged_rev_is_still_accepted(self):
-        self.bind("MAE-222", "2026-10-16T10:00", parent="MAE-216")
+        self.bind("MAE-222", "child", parent="MAE-216")
         r = self.merge_with_child_receipt()
         self.assertEqual(r.returncode, 0, r.stderr)
 
@@ -164,10 +165,10 @@ class M233_4_ShipSessionAndRemoteFlags(MergeBase):
     def test_a_foreign_session_bound_to_other_criteria_makes_the_receipt_stale(self):
         """The flag selects the binding rev too; a receipt reviewed under the current criteria does not match another session's."""
         plan = self.tmp / "plan.md"
-        plan.write_text("AC-1 x\n## Verification\nAC-1: pytest\n")
-        self.cli("maeng-verify", ["bind", "MAE-3", "--plan", str(plan), "--plan-updated", "2026-10-17T10:00"], self.repo)
+        plan.write_text(plan_text("mine"))
+        self.cli("maeng-verify", ["bind", "MAE-3", "--plan", str(plan)], self.repo)
         self.cli("maeng-verify", ["plan", "--met", "AC-1"], self.repo)
-        self.verdict(criteria_rev="2026-10-17T10:00")
+        self.verdict(criteria_rev=hashlib.sha256(section("mine").encode()).hexdigest())
         foreign = self.foreign_session(verified=True)
         r = self.ship_with("--session", foreign)
         self.assertNotEqual(r.returncode, 0)

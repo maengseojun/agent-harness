@@ -21,7 +21,7 @@ class PlanReview(ReviewRunFixture):
         return self.commit_all(self.repo, "plan")
 
     def plan_review(self, head, *extra):
-        return self.cli("maeng-review", ["run", "--kind", "plan", "--plan", "docs/plan.md", "--head", head, "--issue",
+        return self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "plan", "--plan", "docs/plan.md", "--head", head, "--issue",
                                          "MAE-9", "--planner-model", "claude-opus-5-5", *extra],
                         self.repo, extra_env={"MAENG_CODEX": str(self.codex)})
 
@@ -61,6 +61,19 @@ class PlanReview(ReviewRunFixture):
         self.assertEqual(receipts.plan_receipt_status("MAE-7", sha(new)), "missing")
         self.assertEqual(receipts.plan_receipt_status("MAE-9", None), "stale")  # null equals nothing
 
+    def test_a_later_fail_or_blocked_review_revokes_the_earlier_plan_pass(self):
+        head = self.commit_plan(PLAN)
+        bad = {"severity": "high", "title": "step 1 cannot run", "body": "b", "file": None, "line": None}
+        for verdict in ("fail", "blocked"):
+            with self.subTest(verdict=verdict):
+                self.assertEqual(self.plan_review(head).returncode, 0)
+                self.assertIsNotNone(receipts.find_plan("MAE-9", sha(SECTION)))
+                self.result.write_text(json.dumps({"verdict": verdict, "findings": [bad]}))
+                self.assertNotEqual(self.plan_review(head).returncode, 0)
+                self.assertIsNone(receipts.find_plan("MAE-9", sha(SECTION)))  # fails on the old code: still usable
+                self.assertEqual(receipts.plan_receipt_status("MAE-9", sha(SECTION)), "missing")
+                self.result.write_text(json.dumps({"verdict": "pass", "findings": []}))
+
     def test_a_plan_without_usable_criteria_is_refused_before_any_model(self):
         for text in ("", "   \n", "# Plan\n\nno criteria here\n", "Requirements -> acceptance:\n\nnone yet\n\n## Plan\n"):
             with self.subTest(text=text):
@@ -73,7 +86,7 @@ class PlanReview(ReviewRunFixture):
 
     def test_the_planner_model_is_required_and_excluded(self):
         head = self.commit_plan(PLAN)
-        r = self.cli("maeng-review", ["run", "--kind", "plan", "--plan", "docs/plan.md", "--head", head, "--issue",
+        r = self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "plan", "--plan", "docs/plan.md", "--head", head, "--issue",
                                       "MAE-9"], self.repo, extra_env={"MAENG_CODEX": str(self.codex)})
         self.assertEqual(r.returncode, 2)
         self.assertIn("planner", r.stderr)
@@ -91,7 +104,7 @@ class PlanReview(ReviewRunFixture):
     def test_a_draft_file_is_reviewed_too(self):
         draft = self.tmp / "draft.md"
         draft.write_text(PLAN)
-        r = self.cli("maeng-review", ["run", "--kind", "plan", "--draft", str(draft), "--issue", "MAE-9",
+        r = self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "plan", "--draft", str(draft), "--issue", "MAE-9",
                                       "--planner-model", "claude-opus-5-5"], self.repo,
                      extra_env={"MAENG_CODEX": str(self.codex)})
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)

@@ -155,6 +155,6 @@ class ReviewEntryNotice(ReviewRunFixture):
 
     def test_parent_kind_prints_it_too(self):
         self.rebind(rows=2)
-        r = self.cli("maeng-review", ["run", "--kind", "parent", "--planner-model", "claude-opus-5-5", "--pr", "7"],
+        r = self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "parent", "--planner-model", "claude-opus-5-5", "--pr", "7"],
                      self.repo, extra_env={"MAENG_CODEX": str(self.codex)})
         self.assertIn("large task MAE-221 has no valid plan review receipt", r.stderr)

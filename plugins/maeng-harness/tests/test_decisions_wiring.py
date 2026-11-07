@@ -163,7 +163,7 @@ class ReviewWiring(On, ReviewRunFixture):
 
     def run_review(self, script=None):
         env = {"MAENG_CODEX": str(self.codex), "MAENG_PREFLIGHT": str(script or self.fake)}
-        return self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
+        return self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
                                          "--base-ref", "main", "--evidence", str(self.ev)], self.repo, extra_env=env)
 
     def logged(self):
@@ -223,7 +223,7 @@ class ReviewWiring(On, ReviewRunFixture):
         self.assertEqual(self.run_review(self.tmp / "gone.py").returncode, 0)
 
     def test_a_review_without_evidence_is_blocked_before_the_reviewer(self):
-        proc = self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
+        proc = self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
                                          "--base-ref", "main"], self.repo,
                         extra_env={"MAENG_CODEX": str(self.codex), "MAENG_PREFLIGHT": str(self.fake)})
         self.assertEqual(proc.returncode, 2)
@@ -240,7 +240,7 @@ class ReviewWiring(On, ReviewRunFixture):
         draft = self.tmp / "d.md"
         draft.write_text("draft\n")
         env = {"MAENG_CODEX": str(self.codex)}
-        args = ["run", "--kind", "research", "--draft", str(draft)]
+        args = ["run", "--author-model", "unlisted-author", "--kind", "research", "--draft", str(draft)]
         proc = self.cli("maeng-review", args, self.repo, extra_env=env)
         self.assertEqual(proc.returncode, 2)
         self.assertIn("claim check", proc.stdout)

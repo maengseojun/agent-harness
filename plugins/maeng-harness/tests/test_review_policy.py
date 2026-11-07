@@ -23,7 +23,7 @@ class ReviewPolicy(ReviewRunFixture):
         return self.review_env({"MAENG_CODEX": str(self.codex), "MAENG_CLAUDE": str(fake)})
 
     def review_env(self, env):
-        return self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
+        return self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
                                          "--base-ref", "main"], self.repo, extra_env=env)
 
     def test_medium_and_low_alone_never_fail(self):

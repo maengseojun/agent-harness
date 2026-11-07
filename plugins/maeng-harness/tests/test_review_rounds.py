@@ -22,7 +22,7 @@ class Rounds(ReviewRunFixture):
 
     def run_at(self, head, *extra, base=None):
         self.log.unlink(missing_ok=True)
-        return self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", base or self.base,
+        return self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "code", "--pr", "7", "--base", base or self.base,
                                          "--head", head, "--base-ref", "main", *extra], self.repo,
                         extra_env={"MAENG_CODEX": str(self.codex)})
 
@@ -262,3 +262,55 @@ class Confirmation(Rounds):
         self.assertFalse(receipts.reserve_confirmation("github.com/o/r", "5", "b" * 40))
         self.assertTrue(receipts.confirmation_used("github.com/o/r", "5"))
         self.assertTrue(receipts.reserve_confirmation("github.com/o/r", "6", "a" * 40))
+
+
+class ConfirmationCoverage(Rounds):
+    """Review findings on PR #103 (round 1): what a confirmation receipt may claim to cover and must close."""
+
+    def two_files(self):
+        self.commit_file("a.py", "a = 1\n", "a")
+        return self.commit_file("b.py", "b = 1\n", "b")
+
+    def test_a_confirmation_does_not_cover_a_file_no_earlier_round_reviewed(self):
+        h1 = self.two_files()
+        self.reply("fail", [{**HIGH, "file": "a.py"}])
+        self.assertEqual(self.run_at(h1, "--delegate", "b.py").returncode, 1)
+        h2 = self.commit_file("app.py", "print('two')\n", "two")
+        self.assertEqual(self.run_at(h2, "--delegate", "b.py").returncode, 1)
+        h3 = self.commit_file("a.py", "a = 2\n", "fix a")
+        self.reply("pass")
+        r = self.run_at(h3, "--confirm")  # no delegation now, but b.py was never reviewed
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        subject = self.stored_subject(r)
+        self.assertEqual(subject["files_reviewed"], ["a.py", "app.py"])  # fails on the old code: b.py was listed
+        recs, problem = receipts.find_code(self.repo, subject["repo"], self.base, h3, "refs/heads/main", REV)
+        self.assertIsNone(recs)  # fails on the old code: the receipt was accepted as covering b.py
+        self.assertIn("b.py", problem)
+
+    def split_round_two(self):
+        h1 = self.two_files()
+        self.reply("fail", [HIGH])
+        self.assertEqual(self.run_at(h1).returncode, 1)
+        h2 = self.commit_file("app.py", "print('two')\n", "two")
+        for name in ("a.py", "b.py"):  # two scope splits of the round-two head, one blocker each
+            self.reply("fail", [{**HIGH, "title": f"{name} broken", "file": name}])
+            self.assertEqual(self.run_at(h2, "--path", name).returncode, 1)
+        return h2
+
+    def test_a_confirmation_must_close_the_blockers_of_every_scope_split(self):
+        self.split_round_two()
+        h3 = self.commit_file("b.py", "b = 2\n", "fix b")
+        self.reply("pass")
+        r = self.run_at(h3, "--confirm")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        # fails on the old code: only the newest verdict (b.py) was presented
+        self.assertEqual(sorted(f["title"] for f in self.bundle()["open_findings"]), ["a.py broken", "b.py broken"])
+
+    def test_a_rerun_of_one_scope_supersedes_only_its_own_earlier_verdict(self):
+        h2 = self.split_round_two()
+        self.reply("pass")
+        self.assertEqual(self.run_at(h2, "--path", "a.py").returncode, 0)  # a.py is clean now
+        h3 = self.commit_file("b.py", "b = 2\n", "fix b")
+        r = self.run_at(h3, "--confirm")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual([f["title"] for f in self.bundle()["open_findings"]], ["b.py broken"])

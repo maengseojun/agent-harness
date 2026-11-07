@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import json
 import shutil
 import subprocess
@@ -11,8 +12,11 @@ REPO = Path(__file__).resolve().parents[3]
 SCRIPT = REPO / "tools" / "testperf" / "subagent_context.py"
 PLUGIN = json.loads((REPO / "plugins/maeng-tools/.claude-plugin/plugin.json").read_text())["version"]
 
+DEF = hashlib.sha256((REPO / "plugins/maeng-tools/agents/standard.md").read_bytes()).hexdigest()
+NONCE = "0123456789abcdef"
+
 LINES = [
-    {"type": "user", "version": "2.1.314", "message": {"content": "hi"}},
+    {"type": "user", "version": "2.1.314", "message": {"content": f"probe {NONCE}: reply ok"}},
     {"type": "assistant", "version": "2.1.314", "message": {"model": "claude-sonnet-5-5", "usage": {
         "input_tokens": 2, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 30}}},
 ]
@@ -29,7 +33,8 @@ class SubagentContext(unittest.TestCase):
         (self.tmp / "agent-x.meta.json").write_text(json.dumps({"agentType": agent}))
         rec = {"transcript": str(tr), "agent_type": "maeng-tools:standard", "model": "claude-sonnet-5-5",
                "cli_version": "2.1.314", "input_tokens": 2, "cache_creation_input_tokens": 100,
-               "cache_read_input_tokens": 30, "total_input_tokens": total, "status": "observed"}
+               "cache_read_input_tokens": 30, "total_input_tokens": total, "status": "observed",
+               "nonce": NONCE, "definition_sha256": DEF}
         rec.update(std or {})
         ev = {"standard": rec, "plugin": {"version": plugin or PLUGIN}, "cli_version": "2.1.314",
               "omit_claude_md_trial": {"result": "supported"}}
@@ -85,10 +90,20 @@ class SubagentContext(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("total_input_tokens", r.stderr)
 
+    def test_missing_nonce_fails(self):
+        r = self.run_check(std={"nonce": None})
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("nonce missing", r.stderr)
 
-if __name__ == "__main__":
-    unittest.main()
+    def test_nonce_mismatch_fails(self):
+        r = self.run_check(std={"nonce": "ffffffffffffffff"})
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("nonce not in", r.stderr)
 
+    def test_definition_hash_mismatch_fails(self):
+        r = self.run_check(std={"definition_sha256": "0" * 64})
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("definition_sha256 differs", r.stderr)
 
     def test_over_the_limit_fails_and_the_limit_itself_passes(self):
         big = copy.deepcopy(LINES)
@@ -98,3 +113,7 @@ if __name__ == "__main__":
         big[1]["message"]["usage"]["cache_creation_input_tokens"] = 19998
         r = self.run_check(lines=big, total=20000, std={"cache_creation_input_tokens": 19998, "cache_read_input_tokens": 0})
         self.assertEqual((r.returncode, r.stderr), (0, ""))
+
+
+if __name__ == "__main__":
+    unittest.main()

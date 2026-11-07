@@ -24,7 +24,8 @@ class RouteRuns(test_cli.ReviewRunFixture):
 
     def run_review(self, kind, *extra, claude=None, codex=None):
         fake = claude or self.fake_claude(model=OPUS if kind == "code" else FABLE)[0]
-        return self.cli("maeng-review", ["run", "--kind", kind, "--pr", "7", "--base", self.base, "--head", self.h,
+        who = [] if any(x.startswith("--author") for x in extra) else ["--author-model", "unlisted-author"]
+        return self.cli("maeng-review", ["run", *who, "--kind", kind, "--pr", "7", "--base", self.base, "--head", self.h,
                                          "--base-ref", "main", *extra], self.repo,
                         extra_env={"MAENG_CLAUDE": str(fake), "MAENG_CODEX": str(codex or self.codex)})
 
@@ -91,6 +92,15 @@ class RouteRuns(test_cli.ReviewRunFixture):
                          [(FABLE, "family"), (ASTRA, "family"), (OPUS, "family")])
         self.assertFalse(self.log.exists() or claude_log.exists(), "no reviewer may start")
         self.assertEqual(list(receipts.receipts_dir().glob("*.json")) if receipts.receipts_dir().exists() else [], [])
+
+    def test_a_review_without_an_author_identity_is_refused_before_any_dispatch(self):
+        for kind in ("code", "notion"):
+            with self.subTest(kind=kind):
+                r = self.cli("maeng-review", ["run", "--kind", kind, "--pr", "7", "--base", self.base, "--head", self.h,
+                                              "--base-ref", "main"], self.repo, extra_env={"MAENG_CODEX": str(self.codex)})
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)  # fails on the old code: the review ran
+                self.assertIn("--author-model", r.stderr)
+                self.assertFalse(self.log.exists())
 
     def test_a_missing_planner_model_is_refused_not_waived(self):
         fake, claude_log, _ = self.fake_claude(model=FABLE)

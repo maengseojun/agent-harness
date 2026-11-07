@@ -127,7 +127,7 @@ class ReviewRunFixture(HarnessCase):
         self.cli("maeng-verify", ["plan", "--met", "AC-1"], self.repo)
 
     def review(self, *extra):
-        return self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
+        return self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
                                          "--base-ref", "main", *extra], self.repo, extra_env={"MAENG_CODEX": str(self.codex)})
 
 
@@ -238,7 +238,7 @@ class ReviewRun(ReviewRunFixture):
         self.assertNotIn("app.py", bundle["diff"])
 
     def test_incomplete_bundle_is_blocked_without_calling_reviewer(self):
-        r = self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h],
+        r = self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h],
                      self.repo, extra_env={"MAENG_CODEX": str(self.codex)})
         self.assertEqual(r.returncode, 2)
         self.assertEqual(json.loads(r.stdout)["verdict"], "blocked")
@@ -247,7 +247,7 @@ class ReviewRun(ReviewRunFixture):
     def test_unverified_head_is_blocked_before_reviewer_and_not_counted(self):
         (self.repo / "app.py").write_text("print('fixed after verification')\n")
         h2 = self.commit_all(self.repo, "fix")  # new head, no evidence for its tree yet
-        r = self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", h2,
+        r = self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "code", "--pr", "7", "--base", self.base, "--head", h2,
                                       "--base-ref", "main"], self.repo, extra_env={"MAENG_CODEX": str(self.codex)})
         self.assertEqual(r.returncode, 2)
         out = json.loads(r.stdout)
@@ -261,7 +261,7 @@ class ReviewRun(ReviewRunFixture):
         payload = {"parent": {"data_source_id": "db111111111111111111111111111111"}, "pages": [{"title": "x"}]}
         pf = self.tmp / "payload.json"
         pf.write_text(json.dumps(payload))
-        r = self.cli("maeng-review", ["run", "--kind", "notion", "--payload", str(pf), "--destination",
+        r = self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "notion", "--payload", str(pf), "--destination",
                                       "db111111111111111111111111111111", "--op", "create"], self.repo,
                      extra_env={"MAENG_CODEX": str(self.codex)})
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -290,7 +290,7 @@ class ClaudeBackend(ReviewRunFixture):
         return fake, log, stdin_log
 
     def run_claude_review(self, fake):
-        return self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
+        return self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
                                          "--base-ref", "main"], self.repo,
                         extra_env={"MAENG_REVIEW_BACKEND": "claude", "MAENG_CLAUDE": str(fake)})
 
@@ -323,7 +323,7 @@ class ClaudeBackend(ReviewRunFixture):
         """Codex always comes first: with MAENG_REVIEW_BACKEND absent, claude does not run."""
         fake, log, _ = self.fake_claude()
         self.env.pop("MAENG_REVIEW_BACKEND")
-        r = self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
+        r = self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
                                       "--base-ref", "main"], self.repo,
                      extra_env={"MAENG_CLAUDE": str(fake), "MAENG_CODEX": str(self.codex)})
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -344,7 +344,7 @@ class ClaudeBackend(ReviewRunFixture):
             f"print('usage limit reached', file=sys.stderr)\nsys.exit(1)\n")
         dead.chmod(dead.stat().st_mode | stat.S_IEXEC)
         self.env.pop("MAENG_REVIEW_BACKEND")
-        r = self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
+        r = self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
                                       "--base-ref", "main"], self.repo,
                      extra_env={"MAENG_CLAUDE": str(fake), "MAENG_CODEX": str(dead)})
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -356,7 +356,7 @@ class ClaudeBackend(ReviewRunFixture):
 
     def test_codex_backend_stays_selectable(self):
         fake, log, _ = self.fake_claude()
-        r = self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
+        r = self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
                                       "--base-ref", "main"], self.repo,
                      extra_env={"MAENG_REVIEW_BACKEND": "codex", "MAENG_CLAUDE": str(fake),
                                 "MAENG_CODEX": str(self.codex)})
@@ -394,7 +394,7 @@ class ClaudeBackend(ReviewRunFixture):
         self.assertEqual((rev["model"], rev["author"]), ("gpt-6.1-sol", "claude"))
 
     def run_parent_review(self, fake):
-        return self.cli("maeng-review", ["run", "--kind", "parent", "--pr", "7", "--base", self.base, "--head", self.h,
+        return self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", "parent", "--pr", "7", "--base", self.base, "--head", self.h,
                                          "--base-ref", "main", "--planner-model", "claude-opus-5-5"], self.repo,
                         extra_env={"MAENG_REVIEW_BACKEND": "codex", "MAENG_CLAUDE": str(fake),
                                    "MAENG_CODEX": str(self.codex)})
@@ -669,7 +669,7 @@ class DraftReview(ReviewRunFixture):
 
     def draft_review(self, kind, *extra):
         fake, log, stdin_log = self.fake_claude(model="claude-opus-5-5")
-        r = self.cli("maeng-review", ["run", "--kind", kind, *extra], self.repo,
+        r = self.cli("maeng-review", ["run", "--author-model", "unlisted-author", "--kind", kind, *extra], self.repo,
                      extra_env={"MAENG_REVIEW_BACKEND": "claude", "MAENG_CLAUDE": str(fake)})
         return r, log, stdin_log
 

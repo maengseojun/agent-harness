@@ -1,14 +1,18 @@
 {
   "standard": {
-    "transcript": "/Users/maengseojun/.claude/projects/-Users-maengseojun-Documents-Project-agent-harness/ce76a621-8a6f-40c9-8ca4-a160330fe255/subagents/agent-a455a14bcf906baa4.jsonl",
+    "nonce": "d2909ee82e028275",
+    "session_id": "cbbdf6a8-199c-417a-ba7c-96c34fc86770",
+    "plugin_dir": "plugins/maeng-tools",
+    "definition_sha256": "30140e1d4766330101f3efa34f5c0ae0c4b62fc422893ba384ada3c78db31e9d",
+    "transcript": "/Users/maengseojun/.claude/projects/-Users-maengseojun-Documents-Project-agent-harness/cbbdf6a8-199c-417a-ba7c-96c34fc86770/subagents/agent-a39b06c1b988d8b69.jsonl",
     "agent_type": "maeng-tools:standard",
     "model": "claude-sonnet-5-5",
     "cli_version": "2.1.314",
     "input_tokens": 2,
     "claude_md_in_first_request": true,
-    "cache_creation_input_tokens": 10272,
+    "cache_creation_input_tokens": 9819,
     "cache_read_input_tokens": 0,
-    "total_input_tokens": 10274,
+    "total_input_tokens": 9821,
     "status": "observed"
   },
   "omit_claude_md_trial": {

@@ -160,7 +160,7 @@ def check_merge_push(lease, cwd, ctx):
     """The exact maeng-ship lease form: only with matching receipts covering the change, for this repository,
     and a verified head tree."""
     b = ctx.state.get("binding") or {}
-    rev = b.get("criteria_rev") or b.get("plan_updated_at")
+    rev = b.get("criteria_rev")
     url, err = remotecfg.plain_remote(cwd, lease["remote"])
     if err:
         return deny(err)
