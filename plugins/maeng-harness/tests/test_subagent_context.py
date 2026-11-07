@@ -34,7 +34,7 @@ class SubagentContext(unittest.TestCase):
         rec = {"transcript": str(tr), "agent_type": "maeng-tools:standard", "model": "claude-sonnet-5-5",
                "cli_version": "2.1.314", "input_tokens": 2, "cache_creation_input_tokens": 100,
                "cache_read_input_tokens": 30, "total_input_tokens": total, "status": "observed",
-               "nonce": NONCE, "definition_sha256": DEF}
+               "nonce": NONCE, "definition_sha256": DEF, "plugin_dir": "plugins/maeng-tools"}
         rec.update(std or {})
         ev = {"standard": rec, "plugin": {"version": plugin or PLUGIN}, "cli_version": "2.1.314",
               "omit_claude_md_trial": {"result": "supported"}}
@@ -117,3 +117,13 @@ class SubagentContext(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+    def test_another_plugin_dir_fails_even_with_a_matching_hash(self):
+        # Round-2 finding on PR #103: the hash must belong to the plugin the launch loaded, and that must be this candidate.
+        r = self.run_check(std={"plugin_dir": str(self.tmp / "other-maeng-tools")})
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("is not this checkout's plugins/maeng-tools", r.stderr)
+        r = self.run_check(std={"plugin_dir": None})
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("plugin_dir missing", r.stderr)

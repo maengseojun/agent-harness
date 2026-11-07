@@ -34,8 +34,13 @@ def first_user_text(path):
     return ""
 
 
-def definition_sha256(repo):
-    return hashlib.sha256(open(os.path.join(repo, "plugins", "maeng-tools", "agents", "standard.md"), "rb").read()).hexdigest()
+def candidate_dir(repo):
+    return os.path.realpath(os.path.join(repo, "plugins", "maeng-tools"))
+
+
+def definition_sha256(plugin_dir):
+    """The standard definition inside the plugin directory that was (or will be) launched, not this script's checkout."""
+    return hashlib.sha256(open(os.path.join(plugin_dir, "agents", "standard.md"), "rb").read()).hexdigest()
 
 
 def probe(repo, plugin_dir, projects):
@@ -96,9 +101,14 @@ def binding_problems(std, repo):
         out.append("standard: nonce missing")
     elif os.path.isfile(path) and std["nonce"] not in first_user_text(path):
         out.append("standard: nonce not in the transcript's first user message (not the recorded launch)")
-    if not std.get("definition_sha256"):
+    pd = std.get("plugin_dir")
+    if not pd:
+        out.append("standard: plugin_dir missing (which plugin the launch loaded)")
+    elif os.path.realpath(os.path.join(repo, pd)) != candidate_dir(repo):
+        out.append(f"standard: plugin_dir {pd!r} is not this checkout's plugins/maeng-tools (another candidate was launched)")
+    elif not std.get("definition_sha256"):
         out.append("standard: definition_sha256 missing")
-    elif std["definition_sha256"] != definition_sha256(repo):
+    elif std["definition_sha256"] != definition_sha256(candidate_dir(repo)):
         out.append("standard: definition_sha256 differs from this checkout's agents/standard.md")
     return out
 
@@ -164,8 +174,10 @@ def main(argv=None):
     ev = json.load(open(a.evidence)) if os.path.exists(a.evidence) else {}
     if rec:
         # the definition and version are hashed before the launch; the transcript is read after it
-        sha, ver = definition_sha256(repo), plugin_info(repo)["version"]
+        launched = os.path.realpath(os.path.join(repo, a.plugin_dir))  # hash what the launch loads, not the checkout
+        sha, ver = definition_sha256(launched), plugin_info(repo)["version"]
         bind = probe(repo, a.plugin_dir, a.projects_dir)
+        bind["plugin_dir"] = os.path.relpath(launched, repo) if launched.startswith(os.path.realpath(repo)) else launched
         std = observe(bind.pop("path"))
         if bind["nonce"] not in first_user_text(std["transcript"]):
             print("nonce not in the subagent transcript's first user message", file=sys.stderr)

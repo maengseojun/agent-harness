@@ -287,6 +287,25 @@ class ConfirmationCoverage(Rounds):
         self.assertIsNone(recs)  # fails on the old code: the receipt was accepted as covering b.py
         self.assertIn("b.py", problem)
 
+    def test_touching_a_never_reviewed_file_before_confirmation_does_not_cover_it(self):
+        # Round-2 finding on PR #103: a delegated file edited by the fix is still unreviewed.
+        h1 = self.two_files()
+        self.reply("fail", [{**HIGH, "file": "a.py"}])
+        self.assertEqual(self.run_at(h1, "--delegate", "b.py").returncode, 1)
+        h2 = self.commit_file("app.py", "print('two')\n", "two")
+        self.assertEqual(self.run_at(h2, "--delegate", "b.py").returncode, 1)
+        self.commit_file("a.py", "a = 2\n", "fix a")
+        h3 = self.commit_file("b.py", "b = 2\n", "touch b")
+        self.reply("pass")
+        r = self.run_at(h3, "--confirm")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        subject = self.stored_subject(r)
+        self.assertNotIn("b.py", subject["files_reviewed"])  # fails on the old code: touched files were granted coverage
+        self.assertNotIn("b.py", self.bundle()["diff"])
+        recs, problem = receipts.find_code(self.repo, subject["repo"], self.base, h3, "refs/heads/main", REV)
+        self.assertIsNone(recs)
+        self.assertIn("b.py", problem)
+
     def split_round_two(self):
         h1 = self.two_files()
         self.reply("fail", [HIGH])

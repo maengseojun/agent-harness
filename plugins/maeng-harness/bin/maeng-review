@@ -512,7 +512,7 @@ def apply_rounds(a, cwd, bundle, subject):
         touched = set((git_out(cwd, "diff", "--name-only", "--no-renames", f"{prev}..{a.head}", "--", *files) or "")
                       .splitlines()) if files else set()
         seen = {f for v in on_head for f in v["subject"].get("files_reviewed") or []}
-        reviewed = [f for f in files if f in seen or f in touched]  # a file nobody reviewed is not covered by this receipt
+        reviewed = [f for f in files if f in seen]  # only files a counted round reviewed; touching one proves no prior review
         subject.update(review_mode="confirmation", previous_head=prev, files_reviewed=reviewed,
                        digest=sha256(diff_of(cwd, f"{a.base}...{a.head}", reviewed).strip()),
                        coverage=[{"file": f, "mode": "delta"} for f in reviewed])
