@@ -43,7 +43,8 @@ Routing: implement <model/tool>, review <model/tool>, research <tool, if any>; l
 Steps:
   1. <step> - done when: <criterion, numbered AC-n it advances>
   2. ...
-Sub-tasks:         # harness-run "Sub-tasks"; Grade = quick | standard | deep | design | planner (policy/roles.json grades)
+Sub-tasks:         # harness-run "Sub-tasks"; Grade = quick | standard | deep | design (policy/roles.json grades),
+                   # or planner = the session itself does the row (no table row)
   | # | Do | Grade | Writes | Interfaces | Done | Fails-if | After |
   |---|---|---|---|---|---|---|---|
   | S1 | <one deliverable> | <grade> | <files> | <names consumed or produced> | <one command and its expected output> | <what makes it not done, incl. a vacuous pass> | <rows it waits for> |

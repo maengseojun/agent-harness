@@ -85,6 +85,7 @@ Review focus: does any review kind get a different model or effort than today be
 Revisions:
 - R-1 plan order: parent P1-6 moved to bundle 2 with the reviewer selection rules (A-6).
 - R-2 plan verification: S1 observed on 2026-11-06; the measurement must split the effort share by CLI version (S2).
+- R-5 result (round-2 parent review, 2026-11-07, Fable high on 7bcee6f: fail, medium 1, low 4; the round cap is 2, so only high would be fixed): the AC-2 table now cites the medium-session design probe; the template says `planner` means the session itself; the `review` route names both resources. Left as known gaps for bundle 2 (Stop rework): a foreign code change that lands between this session's tree snapshot and a may-change Bash or doc edit of its own still bumps its change counter (AC-6 holds for the tested cases, not unconditionally; the fix is a tree snapshot in the PreToolUse of every may-change command); SKILL.md step 10 and the org-chart ranks table still carry model/effort pairs the sync test does not compare.
 - R-4 result (round-1 parent review, 2026-11-07, Fable high: fail, high 1, medium 2, low 6; all fixed): the Plan template `spec-plan.md` gets the Sub-tasks block with the `Grade` column (AC-3; the glossary in SKILL.md alone was not the template) and the sync test checks it; `post_bash` bumps the change counter whenever the tree changed, failed or interrupted commands included; `MAENG_FABLE_EFFORT` is kept for parent reviews (A-7; the two reviewer-model overrides `MAENG_OPUS_REVIEWER`/`MAENG_FABLE_REVIEWER` were removed as unused, and A-7 did not name them); the report's AC-2 text matches the plan; the design probe was re-run with the session at medium effort (probe a6878bd297f627e5b: Opus high, so the definition's own effort shows); `review_reminder` reads the table; `loopstats` baseline `stop_blocks` is the corrected 99; the eta guard pins `SessionRootOutsideCheckout` too; `verification.md` names `-n <number>`; the stale "raise `--effort`" sentence left `aside-collect`.
 - R-3 plan scope: AC-9 and S9 added on the user's instruction of 2026-11-07 ("이러한 것들을 다 리스트업해두고 필요한 부분에 있어서는 반드시 라우팅 되도록"; research through Aside: "astra면 medium 정도는 해야할듯 sol은 high", light runs for a re-check, one fact or bulk gathering, Astra for deep research). No pilot of the assignment ("배정은 재지 않아도 되고"). The enforcement of routes by code is bundle 2; the periodic update is bundle 3 (parent P8).
 
@@ -147,7 +148,7 @@ AC-2 observation (2026-11-07, after S3): headless sessions `claude -p --plugin-d
 | quick | `maeng-tools:quick` | definition: medium | claude-haiku-5-5 | medium | match | abdc4c199c51fb62c |
 | standard | `maeng-tools:standard` | definition: medium | claude-sonnet-5-5 | medium | match | a089111622689109a |
 | deep | `maeng-tools:standard` | call: high | claude-sonnet-5-5 | high | match | a3e5dfae6efd74fd2 |
-| design | `maeng-tools:design` | definition: high | claude-opus-5-5 | high | match | ac22d92c7995952e4 |
+| design | `maeng-tools:design` | definition: high | claude-opus-5-5 | high | match | ac22d92c7995952e4 (session at high: not discriminating), a6878bd297f627e5b (session at medium via `claude -p --effort medium`: the definition's own effort shows) |
 
 No mismatch. The definitions' `effort` field is honoured on 2.1.314; the desktop app's 2.1.317 was observed in the S1 table for the per-call and inherited cases.
 

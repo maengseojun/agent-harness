@@ -318,9 +318,14 @@
       "resource": "gpt_pro",
       "model": null,
       "effort": null,
-      "standby": [],
+      "standby": [
+        {
+          "resource": "claude_code",
+          "note": "parent reviews run Fable through Claude Code first (Astra on gpt_pro is the standby); --author codex code reviews run Opus through Claude Code"
+        }
+      ],
       "enforcedBy": "code",
-      "where": "maeng-review; model and effort per kind: roles above",
+      "where": "maeng-review; model, effort and the resource per kind: roles above",
       "decidedBy": "MAE-296, MAE-323",
       "verifiedAt": "2026-11-06"
     },
