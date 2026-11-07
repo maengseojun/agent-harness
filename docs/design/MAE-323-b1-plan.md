@@ -138,9 +138,18 @@ Consequences for this bundle:
 - The baseline "92% of subagent activity at xhigh or above" was measured on the 7 days before 2026-11-05. It may include requests from CLI versions before 2.1.317. S2 reports the share per CLI version where the transcript records one, so the platform's change is not counted as this patch's effect.
 - The table's values for quick, standard and design equal what the platform already does today for the typed agents. What the definitions still add: values that do not depend on platform defaults or saved settings, a `tools` limit (start context, bundle 2), and a ceiling to measure against. The remaining xhigh inheritance is the same-model case: `general-purpose` and forks.
 
+AC-2 observation (2026-11-07, after S3): headless sessions `claude -p --plugin-dir plugins/maeng-tools --allowedTools Agent` on CLI 2.1.314 (session model Opus at high per `~/.claude/settings.json`), one probe subagent each answering one word. Values are the `effort`, `perTurnEffort` and `params.output_config.effort` fields of the subagent transcript (`~/.claude/projects/-Users-maengseojun-Documents-Project-agent-harness/<session>/subagents/agent-<id>.jsonl`), which agreed in every probe.
+
+| Grade | Agent type | Effort named | Model that ran | Effort that ran | Table | Probe id |
+|---|---|---|---|---|---|---|
+| quick | `maeng-tools:quick` | definition: medium | claude-haiku-5-5 | medium | match | abdc4c199c51fb62c |
+| standard | `maeng-tools:standard` | definition: medium | claude-sonnet-5-5 | medium | match | a089111622689109a |
+| deep | `maeng-tools:standard` | call: high | claude-sonnet-5-5 | high | match | a3e5dfae6efd74fd2 |
+| design | `maeng-tools:design` | definition: high | claude-opus-5-5 | high | match | ac22d92c7995952e4 |
+
+No mismatch. The definitions' `effort` field is honoured on 2.1.314; the desktop app's 2.1.317 was observed in the S1 table for the per-call and inherited cases.
+
 Not observed:
-- A definition's own `effort` field (needs a new definition to be loaded, so it is checked after S3 in a fresh session).
 - The rank of `CLAUDE_CODE_SUBAGENT_EFFORT`.
-- The terminal CLI 2.1.314.
 - Whether a hook process sees `AI_AGENT` (it was read in a Bash tool call). OQ-4 stays open until a hook reads it.
 - OQ-1: the session's model is in the transcript (`message.model`); whether `maeng-review` can reach the transcript path of the calling session is not checked.
