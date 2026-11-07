@@ -60,7 +60,8 @@ def merge(a, cwd):
     why = interview.require_merge(cwd, a.pr, base, head)  # K3: the user's merge quiz, before any receipt counts
     if why:
         die(why)
-    rev = (st.get("binding") or {}).get("plan_updated_at")
+    b = st.get("binding") or {}
+    rev = b.get("criteria_rev") or b.get("plan_updated_at")  # the acceptance digest; `--plan-updated` keeps only the source timestamp
     recs, problem = receipts.find_code(cwd, repo, base, head, ref, rev, issue=(st.get("binding") or {}).get("issue"))
     if not recs:
         approval = receipts.find_approval(repo, a.pr, head)

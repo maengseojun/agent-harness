@@ -47,7 +47,8 @@ def cmd_bind(a, cwd):
         reg = read_json(reg_path, {}) or {}
     except ValueError:
         reg = {}
-    reg[a.issue] = {"parent": a.parent, "plan_updated_at": binding.get("plan_updated_at")}
+    reg[a.issue] = {"parent": a.parent, "plan_updated_at": binding.get("plan_updated_at"),
+                    "criteria_rev": binding.get("criteria_rev")}
     atomic_write(reg_path, json.dumps(reg, indent=1))
     print(f"bound {a.issue}; criteria={binding['criteria']} checks={binding['checks']}")
 

@@ -61,7 +61,24 @@ def trial_result(std, trial):
         else "unsupported"
 
 
-def problems(ev, limit, require):
+def transcript_problems(std, repo):
+    """Re-read the recorded transcript and compare it with the JSON; the JSON alone proves nothing."""
+    path = os.path.expanduser(std.get("transcript") or "")
+    if not os.path.isfile(path):
+        return [f"standard: transcript missing: {path!r}"]
+    try:
+        seen = observe(path)
+    except (ValueError, OSError) as e:
+        return [f"standard: transcript is not readable JSONL: {e}"]
+    out = [f"standard: {k} is {std.get(k)!r} in the JSON but {seen[k]!r} in the transcript"
+           for k in ("agent_type", "model", "cli_version", "total_input_tokens") if std.get(k) != seen[k]]
+    total = seen["total_input_tokens"]
+    if not isinstance(total, int) or total <= 0:
+        out.append(f"standard: transcript usage total is {total!r}, not a positive count (unknown, not zero)")
+    return out
+
+
+def problems(ev, limit, require, repo=None):
     std = ev.get("standard") or {}
     out = []
     if std.get("agent_type") != STANDARD:
@@ -73,8 +90,13 @@ def problems(ev, limit, require):
         if std.get("status") != "observed":
             out.append("standard: no observed usage (unknown)")
         out += [f"standard: {k} missing" for k in ("cli_version", "model") + CACHE if std.get(k) is None]
-        if not (ev.get("plugin") or {}).get("version"):
+        have = (ev.get("plugin") or {}).get("version")
+        if not have:
             out.append("plugin version missing")
+        elif repo and have != plugin_info(repo)["version"]:
+            out.append(f"plugin version {have!r} differs from this checkout's {plugin_info(repo)['version']!r}")
+        if repo:
+            out += transcript_problems(std, repo)
         if (ev.get("omit_claude_md_trial") or {}).get("result") not in ("supported", "unsupported"):
             out.append("omitClaudeMd trial not recorded")
     return out
@@ -108,7 +130,7 @@ def main(argv=None):
                 baseline_claude_md_in_first_request=ev["standard"]["claude_md_in_first_request"])
         json.dump(ev, open(a.evidence, "w", encoding="utf-8"), indent=2, ensure_ascii=False)
         open(a.evidence, "a").write("\n")
-    bad = problems(ev, a.max_input_tokens, a.require_observed)
+    bad = problems(ev, a.max_input_tokens, a.require_observed, repo)
     std = ev.get("standard") or {}
     print(f"standard input tokens: {std.get('total_input_tokens')} (input {std.get('input_tokens')}, "
           f"cache_creation {std.get('cache_creation_input_tokens')}, cache_read {std.get('cache_read_input_tokens')}); "

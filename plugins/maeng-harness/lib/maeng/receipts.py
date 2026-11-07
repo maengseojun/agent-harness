@@ -167,7 +167,8 @@ def diff_digest(cwd, base, head, files):
 def child_binding_rev(issue):
     """The current criteria rev `maeng-verify bind` last recorded for `issue` (None when unknown)."""
     try:
-        return ((read_json(home_dir() / "bindings.json", {}) or {}).get(issue) or {}).get("plan_updated_at")
+        b = (read_json(home_dir() / "bindings.json", {}) or {}).get(issue) or {}
+        return b.get("criteria_rev") or b.get("plan_updated_at")
     except ValueError:
         return None
 

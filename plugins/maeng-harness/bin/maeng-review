@@ -400,7 +400,7 @@ def code_bundle(a, cwd, st):
                       "delegate": delegate, "delegated_files": delegated,
                       "exclusion_reason": a.exclusion_reason},
             "base": base, "head": head, "diff": diff, "changed_files": contents,
-            "criteria": binding.get("criteria"), "criteria_rev": binding.get("plan_updated_at"),
+            "criteria": binding.get("criteria"), "criteria_rev": binding.get("criteria_rev") or binding.get("plan_updated_at"),
             "plan_text": plan_text(binding), "required_checks": binding.get("checks"),
             "evidence": ev, "evidence_binding": evidence_binding, "ship_verified": ok, "ship_verified_reasons": reasons, "missing": missing}
 

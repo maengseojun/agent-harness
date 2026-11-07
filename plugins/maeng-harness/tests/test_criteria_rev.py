@@ -93,6 +93,19 @@ class Gates(MergeBase):
         r = self.ship()
         self.assertEqual(r.returncode, 0, r.stderr)
 
+    def test_a_timestamp_override_keeps_the_digest_for_ship_and_the_lease_gate(self):
+        # Plan-review finding on PR 2a: `--plan-updated` keeps the source timestamp, but authorization uses the digest.
+        plan = self.tmp / "plan.md"
+        plan.write_text(ONE_PLAN)
+        r = self.cli("maeng-verify", ["bind", "MAE-9", "--plan", str(plan), "--plan-updated", "2026-11-07T10:00:00+0900"], self.repo)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        binding = self.load_state()["binding"]
+        self.assertEqual((binding["plan_updated_at"], binding["criteria_rev"]), ("2026-11-07T10:00:00+0900", ONE_DIGEST))
+        self.cli("maeng-verify", ["plan", "--met", "AC-1"], self.repo)
+        self.verdict(criteria_rev=ONE_DIGEST)  # what a review of the committed text records
+        r = self.ship()
+        self.assertEqual(r.returncode, 0, r.stderr)
+
     def test_ship_rejects_a_receipt_from_other_criteria(self):
         self.bind_plan(ONE_PLAN)
         self.verdict(criteria_rev=sha("- **AC-1** x works differently."))
