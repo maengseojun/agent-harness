@@ -265,6 +265,40 @@ def find_plan(issue, criteria_rev):
     return None
 
 
+def plan_receipt_status(issue, criteria_rev):
+    """"valid" (an unrevoked pass for exactly this task and digest), "stale" (this task has plan passes, none for
+    this digest: the criteria changed, or the digest is null) or "missing" (none). For the large-task notices."""
+    if find_plan(issue, criteria_rev):
+        return "valid"
+    for _, rec in _scan("plan-"):
+        if rec and rec["verdict"]["verdict"] == "pass" and not rec.get("revoked") and \
+                rec["verdict"]["subject"].get("issue") == issue:
+            return "stale"
+    return "missing"
+
+
+def _confirm_path(repo, pr):
+    return receipts_dir() / ("confirm-" + sha256(f"{repo}|{pr}")[:24])
+
+
+def confirmation_used(repo, pr):
+    return _confirm_path(repo, pr).exists()
+
+
+def reserve_confirmation(repo, pr, head):
+    """The one confirmation run per repository and PR; once a reviewer is dispatched it is spent, whatever the outcome.
+    O_EXCL makes the marker atomic: of two concurrent runs only one gets True. -> whether this caller holds it."""
+    p = _confirm_path(repo, pr)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        fd = os.open(p, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError:
+        return False
+    with os.fdopen(fd, "w") as f:
+        json.dump({"repo": repo, "pr": str(pr), "head": head, "at": now_iso()}, f)
+    return True
+
+
 def find_notion(digest, destination, op):
     matches, unreadable = [], False
     for p, rec in _scan("notion-" + digest[:16]):

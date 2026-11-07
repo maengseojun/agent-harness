@@ -179,10 +179,10 @@ class ReviewWiring(On, ReviewRunFixture):
 
     def test_a_failed_round_runs_the_triage_with_earlier_rounds(self):
         self.result.write_text(json.dumps({"verdict": "fail", "findings": [
-            {"severity": "high", "title": "t", "body": "b", "file": None, "line": None}]}))
+            {"severity": "high", "title": "t", "body": "b", "file": "app.py", "line": 1}]}))
         self.assertEqual(self.run_review().returncode, 1)
         self.result.write_text(json.dumps({"verdict": "fail", "findings": [
-            {"severity": "high", "title": "t2", "body": "b", "file": None, "line": None}]}))
+            {"severity": "high", "title": "t2", "body": "b", "file": "app.py", "line": 1}]}))
         self.run_review()
         calls = self.logged()
         self.assertEqual([c[0] for c in calls], ["ac", "triage", "ac", "triage"])
@@ -208,7 +208,7 @@ class ReviewWiring(On, ReviewRunFixture):
         self.assertNotIn("failed with exit code", proc.stderr)
         for title in ("t", "t2"):  # the second round passes --previous too
             self.result.write_text(json.dumps({"verdict": "fail", "findings": [
-                {"severity": "high", "title": title, "body": "b", "file": None, "line": None}]}))
+                {"severity": "high", "title": title, "body": "b", "file": "app.py", "line": 1}]}))
             proc = self.run_review(self.real_preflight())
             self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
             self.assertIn("=== Decisions triage (advisory) ===", proc.stderr)

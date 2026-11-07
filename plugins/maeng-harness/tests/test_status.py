@@ -175,7 +175,8 @@ class RoundCap(StatusBase):
         d = self.maeng_home / "reviews"
         d.mkdir(parents=True, exist_ok=True)
         for i in range(n):
-            (d / f"r{i}.json").write_text(json.dumps({"verdict": "fail", "subject": {"kind": "code", "repo": repo, "pr": pr}}))
+            (d / f"r{i}.json").write_text(json.dumps({"verdict": "fail", "subject": {"kind": "code", "repo": repo, "pr": pr,
+                                                                                  "head": f"head{i}"}}))
 
     def review(self, *extra):
         base = self.head(self.repo)
@@ -184,19 +185,19 @@ class RoundCap(StatusBase):
 
     def test_incomplete_bundle_at_the_cap_is_blocked_locally_not_capped(self):
         self.start(self.repo)
-        self.seed(4, str((self.tmp / "repo-remote.git").resolve()))
+        self.seed(2, str((self.tmp / "repo-remote.git").resolve()))
         r = self.review()  # unverified head: the local block wins, so the user sees what is missing
         self.assertEqual(r.returncode, 2)
         self.assertEqual(json.loads(r.stdout)["verdict"], "blocked")
         self.assertNotIn("round cap", r.stderr)
 
-    def test_fifth_round_on_a_verified_head_is_refused_and_points_to_approval(self):
+    def test_third_head_on_a_verified_head_is_refused_and_points_to_approval(self):
         (self.repo / "docs").mkdir()
         (self.repo / "docs/plan.md").write_text("- **AC-1** one\n")
         head = self.commit_all(self.repo)
         self.start(self.repo)
         self.run_check(self.repo, "pytest -q")
-        self.seed(4, str((self.tmp / "repo-remote.git").resolve()))
+        self.seed(2, str((self.tmp / "repo-remote.git").resolve()))
         r = self.cli("maeng-review", ["run", "--pr", "7", "--base", head, "--head", head, "--base-ref", "main",
                                       "--plan", "docs/plan.md"], self.repo)
         self.assertEqual(r.returncode, 2, r.stdout)
@@ -206,7 +207,7 @@ class RoundCap(StatusBase):
     def test_other_pr_and_raised_cap_are_not_refused(self):
         self.start(self.repo)
         remote = str((self.tmp / "repo-remote.git").resolve())
-        self.seed(4, remote, pr="8")
+        self.seed(2, remote, pr="8")
         self.assertNotIn("round cap", self.review().stderr)
-        self.seed(4, remote)
-        self.assertNotIn("round cap", self.review("--max-rounds", "5").stderr)
+        self.seed(2, remote)
+        self.assertNotIn("round cap", self.review("--max-rounds", "3").stderr)
