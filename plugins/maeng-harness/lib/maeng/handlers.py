@@ -423,7 +423,8 @@ def on_post(payload, failed=False):
     try:
         if tool == "Bash":
             failed = failed or response_failed(tresp)
-            payload = {**payload, "_zero_tests": evidence.ran_zero_tests(" ".join(gates._strings(tresp)))}
+            text = " ".join(gates._strings(tresp))
+            payload = {**payload, "_zero_tests": evidence.ran_zero_tests(text), "_test_count": evidence.test_count(text)}
             out = post_bash(sid, cwd, st0, tin, tuid, failed, interrupted, payload)
         elif tool in EDIT_TOOLS and not failed:
             post_edit(sid, cwd, tool, tin, tresp)
@@ -452,7 +453,7 @@ def post_bash(sid, cwd, st0, tin, tuid, failed, interrupted, payload):
         if pend.get("checks") and payload.get("_zero_tests") and not failed:
             st["pending"].pop(key, None)  # the run executed no tests: not evidence (neither pass nor fail)
         elif pend.get("checks") and not interrupted:
-            evidence.post_runner(st, key, not failed, tree)
+            evidence.post_runner(st, key, not failed, tree, payload.get("_test_count"))
         elif pend:
             st["pending"].pop(key, None)
         if tree and top:

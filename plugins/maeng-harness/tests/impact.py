@@ -2,8 +2,17 @@
 """Test impact analysis: pick the tests a change can affect.
 
   impact.py build            run the suite under coverage (one context per test) and write the map
-  impact.py select [REV]     print the pytest node ids affected by changes since REV (default: the map's base)
+  impact.py select [REV] [--json]   print the pytest node ids affected by changes since REV (default: the map's base)
   impact.py run [REV] [-- pytest args]   select, then run them with pytest (-n auto when xdist is installed)
+
+`run` and `select` build the map themselves when coverage is installed and the map is missing or was built at a
+commit that is no longer an ancestor of HEAD; without coverage they use the static graph and say so. `run` falls
+back to the full suite, and says why on stderr, when the selection is empty, names a file that no longer exists,
+cannot be computed, or when pytest collects nothing from it (exit 5) or rejects a node id (exit 4). A genuine test
+failure (exit 1) is returned as is: no full rerun hides it. The last stderr line is `impact-summary: {...}` with
+mode (narrow | all | fallback), the selected count, the fallback reason, the executed-test count the runner printed
+("unavailable" when it printed none) and the exit code. Its runs are working checks, never ship evidence
+(MAE-323 AC-7/AC-8): the hook does not recognize `impact.py run` as a runner.
 
 Two layers (MAE-232 D-6):
 1. Static graph: Python imports between test files, lib/maeng modules, bin scripts and the hook entry, plus literal
@@ -30,7 +39,12 @@ import sys
 import tempfile
 from pathlib import Path
 
-PLUGIN = Path(__file__).resolve().parents[1]
+# MAENG_IMPACT_PLUGIN: run this selector against another checkout of the plugin (the AC-7 replay runs the current
+# selector on historical trees); the map, the tests and lib/ are read from there.
+PLUGIN = Path(os.environ.get("MAENG_IMPACT_PLUGIN") or Path(__file__).resolve().parents[1]).resolve()
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))  # this selector's own lib, whichever tree it reads
+from maeng.evidence import test_count  # noqa: E402
+
 TESTS = PLUGIN / "tests"
 MAP = PLUGIN / ".impact" / "map.json"
 ALL = "__all__"
@@ -233,12 +247,51 @@ def changed(base):
     return out
 
 
+def load_map():
+    """-> (map dict or None, note). A missing or unreadable map is a note, never a crash."""
+    if not MAP.exists():
+        return None, "no coverage map"
+    try:
+        cov = json.loads(MAP.read_text())
+        if not isinstance(cov.get("files"), dict) or not cov.get("base"):
+            raise ValueError("missing base/files")
+        return cov, None
+    except (ValueError, OSError) as exc:
+        return None, f"coverage map unreadable ({exc}): static graph only"
+
+
+def _have_coverage():
+    try:
+        import coverage  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def ensure_map():
+    """Build or refresh the map when coverage is installed and the map is missing or built off-history -> note."""
+    cov, note = load_map()
+    if cov is not None:
+        on_history = subprocess.run(["git", "merge-base", "--is-ancestor", cov["base"], "HEAD"], cwd=PLUGIN,
+                                    capture_output=True).returncode == 0
+        if on_history:
+            return None
+        note = f"coverage map base {cov['base'][:12]} is not an ancestor of HEAD"
+    if not _have_coverage():
+        return f"{note}; coverage not installed, static graph only (pip install -r requirements-dev.txt)"
+    try:
+        build()
+    except SystemExit as exc:
+        return f"{note}; map not rebuilt ({exc}); static graph only"
+    return f"{note}; map rebuilt"
+
+
 def select(base=None, changes=None):
     """-> (sorted node ids or [ALL], reasons). `changes` ({path: old-side lines}) replaces the git diff."""
-    cov = json.loads(MAP.read_text()) if MAP.exists() else None
+    cov, note = load_map()
     base = base or (cov or {}).get("base") or "HEAD"
     graph = static_graph()
-    picked, why = set(), []
+    picked, why = set(), [note] if note else []
     for path, lines in sorted((changes if changes is not None else changed(base)).items()):
         if path in SHARED or re.match(r"requirements.*\.txt$|hooks/hooks\.json$|\.claude-plugin/", path):
             return [ALL], [f"{path}: shared test/plugin input -> all"]
@@ -318,6 +371,54 @@ def _have_xdist():
         return False
 
 
+NO_TESTS_COLLECTED, USAGE_ERROR = 5, 4  # pytest exit codes that mean "the selection itself was unusable"
+
+
+def pytest_args(targets, extra):
+    args = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", *extra, *targets]
+    if _have_xdist() and (targets == ["tests"] or len(targets) > 40) and "-n" not in extra:
+        args[4:4] = ["-n", "auto"]
+    return args
+
+
+def run_pytest(args):
+    """Stream pytest's output and return (rc, executed-test count or None)."""
+    p = subprocess.Popen(args, cwd=PLUGIN, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    tail = []
+    for line in p.stdout:
+        sys.stdout.write(line)
+        tail.append(line)
+        del tail[:-60]
+    return p.wait(), test_count("".join(tail))
+
+
+def run_selected(ids, extra, runner=None):
+    """Run the selected tests, or the full suite with a stated reason -> (rc, summary dict).
+    A failure of the selected tests (rc 1) is final; only an unusable selection falls back."""
+    runner = runner or run_pytest  # looked up at call time, so a test can replace the module's runner
+    fallback, count, rc = None, None, None
+    if ids == [ALL]:
+        mode, targets = "all", ["tests"]
+    elif not ids:
+        fallback, targets = "empty selection", ["tests"]
+    else:
+        missing = sorted({i.split("::")[0] for i in ids if not (PLUGIN / i.split("::")[0]).exists()})
+        if missing:
+            fallback, targets = "selected files missing: " + ", ".join(missing), ["tests"]
+        else:
+            mode, targets = "narrow", ids
+    if not fallback:
+        rc, count = runner(pytest_args(targets, extra))
+        if rc in (NO_TESTS_COLLECTED, USAGE_ERROR) and targets != ["tests"]:
+            fallback = f"pytest exit {rc} on the selection (nothing collected or a bad node id)"
+    if fallback:
+        print("# fallback to the full suite: " + fallback, file=sys.stderr)
+        rc, count = runner(pytest_args(["tests"], extra))
+        mode = "fallback"
+    return rc, {"mode": mode, "selected": None if ids == [ALL] else len(ids), "fallback": fallback,
+                "tests_run": count if isinstance(count, int) else "unavailable", "rc": rc}
+
+
 def main(argv):
     if not argv or argv[0] not in ("build", "select", "run"):
         print(__doc__)
@@ -327,23 +428,38 @@ def main(argv):
     if "--" in rest:
         i = rest.index("--")
         rest, extra = rest[:i], rest[i + 1:]
+    as_json = "--json" in rest
+    rest = [r for r in rest if r != "--json"]
     if cmd == "build":
         build()
         return 0
-    ids, why = select(rest[0] if rest else None)
+    note = ensure_map()
+    if note:
+        print("# " + note, file=sys.stderr)
+    try:
+        ids, why = select(rest[0] if rest else None)
+        error = None
+    except (SystemExit, ValueError, OSError, KeyError) as exc:
+        ids, why, error = [], [], f"selector error: {exc}"
     for w in why:
         print("# " + w, file=sys.stderr)
     if cmd == "select":
+        if as_json:
+            print(json.dumps({"ids": ids, "all": ids == [ALL], "reasons": why, "error": error, "map_note": note}))
+            return 1 if error else 0
+        if error:
+            print("# " + error, file=sys.stderr)
+            return 1
         print("\n".join(ids))
         return 0
-    if not ids:
-        print("# no affected tests", file=sys.stderr)
-        return 0
-    targets = ["tests"] if ids == [ALL] else [i for i in ids if (PLUGIN / i.split("::")[0]).exists()]
-    args = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", *extra, *targets]
-    if _have_xdist() and len(targets) > 40 and "-n" not in extra:
-        args[4:4] = ["-n", "auto"]
-    return subprocess.call(args, cwd=PLUGIN)
+    if error:
+        print("# " + error, file=sys.stderr)
+        rc, summary = run_selected([], extra)
+        summary["fallback"] = error
+    else:
+        rc, summary = run_selected(ids, extra)
+    print("impact-summary: " + json.dumps(summary), file=sys.stderr)
+    return rc
 
 
 if __name__ == "__main__":

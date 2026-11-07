@@ -1,0 +1,19 @@
+# MAE-323 bundle 2, PR 2b: test structure (MAE-326)
+
+Linear: MAE-326 (parent MAE-323). This is the acceptance view of PR 2b, split from `docs/design/MAE-323-b2-plan.md` by the user's D-12 (two PRs). The rows, assumptions, decisions, steps and Progress live in that file; this file carries only the criteria PR 2b must meet, copied verbatim, so the harness gates (bind, review, ship) judge this PR on its own rows. PR 2a (#103, merged 2026-11-07) carried the nine structure-core criteria (rows S1, S2, S3, S4, S6).
+
+Deliverable: PR `feat/mae-326-tests` -> `feat/harness-v1` with rows S5, S7 and S8 of the bundle 2 plan, the final bundle report `docs/design/MAE-323-b2-report.md` and the release preparation of both plugins.
+
+Requirements -> acceptance:
+
+- **AC-7** Working checks use `impact.py run` with the normal Python environment. Missing coverage/map, bad node IDs, empty selection and selector rc 5 trigger a reported full fallback. Genuine test failure remains failure. A pinned replay of 16 recent code commits has no selection errors and selects a median of at most 100 tests. Owner: S5. Check: the Verification command. Fails if fewer than 16 cases execute, fallback is counted as successful narrow selection, missing targets are silently dropped, or an empty selection exits green without running the fallback. Covers T2 (parent 3).
+- **AC-8** Runner evidence outranks declarations and agent reports. Zero executed tests cannot pass; unknown count is labeled unavailable. A declaration cannot satisfy a runner requirement, and impact output cannot satisfy the full-suite requirement. Same-tree success/failure is retained as flaky evidence. Owner: S5. Check: the Verification command. Fails if rc 0 with zero/all-skipped tests records passing evidence, an unknown count becomes zero, or a test accepts a declaration without exercising the runner boundary. Covers T1, T2 (parent 6).
+- **AC-12** CI runs every plugin test suite identified by the checked inventory without personal keys or writes to the real user home, and emits one informational aggregate. Required suite failure, cancellation, empty execution or unexpected skip prevents aggregate success. Mutation sampling belongs to the periodic lane. Owner: S7. Check: the Verification command. Fails if only the root pytest testpath runs, an unlisted suite is ignored, or `continue-on-error` turns a failed suite into a green aggregate. Covers A3 (parent 19).
+- **AC-13** Historical review bundles are reconstructed from pinned inputs and run with the new prompt. Every expected patch-introduced critical/high finding remains blocking: lost blockers = 0. The manifest preserves original outputs and independently enrolled expectations. Owner: S8. Check: the Verification command. Fails if the corpus or blocker denominator is empty, missing bundles are omitted, outputs are altered after enrollment, or expected findings are generated from the new reviewer result. Covers A2 (parent 16).
+
+Verification:
+- AC-7: `python3 tools/testperf/impact_replay.py --manifest docs/design/MAE-323-b2-impact-cases.json --require-cases 16 --max-median 100` declared with `maeng-verify ran --ok` (its output and the manifest are attached to the review).
+- AC-8: `python3 -m pytest -q -n 8` (the evidence-integrity and impact cases are part of the suite).
+- AC-12: `python3 tools/testperf/plugin_checks.py --lane gate --isolated --require-complete` declared with `maeng-verify ran --ok`; the matching real CI aggregate and per-suite results are attached to the review.
+- AC-13: `python3 tools/testperf/review_replay.py replay --manifest docs/design/MAE-323-b2-review-cases.json --require-complete --max-lost-blockers 0` declared with `maeng-verify ran --ok` (its results file is attached to the review).
+- Before merge: `HARNESS_TEST_PROCESS=1 python3 -m pytest -q -n 8` and `claude plugin validate` for both plugins; the four shared agent definitions have no changes.
