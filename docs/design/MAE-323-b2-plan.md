@@ -2,7 +2,7 @@
 
 # MAE-323 bundle 2 Spec/Plan: structure
 
-Linear: MAE-326 (parent MAE-323). Parent plan: `docs/design/MAE-323-plan.md` (criteria approved by the user on 2026-11-06, "승인"). Predecessor: `docs/design/MAE-323-b1-plan.md`. Date: 2026-11-07. Status: draft. This document proposes implementation choices as `A-n`; the two additional gate candidates remain unresolved user decisions. Drafting is read-only: no repository file is written.
+Linear: MAE-326 (parent MAE-323). Parent plan: `docs/design/MAE-323-plan.md` (criteria approved by the user on 2026-11-06, "승인"). Predecessor: `docs/design/MAE-323-b1-plan.md`. Date: 2026-11-07. Status: current (criteria approved 2026-11-07). This document proposes implementation choices as `A-n`; the two additional gate candidates remain unresolved user decisions. Drafting is read-only: no repository file is written.
 
 Parent criteria are cited by number in words ("parent 16"), never in the criterion pattern, because binding must not mistake a parent reference for a criterion of this plan.
 
@@ -93,7 +93,7 @@ Requirements -> acceptance:
 
 ## Plan
 
-Readiness: parent criteria approved. D-12 (two PRs), D-10 (existing boundary) and D-11 (notification-only) chosen by the user on 2026-11-07; the sub-plan's criteria wait for the user's approval, then PR 2a starts with S1. Reconcile bundle 1 S6/S7 before coding. Mapped changes wait for the user's applicable `overall`, `evidence` and `gates` design passes. D-10/D-11 are unassigned extensions; selecting an extension first requires a concrete scope amendment. Historical replay availability remains parent OQ-2 and must be resolved before changing the review prompt.
+Readiness: parent criteria approved. D-12 (two PRs), D-10 (existing boundary) and D-11 (notification-only) chosen by the user on 2026-11-07. The sub-plan's criteria AC-1 to AC-13 and assumptions A-1 to A-12 were approved by the user on 2026-11-07 ("승인"). PR 2a starts with S1. Reconcile bundle 1 S6/S7 before coding. Mapped changes wait for the user's applicable `overall`, `evidence` and `gates` design passes. D-10/D-11 are unassigned extensions; selecting an extension first requires a concrete scope amendment. Historical replay availability remains parent OQ-2 and must be resolved before changing the review prompt.
 
 Environment: repository `agent-harness`, branch reported as `feat/mae-323-loop-redesign`. The repository pins pytest 7.4.4, pytest-xdist 3.8.0 and coverage 7.16.2; installed versions were not tested. Root `pytest.ini` collects only `plugins/maeng-harness/tests`, so a root pytest run alone does not cover the other plugin suites.
 
@@ -218,6 +218,7 @@ Revisions:
 - R-3 plan order: historical corpus enrollment precedes the review-prompt change; final replay follows implementation.
 - R-4 plan decisions: C-29/C-30 remain D-10/D-11 with named options and no recommendation. Existing state-directory protection was distinguished from the proposed extension.
 - R-5 plan verification: every criterion has one check command and an explicit vacuous-pass failure. Full verification remains required before each review round.
+- R-12 plan approval (2026-11-07): the user approved AC-1 to AC-13 and A-1 to A-12 ("승인").
 - R-11 plan decisions (2026-11-07): the user chose 가 for D-11 ("가 알림만"); the parent's P9 stands.
 - R-10 plan decisions (2026-11-07): the user chose 가 for D-10 ("가 지금 경계 유지"): no new protected location in bundle 2.
 - R-9 plan decisions (2026-11-07): the user chose two PRs for D-12 ("PR 둘로"); Deliverable and the steps now name 2a and 2b.
