@@ -1,6 +1,6 @@
 # MAE-323 bundle 2, PR 2a: structure core (MAE-326)
 
-Linear: MAE-326 (parent MAE-323). This is the acceptance view of PR 2a, split from `docs/design/MAE-323-b2-plan.md` by the user's D-12 (two PRs). The rows, assumptions, decisions, steps and Progress live in that file; this file carries only the criteria PR 2a must meet, copied verbatim, so the harness gates (bind, review, ship) judge PR #103 on its own rows. PR 2b carries AC-7, AC-8, AC-12 and AC-13.
+Linear: MAE-326 (parent MAE-323). This is the acceptance view of PR 2a, split from `docs/design/MAE-323-b2-plan.md` by the user's D-12 (two PRs). The rows, assumptions, decisions, steps and Progress live in that file; this file carries only the criteria PR 2a must meet, copied verbatim, so the harness gates (bind, review, ship) judge PR #103 on its own rows. PR 2b carries the four test-structure criteria (rows S5, S7, S8).
 
 Deliverable: PR #103 `feat/mae-326-structure` → `feat/harness-v1` with rows S1, S2, S3, S4 and S6 of the bundle 2 plan.
 
