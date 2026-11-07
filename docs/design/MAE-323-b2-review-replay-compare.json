@@ -1,0 +1,55 @@
+{
+ "baseline_prompt": "a23f430",
+ "new_prompt": null,
+ "cases_compared": 41,
+ "expected": 97,
+ "kept_baseline": 9,
+ "kept_new": 11,
+ "lost_vs_baseline": [
+  {
+   "id": "659d371f29f7b3ae",
+   "title": "Relative restore validates one file but modifies another"
+  },
+  {
+   "id": "8dc630d35e7a13a1",
+   "title": "`maeng-review store <file>` turns any local JSON into a pass receipt"
+  },
+  {
+   "id": "a56dcafe600916a9",
+   "title": "Failed re-reviews leave earlier pass receipts usable"
+  }
+ ],
+ "gained_vs_baseline": [
+  {
+   "id": "4685548794e13d39",
+   "title": "Redact multiline secret values in pre-flight inputs"
+  },
+  {
+   "id": "4717bcc48a339ef3",
+   "title": "Check model overrides before exempting the interview CLI"
+  },
+  {
+   "id": "4717bcc48a339ef3",
+   "title": "Preserve unmet rubric items after a successful follow-up"
+  },
+  {
+   "id": "583f85ad28def0de",
+   "title": "Malformed operation fields still fail open"
+  },
+  {
+   "id": "86cb07badb21eca6",
+   "title": "Declared checks bypass runner requirements"
+  }
+ ],
+ "lost_by_both": 83,
+ "cases_not_in_both": [
+  "299658f6f1963faa",
+  "5daf343b358e99b4",
+  "6fded583e7d72f9d",
+  "9c2636729f93f5df",
+  "a15b0dd9c3c9abc6",
+  "bd47635d113daa00",
+  "cfe2a202e7d0ed82",
+  "f5b829efec903b55"
+ ]
+}
