@@ -21,7 +21,6 @@ CODEX_CANDIDATES = (  # verified live 2026-10-17; the npm codex install on this 
     "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex",
 )
 DEFAULT_CODEX = next((c for c in CODEX_CANDIDATES if os.access(c, os.X_OK)), CODEX_CANDIDATES[0])
-ASTRA, SOL = "gpt-6-astra", "gpt-6.1-sol"
 # Feature families to switch off for an isolated reviewer (design §4). Exact names vary by Codex version,
 # so they are matched against `codex features list` at run time; unknown names are never passed.
 DISABLE_FAMILIES = ("apps", "browser", "computer_use", "hooks", "plugin", "memories", "multi_agent", "image",
@@ -89,29 +88,62 @@ BUNDLE:
 # `--author codex` on a code review also skips codex: Sol never reviews a Sol-written change; Opus high does (MAE-295).
 # Parent integration is the exception: Fable high first, Astra high is its standby when Fable fails (MAE-296).
 CODEX_ATTEMPTS = 3
-OPUS = os.environ.get("MAENG_OPUS_REVIEWER", "claude-opus-5-5")
-FABLE = os.environ.get("MAENG_FABLE_REVIEWER", "claude-fable-5-1")
-FABLE_EFFORT = os.environ.get("MAENG_FABLE_EFFORT", "high")  # changed only on the user's request
+ROLES_PATH = Path(__file__).resolve().parent.parent / "policy" / "roles.json"
+REVIEW_ROLES = ("code_child", "code_small", "parent", "docs", "research", "notion", "plan")
 
 
 def backend():
     return os.environ.get("MAENG_REVIEW_BACKEND", "codex")
 
 
-def tier_for(kind, binding):
-    if kind == "parent":
-        return FABLE, FABLE_EFFORT
-    return fallback_tier(kind, binding) if backend() == "claude" else _codex_tier(kind, binding)
+def load_roles(path=None):
+    path = Path(path) if path is not None else ROLES_PATH
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"cannot read review roles from {path}: {exc}") from exc
+    roles = data.get("roles") if isinstance(data, dict) else None
+    if not isinstance(roles, dict):
+        raise ValueError(f"invalid {path}: roles must be an object")
+    for kind in REVIEW_ROLES:
+        row = roles.get(kind)
+        name = f"{path}: roles.{kind}"
+        if not isinstance(row, dict):
+            raise ValueError(f"{name} is missing or not an object")
+        standby = row.get("standby")
+        if not isinstance(standby, list):
+            raise ValueError(f"{name}.standby must be a list")
+        for label, pair in [(name, row)] + [(f"{name}.standby[{i}]", s) for i, s in enumerate(standby)]:
+            if not isinstance(pair, dict) or any(
+                    not isinstance(pair.get(key), str) or not pair[key].strip() for key in ("model", "effort")):
+                raise ValueError(f"{label} needs non-empty model and effort strings")
+        if not any(s["model"].startswith("claude-") for s in standby):
+            raise ValueError(f"{name} needs a Claude standby")
+        if row["model"].startswith("claude-") and not any(
+                not s["model"].startswith("claude-") for s in standby):
+            raise ValueError(f"{name} needs a Codex standby")
+    return roles
 
 
-def fallback_tier(kind, binding):
-    if kind in ("docs", "research"):
-        return OPUS, "high"
-    if kind == "notion":
-        return OPUS, "medium"
-    if binding and binding.get("parent") and binding.get("criteria"):
-        return OPUS, "medium"
-    return OPUS, "high"
+def review_tier(kind, binding, review_backend, roles=None):
+    roles = load_roles() if roles is None else roles
+    if kind == "code":
+        kind = "code_child" if binding and binding.get("parent") and binding.get("criteria") else "code_small"
+    if kind not in roles or review_backend not in ("codex", "claude"):
+        raise ValueError(f"unknown review kind/backend: {kind}/{review_backend}")
+    row = roles[kind]
+    for pair in [row, *row["standby"]]:
+        if pair["model"].startswith("claude-") == (review_backend == "claude"):
+            return pair["model"], pair["effort"]
+    raise ValueError(f"roles.{kind} has no {review_backend} reviewer")
+
+
+def tier_for(kind, binding, roles=None):
+    return review_tier(kind, binding, "claude" if kind == "parent" else backend(), roles)
+
+
+def fallback_tier(kind, binding, roles=None):
+    return review_tier(kind, binding, "claude", roles)
 
 
 def claude_command(model, effort, schema_json):
@@ -121,18 +153,8 @@ def claude_command(model, effort, schema_json):
             "--model", model, "--effort", effort, "--output-format", "json", "--json-schema", schema_json]
 
 
-def _codex_tier(kind, binding):
-    if kind == "parent":
-        return ASTRA, "high"
-    if kind == "docs":
-        return ASTRA, "medium"
-    if kind == "notion":
-        return SOL, "medium"
-    if kind == "research":
-        return SOL, "xhigh"
-    if binding and binding.get("parent") and binding.get("criteria"):
-        return SOL, "xhigh"
-    return SOL, "high"
+def _codex_tier(kind, binding, roles=None):
+    return review_tier(kind, binding, "codex", roles)
 
 
 def features_to_disable(codex):
@@ -415,6 +437,10 @@ def run_codex(model, effort, schema_path, out_path, prompt_text, cwd):
 
 
 def run_review(a, cwd):
+    try:
+        roles = load_roles()
+    except ValueError as exc:
+        die(str(exc), 2)
     require_personal(cwd)
     sid = a.session or state.find_session(cwd)
     st = checked_load(sid, cwd) if sid else state.fresh("none", cwd)
@@ -448,7 +474,8 @@ def run_review(a, cwd):
         if not a.base_ref:
             bundle.setdefault("missing", []).append("base ref name (--base-ref)")
     codex_author = a.kind == "code" and a.author == "codex"
-    model, effort = (OPUS, "high") if codex_author else tier_for(a.kind, st.get("binding"))
+    model, effort = (fallback_tier(a.kind, st.get("binding"), roles) if codex_author
+                     else tier_for(a.kind, st.get("binding"), roles))
     plan = a.plan or (st.get("binding") or {}).get("plan_doc")
     preflight = a.kind in ("code", "parent") and not recordcheck.off()
     if preflight and not (plan and a.evidence):
@@ -482,9 +509,9 @@ def run_review(a, cwd):
         if backend() == "claude" or codex_author or a.kind == "parent":
             result, aux_models, err = run_claude(model, effort, out_schema, prompt_text, cwd)
             if err and a.kind == "parent":  # Fable unavailable (e.g. usage limit): Astra high is its standby
-                print(f"warning: {model} failed ({err[-300:]}); falling back to {ASTRA}", file=sys.stderr)
                 fallback_from = {"model": model, "effort": effort, "attempts": 1}
-                model, effort = _codex_tier(a.kind, st.get("binding"))
+                model, effort = _codex_tier(a.kind, st.get("binding"), roles)
+                print(f"warning: {fallback_from['model']} failed ({err[-300:]}); falling back to {model}", file=sys.stderr)
                 aux_models = []
                 result, err = codex_attempts(model, effort, schema_path, out_path, prompt_text, cwd)
         else:
@@ -492,7 +519,7 @@ def run_review(a, cwd):
             result, err = codex_attempts(model, effort, schema_path, out_path, prompt_text, cwd)
             if err:
                 fallback_from = {"model": model, "effort": effort, "attempts": CODEX_ATTEMPTS}
-                model, effort = fallback_tier(a.kind, st.get("binding"))
+                model, effort = fallback_tier(a.kind, st.get("binding"), roles)
                 print(f"warning: falling back to Claude reviewer {model} ({effort})", file=sys.stderr)
                 result, aux_models, err = run_claude(model, effort, out_schema, prompt_text, cwd)
         if err:
@@ -578,7 +605,7 @@ def report_review(a, cwd, st, subject, verdict, verdict_key):
             print(f"warning: maeng/review commit status not posted: {err}", file=sys.stderr)
     if st.get("task_id"):
         r = verdict["reviewer"]
-        via = "claude" if r["model"] in (OPUS, FABLE) else "codex"
+        via = "claude" if r["model"].startswith("claude-") else "codex"
         try:
             status.write(st["task_id"], st["session_id"], pr=a.pr, review_verdict=verdict["verdict"],
                          review_backend=f"{via}:{r['model']}",

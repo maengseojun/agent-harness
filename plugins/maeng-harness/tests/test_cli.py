@@ -36,10 +36,10 @@ class ReviewConfig(HarnessCase):
     def test_fallback_tier_is_opus(self):
         rv = load_bin("maeng-review")
         child = {"parent": "MAE-216", "criteria": ["AC-1"]}
-        self.assertEqual(rv.fallback_tier("code", child), ("claude-opus-5-5", "medium"))
+        self.assertEqual(rv.fallback_tier("code", child), ("claude-opus-5-5", "high"))  # raised row (MAE-325 S6)
         self.assertEqual(rv.fallback_tier("code", None), ("claude-opus-5-5", "high"))
         self.assertEqual(rv.fallback_tier("docs", None), ("claude-opus-5-5", "high"))
-        self.assertEqual(rv.fallback_tier("notion", None), ("claude-opus-5-5", "medium"))
+        self.assertEqual(rv.fallback_tier("notion", None), ("claude-opus-5-5", "high"))  # raised row (MAE-325 S6)
         self.assertEqual(rv.fallback_tier("research", None), ("claude-opus-5-5", "high"))
 
     def test_feature_names_come_from_codex_features_list(self):
@@ -297,7 +297,7 @@ class ClaudeBackend(ReviewRunFixture):
             self.assertEqual(argv[i:i + 2], pair)
         self.assertIn("--strict-mcp-config", argv)
         self.assertEqual(argv[argv.index("--model") + 1], "claude-opus-5-5")
-        self.assertEqual(argv[argv.index("--effort") + 1], "medium")  # child-task tier
+        self.assertEqual(argv[argv.index("--effort") + 1], "high")  # child-task Opus standby, raised row
         self.assertIn("--json-schema", argv)
         self.assertIn("AC-1 feature works", stdin_log.read_text())
         receipt_files = list(receipts.receipts_dir().glob("*.json"))
@@ -343,7 +343,7 @@ class ClaudeBackend(ReviewRunFixture):
         self.assertEqual(count.read_text(), "xxx")
         self.assertTrue(log.exists())
         rev = receipts.load(json.loads(r.stdout)["receipt"])["verdict"]["reviewer"]
-        self.assertEqual((rev["model"], rev["effort"]), ("claude-opus-5-5", "medium"))
+        self.assertEqual((rev["model"], rev["effort"]), ("claude-opus-5-5", "high"))
         self.assertEqual(rev["fallback_from"], {"model": "gpt-6.1-sol", "effort": "xhigh", "attempts": 3})
 
     def test_codex_backend_stays_selectable(self):
