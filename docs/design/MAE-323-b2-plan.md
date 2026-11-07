@@ -8,7 +8,7 @@ Parent criteria are cited by number in words ("parent 16"), never in the criteri
 
 Goal: Stop reports missing work without blocking, working checks select affected tests, and independent review converges within two reviewed heads plus one confirmation run while preserving verification and merge gates.
 
-Deliverable: one bundle PR with separate commits for the eight rows below, releases of the changed plugins, updated harness-run rules, and a report containing impact-selection results, review-preservation results, context observations and remaining measurement gaps.
+Deliverable: two PRs (D-12, user's choice 2026-11-07 "PR 둘로"): PR 2a, structure core, rows S1, S2, S3, S4 and S6 with separate commits per row; PR 2b, test structure, rows S5, S7 and S8, merged after 2a. Each PR carries the acceptance checks of its rows; 2b carries the final report (impact-selection results, review-preservation results, context observations, remaining measurement gaps) and the releases of the changed plugins. Updated harness-run rules land in 2a.
 
 Decisions: D-2, D-3, D-5, D-6, D-7 and D-8 of the parent plan. The resource-route enforcement also follows bundle 1 R-3 and the user's instruction of 2026-11-07.
 
@@ -17,7 +17,7 @@ The following decisions are pending. Neither has a selected option or a recommen
 | Decision | Source | 가 | 나 |
 |---|---|---|---|
 | D-10 Evidence-store protection | C-29, **보고**; original reopened: `oh-my-hermes src/plugin_bundle/omh/evidence_store_guard.py:1-84` | **Existing store boundary:** retain the current protection of `MAENG_HOME` and `MAENG_CACHE_DIR`; add no protected location | **Extended artifact boundary:** also protect explicitly named evidence locations outside those roots against Write/Edit; specify those locations and exceptions before implementation. Shell writes remain outside this guard |
-| D-12 PR structure of bundle 2 | parent "묶음(PR 3개)"; bundle 1 took two review rounds plus the user's approval at 94 files | **One PR:** the eight rows below in one PR, as the parent allocates | **Two PRs:** 2a structure core (S1, S2, S3, S4, S6) merged first, then 2b test structure (S5, S7, S8); each PR carries the acceptance checks of its rows, 2b carries the final report and the releases, and the parent's AC numbering stays |
+| D-12 PR structure of bundle 2 | parent "묶음(PR 3개)"; bundle 1 took two review rounds plus the user's approval at 94 files | ~~One PR~~ | **Chosen (2026-11-07): two PRs.** 2a structure core (S1, S2, S3, S4, S6) merged first, then 2b test structure (S5, S7, S8); each PR carries the acceptance checks of its rows, 2b carries the final report and the releases, and the parent's AC numbering stays. Sealed recommendation 6496fb3d2f9b was also two PRs |
 | D-11 Human approval at the plan boundary | C-30, **보고**; original reopened: `oh-my-hermes src/plugin_bundle/omh/plan_stage_gate.py:14-20` | **Plan-review notice:** keep parent P9's notification-only behavior | **Host approval request:** investigate a host-native approval request before implementation without an accepted plan. This changes the parent's notification-only boundary and requires an explicit parent revision and a supported-host probe |
 
 The current `gates.check_edit` already protects harness state and cache directories. D-10 concerns an extension of that boundary. The upstream account behind D-11 describes Hermes behavior; it does not establish that Claude Code supports the same approval mechanism.
@@ -93,7 +93,7 @@ Requirements -> acceptance:
 
 ## Plan
 
-Readiness: parent criteria approved; this sub-plan is not approved. The Deliverable's "one bundle PR" is provisional until D-12 is chosen; no implementation row starts before D-10, D-11 and D-12 are chosen. Reconcile bundle 1 S6/S7 before coding. Mapped changes wait for the user's applicable `overall`, `evidence` and `gates` design passes. D-10/D-11 are unassigned extensions; selecting an extension first requires a concrete scope amendment. Historical replay availability remains parent OQ-2 and must be resolved before changing the review prompt.
+Readiness: parent criteria approved; this sub-plan is not approved. D-12 chosen (two PRs). No implementation row starts before D-10 and D-11 are chosen. Reconcile bundle 1 S6/S7 before coding. Mapped changes wait for the user's applicable `overall`, `evidence` and `gates` design passes. D-10/D-11 are unassigned extensions; selecting an extension first requires a concrete scope amendment. Historical replay availability remains parent OQ-2 and must be resolved before changing the review prompt.
 
 Environment: repository `agent-harness`, branch reported as `feat/mae-323-loop-redesign`. The repository pins pytest 7.4.4, pytest-xdist 3.8.0 and coverage 7.16.2; installed versions were not tested. Root `pytest.ini` collects only `plugins/maeng-harness/tests`, so a root pytest run alone does not cover the other plugin suites.
 
@@ -170,11 +170,11 @@ Traceability:
 
 Steps:
 
-1. Reconcile bundle 1 and the applicable design passes. Enroll S8's historical corpus and blocker expectations. If the corpus cannot be reconstructed, preserve the gap and resolve OQ-2 before S3; other independent preparation may continue.
-2. S1, then S2 and S3. Done when AC-1 through AC-5 hold on fixed fixtures. Validate receipt consumption through ship and the lease gate, not only review stdout.
-3. S4, then S5. Done when AC-6 through AC-8 hold and notices have observed model-context delivery. Working checks use impact selection.
-4. S6, then S7. Done when AC-9 through AC-12 hold, including the fresh-session observation and real CI result. These rows do not infer execution from configuration.
-5. Finish S8, run the final checks, review, CEO brief and merge quiz. Prepare releases after merge under the parent's release procedure. Report the post-release measurement as pending until its observation window exists.
+1. Reconcile bundle 1 and the applicable design passes. Enroll S8's historical corpus and blocker expectations before S3 changes the review prompt: the corpus file `docs/design/MAE-323-b2-review-cases.json` lands in PR 2a; the replay run stays in 2b (S8). If the corpus cannot be reconstructed, preserve the gap and resolve OQ-2 before S3; other independent preparation may continue.
+2. PR 2a: S1, then S2 and S3. Done when AC-1 through AC-5 hold on fixed fixtures. Validate receipt consumption through ship and the lease gate, not only review stdout.
+3. PR 2a: S4, then S6. Done when AC-3, AC-6, AC-9, AC-10 and AC-11 hold, including the pre-merge `--plugin-dir` context observation. Then the full checks, review, CEO brief and merge quiz of 2a; merge 2a.
+4. PR 2b (branched from the merged 2a): S5, then S7. Done when AC-7, AC-8 and AC-12 hold, including the real CI result. These rows do not infer execution from configuration.
+5. PR 2b: finish S8, run the final checks, review, CEO brief and merge quiz; merge 2b. Prepare releases after merge under the parent's release procedure. Report the post-release measurement as pending until its observation window exists.
 
 Verification tier: gate-code. While working: `python3 plugins/maeng-harness/tests/impact.py run`. Before every code-review round, run `python3 -m pytest -q -n 8` on the completed head. Impact runs never replace it.
 
@@ -218,6 +218,7 @@ Revisions:
 - R-3 plan order: historical corpus enrollment precedes the review-prompt change; final replay follows implementation.
 - R-4 plan decisions: C-29/C-30 remain D-10/D-11 with named options and no recommendation. Existing state-directory protection was distinguished from the proposed extension.
 - R-5 plan verification: every criterion has one check command and an explicit vacuous-pass failure. Full verification remains required before each review round.
+- R-9 plan decisions (2026-11-07): the user chose two PRs for D-12 ("PR 둘로"); Deliverable and the steps now name 2a and 2b.
 - R-8 plan decisions (docs review round 2, Astra medium, 2026-11-07: pass, low 1): the PR structure is D-12 with two named options and a readiness rule; no recommendation shown before the user chooses.
 - R-7 plan verification (docs review round 1, Astra medium, 2026-11-07: high 2): confirmation requires the round-two base and criteria digest, else `blocked` and the user's `승인 #N`; AC-11 is observed before merge with `--plugin-dir` on the candidate tree and verified again after release.
 - R-6 plan boundary: extending SubagentStop to the new definitions is explicit; it resolves bundle 1's known selector gap without changing shared definitions or eta behavior.
