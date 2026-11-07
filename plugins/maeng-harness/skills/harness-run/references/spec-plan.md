@@ -40,6 +40,7 @@ Every requirement maps to an `AC-n`; every `AC-n` maps to a responsible task. Mi
 Readiness: dependencies done? inputs present? Spec status current? every A-n confirmed?
 Environment: <tooling, versions, branch>
 Routing: implement <model/tool>, review <model/tool>, research <tool, if any>; limits: <quota or availability known now, or none>
+Discarded alternatives: <option> - <why not>   # kept in the Plan so a reviewer does not re-propose them; "none" is fine
 Steps:
   1. <step> - done when: <criterion, numbered AC-n it advances>
   2. ...
@@ -47,7 +48,11 @@ Sub-tasks:         # harness-run "Sub-tasks"; Grade = quick | standard | deep | 
                    # or planner = the session itself does the row (no table row)
   | # | Do | Grade | Writes | Interfaces | Done | Fails-if | After |
   |---|---|---|---|---|---|---|---|
-  | S1 | <one deliverable> | <grade> | <files> | <names consumed or produced> | <one command and its expected output> | <what makes it not done, incl. a vacuous pass> | <rows it waits for> |
+  | S1 | <one deliverable> | <grade> | <files> | <names consumed or produced> | <one command and its expected output> | <what makes it not done, incl. a vacuous pass and the negative paths: null, empty, negative, exception> | <rows it waits for> |
+Traceability:      # criterion -> task -> verification; every AC-n has a row
+  | Criterion | Responsible row | Verification |
+  |---|---|---|
+  | AC-1 | S1 | <the check that shows it met> |
 Verification tier: docs-only | code | gate-code   # verification.md "Verification tiers": what runs while working
                                                   # (affected tests) vs once at the final tree (ship check)
 Verification:      # one line per criterion; this is what the gates read (ship checks only, not the inner loop)
@@ -71,6 +76,10 @@ Rules:
 - A `D-n` is a choice the user made or agreed to; an `A-n` is one the agent filled in. The CEO confirms every `A-n` with the Plan approval. An `A-n` the user changes becomes a `D-n` or is dropped, and is logged in `Revisions`.
 - An assumption made mid-task (harness-run: "note the assumption and keep going") is added as an `A-n` and listed in the CEO brief, so it is confirmed once, not found in the result.
 - `Revisions` and `Close-out` are the data for judging whether planning helps (Paxel review, MAE-301). When one category repeats with the same content across three tasks, move it to a standing rule instead of asking it in every Plan.
+
+## Plan review
+
+`maeng-review run --kind plan` (review-and-ship.md) reads the Plan as data. It checks in this order: scope first (is the plan the right size for its goal), then structure, code quality, tests, performance. It blocks only for an `AC-n` with no check, a step that cannot be executed, or a conflict with the cited code. A plan that omits `Discarded alternatives` or the `Traceability` table is not ready for review. The receipt is keyed by the task id and the digest of the acceptance text, so editing a criterion makes it stale.
 
 ## Reviewer starting point (falsify-first)
 

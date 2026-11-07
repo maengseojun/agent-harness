@@ -54,18 +54,21 @@ class StatusFile(StatusBase):
         self.hook("SessionEnd", self.repo)
         self.assertEqual(self.task(tid)["state"], "ended")
 
-    def test_unverified_change_runs_then_blocks_and_pass_names_verified_head(self):
+    def test_unverified_change_finishes_not_running_and_pass_names_verified_head(self):
         self.start(self.repo)
         tid = "s-" + self.sid.replace("-", "")[:8]
         (self.repo / "app.py").write_text("print('x')\n")
         self.hook("PostToolUse", self.repo, tool_name="Edit", tool_input={"file_path": str(self.repo / "app.py")},
                   tool_response={})
-        self.stop("result: done")
-        self.assertEqual((self.task(tid)["state"], self.task(tid)["verify_state"]), ("running", "not_run"))
-        self.stop("result: done", active=True)
-        rec = self.task(tid)
-        self.assertEqual(rec["state"], "blocked")
-        self.assertIn("UNVERIFIED", rec["blocker"])
+        self.assertEqual(self.task(tid)["state"], "running")
+        for active in (False, True):  # a finished turn is never left running or forced blocked by the gap
+            self.stop("result: done", active=active)
+            rec = self.task(tid)
+            self.assertEqual((rec["state"], rec["verify_state"], rec["blocker"]), ("done", "not_run", None))
+        self.stop("no marker line here")
+        self.assertEqual((self.task(tid)["state"], self.task(tid)["verify_state"]), ("idle", "not_run"))
+        self.hook("SessionEnd", self.repo)
+        self.assertEqual((self.task(tid)["state"], self.task(tid)["verify_state"]), ("ended", "not_run"))
         head = self.commit_all(self.repo)
         self.run_check(self.repo, "pytest -q")
         self.hook("PostToolUse", self.repo, tool_name="mcp__claude_ai_Linear__save_comment",

@@ -12,6 +12,25 @@ A declaration never satisfies a runner requirement: if a required check is itsel
 
 If the session state file becomes unreadable, gates deny (the file is never replaced by fresh state) until you run `maeng-verify state --quarantine` and restart the session; quarantine leaves a tombstone so every tool call of that session is denied (whatever the directory) until the restart.
 
+## Evidence ranking
+
+Rank: runner > declared > agent report.
+
+- `runner`: the harness ran it (hook-recorded or `maeng-verify exec`) and the tree did not change. This is the only rank a ship check accepts.
+- `declared`: `maeng-verify ran`. It cannot replace a runner check, the full-suite ship check or a count of executed tests. It covers only free-text checks that no runner can run.
+- `agent report`: a sub-agent's `Verification:` section. It is a claim; the coordinator re-runs the row's Done.
+- Zero executed tests are not evidence, however the exit code reads. A count the runner did not print is `unavailable`, never zero.
+- Impact runs (`python3 plugins/maeng-harness/tests/impact.py run`) are working checks. They are never ship evidence and never satisfy the full-suite requirement.
+- Flaky: when one check shows both an ok run and a failed run on the same tree, record it as flaky. Keep the failed run on record next to the pass.
+
+## Test trust
+
+- Expected values come from the AC or another independent source, never from running the code under test.
+- The Plan's `Fails-if` names the negative paths: null, empty, negative, exception.
+- A bug fix starts with a failing reproduction, kept as a test.
+- Run each new test once against the base code. The result is informational: a test that passes on the base is reported, not blocked.
+- Pin values the code reads (field names, flags, enum values), not English sentences.
+
 ## Required checks (precedence)
 
 1. The bound Plan's `Verification` section.
@@ -36,14 +55,14 @@ Write the tier into the Plan (`Verification tier:` line, see spec-plan.md) and n
 ## States
 
 - **Ship-verified**: every required check has ok evidence at a tree equal to the current one (differing at most in non-code paths such as docs and images); no unresolved failure; with a plan bound, the latest plan record marks every current `AC-n` met and matches the plan's current `updatedAt`.
-- **Stop-satisfied**: ship-verified, or an explicit skip.
+- **Stop-satisfied**: ship-verified, or an explicit skip; otherwise Stop gives the notice above.
 - A skip never makes a tree ship-verified: `maeng-ship merge` stays blocked.
 - Any code edit after the evidence (even a formatter) invalidates it; rerun.
 - A changed dependency or build input (`requirements*.txt`, lockfiles, `CMakeLists.txt`) invalidates earlier evidence. A dirty submodule yields no evidence.
 
 ## Stop
 
-If something is missing, Stop blocks once with the full list. After that it lets you stop with a visible "UNVERIFIED / UNRECORDED" message and keeps the state. Fix it rather than relying on that.
+Stop notifies and never blocks. If verification or a record is missing, it stores an "UNVERIFIED / UNRECORDED" notice that the next prompt receives as model context, and keeps the state: the notice does not clear the missing work. Review entry (`maeng-review`) and merge (`maeng-ship`) still require a ship-verified head, so fix it rather than relying on the notice.
 
 ## Self-recording
 

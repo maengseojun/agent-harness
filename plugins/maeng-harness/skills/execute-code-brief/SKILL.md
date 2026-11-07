@@ -31,6 +31,8 @@ permission to run bundled scripts, install runtimes or change hooks.
 
 Implement the smallest sufficient change. For lengthy work, keep a compact project-local progress record with decisions, verification, and the next action; use an existing record if available. This is task state, not a request to update personal memories.
 
+A brief in five fields (`TASK:`, `DELIVERABLE:`, `SCOPE:`, `VERIFY:`, `STOP WHEN:`) is run as written: change only `SCOPE:`, run the `VERIFY:` command verbatim, stop at `STOP WHEN:`. If a field is missing, ask or state the assumption. The final report starts with `Status: done | partial | blocked` and ends with `Verification:` and `Unfinished:`.
+
 Run the narrowest project-defined checks that cover the change. Inspect the actual result and report what was verified and what remains unverified. Avoid repeated checks after success unless a new change or unresolved concern warrants them.
 
 If the coding work feeds a document or pitch, provide an evidence handoff: implemented capabilities, limitations, test results, and usable demo/artifact references. Label proposed features separately from working features. Ensure a destination can access referenced files before treating the handoff as complete.

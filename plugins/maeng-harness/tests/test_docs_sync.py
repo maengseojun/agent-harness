@@ -73,6 +73,13 @@ class RunnerFormsInSync(unittest.TestCase):
         for fam, cmd in samples.items():
             self.assertIsNotNone(evidence.recognize(cmd), fam)
 
+    def test_documented_zero_test_outputs_are_not_evidence(self):
+        text = DOC.read_text()
+        listed = re.findall(r"`([^`]+)`", re.search(r"zero tests ran \((.*?)with nothing else passing", text, re.S).group(1))
+        self.assertGreaterEqual(len(listed), 8)
+        for out in listed:
+            self.assertTrue(evidence.ran_zero_tests(out), f"verification.md lists {out!r} but evidence.py accepts it as a run")
+
 
 if __name__ == "__main__":
     unittest.main()

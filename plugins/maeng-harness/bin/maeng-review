@@ -607,6 +607,9 @@ def run_review(a, cwd):
     st = checked_load(sid, cwd) if sid else state.fresh("none", cwd)
     if backend() not in ("codex", "claude"):
         die(f"unknown MAENG_REVIEW_BACKEND {backend()!r}: codex or claude", 2)
+    if a.kind in ("code", "parent"):  # P9: notices only, the review runs either way
+        for line in receipts.plan_notices(st.get("binding")):
+            print(line, file=sys.stderr)
     try:  # before any bundle work: a missing row, resource or planner model starts nothing
         sel = select(roles, a.kind, st.get("binding"), a)
     except ValueError as exc:

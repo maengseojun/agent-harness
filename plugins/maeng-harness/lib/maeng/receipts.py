@@ -2,6 +2,7 @@
 import json
 import os
 import re
+from pathlib import Path
 
 from . import schema
 from .common import canonical, git, home_dir, locked, now_iso, read_json, sha256, write_json
@@ -275,6 +276,51 @@ def plan_receipt_status(issue, criteria_rev):
                 rec["verdict"]["subject"].get("issue") == issue:
             return "stale"
     return "missing"
+
+
+def subtask_table(text):
+    """(data rows, has a Grade column) of the Markdown table after the first `Sub-tasks` label or heading, else (0, True).
+    shortcut: the table is the first one after the label, whatever lies between; fine for the Plan template."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if not re.match(r"^\s*(?:#+\s*)?\**sub-tasks\b", line, re.I):
+            continue
+        table = []
+        for nxt in (l.strip() for l in lines[i + 1:]):
+            if nxt.startswith("|"):
+                table.append(nxt)
+            elif table or nxt.startswith("#"):
+                break
+        if table:
+            rows = [r for r in table[1:] if not re.fullmatch(r"\|[\s:|-]+", r)]
+            return len(rows), "grade" in table[0].lower()
+    return 0, True
+
+
+def plan_notices(binding):
+    """One-line notices, never a refusal, for the bound Plan: a large task (child issues, or 2+ Sub-tasks rows) with no
+    valid plan review receipt, and a Sub-tasks table without a Grade column (read as standard). [] when none applies."""
+    binding = binding or {}
+    issue, doc = binding.get("issue"), binding.get("plan_doc")
+    if not issue:
+        return []
+    try:
+        text = binding.get("plan_text") or (Path(doc).read_text(encoding="utf-8") if doc else "")
+        registry = read_json(home_dir() / "bindings.json", {}) or {}
+    except (OSError, ValueError):
+        return []
+    rows, graded = subtask_table(text)
+    children = binding.get("children") or any(
+        isinstance(v, dict) and v.get("parent") == issue for v in registry.values())
+    lines = []
+    if children or rows >= 2:
+        status = plan_receipt_status(issue, binding.get("plan_updated_at"))
+        if status != "valid":
+            lines.append(f"maeng: large task {issue} has no valid plan review receipt ({status}); "
+                         f"`maeng-review run --kind plan` records one. Notice only: review and merge are not blocked.")
+    if rows and not graded:
+        lines.append("maeng: the Plan's Sub-tasks table has no Grade column; read as standard.")
+    return lines
 
 
 def _confirm_path(repo, pr):

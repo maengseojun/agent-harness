@@ -70,14 +70,14 @@ class StopTests(StopBase):
         self.change_code()
         self.record()
         out = self.stop()[1]
-        self.assertIn("UNVERIFIED", (out or {}).get("reason", ""))
-        self.assertNotIn("UNRECORDED", out["reason"])
-        self.assertIn("UNVERIFIED", self.stop()[1]["reason"])
+        self.assertIn("UNVERIFIED", (out or {}).get("systemMessage", ""))
+        self.assertNotIn("UNRECORDED", out["systemMessage"])
+        self.assertIn("UNVERIFIED", self.stop()[1]["systemMessage"])
         self.run_check(self.repo, "pytest -q")
         self.assertIsNone(self.stop()[1])
         self.assertFalse(self.load_state()["stop_unverified"])
         self.change_code("print('own change after a clean stop')\n")
-        self.assertIn("UNVERIFIED", self.stop()[1]["reason"])
+        self.assertIn("UNVERIFIED", self.stop()[1]["systemMessage"])
 
     def test_own_bash_code_change_that_exits_nonzero_requires_verification(self):
         # Round-1 review of PR #102: a script that writes and then fails still changed code.
@@ -85,7 +85,7 @@ class StopTests(StopBase):
         (self.repo / "app.py").write_text("print(7)\n")  # what the failing command wrote before it exited 1
         self.hook("PostToolUse", self.repo, tool_name="Bash", tool_input={"command": command},
                   tool_response={"exit_code": 1})
-        self.assertIn("UNVERIFIED", self.stop()[1]["reason"])
+        self.assertIn("UNVERIFIED", self.stop()[1]["systemMessage"])
 
     def test_doc_only_edit_without_checkout_baseline_needs_no_verification(self):
         # Review finding on PR #102: a session that starts outside git and edits only a doc has no code change.
@@ -98,7 +98,7 @@ class StopTests(StopBase):
         self.record()
         self.assertIsNone(self.stop()[1])
         self.change_code()
-        self.assertIn("UNVERIFIED", self.stop()[1]["reason"])
+        self.assertIn("UNVERIFIED", self.stop()[1]["systemMessage"])
 
     def test_own_bash_code_change_requires_verification(self):
         command = "python3 -c \"from pathlib import Path; Path('app.py').write_text('print(42)\\n')\""
@@ -108,23 +108,61 @@ class StopTests(StopBase):
         self.hook("PostToolUse", self.repo, tool_name="Bash", tool_input={"command": command},
                   tool_response={"exit_code": 0})
         self.assertGreater(self.load_state()["last_change_seq"], self.load_state().get("last_stop_seq", 0))
-        self.assertIn("UNVERIFIED", self.stop()[1]["reason"])
+        self.assertIn("UNVERIFIED", self.stop()[1]["systemMessage"])
 
-    def test_block_once_then_system_message_and_state_kept(self):
+    def test_stop_never_blocks_with_stop_hook_active_either_way(self):
         self.change_code()
-        rc, out, _ = self.stop(active=False)
-        self.assertEqual(out["decision"], "block")
-        self.assertIn("UNVERIFIED", out["reason"])
-        self.assertIn("UNRECORDED", out["reason"])
+        for active in (False, True, False):
+            with self.subTest(active=active):
+                rc, out, _ = self.stop(active=active)
+                self.assertEqual(rc, 0)
+                self.assertNotIn("decision", out)
+                self.assertNotIn("reason", out)
+                self.assertIn("UNVERIFIED", out["systemMessage"])
+                self.assertIn("UNRECORDED", out["systemMessage"])
+
+    def test_notice_reaches_the_model_on_the_next_prompt_and_the_obligation_survives_it(self):
+        self.change_code()
+        self.stop()
+        self.assertEqual(len(self.load_state()["pending_notice"]), 2)
+        rc, out, _ = self.hook("UserPromptSubmit", self.repo, prompt="next")
+        spec = out["hookSpecificOutput"]
+        self.assertEqual(spec["hookEventName"], "UserPromptSubmit")
+        self.assertIn("previous turn ended with open work", spec["additionalContext"])
+        self.assertIn("UNVERIFIED: code changed but this tree has no passing verification", spec["additionalContext"])
+        self.assertIn("UNRECORDED: write your progress/decisions to Linear or Obsidian", spec["additionalContext"])
         before = self.load_state()
-        rc, out, _ = self.stop(active=True)
-        self.assertNotIn("decision", out)
-        self.assertIn("UNVERIFIED / UNRECORDED", out["systemMessage"])
-        after = self.load_state()
-        self.assertEqual(before["baseline_tree"], after["baseline_tree"])
-        self.assertGreater(after["last_change_seq"], after["last_record_seq"])
-        # the obligation survives into the next stop attempt
-        self.assertEqual(self.stop(active=False)[1]["decision"], "block")
+        self.assertIsNone(before["pending_notice"])  # delivered once
+        self.assertGreater(before["last_change_seq"], before["last_record_seq"])
+        self.assertIsNone(self.hook("UserPromptSubmit", self.repo, prompt="again")[1])
+        # delivering did not clear the obligation: the next Stop reports it again and stores a fresh notice
+        self.assertIn("UNVERIFIED", self.stop()[1]["systemMessage"])
+        self.assertIn("UNVERIFIED", self.hook("UserPromptSubmit", self.repo, prompt="x")[1]["hookSpecificOutput"]["additionalContext"])
+        self.run_check(self.repo, "pytest -q")
+        self.record(issue="MAE-1")
+        self.assertIsNone(self.stop()[1])
+        self.assertIsNone(self.load_state()["pending_notice"])
+        self.assertIsNone(self.hook("UserPromptSubmit", self.repo, prompt="clean")[1])
+
+    def test_no_own_change_means_no_notice_in_the_next_prompt(self):
+        other_sid = self.sid + "-other"
+        self.hook("SessionStart", self.repo, session_id=other_sid, source="startup")
+        self.hook("UserPromptSubmit", self.repo, session_id=other_sid, prompt="go")
+        (self.repo / "app.py").write_text("print('other session')\n")
+        self.hook("PostToolUse", self.repo, session_id=other_sid, tool_name="Edit",
+                  tool_input={"file_path": str(self.repo / "app.py")}, tool_response={})
+        self.assertIsNone(self.stop()[1])
+        self.assertIsNone(self.hook("UserPromptSubmit", self.repo, prompt="q")[1])
+
+    def test_stop_handler_error_still_allows(self):
+        from unittest import mock
+        from maeng import handlers
+        self.change_code()
+        with mock.patch.object(handlers, "compute_missing", side_effect=RuntimeError("kaboom")):
+            for active in (False, True):
+                rc, out, err = self.stop(active=active)
+                self.assertEqual((rc, out), (0, None))
+                self.assertIn("kaboom", err)
 
     def test_verified_and_recorded_stops_cleanly(self):
         self.change_code()
@@ -136,8 +174,8 @@ class StopTests(StopBase):
         self.change_code()
         self.cli("maeng-verify", ["skip", "prototype"], self.repo)
         out = self.stop()[1]
-        self.assertNotIn("UNVERIFIED", out["reason"])
-        self.assertIn("UNRECORDED", out["reason"])
+        self.assertNotIn("UNVERIFIED", out["systemMessage"])
+        self.assertIn("UNRECORDED", out["systemMessage"])
 
     def test_question_only_turn_and_docs_only_change_pass(self):
         self.assertIsNone(self.stop()[1])
@@ -150,7 +188,7 @@ class StopTests(StopBase):
         self.run_check(self.repo, "pytest -q", ok=False)
         self.record(issue="MAE-1")
         out = self.stop()[1]
-        self.assertIn("unresolved failure: pytest", out["reason"])
+        self.assertIn("unresolved failure: pytest", out["systemMessage"])
 
     def test_session_stub_written_and_refreshed_in_place(self):
         self.stop()
@@ -188,39 +226,39 @@ class RecordObligation(StopBase):
         self.change_code()
         self.run_check(self.repo, "pytest -q")
 
-    def blocked_for_record(self):
+    def reported_for_record(self):
         out = self.stop()[1]
-        return bool(out) and "UNRECORDED" in out.get("reason", "")
+        return bool(out) and "UNRECORDED" in out.get("systemMessage", "")
 
     def test_unrelated_writes_do_not_count(self):
         self.record(issue="MAE-999")
-        self.assertTrue(self.blocked_for_record())
+        self.assertTrue(self.reported_for_record())
         self.record(tool=OBSIDIAN_WRITE, path="wiki/sessions/x.md", content="---\nlinear: [MAE-5]\n---\nbody")
-        self.assertTrue(self.blocked_for_record())
+        self.assertTrue(self.reported_for_record())
         self.record(tool=LINEAR_COMMENT, issueId="MAE-2200", body="near miss")
-        self.assertTrue(self.blocked_for_record())
+        self.assertTrue(self.reported_for_record())
         self.hook("PostToolUse", self.repo, tool_name="mcp__claude_ai_Linear__get_issue",
                   tool_input={"id": "MAE-220"}, tool_response={}, tool_use_id="g")
-        self.assertTrue(self.blocked_for_record())
+        self.assertTrue(self.reported_for_record())
 
     def test_related_linear_or_obsidian_write_counts(self):
         self.record(issue="MAE-220")
-        self.assertFalse(self.blocked_for_record())
+        self.assertFalse(self.reported_for_record())
 
     def test_personal_linear_server_write_counts(self):
         # MAE-233 H3: the user's Linear server is `linear-maeng`; its writes were not seen, so UNRECORDED repeated
         self.record(tool="mcp__linear-eta__save_comment")
-        self.assertTrue(self.blocked_for_record())
+        self.assertTrue(self.reported_for_record())
         self.record(tool="mcp__linear-maeng__save_comment")
-        self.assertFalse(self.blocked_for_record())
+        self.assertFalse(self.reported_for_record())
 
     def test_obsidian_note_with_linear_frontmatter_counts(self):
         self.record(tool=OBSIDIAN_WRITE, path="wiki/sessions/y.md", content="---\nid: y\nlinear: [MAE-220]\n---\nbody")
-        self.assertFalse(self.blocked_for_record())
+        self.assertFalse(self.reported_for_record())
 
     def test_obsidian_frontmatter_update_counts(self):
         self.record(tool="mcp__obsidian_vault__update_frontmatter", path="wiki/a.md", frontmatter={"linear": ["MAE-220"]})
-        self.assertFalse(self.blocked_for_record())
+        self.assertFalse(self.reported_for_record())
 
     def test_vault_file_write_with_frontmatter_counts(self):
         note = self.vault / "wiki/sessions/z.md"
@@ -228,35 +266,46 @@ class RecordObligation(StopBase):
         note.write_text("---\nlinear: [MAE-220]\n---\n")
         self.hook("PostToolUse", self.repo, tool_name="Write",
                   tool_input={"file_path": str(note), "content": "---\nlinear: [MAE-220]\n---\n"}, tool_response={})
-        self.assertFalse(self.blocked_for_record())
+        self.assertFalse(self.reported_for_record())
 
     def test_start_comment_then_more_changes_still_requires_record(self):
         self.record(issue="MAE-220")                       # "starting work" style comment
-        self.assertFalse(self.blocked_for_record())
+        self.assertFalse(self.reported_for_record())
         self.change_code("print('more changes after the comment')\n")
         self.run_check(self.repo, "pytest -q")
-        self.assertTrue(self.blocked_for_record())
+        self.assertTrue(self.reported_for_record())
         self.record(issue="MAE-220")
-        self.assertFalse(self.blocked_for_record())
+        self.assertFalse(self.reported_for_record())
 
     def test_decision_and_commit_are_substantive_changes(self):
         self.record(issue="MAE-220")
-        self.assertFalse(self.blocked_for_record())
+        self.assertFalse(self.reported_for_record())
         self.cli("maeng-verify", ["decision", "use lease push"], self.repo)
-        self.assertTrue(self.blocked_for_record())
+        self.assertTrue(self.reported_for_record())
         self.record(issue="MAE-220")
         self.git(self.repo, "checkout", "-qb", "work")
         self.hook("PostToolUse", self.repo, tool_name="Bash", tool_input={"command": "git commit --allow-empty -m x"},
                   tool_use_id="c", tool_response={})
-        self.assertTrue(self.blocked_for_record())
+        self.assertTrue(self.reported_for_record())
 
     def test_failed_record_write_does_not_count(self):
         self.hook("PostToolUseFailure", self.repo, tool_name=LINEAR_COMMENT,
                   tool_input={"issueId": "MAE-220", "body": "x"}, tool_use_id="f", error="boom")
-        self.assertTrue(self.blocked_for_record())
+        self.assertTrue(self.reported_for_record())
 
 
 class SubagentAndStart(StopBase):
+    def test_personal_flow_definitions_need_the_report_sections_too(self):
+        # A-6 / AC-10: quick, standard and design report like the implementer; the hook checks presence, not truth.
+        for agent in ("maeng-tools:quick", "maeng-tools:standard", "maeng-tools:design"):
+            with self.subTest(agent=agent):
+                rc, out, _ = self.hook("SubagentStop", self.repo, last_assistant_message="Status: done\nno sections", agent_type=agent)
+                self.assertEqual(out["decision"], "block")
+                ok = self.hook("SubagentStop", self.repo, agent_type=agent,
+                               last_assistant_message="Status: done\nVerification:\n- x\nUnfinished:\n- none")[1]
+                self.assertIsNone(ok)
+        self.assertIsNone(self.hook("SubagentStop", self.repo, last_assistant_message="x", agent_type="maeng-tools:architect")[1])
+
     def test_subagent_stop_requires_report_sections_once(self):
         kw = dict(agent_type="maeng-tools:implementer")
         out = self.hook("SubagentStop", self.repo, last_assistant_message="done, all good", stop_hook_active=False, **kw)[1]
@@ -386,9 +435,10 @@ class SessionRootOutsideCheckout(HarnessCase):
         self.env["CLAUDE_PROJECT_DIR"] = str(repo)
         self.assertIsNone(self.hook("SessionStart", self.tmp, source="startup")[1])
 
-    def test_personal_project_with_state_cwd_outside_checkout_still_blocks(self):
+    def test_personal_project_with_state_cwd_outside_checkout_still_notices(self):
         out = self._session(self.make_repo())
-        self.assertEqual(out["decision"], "block")
+        self.assertNotIn("decision", out)
+        self.assertIn("UNVERIFIED", out["systemMessage"])
 
 
 class DispatcherFailureModes(HarnessCase):

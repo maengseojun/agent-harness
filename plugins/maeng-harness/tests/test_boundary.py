@@ -20,7 +20,7 @@ def proc(base, *names):
 
 # hook events: Stop, UserPromptSubmit, PostToolUse, SessionStart; unreadable stdin and its exit code
 # (DispatcherFailureModes and R1_1 patch handlers in-process, so they have no process form)
-StopProc = proc(test_stop_hooks.StopTests, "test_block_once_then_system_message_and_state_kept",
+StopProc = proc(test_stop_hooks.StopTests, "test_notice_reaches_the_model_on_the_next_prompt_and_the_obligation_survives_it",
                 "test_verified_and_recorded_stops_cleanly")
 HookInputProc = proc(test_r2.R2_D_HookInputFailsClosed)
 # PreToolUse: default-branch push / merge denied, feature push allowed

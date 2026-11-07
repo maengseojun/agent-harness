@@ -165,7 +165,9 @@ def on_prompt(payload):
     out = record_approval(payload.get("prompt") or "", cwd)
     tree, _ = treelib.tree_id(cwd)
     new_task = not st.get("task_id")
+    pending = st.get("pending_notice")  # the last Stop's open work; delivered once, the obligation itself stays in state
     def mark(s):
+        s["pending_notice"] = None
         s["turn"] += 1
         s["cwd"] = s.get("cwd") or cwd
         s["task_id"] = s.get("task_id") or status.task_id_for(sid, payload.get("prompt"))
@@ -175,7 +177,9 @@ def on_prompt(payload):
         return s
     st = state.update(sid, mark, cwd)
     note = task_running(st, new_task)
-    return add_context(out, "\n".join(filter(None, [note, iv]))) if note or iv else out
+    if pending:
+        pending = "maeng: your previous turn ended with open work:\n- " + "\n- ".join(pending)
+    return add_context(out, "\n".join(filter(None, [note, iv, pending]))) if note or iv or pending else out
 
 
 def task_running(st, new_task):
@@ -462,11 +466,24 @@ def post_bash(sid, cwd, st0, tin, tuid, failed, interrupted, payload):
             st["last_change_seq"] = evidence.bump(st)
     state.update(sid, mark, cwd)
     if not failed and re.search(r"\bgh\b.*\bpr\s+create\b", command):
-        return context_out("PostToolUse", review_reminder(st0.get("binding")))
+        return pr_created(sid, state.load(sid, cwd), run_cwd, payload.get("tool_response"))
     return {}
 
 
 ROLES_PATH = Path(__file__).resolve().parents[2] / "policy" / "roles.json"
+
+
+def pr_created(sid, st, cwd, tresp):
+    """The PR-level notice, once per repository/PR (identity: the URL in the output, else toplevel + branch)."""
+    m = re.search(r"github\.com/([^/\s]+/[^/\s]+)/pull/(\d+)", " ".join(gates._strings(tresp)))
+    ident = f"{m.group(1)}#{m.group(2)}" if m else f"{treelib.toplevel(cwd)}|{git_out(cwd, 'rev-parse', '--abbrev-ref', 'HEAD')}"
+    if ident in st.get("pr_notices", []):
+        return {}
+    missing, _ = compute_missing(st, cwd)
+    state.update(sid, lambda s: s.setdefault("pr_notices", []).append(ident), cwd)
+    open_work = [f"Open (notice only; review entry and merge still need final-tree verification): {item}" for item in missing]
+    return context_out("PostToolUse", "\n".join([review_reminder(st.get("binding")), *open_work,
+                                                 *receipts.plan_notices(st.get("binding"))]))
 
 
 def review_reminder(binding):
@@ -584,6 +601,7 @@ def on_stop(payload):
 
     def mark(s):
         s["last_stop_seq"] = s["seq"]
+        s["pending_notice"] = missing or None  # the next prompt carries it to the model
         if not missing and tree:
             s["baseline_tree"] = tree
         try:
@@ -593,23 +611,15 @@ def on_stop(payload):
             warn(f"session stub failed: {exc}")
         task_stopped(s, payload, missing, tree, work_cwd, note)
     state.update(sid, mark, cwd)
-    if not missing:
-        return None
-    if payload.get("stop_hook_active"):
-        return {"systemMessage": "UNVERIFIED / UNRECORDED: " + " | ".join(missing)}
-    return {"decision": "block", "reason": "Before stopping, resolve:\n- " + "\n- ".join(missing)}
+    # Never a block (parent P4b): the user sees this message, the model gets the notice on the next prompt.
+    return {"systemMessage": "maeng: open work (a notice, nothing is blocked): " + " | ".join(missing)} if missing else None
 
 
 def task_stopped(st, payload, missing, tree, cwd, note):
-    """Status at a stop: a blocked stop keeps running, a yielded one is blocked, else the reply's marker line."""
+    """Status at a stop: the reply's marker line (idle without one). Missing work shows in verify_state, never as running."""
     if not st.get("task_id"):
         return
-    if missing and not payload.get("stop_hook_active"):
-        state_, summary = "running", None
-    elif missing:
-        state_, summary = "blocked", None
-    else:
-        state_, summary = status.outcome(payload.get("last_assistant_message"))
+    state_, summary = status.outcome(payload.get("last_assistant_message"))
     vstate = status.verify_state(st.get("evidence", []), tree, any(m.startswith("UNVERIFIED") for m in missing))
     head = git_out(cwd, "rev-parse", "HEAD")
     clean = tree and git_out(cwd, "rev-parse", "HEAD^{tree}") == tree
@@ -618,7 +628,7 @@ def task_stopped(st, payload, missing, tree, cwd, note):
                      task_name=(st.get("binding") or {}).get("issue"),
                      result_summary=summary if state_ in ("done", "failed") else None,
                      next_action=summary if state_ == "needs_input" else None,
-                     blocker=" | ".join(missing) if state_ == "blocked" else None,
+                     blocker=None,
                      head_sha=head, tree_sha=tree, verify_state=vstate,
                      verified_head_sha=head if vstate == "pass" and clean else None,
                      artifact_paths=[str(note)] if note else [])
@@ -646,11 +656,15 @@ def last_assistant_text(payload):
     return last
 
 
+REPORTING_AGENTS = ("maeng-tools:quick", "maeng-tools:standard", "maeng-tools:design")  # the personal-flow definitions (A-6)
+
+
 def on_subagent_stop(payload):
     sid, cwd = payload.get("session_id", ""), payload.get("cwd", os.getcwd())
     if world_of(payload, state.load(sid, cwd)) != guard.PERSONAL or payload.get("stop_hook_active"):
         return None
-    if not str(payload.get("agent_type", "")).endswith("implementer"):
+    agent = str(payload.get("agent_type", ""))
+    if not (agent.endswith("implementer") or agent in REPORTING_AGENTS):
         return None
     text = last_assistant_text(payload)
     if "Verification:" in text and "Unfinished:" in text:

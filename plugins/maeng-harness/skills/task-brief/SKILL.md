@@ -29,6 +29,8 @@ Produce a concise brief covering only applicable items:
 - Approach and relevant available capabilities, with concrete acceptance checks.
 - Execution destination and immediate next action.
 
+A brief meant for an agent to execute has five fields, filled from the items above: `TASK:` (with the reason), `DELIVERABLE:`, `SCOPE:` (files it may change, or the exact files to read), `VERIFY:` (the command verbatim and its expected result) and `STOP WHEN:`. Skip a field only when it does not apply.
+
 Preserve source URLs or file references rather than embedding whole retrieved documents. State the access requirements for the destination: a local path alone is not a transferable attachment. Include the brief in the answer unless a saved file is requested or necessary for the handoff.
 
 When the user requests execution and the necessary tools are available, use the brief to continue within their authorized scope. Do not force a separate Chat phase or task merely because this skill was selected.

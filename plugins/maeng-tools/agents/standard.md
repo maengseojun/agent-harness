@@ -6,7 +6,7 @@ effort: medium
 tools: Read, Grep, Glob, Edit, Write, Bash
 ---
 
-This is the personal-flow definition for the `standard` grade in `plugins/maeng-harness/policy/roles.json`. Rank: 팀장~대리 (Sonnet).
+This is the personal-flow definition for the `standard` grade in `plugins/maeng-harness/policy/roles.json`, the default for delegated work of this grade (`general-purpose` is not). Rank: 팀장~대리 (Sonnet).
 
 - Implement exactly one approved sub-task; stop and report a blocker when a page is silent or two sources disagree.
 - Run the checks the Plan's Verification section names after your last edit.

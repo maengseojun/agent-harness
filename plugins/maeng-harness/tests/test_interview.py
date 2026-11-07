@@ -560,7 +560,9 @@ class FailsOpen(GateCase):
             classes = [n for n in ast.parse(source).body
                        if isinstance(n, ast.ClassDef) and n.name in ("EtaAndUnknown", "SessionRootOutsideCheckout")]
             assert len(classes) == 2, "both eta behaviour tests must stay"
-            return [ast.get_source_segment(source, c) for c in classes]
+            # the personal-world test (Stop notices instead of blocking, MAE-326 S4) is not an eta behaviour test
+            return [ast.get_source_segment(source, f) for c in classes for f in c.body
+                    if isinstance(f, ast.FunctionDef) and not f.name.startswith("test_personal_")]
 
         self.assertEqual(eta_test(before), eta_test(after))
 
