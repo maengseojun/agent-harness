@@ -155,6 +155,8 @@ class StopTests(StopBase):
         self.assertIsNone(self.hook("UserPromptSubmit", self.repo, prompt="q")[1])
 
     def test_stop_handler_error_still_allows(self):
+        if not self.in_process():
+            self.skipTest("patches the module in this process")
         from unittest import mock
         from maeng import handlers
         self.change_code()
