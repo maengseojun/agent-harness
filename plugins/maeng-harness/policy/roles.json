@@ -187,9 +187,10 @@
       ],
       "models": [
         "gpt-6.1-sol",
-        "gpt-6-astra"
+        "gpt-6-astra",
+        "gpt-6.1-terra"
       ],
-      "note": "review model and effort: roles above"
+      "note": "review model and effort: roles above. General-purpose codex model: gpt-6.1-sol; lighter codex work may go to gpt-6.1-terra or, as bounded questions, gpt-6-luna (user, 2026-11-07)"
     },
     "claude_api": {
       "plan": "Claude API key",

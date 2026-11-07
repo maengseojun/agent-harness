@@ -15,6 +15,10 @@ import statistics
 import sys
 from multiprocessing import Pool
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                                "plugins", "maeng-harness", "lib"))
+from maeng.skillbytes import _fields, _frontmatter
+
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 HIGH = ("xhigh", "max")
 SPLIT = (2, 1, 317)  # CLI version from which a subagent on another model no longer inherits the session effort
@@ -360,12 +364,9 @@ def over_ceiling(data, grades):
 def skill_stats(repo):
     n = total = over = 0
     for p in sorted(glob.glob(os.path.join(repo, "plugins", "*", "skills", "*", "SKILL.md"))):
-        m = re.match(r"---\n(.*?)\n---", open(p, encoding="utf-8").read(), re.S)
-        if not m:
-            continue
-        nm = re.search(r"^name:\s*(.*)$", m.group(1), re.M)
-        ds = re.search(r"^description:\s*(.*)$", m.group(1), re.M)
-        b = len(((nm.group(1) if nm else "") + (ds.group(1) if ds else "")).strip("\"' ").encode())
+        with open(p, encoding="utf-8") as f:
+            fields = _fields(_frontmatter(f.read()))
+        b = len(fields["name"].encode("utf-8")) + len(fields["description"].encode("utf-8"))
         n += 1
         total += b
         over += b > 260
@@ -452,7 +453,7 @@ def build_rows(data, rv, repo, compare_baseline):
                      "baseline range is 75-80k"))
     rows += [
         ("skills", n_skill, "skills", "skills added or removed since 2026-11-05"),
-        ("skill name+description bytes", skill_b, "skill_bytes", "single-line frontmatter parse of this tree"),
+        ("skill name+description bytes", skill_b, "skill_bytes", "frontmatter parse of this tree"),
         ("skills over 260 bytes", over, "skills_over_260", "measured on name+description of this tree"),
         ("mutation detection (9 of 20 sampled)", None, None, "needs a run of tools/testperf/mutate.py"),
     ]
