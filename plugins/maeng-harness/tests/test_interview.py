@@ -1,4 +1,5 @@
 """MAE-313: the comprehension gate. Expected values come from the Spec (docs/design/MAE-313-plan.md) or hand reasoning."""
+import ast
 import hashlib
 import json
 import os
@@ -551,9 +552,15 @@ class FailsOpen(GateCase):
         self.assertIn("interview gate error", err)
 
     def test_the_eta_side_effect_test_is_unedited(self):
-        diff = run(["git", "diff", "ad5c6e9", "--", "plugins/maeng-harness/tests/test_stop_hooks.py"],
-                   cwd=ROOT.parents[1], env=self.env).stdout
-        self.assertEqual(diff, "")
+        path = "plugins/maeng-harness/tests/test_stop_hooks.py"
+        before = run(["git", "show", f"ad5c6e9:{path}"], cwd=ROOT.parents[1], env=self.env).stdout
+        after = (ROOT / "tests/test_stop_hooks.py").read_text()
+
+        def eta_test(source):
+            cls = next(n for n in ast.parse(source).body if isinstance(n, ast.ClassDef) and n.name == "EtaAndUnknown")
+            return ast.get_source_segment(source, cls)
+
+        self.assertEqual(eta_test(before), eta_test(after))
 
     def test_the_guard_comment_names_the_exception(self):
         self.assertIn("interview.gate", (ROOT / "lib/maeng/guard.py").read_text())

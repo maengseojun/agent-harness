@@ -2,7 +2,7 @@ import json
 from datetime import date, timedelta
 from pathlib import Path
 
-from .helpers import HOOK, HarnessCase
+from .helpers import HOOK, HarnessCase, run
 
 LINEAR_COMMENT = "mcp__claude_ai_Linear__save_comment"
 OBSIDIAN_WRITE = "mcp__obsidian_vault__write_note"
@@ -42,6 +42,53 @@ class StopBase(HarnessCase):
 
 
 class StopTests(StopBase):
+    def test_another_sessions_code_change_does_not_require_verification(self):
+        other_sid = self.sid + "-other"
+        self.hook("SessionStart", self.repo, session_id=other_sid, source="startup")
+        self.hook("UserPromptSubmit", self.repo, session_id=other_sid, prompt="go")
+        for previously_changed in (False, True):
+            with self.subTest(previously_changed=previously_changed):
+                if previously_changed:
+                    self.change_code("print('my verified change')\n")
+                    self.run_check(self.repo, "pytest -q")
+                    self.record()
+                    self.assertIsNone(self.stop()[1])
+                change_seq = self.load_state()["last_change_seq"]
+                (self.repo / "app.py").write_text(f"print('other session {previously_changed}')\n")
+                self.hook("PostToolUse", self.repo, session_id=other_sid, tool_name="Edit",
+                          tool_input={"file_path": str(self.repo / "app.py")}, tool_response={})
+                self.assertEqual(self.load_state()["last_change_seq"], change_seq)
+                self.assertIsNone(self.stop()[1])
+                self.hook("UserPromptSubmit", self.repo, prompt="just a question")
+                self.assertIsNone(self.stop()[1])
+
+    def test_own_code_change_without_checkout_baseline_requires_verification(self):
+        # A side session can start outside git, then enter the checkout through an edit.
+        self.sid += "-outside"
+        self.start(self.tmp)
+        self.assertIsNone(self.load_state()["baseline_tree"])
+        self.change_code()
+        self.record()
+        out = self.stop()[1]
+        self.assertIn("UNVERIFIED", (out or {}).get("reason", ""))
+        self.assertNotIn("UNRECORDED", out["reason"])
+        self.assertIn("UNVERIFIED", self.stop()[1]["reason"])
+        self.run_check(self.repo, "pytest -q")
+        self.assertIsNone(self.stop()[1])
+        self.assertFalse(self.load_state()["stop_unverified"])
+        self.change_code("print('own change after a clean stop')\n")
+        self.assertIn("UNVERIFIED", self.stop()[1]["reason"])
+
+    def test_own_bash_code_change_requires_verification(self):
+        command = "python3 -c \"from pathlib import Path; Path('app.py').write_text('print(42)\\n')\""
+        denied, reason = self.bash_pre(self.repo, command)
+        self.assertFalse(denied, reason)
+        run(["bash", "-c", command], cwd=self.repo, env=self.env)
+        self.hook("PostToolUse", self.repo, tool_name="Bash", tool_input={"command": command},
+                  tool_response={"exit_code": 0})
+        self.assertGreater(self.load_state()["last_change_seq"], self.load_state().get("last_stop_seq", 0))
+        self.assertIn("UNVERIFIED", self.stop()[1]["reason"])
+
     def test_block_once_then_system_message_and_state_kept(self):
         self.change_code()
         rc, out, _ = self.stop(active=False)

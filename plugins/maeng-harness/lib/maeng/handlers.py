@@ -541,17 +541,24 @@ def post_mcp(sid, cwd, st0, tool, tin, tresp, tuid, failed, payload=None):
 
 def compute_missing(st, cwd):
     missing = []
+    # A blocked Stop advances last_stop_seq; keep its own-change obligation until it is satisfied.
+    own_change = (st.get("last_change_seq", 0) > st.get("last_stop_seq", 0)
+                  or st.get("stop_unverified", False))
     top, common = treelib.toplevel(cwd), treelib.common_dir(cwd)
     tree = None
     if top and common:
         tree, _ = treelib.tree_id(cwd)
         v = evidence.Verifier(st, top, common)
-        if tree and v.code_changed_since(st.get("baseline_tree"), tree) and not v.stop_satisfied(tree):
+        code_changed = tree and (not st.get("baseline_tree") or v.code_changed_since(st.get("baseline_tree"), tree))
+        if own_change and tree and code_changed and not v.stop_satisfied(tree):
             _, reasons = v.ship_verified(tree)
             missing.append("UNVERIFIED: code changed but this tree has no passing verification or skip ("
                            + "; ".join(reasons) + "). Run the required checks, or `maeng-verify skip \"<reason>\"`.")
-        elif not tree and st.get("last_change_seq", 0) > st.get("last_stop_seq", 0):
+        elif not tree and own_change:
             missing.append("UNVERIFIED: tree id unavailable (dirty submodule?), no evidence can be recorded.")
+    unverified = bool(missing)
+    if unverified != st.get("stop_unverified", False):
+        state.update(st["session_id"], lambda s: s.__setitem__("stop_unverified", unverified), cwd)
     if st.get("last_change_seq", 0) > st.get("last_record_seq", 0):
         issue = (st.get("binding") or {}).get("issue")
         target = f"the bound issue {issue}" if issue else "Linear or Obsidian"
