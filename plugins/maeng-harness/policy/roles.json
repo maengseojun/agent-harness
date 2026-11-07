@@ -1,17 +1,20 @@
 {
-  "_comment": "One table for the model and effort of every review kind and execution grade. maeng-review and the sync test read it. sourceUrl is the provider page to check the model id and its effort levels on. verifiedAt is the date the id last ran in this harness; a row older than 30 days is stale. The planner's own model and effort are set by the user and are not in the table.",
+  "_comment": "One table for the model and effort of every review kind and execution grade. maeng-review and the sync test read it. resource names the entry of resources that runs a candidate (maeng.routing checks that it lists the model). sourceUrl is the provider page to check the model id and its effort levels on. verifiedAt is the date the id last ran in this harness; a row older than 30 days is stale. The planner's own model and effort are set by the user and are not in the table.",
   "roles": {
     "code_child": {
       "model": "gpt-6.1-sol",
+      "resource": "gpt_pro",
       "effort": "xhigh",
       "range": null,
       "standby": [
         {
           "model": "claude-opus-5-5",
+          "resource": "claude_code",
           "effort": "high"
         },
         {
           "model": "claude-fable-5-1",
+          "resource": "claude_code",
           "effort": "high"
         }
       ],
@@ -20,15 +23,18 @@
     },
     "code_small": {
       "model": "gpt-6.1-sol",
+      "resource": "gpt_pro",
       "effort": "high",
       "range": null,
       "standby": [
         {
           "model": "claude-opus-5-5",
+          "resource": "claude_code",
           "effort": "high"
         },
         {
           "model": "claude-fable-5-1",
+          "resource": "claude_code",
           "effort": "high"
         }
       ],
@@ -37,6 +43,7 @@
     },
     "parent": {
       "model": "claude-fable-5-1",
+      "resource": "claude_code",
       "effort": "high",
       "range": [
         "medium",
@@ -45,10 +52,12 @@
       "standby": [
         {
           "model": "gpt-6-astra",
+          "resource": "gpt_pro",
           "effort": "high"
         },
         {
           "model": "claude-opus-5-5",
+          "resource": "claude_code",
           "effort": "high"
         }
       ],
@@ -57,11 +66,13 @@
     },
     "docs": {
       "model": "gpt-6-astra",
+      "resource": "gpt_pro",
       "effort": "medium",
       "range": null,
       "standby": [
         {
           "model": "claude-opus-5-5",
+          "resource": "claude_code",
           "effort": "high"
         }
       ],
@@ -70,11 +81,13 @@
     },
     "research": {
       "model": "gpt-6.1-sol",
+      "resource": "gpt_pro",
       "effort": "xhigh",
       "range": null,
       "standby": [
         {
           "model": "claude-opus-5-5",
+          "resource": "claude_code",
           "effort": "high"
         }
       ],
@@ -83,11 +96,13 @@
     },
     "notion": {
       "model": "gpt-6.1-sol",
+      "resource": "gpt_pro",
       "effort": "medium",
       "range": null,
       "standby": [
         {
           "model": "claude-opus-5-5",
+          "resource": "claude_code",
           "effort": "high"
         }
       ],
@@ -96,6 +111,7 @@
     },
     "plan": {
       "model": "gpt-6-astra",
+      "resource": "gpt_pro",
       "effort": "high",
       "range": [
         "medium",
@@ -104,10 +120,12 @@
       "standby": [
         {
           "model": "claude-opus-5-5",
+          "resource": "claude_code",
           "effort": "xhigh"
         },
         {
           "model": "claude-fable-5-1",
+          "resource": "claude_code",
           "effort": "high"
         }
       ],

@@ -30,9 +30,15 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.append(str(HERE.parent.parent / "obsidian-workspace" / "scripts"))
 import decisions_client  # noqa: E402
+from verify_claims import route_model  # noqa: E402
 from private_filter import strip_private  # noqa: E402
 
-DECIDE = decisions_client.decide  # tests replace this
+
+def DECIDE(*args, **kwargs):  # tests replace this
+    """decisions_client.decide with the model of the records_duplicate route, so MAENG_DECISIONS_MODEL cannot replace it."""
+    return decisions_client.decide(*args, model=route_model("records_duplicate"), **kwargs)
+
+
 # For Luna alone (MAE-306 A-11): chosen on half of the eval's cases, confirmed on the other half.
 RELATED_THRESHOLD = 0.05
 MAX_ITEM_CHARS = 4000

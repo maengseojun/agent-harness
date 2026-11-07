@@ -272,14 +272,14 @@ class R2_G_ReviewRevocationAndDelegation(ReviewRunFixture):
         self.assertEqual(sorted(r["key"] for r in recs), sorted([key1, key2]))
 
     def test_plain_exclude_stays_exempt_under_a_parent_pass(self):
-        r = self.review("--kind", "parent", "--exclude", "lib.py", "--exclusion-reason", "verbatim")
+        r = self.review("--kind", "parent", "--planner-model", "claude-opus-5-5", "--exclude", "lib.py", "--exclusion-reason", "verbatim")
         key = json.loads(r.stdout)["receipt"]
         s = self.subject(key)
         self.assertEqual((s["files_reviewed"], s["files_excluded"], s.get("files_delegated")), (["app.py"], ["lib.py"], []))
         self.assertEqual(self.find(key)[1], "")
 
     def test_delegating_a_parent_exclusion_removes_the_exemption(self):
-        r = self.review("--kind", "parent", "--delegate", "lib.py")
+        r = self.review("--kind", "parent", "--planner-model", "claude-opus-5-5", "--delegate", "lib.py")
         key = json.loads(r.stdout)["receipt"]
         self.assertIsNone(self.find(key)[0])
 

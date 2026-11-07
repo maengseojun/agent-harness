@@ -90,6 +90,10 @@ def problems(roles_path, agents_dir, skill_md, review_md, collect_md=None, templ
     for g in GRADES:
         if g not in grades:
             out.append(f"grades.{g} missing")
+    for k, r in roles.items():  # the resource that runs a candidate must list its model (maeng.routing relies on it)
+        for c in [r, *r.get("standby", [])]:
+            if c.get("model") not in d.get("resources", {}).get(c.get("resource"), {}).get("models", []):
+                out.append(f"roles.{k}: {c.get('model')} is not a model of resource {c.get('resource')!r}")
     rows = [(f"roles.{k}", r) for k, r in roles.items()] + [(f"grades.{k}", r) for k, r in grades.items()]
     for name, r in rows:
         for key in ("model", "effort", "standby"):
@@ -214,6 +218,14 @@ class RolesSync(unittest.TestCase):
             return json.dumps(d)
         self.edit("roles.json", f)
         self.assertTrue(any("claim_check.resource" in p for p in self.check()))
+
+    def test_role_resource_removed(self):
+        def f(t):
+            d = json.loads(t)
+            del d["roles"]["parent"]["standby"][0]["resource"]
+            return json.dumps(d)
+        self.edit("roles.json", f)
+        self.assertTrue(any("roles.parent" in p and "resource" in p for p in self.check()))
 
     def test_routes_section_removed(self):
         def f(t):

@@ -24,6 +24,7 @@ CLI: python3 verify_claims.py claims.json [--seed N] [--out path]
 import argparse
 import hashlib
 import functools
+import importlib.util
 import ipaddress
 import json
 import math
@@ -43,6 +44,22 @@ from urllib.parse import urlparse
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent / "obsidian-workspace" / "scripts"))
 import decisions_client  # noqa: E402
 from private_filter import strip_private  # noqa: E402
+
+def route_model(name, script=None):
+    """Model of the roles.json route `name`, resolved by maeng-harness's routing.py, which is found relative to this
+    script: <plugins>/maeng-harness in a checkout, <cache>/maeng-harness/<newest version> beside this plugin's
+    version folder in an installation. No default model: a missing table or row raises before any request."""
+    here = Path(script or __file__).resolve()
+    newest = sorted(here.parents[5].glob("maeng-harness/*"), reverse=True,
+                    key=lambda p: [int(n) for n in re.findall(r"\d+", p.name)])
+    root = next((p for p in [here.parents[4] / "maeng-harness", *newest] if (p / "policy" / "roles.json").is_file()), None)
+    if root is None:
+        raise FileNotFoundError(f"maeng-harness/policy/roles.json not found from {here}")
+    spec = importlib.util.spec_from_file_location("maeng_routing", root / "lib" / "maeng" / "routing.py")
+    routing = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(routing)
+    return routing.resolve(routing.load(root / "policy" / "roles.json"), name)["model"]
+
 
 MAX_CHARS = 400_000
 MAX_BYTES = 8_000_000
@@ -205,7 +222,8 @@ def _question(c):
 
 
 def verify(claims, *, pilot="claim_verification", decide=None, pages=None):
-    decide = decide or functools.partial(decisions_client.decide, redact_by_name=False)
+    decide = decide or functools.partial(decisions_client.decide, redact_by_name=False,
+                                         model=route_model("claim_check"))  # not MAENG_DECISIONS_MODEL
     ids = [c["id"] for c in claims]
     if len(set(ids)) != len(ids):
         raise ValueError("claim ids must be unique")

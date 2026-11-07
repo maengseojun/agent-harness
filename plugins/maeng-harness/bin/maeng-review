@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
 
-from maeng import evidence, gates, ghcmd, guard, receipts, recordcheck, schema, state, status  # noqa: E402
+from maeng import evidence, gates, ghcmd, guard, receipts, recordcheck, routing, schema, state, status  # noqa: E402
 from maeng import tree as treelib  # noqa: E402
 from maeng.cli_common import checked_load, die, require_personal  # noqa: E402
 from maeng.common import canonical, git, git_out, home_dir, sha256, write_json  # noqa: E402
@@ -82,11 +82,11 @@ BUNDLE:
 """
 
 
-# Review backend (design D-9): Codex (Astra/Sol) comes first. A headless isolated `claude -p` Opus reviewer is
-# only the fallback after CODEX_ATTEMPTS failed codex runs (e.g. usage exhausted). MAENG_REVIEW_BACKEND=claude skips
-# codex and is set only on the user's request.
-# `--author codex` on a code review also skips codex: Sol never reviews a Sol-written change; Opus high does (MAE-295).
-# Parent integration is the exception: Fable high first, Astra high is its standby when Fable fails (MAE-296).
+# Reviewer choice is maeng.routing.resolve over policy/roles.json (parent plan, reviewer rules): candidates in table
+# order, the actual author's model skipped (MAE-295), plan/parent also skip the planner's (MAE-296), and the next
+# candidate only after those or a failed run. A candidate on resource gpt_pro runs through Codex (CODEX_ATTEMPTS tries),
+# one on claude_code through an isolated headless `claude -p`. MAENG_REVIEW_BACKEND=claude pins the claude candidates
+# and is set only on the user's request.
 CODEX_ATTEMPTS = 3
 ROLES_PATH = Path(__file__).resolve().parent.parent / "policy" / "roles.json"
 REVIEW_ROLES = ("code_child", "code_small", "parent", "docs", "research", "notion", "plan")
@@ -98,13 +98,8 @@ def backend():
 
 def load_roles(path=None):
     path = Path(path) if path is not None else ROLES_PATH
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as exc:
-        raise ValueError(f"cannot read review roles from {path}: {exc}") from exc
-    roles = data.get("roles") if isinstance(data, dict) else None
-    if not isinstance(roles, dict):
-        raise ValueError(f"invalid {path}: roles must be an object")
+    data = routing.load(path)
+    roles = data["roles"]
     for kind in REVIEW_ROLES:
         row = roles.get(kind)
         name = f"{path}: roles.{kind}"
@@ -122,31 +117,26 @@ def load_roles(path=None):
         if row["model"].startswith("claude-") and not any(
                 not s["model"].startswith("claude-") for s in standby):
             raise ValueError(f"{name} needs a Codex standby")
-    return roles
+        routing.candidates(data, kind)  # every candidate names a resource that lists its model
+    if not isinstance(data["routes"].get("review"), dict):
+        raise ValueError(f"{path}: routes.review is missing")
+    return data
 
 
-def review_tier(kind, binding, review_backend, roles=None):
-    roles = load_roles() if roles is None else roles
+def role_for(kind, binding):
     if kind == "code":
-        kind = "code_child" if binding and binding.get("parent") and binding.get("criteria") else "code_small"
-    if kind not in roles or review_backend not in ("codex", "claude"):
-        raise ValueError(f"unknown review kind/backend: {kind}/{review_backend}")
-    row = roles[kind]
-    for pair in [row, *row["standby"]]:
-        if pair["model"].startswith("claude-") == (review_backend == "claude"):
-            effort = pair["effort"]
-            if kind == "parent" and review_backend == "claude":  # plan A-7: the override stays, changed only on the user's request
-                effort = os.environ.get("MAENG_FABLE_EFFORT") or effort
-            return pair["model"], effort
-    raise ValueError(f"roles.{kind} has no {review_backend} reviewer")
+        return "code_child" if binding and binding.get("parent") and binding.get("criteria") else "code_small"
+    return kind
 
 
-def tier_for(kind, binding, roles=None):
-    return review_tier(kind, binding, "claude" if kind == "parent" else backend(), roles)
-
-
-def fallback_tier(kind, binding, roles=None):
-    return review_tier(kind, binding, "claude", roles)
+def select(data, kind, binding, a, unavailable=None):
+    """The next reviewer candidate for this run (routing.resolve); a RoutingError means nothing may start."""
+    role = role_for(kind, binding)
+    sel = routing.resolve(data, role, route="review", author=a.author_model or a.author, planner=a.planner_model,
+                          only="claude" if backend() == "claude" else None, unavailable=unavailable)
+    if role == "parent" and sel["model"] == data["roles"]["parent"]["model"]:  # plan A-7: the override stays, changed only on the user's request
+        sel["effort"] = os.environ.get("MAENG_FABLE_EFFORT") or sel["effort"]
+    return sel
 
 
 def claude_command(model, effort, schema_json):
@@ -154,10 +144,6 @@ def claude_command(model, effort, schema_json):
     claude = os.environ.get("MAENG_CLAUDE") or "claude"
     return [claude, "-p", "--setting-sources", "", "--strict-mcp-config", "--tools", "",
             "--model", model, "--effort", effort, "--output-format", "json", "--json-schema", schema_json]
-
-
-def _codex_tier(kind, binding, roles=None):
-    return review_tier(kind, binding, "codex", roles)
 
 
 def features_to_disable(codex):
@@ -447,6 +433,12 @@ def run_review(a, cwd):
     require_personal(cwd)
     sid = a.session or state.find_session(cwd)
     st = checked_load(sid, cwd) if sid else state.fresh("none", cwd)
+    if backend() not in ("codex", "claude"):
+        die(f"unknown MAENG_REVIEW_BACKEND {backend()!r}: codex or claude", 2)
+    try:  # before any bundle work: a missing row, resource or planner model starts nothing
+        sel = select(roles, a.kind, st.get("binding"), a)
+    except ValueError as exc:
+        die(str(exc), 2)
     if a.kind == "notion":
         payload = json.loads(Path(a.payload).read_text())
         digest = sha256(canonical(payload))
@@ -479,9 +471,6 @@ def run_review(a, cwd):
                 subject[k] = st["binding"][k]
         if not a.base_ref:
             bundle.setdefault("missing", []).append("base ref name (--base-ref)")
-    codex_author = a.kind == "code" and a.author == "codex"
-    model, effort = (fallback_tier(a.kind, st.get("binding"), roles) if codex_author
-                     else tier_for(a.kind, st.get("binding"), roles))
     plan = a.plan or (st.get("binding") or {}).get("plan_doc")
     preflight = a.kind in ("code", "parent") and not recordcheck.off()
     if preflight and not (plan and a.evidence):
@@ -491,8 +480,10 @@ def run_review(a, cwd):
         bundle.setdefault("missing", []).append(
             f"prompt is {len(prompt_text)} characters (> --max-bytes {a.max_bytes}); split the review with "
             f"--path/--delegate or attach fewer --evidence files")
+    if sel["model"] is None:
+        return blocked_no_candidate(subject, sel)
     if bundle["missing"]:
-        verdict = {"verdict": "blocked", "subject": subject, "reviewer": {"model": model, "effort": effort},
+        verdict = {"verdict": "blocked", "subject": subject, "reviewer": {"model": sel["model"], "effort": sel["effort"]},
                    "findings": [{"severity": "high", "title": "bundle incomplete", "body": ", ".join(bundle["missing"]),
                                  "file": None, "line": None}]}
         print(json.dumps(verdict, indent=2))
@@ -511,31 +502,33 @@ def run_review(a, cwd):
     with tempfile.TemporaryDirectory(prefix="maeng-review-") as d:
         schema_path, out_path = Path(d, "schema.json"), Path(d, "out.json")
         write_json(schema_path, out_schema)
-        fallback_from = None
-        if backend() == "claude" or codex_author or a.kind == "parent":
-            result, aux_models, err = run_claude(model, effort, out_schema, prompt_text, cwd)
-            if err and a.kind == "parent":  # Fable unavailable (e.g. usage limit): Astra high is its standby
-                fallback_from = {"model": model, "effort": effort, "attempts": 1}
-                model, effort = _codex_tier(a.kind, st.get("binding"), roles)
-                print(f"warning: {fallback_from['model']} failed ({err[-300:]}); falling back to {model}", file=sys.stderr)
-                aux_models = []
-                result, err = codex_attempts(model, effort, schema_path, out_path, prompt_text, cwd)
-        else:
-            aux_models = []
-            result, err = codex_attempts(model, effort, schema_path, out_path, prompt_text, cwd)
-            if err:
-                fallback_from = {"model": model, "effort": effort, "attempts": CODEX_ATTEMPTS}
-                model, effort = fallback_tier(a.kind, st.get("binding"), roles)
-                print(f"warning: falling back to Claude reviewer {model} ({effort})", file=sys.stderr)
+        fallback_from, unavailable = None, {}
+        while True:  # a failed run (usage limit, bad output) is the only reason to try the next candidate
+            model, effort = sel["model"], sel["effort"]
+            if sel["resource"] == "claude_code":
+                attempts = 1
                 result, aux_models, err = run_claude(model, effort, out_schema, prompt_text, cwd)
-        if err:
-            die(err)
+            else:
+                attempts, aux_models = CODEX_ATTEMPTS, []
+                result, err = codex_attempts(model, effort, schema_path, out_path, prompt_text, cwd)
+            if not err:
+                break
+            fallback_from = {"model": model, "effort": effort, "attempts": attempts}
+            unavailable[model] = err[-300:]
+            print(f"warning: reviewer {model} failed ({err[-300:]}); trying the next candidate", file=sys.stderr)
+            sel = select(roles, a.kind, st.get("binding"), a, unavailable)
+            if sel["model"] is None:
+                return blocked_no_candidate(subject, sel)
     errors = schema.validate(result, out_schema)
     if errors:
         die("reviewer output violates schema: " + "; ".join(errors))
+    author_family = a.author or next((f for f, pre in routing.FAMILIES.items()
+                                      if (a.author_model or "").startswith(pre)), None)
     verdict = {"verdict": result["verdict"], "subject": subject,
                "reviewer": {"model": model, "effort": effort, "provenance": "review-run",
-                            **({"author": a.author} if a.author else {}),
+                            "resource": sel["resource"], "row": sel["row"], "route": sel["route"],
+                            "skipped": sel["skipped"],
+                            **({"author": author_family} if author_family else {}),
                             **({"aux_models": aux_models} if aux_models else {}),
                             **({"fallback_from": fallback_from} if fallback_from else {})},
                "findings": result["findings"]}
@@ -554,6 +547,16 @@ def run_review(a, cwd):
                            "--base", a.base, "--head", a.head, "--evidence", *a.evidence)
     print(json.dumps({"verdict": verdict["verdict"], "receipt": verdict_key, "findings": verdict["findings"]}, indent=2))
     return 0 if verdict["verdict"] == "pass" else 1
+
+
+def blocked_no_candidate(subject, sel):
+    """Every candidate of the role was skipped: report blocked without running a reviewer."""
+    why = "; ".join(f"{s['model']}: {s['reason']}" for s in sel["skipped"])
+    print(json.dumps({"verdict": "blocked", "subject": subject,
+                      "reviewer": {"row": sel["row"], "route": sel["route"], "skipped": sel["skipped"]},
+                      "findings": [{"severity": "high", "title": "no reviewer candidate left", "body": why,
+                                    "file": None, "line": None}]}, indent=2))
+    return 2
 
 
 def round_files(repo, pr):
@@ -661,8 +664,11 @@ def main(argv=None):
                         "tool_reference is null and the reviewer reports tool-dependent judgments as needs-external-check")
     r.add_argument("--no-tool-ref", action="store_true", help=argparse.SUPPRESS)  # old no-op: null is the default
     r.add_argument("--author", choices=["claude", "codex"],
-                   help="model family that wrote the change; with --kind code, codex sends the review to Opus high "
-                        "instead of Sol (no same-model review)")
+                   help="model family that wrote the change; its candidates are skipped (codex on a code review "
+                        "sends it to Opus high instead of Sol); --author-model is exact")
+    r.add_argument("--author-model", help="exact id of the model that wrote the change (skips that candidate)")
+    r.add_argument("--planner-model", help="exact id of the planner's model; required for --kind parent (and plan): "
+                                           "that candidate is skipped")
     r.add_argument("--plan", help="repo path of the Spec/Plan file, read at --head; used when the session has no "
                                   "binding (background or dots-run sessions)")
     r.add_argument("--max-rounds", type=int, default=4,

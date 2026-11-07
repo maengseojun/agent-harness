@@ -1,4 +1,5 @@
 """Review routing consumes the role table and fails closed before starting a review."""
+import argparse
 import json
 
 import pytest
@@ -44,23 +45,19 @@ def test_every_role_and_backend_matches_table(review, table, kind, backend, monk
             s for s in row["standby"] if s["model"].startswith("claude-"))
     cli_kind = "code" if kind.startswith("code_") else kind
     binding = CHILD if kind == "code_child" else None
-    monkeypatch.setenv("MAENG_REVIEW_BACKEND", backend)
-    resolver = review._codex_tier if backend == "codex" else review.fallback_tier
-    assert resolver(cli_kind, binding) == pair(expected)
-    assert review.review_tier(kind, None, backend) == pair(expected)
-    primary = row if kind == "parent" else expected
-    assert review.tier_for(cli_kind, binding) == pair(primary)
+    assert test_cli.pick(review, cli_kind, binding, backend) == pair(expected)
+    assert test_cli.pick(review, cli_kind, binding) == pair(row)  # unpinned: the row's own model comes first
 
 
 @pytest.mark.parametrize("kind,binding", (("code", CHILD), ("notion", None)))
 def test_raised_opus_standbys_are_high(review, kind, binding):
-    assert review.fallback_tier(kind, binding) == ("claude-opus-5-5", "high")
+    assert test_cli.pick(review, kind, binding, "claude") == ("claude-opus-5-5", "high")
 
 
 @pytest.mark.parametrize("binding", (None, {}, {"parent": "MAE-323"}, {"criteria": ["AC-4"]},
                                      {"parent": "MAE-323", "criteria": []}))
 def test_code_without_both_parent_and_criteria_is_small(review, table, binding):
-    assert review._codex_tier("code", binding) == pair(table["roles"]["code_small"])
+    assert test_cli.pick(review, "code", binding, "codex") == pair(table["roles"]["code_small"])
 
 
 def assert_run_rejects_roles(review, monkeypatch, capsys):
@@ -68,7 +65,7 @@ def assert_run_rejects_roles(review, monkeypatch, capsys):
     for name in ("require_personal", "code_bundle", "decisions_advisory", "run_codex", "run_claude"):
         monkeypatch.setattr(review, name, lambda *a, **kw: pytest.fail("review started with invalid roles"))
     with pytest.raises(ValueError, match="roles"):
-        review._codex_tier("code", None)
+        review.load_roles()
     with pytest.raises(SystemExit) as exc:
         review.main(["run", "--kind", "code"])
     assert exc.value.code == 2
@@ -134,18 +131,18 @@ def test_invalid_standby_pair_stops_run(review, table, roles_file, field, value,
 
 def test_resolver_reads_changed_table(review, table, roles_file):
     row = table["roles"]["docs"]
-    row.update(model="gpt-test-reviewer", effort="high")
-    row["standby"][0].update(model="claude-test-reviewer", effort="xhigh")
+    row.update(effort="high")
+    row["standby"][0].update(effort="xhigh")
     roles_file.write_text(json.dumps(table), encoding="utf-8")
-    assert review._codex_tier("docs", None) == ("gpt-test-reviewer", "high")
-    assert review.fallback_tier("docs", None) == ("claude-test-reviewer", "xhigh")
+    assert test_cli.pick(review, "docs", None, "codex") == ("gpt-6-astra", "high")
+    assert test_cli.pick(review, "docs", None, "claude") == ("claude-opus-5-5", "xhigh")
 
 
 def test_roles_path_is_relative_to_script(review, table, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "policy").mkdir()
     (tmp_path / "policy/roles.json").write_text("{broken", encoding="utf-8")
-    assert review._codex_tier("docs", None) == pair(table["roles"]["docs"])
+    assert test_cli.pick(review, "docs", None, "codex") == pair(table["roles"]["docs"])
 
 
 def test_run_help_does_not_require_roles(review, roles_file, capsys):
@@ -178,8 +175,12 @@ class TestCodexAuthor(test_cli.ReviewRunFixture):
 
 def test_parent_fable_effort_override_is_kept(review, monkeypatch):
     # Plan A-7: MAENG_FABLE_EFFORT stays for parent reviews; it does not touch the codex standby.
+    args = argparse.Namespace(author=None, author_model=None, planner_model="claude-opus-5-5")
+    table = review.load_roles()
     monkeypatch.setenv("MAENG_FABLE_EFFORT", "medium")
-    assert review.tier_for("parent", None) == ("claude-fable-5-1", "medium")
-    assert review._codex_tier("parent", None) == ("gpt-6-astra", "high")
+    assert pair(review.select(table, "parent", None, args)) == ("claude-fable-5-1", "medium")
+    args.author_model = "claude-fable-5-1"  # Fable's own change: Astra runs and keeps the table effort
+    assert pair(review.select(table, "parent", None, args)) == ("gpt-6-astra", "high")
     monkeypatch.delenv("MAENG_FABLE_EFFORT")
-    assert review.tier_for("parent", None) == ("claude-fable-5-1", "high")
+    args.author_model = None
+    assert pair(review.select(table, "parent", None, args)) == ("claude-fable-5-1", "high")

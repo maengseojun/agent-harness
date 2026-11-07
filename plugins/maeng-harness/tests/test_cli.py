@@ -20,27 +20,34 @@ def load_bin(name):
     return mod
 
 
+def pick(rv, kind, binding, family=None):
+    """First reviewer candidate of the role, optionally pinned to one family, from the real table."""
+    sel = rv.routing.resolve(rv.load_roles(), rv.role_for(kind, binding), route="review", only=family,
+                             planner="claude-planner-test")
+    return sel["model"], sel["effort"]
+
+
 class ReviewConfig(HarnessCase):
     def test_tier_selection(self):
         rv = load_bin("maeng-review")
         child = {"parent": "MAE-216", "criteria": ["AC-1"]}
-        self.assertEqual(rv.tier_for("code", child), ("gpt-6.1-sol", "xhigh"))
-        self.assertEqual(rv.tier_for("code", {"criteria": ["AC-1"]}), ("gpt-6.1-sol", "high"))
-        self.assertEqual(rv.tier_for("code", None), ("gpt-6.1-sol", "high"))
-        self.assertEqual(rv.tier_for("parent", child), ("claude-fable-5-1", "high"))
-        self.assertEqual(rv._codex_tier("parent", child), ("gpt-6-astra", "high"))  # Fable's standby
-        self.assertEqual(rv.tier_for("docs", None), ("gpt-6-astra", "medium"))
-        self.assertEqual(rv.tier_for("notion", None), ("gpt-6.1-sol", "medium"))
-        self.assertEqual(rv.tier_for("research", None), ("gpt-6.1-sol", "xhigh"))
+        self.assertEqual(pick(rv, "code", child), ("gpt-6.1-sol", "xhigh"))
+        self.assertEqual(pick(rv, "code", {"criteria": ["AC-1"]}), ("gpt-6.1-sol", "high"))
+        self.assertEqual(pick(rv, "code", None), ("gpt-6.1-sol", "high"))
+        self.assertEqual(pick(rv, "parent", child), ("claude-fable-5-1", "high"))
+        self.assertEqual(pick(rv, "parent", child, "codex"), ("gpt-6-astra", "high"))  # Fable's standby
+        self.assertEqual(pick(rv, "docs", None), ("gpt-6-astra", "medium"))
+        self.assertEqual(pick(rv, "notion", None), ("gpt-6.1-sol", "medium"))
+        self.assertEqual(pick(rv, "research", None), ("gpt-6.1-sol", "xhigh"))
 
     def test_fallback_tier_is_opus(self):
         rv = load_bin("maeng-review")
         child = {"parent": "MAE-216", "criteria": ["AC-1"]}
-        self.assertEqual(rv.fallback_tier("code", child), ("claude-opus-5-5", "high"))  # raised row (MAE-325 S6)
-        self.assertEqual(rv.fallback_tier("code", None), ("claude-opus-5-5", "high"))
-        self.assertEqual(rv.fallback_tier("docs", None), ("claude-opus-5-5", "high"))
-        self.assertEqual(rv.fallback_tier("notion", None), ("claude-opus-5-5", "high"))  # raised row (MAE-325 S6)
-        self.assertEqual(rv.fallback_tier("research", None), ("claude-opus-5-5", "high"))
+        self.assertEqual(pick(rv, "code", child, "claude"), ("claude-opus-5-5", "high"))  # raised row (MAE-325 S6)
+        self.assertEqual(pick(rv, "code", None, "claude"), ("claude-opus-5-5", "high"))
+        self.assertEqual(pick(rv, "docs", None, "claude"), ("claude-opus-5-5", "high"))
+        self.assertEqual(pick(rv, "notion", None, "claude"), ("claude-opus-5-5", "high"))  # raised row (MAE-325 S6)
+        self.assertEqual(pick(rv, "research", None, "claude"), ("claude-opus-5-5", "high"))
 
     def test_feature_names_come_from_codex_features_list(self):
         rv = load_bin("maeng-review")
@@ -145,7 +152,8 @@ class ReviewRun(ReviewRunFixture):
         s = rec["verdict"]["subject"]
         self.assertEqual((s["base"], s["head"], s["destination"], s["op"]), (self.base, self.h, "refs/heads/main", "merge"))
         self.assertEqual(rec["verdict"]["reviewer"],
-                         {"model": "gpt-6.1-sol", "effort": "xhigh", "provenance": "review-run"})
+                         {"model": "gpt-6.1-sol", "effort": "xhigh", "provenance": "review-run", "resource": "gpt_pro",
+                          "row": "roles.code_child", "route": "routes.review", "skipped": []})
         self.assertTrue(s["criteria_rev"])
 
     def test_fail_verdict_stores_no_receipt(self):
@@ -387,7 +395,7 @@ class ClaudeBackend(ReviewRunFixture):
 
     def run_parent_review(self, fake):
         return self.cli("maeng-review", ["run", "--kind", "parent", "--pr", "7", "--base", self.base, "--head", self.h,
-                                         "--base-ref", "main"], self.repo,
+                                         "--base-ref", "main", "--planner-model", "claude-opus-5-5"], self.repo,
                         extra_env={"MAENG_REVIEW_BACKEND": "codex", "MAENG_CLAUDE": str(fake),
                                    "MAENG_CODEX": str(self.codex)})
 
