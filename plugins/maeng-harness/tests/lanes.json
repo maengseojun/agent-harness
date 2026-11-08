@@ -280,18 +280,24 @@
         "cwd": ".",
         "command": [
           "python3",
-          "tools/testperf/mutate.py"
+          "tools/testperf/periodic_checks.py"
         ],
+        "report": "periodic-results/report.json",
+        "skips_allowed": 1,
+        "skips_reason": "test_plugin.py uses skipUnless(shutil.which(\"claude\")); Claude CLI is absent in isolation and CI.",
         "covers": [],
         "required": false,
-        "reason": "periodic lane; needs mutmut and prepared copies of the plugin",
+        "reason": "periodic lane; mutation results never satisfy or block the gate aggregate",
         "deps": [
-          "mutmut"
+          "mutmut",
+          "pytest",
+          "xdist"
         ],
         "pip": [
-          "mutmut"
-        ],
-        "manual": "sampled mutation per the tools/testperf/mutate.py docstring: run on COPIES of plugins/maeng-harness (the mutated file is written in place), with a mutants.db; never against the checkout"
+          "mutmut==2.5.1",
+          "pytest",
+          "pytest-xdist"
+        ]
       }
     ]
   }

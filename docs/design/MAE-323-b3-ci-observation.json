@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "state": "pending",
+  "judgment": "pending",
+  "decision": "D-14 Later small PR",
+  "window_start": null,
+  "window_end": null,
+  "window_start_source": "first plugin-suites run",
+  "earliest_judgment": "2026-11-21",
+  "follow_up": {
+    "pr": "S7 CI aggregate read",
+    "earliest": "2026-11-21",
+    "scope": "A separate follow-up PR adds the exact-head gate aggregate read to maeng-ship before receipt reservation, only after the full observation window and explicit user judgment. Periodic results cannot substitute for gate results."
+  },
+  "runs": [],
+  "note": "The lead fills the first plugin-suites run timestamp and run entries from gh run list and check/suite readbacks. Local sources only establish 2026-11-07/08, so window_start is not guessed; set window_end at least 14 days later. Empty observations establish neither stability nor enforcement. Record each run_id, attempt, event, head_sha, published check_name, lane, outcome, suite_counts (total, ok, failed, skipped, unavailable, tests_run) and failure_cause. Retain first failures and every rerun attempt. No service history was fetched for this record."
+}
