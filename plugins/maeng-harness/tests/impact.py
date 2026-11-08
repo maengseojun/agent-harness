@@ -16,8 +16,9 @@ mode (narrow | all | fallback), the selected count, the fallback reason, the exe
 
 Two layers (MAE-232 D-6):
 1. Static graph: Python imports between test files, lib/maeng modules, bin scripts and the hook entry, plus literal
-   path references (bin names, schemas/, config/). It is a safe superset at file level, but coarse: the hook
-   dispatcher imports every module, so a lib change reaches nearly every test.
+   path references (bin names, schemas/, config/). Proven helper events follow their handler's functions and
+   globals; unknown events, raw input, dynamic calls and unresolved inheritance retain the full dispatcher closure.
+   Process-boundary tests retain that closure too.
 2. Coverage map (built by `build`, refreshed on demand): for every function in lib/bin/hooks, the tests that ran
    one of its lines. A change inside a function selects those tests. A change at module level, or in a function
    the map has no tests for, falls back to the static graph (module code runs once per worker, so the map
@@ -30,6 +31,7 @@ real process, which the in-process coverage map cannot see) is selected with its
 test is selected when an entry point (hooks/, bin/) changes.
 """
 import ast
+import builtins
 import json
 import os
 import re
@@ -103,11 +105,233 @@ def _imports(path):
     return mods
 
 
+def _event_imports(path):
+    """Event -> handler imports, following local functions and globals. None means unresolved dispatch."""
+    try:
+        tree = ast.parse(Path(path).read_text())
+    except (OSError, SyntaxError, UnicodeDecodeError):
+        return {}
+    symbols, imports, module_code, routes = {}, {}, [], None
+    for node in tree.body:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            for alias in node.names:
+                if alias.name == "*":
+                    return {}
+                if isinstance(node, ast.Import) and alias.name.startswith("maeng.") and not alias.asname:
+                    return {}  # the bound package can expose modules beyond this import
+                base = (node.module or "") if isinstance(node, ast.ImportFrom) else ""
+                if isinstance(node, ast.ImportFrom) and node.level:
+                    base = "maeng" + ("." + base if base else "")
+                mod = f"{base}.{alias.name}" if base == "maeng" else base or alias.name
+                name = alias.asname or alias.name.split(".")[0]
+                if name in imports and imports[name] != mod:
+                    return {}  # a repeated package/alias binding is not a proven event dependency
+                imports[name] = mod
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            symbols[node.name] = node
+            module_code += [*node.decorator_list, node.args, *([node.returns] if node.returns else [])]
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if not isinstance(target, ast.Name):
+                    return {}
+                symbols[target.id] = node.value
+                if target.id == "HANDLERS":
+                    routes = node.value
+            if not any(isinstance(t, ast.Name) and t.id == "HANDLERS" for t in node.targets):
+                module_code.append(node.value)
+        else:
+            module_code.append(node)
+    if not isinstance(routes, ast.Dict) or any(not isinstance(k, ast.Constant) or not isinstance(k.value, str)
+                                               for k in routes.keys):
+        return {}
+    data_methods = {n for cls in (dict, list, set, tuple, str) for n in dir(cls) if not n.startswith("_")}
+    out = {}
+    for key, entry in zip(routes.keys, routes.values):
+        seen, deps, todo = set(), set(), [entry, *module_code]
+        dynamic = not (isinstance(entry, ast.Lambda) or isinstance(entry, ast.Name) and
+                       isinstance(symbols.get(entry.id), (ast.FunctionDef, ast.AsyncFunctionDef)))
+        while todo:
+            node = todo.pop()
+            functions = {n.name for n in ast.walk(node) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+            for ref in ast.walk(node):
+                if isinstance(ref, (ast.FunctionDef, ast.AsyncFunctionDef)) and ref.decorator_list:
+                    dynamic = True
+                if isinstance(ref, (ast.Import, ast.ImportFrom)):
+                    dynamic = True  # a local import is outside the proven module bindings
+                if isinstance(ref, ast.Call):
+                    if isinstance(ref.func, ast.Attribute):
+                        root = ref.func.value
+                        while isinstance(root, ast.Attribute):
+                            root = root.value
+                        known = (isinstance(root, ast.Name) and root.id in imports.keys() | symbols.keys() or
+                                 isinstance(root, ast.Constant) or isinstance(root, ast.Call) and
+                                 isinstance(root.func, ast.Name) and root.func.id in imports.keys() | vars(builtins).keys())
+                        if not known and ref.func.attr not in data_methods:
+                            dynamic = True
+                    elif isinstance(ref.func, ast.Name):
+                        name = ref.func.id
+                        if name in ("getattr", "globals", "locals", "eval", "exec", "__import__") or not (
+                                name in imports or name in functions or name in vars(builtins) or
+                                isinstance(symbols.get(name), (ast.FunctionDef, ast.AsyncFunctionDef))):
+                            dynamic = True
+                    elif not isinstance(ref.func, (ast.Attribute, ast.Lambda)):
+                        dynamic = True
+                if isinstance(ref, ast.Name) and isinstance(ref.ctx, ast.Load):
+                    name = ref.id
+                    if name in imports and imports[name].startswith("maeng"):
+                        deps.add(imports[name])
+                    if name in symbols and name not in seen:
+                        seen.add(name)
+                        todo.append(symbols[name])
+        out[key.value] = None if dynamic else deps
+    return out
+
+
+def _test_events(text, helper_tree, events):
+    """Prove literal events through self calls; unresolved inheritance, aliases or raw input keep the full hook."""
+    if helper_tree is None:
+        return None
+    helpers = {n.name: n for cls in helper_tree.body if isinstance(cls, ast.ClassDef) and cls.name == "HarnessCase"
+               for n in cls.body if isinstance(n, ast.FunctionDef)}
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return None
+    local = {n.name for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.ClassDef))}
+    execution_modules = {"subprocess", "runpy", "importlib", "os", "pickle", "marshal", "ctypes", "code", "codeop",
+                         "builtins", "types", "operator"}
+    bindings = []
+    for source in (tree, helper_tree):
+        imported, trusted, unknown, foreign = set(), set(), set(), set()
+        for node in ast.walk(source):
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                for alias in node.names:
+                    name = alias.asname or alias.name.split(".")[0]
+                    imported.add(name)
+                    module = (node.module or "") if isinstance(node, ast.ImportFrom) else alias.name
+                    if getattr(node, "level", 0) or module.split(".")[0] not in sys.stdlib_module_names | {"maeng"}:
+                        foreign.add(name)
+                    if not getattr(node, "level", 0) and module.split(".")[0] in (sys.stdlib_module_names - execution_modules) | {"maeng"}:
+                        trusted.add(name)
+                    else:
+                        unknown.add(name)
+        if source is helper_tree and foreign:
+            return None
+        bindings.append((imported, trusted - unknown))
+    fixture_imports = [(n, a) for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))
+                       for a in n.names if (a.asname or a.name.split(".")[0]) == "HarnessCase"]
+    fixture_import = bool(fixture_imports) and all(isinstance(n, ast.ImportFrom) and n.level == 1 and
+                         n.module == "helpers" and a.name == "HarnessCase" and a.asname is None
+                         for n, a in fixture_imports)
+    if bindings[0][0] - bindings[0][1] - ({"HarnessCase"} if fixture_import else set()):
+        return None  # an external function can also be passed to a callback-taking builtin
+    trusted = ({"self", "HarnessCase"} | local | vars(builtins).keys() | bindings[0][1]) - (bindings[0][0] - bindings[0][1])
+    for node in ast.walk(tree):
+        if isinstance(node, ast.arg) and node.arg != "self":
+            return None
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.decorator_list:
+            return None
+        if isinstance(node, ast.Call):
+            root = node.func
+            while isinstance(root, (ast.Attribute, ast.Call)):
+                root = root.value if isinstance(root, ast.Attribute) else root.func
+            if not (isinstance(root, ast.Name) and root.id in trusted or isinstance(root, ast.Constant)):
+                return None  # an external driver or unknown receiver can dispatch outside this tree
+        if isinstance(node, ast.ImportFrom) and any(a.name in ("HOOK", "call_hook", "call_cli", "*") for a in node.names):
+            return None
+        if isinstance(node, ast.Call) and any(isinstance(a, ast.Name) and a.id == "self" for a in node.args):
+            return None
+        if isinstance(node, ast.ClassDef) and node.keywords:
+            return None
+        if isinstance(node, ast.ClassDef) and any(not (isinstance(b, ast.Name) and b.id in local | {"HarnessCase"} or
+                isinstance(b, ast.Attribute) and isinstance(b.value, ast.Name) and
+                b.value.id == "unittest" and b.attr == "TestCase") for b in node.bases):
+            return None
+    todo = [tree, *(helpers[n] for n in ("setUp", "tearDown", "setUpClass", "tearDownClass") if n in helpers)]
+    calls = {id(n.func): n for root in todo for n in ast.walk(root) if isinstance(n, ast.Call)}
+    seen, found = set(), set()
+    while todo:
+        node = todo.pop()
+        if isinstance(node, ast.FunctionDef) and node.decorator_list:
+            return None
+        for ref in ast.walk(node):
+            if node is not tree and isinstance(ref, ast.Call):
+                root = ref.func
+                while isinstance(root, (ast.Attribute, ast.Call)):
+                    root = root.value if isinstance(root, ast.Attribute) else root.func
+                if isinstance(root, ast.Name) and root.id in bindings[1][0] - bindings[1][1]:
+                    return None
+                # These current fixture functions have inspected targets; test-level aliases remain unknown.
+                known = {"git": {"run"}, "cli": {"run", "call_cli"}, "make_repo": {"_template_root"},
+                         "run_check": {"between"}}.get(node.name, set())
+                if isinstance(ref.func, ast.Name) and ref.func.id not in vars(builtins).keys() | bindings[1][1] | known:
+                    return None
+            if (isinstance(ref, ast.Call) and isinstance(ref.func, ast.Attribute) and node is tree and
+                    isinstance(ref.func.value, ast.Name) and ref.func.value.id == "self" and ref.func.attr in helpers):
+                if any(isinstance(a, ast.Starred) for a in ref.args) or any(
+                        k.arg is None or k.arg == "hook_event_name" for k in ref.keywords):
+                    return None
+            if isinstance(ref, (ast.Assign, ast.NamedExpr)) and isinstance(ref.value, ast.Name) and ref.value.id == "self":
+                return None
+            if isinstance(ref, ast.Name) and ref.id in ("HOOK", "call_hook", "call_cli", "getattr", "globals", "locals",
+                                                       "eval", "exec", "compile", "__import__"):
+                if not (ref.id == "call_cli" and isinstance(node, ast.FunctionDef) and node.name == "cli"):
+                    return None
+            if not isinstance(ref, ast.Attribute):
+                continue
+            if ref.attr in ("HOOK", "call_hook", "call_cli"):
+                return None
+            if not (isinstance(ref.value, ast.Name) and ref.value.id == "self"):
+                if ref.attr in ("hook", "pre", "bash_pre", "run_check", "verify_tree", "run_hook_text"):
+                    return None
+                continue
+            name = ref.attr
+            if name == "run_hook_text" or name in helpers and id(ref) not in calls:
+                return None
+            if id(ref) not in calls:
+                continue
+            if name in helpers and name in local:
+                return None  # an override can alter the wrapper's dispatch
+            if name == "cli":
+                call = calls[id(ref)]
+                command = call.args[0].value if call.args and isinstance(call.args[0], ast.Constant) else None
+                if command not in {b.name for b in (PLUGIN / "bin").iterdir() if b.is_file()} or command not in text:
+                    return None
+            if name == "run_check":
+                call = calls[id(ref)]
+                callbacks = [k.value for k in call.keywords if k.arg == "between"] + call.args[3:4]
+                if any(not isinstance(v, ast.Constant) or v.value is not None for v in callbacks):
+                    return None  # the between callback can drive any event
+            if name == "hook":
+                call = calls[id(ref)]
+                event = call.args[0].value if call.args and isinstance(call.args[0], ast.Constant) else None
+                if event not in events:
+                    return None
+                found.add(event)
+            elif name in helpers:
+                if name not in seen:
+                    seen.add(name)
+                    helper = helpers[name]
+                    calls.update({id(n.func): n for n in ast.walk(helper) if isinstance(n, ast.Call)})
+                    todo.append(helper)
+            elif name not in local and not name.startswith("assert") and name not in ("addCleanup", "subTest", "skipTest"):
+                return None
+    return found
+
+
 def static_graph():
     """{test file: set of source files it can reach}."""
     srcs = _source_files()
     edges = {k: _imports(PLUGIN / v) for k, v in srcs.items()}
     edges["hook"] |= {"maeng.handlers", "maeng.state"}
+    event_imports = _event_imports(PLUGIN / srcs["maeng.handlers"])
+    if not event_imports:
+        edges["maeng.handlers"] |= {n for n in srcs if n.startswith("maeng")}
+    for event, deps in event_imports.items():
+        key, handler = "hook:" + event, "handler:" + event
+        srcs[key], srcs[handler] = srcs["hook"], srcs["maeng.handlers"]
+        edges[key] = (edges["hook"] - {"maeng.handlers"}) | {handler}
+        edges[handler] = edges["maeng.handlers"] if deps is None else deps
 
     def closure(start):
         seen, todo = set(), list(start)
@@ -120,13 +344,19 @@ def static_graph():
         return {srcs[n] for n in seen}
 
     helpers_text = (TESTS / "helpers.py").read_text()
+    try:
+        helper_tree = ast.parse(helpers_text)
+    except SyntaxError:
+        helper_tree = None
     uses_hook = re.compile(r"\bself\.(hook|pre|bash_pre|start|run_check|verify_tree|run_hook_text)\(|\bHOOK\b")
     graph = {}
     for t in sorted(TESTS.glob("test_*.py")):
         text = t.read_text()
         start = _imports(t)
-        if uses_hook.search(text) or "HarnessCase" in text and uses_hook.search(helpers_text):
-            start.add("hook")
+        if uses_hook.search(text) or "HarnessCase" in text or rel(t) == BOUNDARY:
+            events = None if rel(t) == BOUNDARY else _test_events(text, helper_tree, event_imports)
+            start |= {"hook"} if events is None else {"hook:" + e for e in events}
+            start.add("maeng.state")
         start |= {f"bin:{b.name}" for b in (PLUGIN / "bin").iterdir() if b.name in text}
         reach = closure(start)
         for d in ("schemas", "config"):

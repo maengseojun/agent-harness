@@ -1,0 +1,947 @@
+{
+ "recorded_at": "2026-11-08T09:30:31Z",
+ "partial": false,
+ "impact_sha256": "74d2eed706eb628d7a9bfaabb0f25bbe67fda5266937cf9bdd36fc2851e4b462",
+ "cases_from": "docs/design/MAE-323-b2-impact-cases.json",
+ "commits_selected_by": "pinned SHA/parent pairs",
+ "cases": [
+  {
+   "sha": "dd020a7335aa367d2c84a6f9caed29bb1f4b2243",
+   "parent": "d7c26cac286b1d7c448655f98e365fd0a68ef27c",
+   "map": "built in 199.0s",
+   "map_base": "d7c26cac286b1d7c448655f98e365fd0a68ef27c",
+   "parent_map_test_failures": null,
+   "select": {
+    "count": null,
+    "all": true,
+    "reasons": [
+     "tests/impact.py: shared test/plugin input -> all"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "all",
+    "selected": null,
+    "fallback": null,
+    "tests_run": 815,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 143.6
+  },
+  {
+   "sha": "e9671c0cca6821dc3bc1799a81aa0519689054c0",
+   "parent": "c1b5aea56311ebbe7aff8fbbf01ff5dcf099ead2",
+   "map": "built in 143.6s",
+   "map_base": "c1b5aea56311ebbe7aff8fbbf01ff5dcf099ead2",
+   "parent_map_test_failures": null,
+   "select": {
+    "count": 1,
+    "all": false,
+    "reasons": [
+     "tests/test_review_replay.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 1,
+    "fallback": null,
+    "tests_run": 15,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 3.2
+  },
+  {
+   "sha": "53450a77a253795bb19611286b634d9df4f6182a",
+   "parent": "e87935f7fee2a9d547d6d2ecb2e13738b276bf6e",
+   "map": "built in 142.5s",
+   "map_base": "e87935f7fee2a9d547d6d2ecb2e13738b276bf6e",
+   "parent_map_test_failures": null,
+   "select": {
+    "count": null,
+    "all": true,
+    "reasons": [
+     "tests/impact.py: shared test/plugin input -> all"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "all",
+    "selected": null,
+    "fallback": null,
+    "tests_run": 805,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 122.5
+  },
+  {
+   "sha": "c6bc84395d4d0ba6ee9e6de9f66532b43868ff35",
+   "parent": "d6201ee2da92dcd6fdc0f9587f4885a918229ed1",
+   "map": "built in 147.7s",
+   "map_base": "d6201ee2da92dcd6fdc0f9587f4885a918229ed1",
+   "parent_map_test_failures": null,
+   "select": {
+    "count": 1,
+    "all": false,
+    "reasons": [
+     "tests/test_review_replay.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 1,
+    "fallback": null,
+    "tests_run": 14,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 3.1
+  },
+  {
+   "sha": "d6201ee2da92dcd6fdc0f9587f4885a918229ed1",
+   "parent": "65283109f9fdd938ceb37a832750227d6c29bc5f",
+   "map": "built in 143.3s",
+   "map_base": "65283109f9fdd938ceb37a832750227d6c29bc5f",
+   "parent_map_test_failures": null,
+   "select": {
+    "count": null,
+    "all": true,
+    "reasons": [
+     "tests/impact.py: shared test/plugin input -> all"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "all",
+    "selected": null,
+    "fallback": null,
+    "tests_run": 799,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 133.6
+  },
+  {
+   "sha": "65283109f9fdd938ceb37a832750227d6c29bc5f",
+   "parent": "86b80200109336676cb4d2bd4cdc09887e083bc5",
+   "map": "built in 291.6s",
+   "map_base": "86b80200109336676cb4d2bd4cdc09887e083bc5",
+   "parent_map_test_failures": null,
+   "select": {
+    "count": 1,
+    "all": false,
+    "reasons": [
+     "tests/test_review_replay.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 1,
+    "fallback": null,
+    "tests_run": 9,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 4.5
+  },
+  {
+   "sha": "86b80200109336676cb4d2bd4cdc09887e083bc5",
+   "parent": "e98253b24e2969ce6a26ec8f1ceeea2d648f4162",
+   "map": "built in 274.5s",
+   "map_base": "e98253b24e2969ce6a26ec8f1ceeea2d648f4162",
+   "parent_map_test_failures": null,
+   "select": {
+    "count": null,
+    "all": true,
+    "reasons": [
+     "tests/lanes.json: unknown input -> all"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "all",
+    "selected": null,
+    "fallback": null,
+    "tests_run": 791,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 209.9
+  },
+  {
+   "sha": "e98253b24e2969ce6a26ec8f1ceeea2d648f4162",
+   "parent": "1f04c88caa2723b404abfb0dea8dd4e771be9415",
+   "map": "built in 290.0s",
+   "map_base": "1f04c88caa2723b404abfb0dea8dd4e771be9415",
+   "parent_map_test_failures": null,
+   "select": {
+    "count": null,
+    "all": true,
+    "reasons": [
+     "tests/impact.py: shared test/plugin input -> all"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "all",
+    "selected": null,
+    "fallback": null,
+    "tests_run": 771,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 169.3
+  },
+  {
+   "sha": "1f04c88caa2723b404abfb0dea8dd4e771be9415",
+   "parent": "e0dc2830cc2558e9bbe8180da7ff14087c07c6f6",
+   "map": "built in 264.7s",
+   "map_base": "e0dc2830cc2558e9bbe8180da7ff14087c07c6f6",
+   "parent_map_test_failures": null,
+   "select": {
+    "count": 187,
+    "all": false,
+    "reasons": [
+     "bin/maeng-review: apply_rounds -> 203 tests",
+     "tests/test_review_rounds.py: test file itself",
+     "tests/test_subagent_context.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 187,
+    "fallback": null,
+    "tests_run": 236,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 141.5
+  },
+  {
+   "sha": "e0dc2830cc2558e9bbe8180da7ff14087c07c6f6",
+   "parent": "1fac3e50f9bfd0bf6521ba88fc81119310bfad43",
+   "map": "built in 220.2s",
+   "map_base": "1fac3e50f9bfd0bf6521ba88fc81119310bfad43",
+   "parent_map_test_failures": null,
+   "select": {
+    "count": 33,
+    "all": false,
+    "reasons": [
+     "bin/maeng-review: apply_rounds, code_bundle, committed_plan, run_review -> 205 tests",
+     "bin/maeng-ship: merge -> 58 tests",
+     "bin/maeng-verify: cmd_bind -> 68 tests",
+     "lib/maeng/evidence.py: static graph -> 33 test files",
+     "lib/maeng/gates.py: check_merge_push -> 14 tests",
+     "lib/maeng/receipts.py: child_binding_rev, revoke_passes -> 30 tests",
+     "tests/test_cli.py: test file itself",
+     "tests/test_criteria_rev.py: test file itself",
+     "tests/test_decisions_wiring.py: test file itself",
+     "tests/test_interview.py: test file itself",
+     "tests/test_mae233.py: test file itself",
+     "tests/test_merge.py: test file itself",
+     "tests/test_plan_notices.py: test file itself",
+     "tests/test_plan_review.py: test file itself",
+     "tests/test_r2.py: test file itself",
+     "tests/test_r7.py: test file itself",
+     "tests/test_review_policy.py: test file itself",
+     "tests/test_review_rounds.py: test file itself",
+     "tests/test_route_enforcement.py: test file itself",
+     "tests/test_status.py: test file itself",
+     "tests/test_subagent_context.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 33,
+    "fallback": null,
+    "tests_run": 717,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 196.9
+  },
+  {
+   "sha": "1fac3e50f9bfd0bf6521ba88fc81119310bfad43",
+   "parent": "b08b6556134cb91e4d350c4ac1987ee48f0b4736",
+   "map": "unbuilt: impact build: the suite failed; the map is only built from a passing run",
+   "map_base": "1fac3e50f9bfd0bf6521ba88fc81119310bfad43",
+   "parent_map_test_failures": 2,
+   "select": {
+    "count": 2,
+    "all": false,
+    "reasons": [
+     "tests/test_subagent_context.py: test file itself",
+     "tests/test_workflow_contracts.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 2,
+    "fallback": null,
+    "tests_run": 24,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 2.6
+  },
+  {
+   "sha": "b08b6556134cb91e4d350c4ac1987ee48f0b4736",
+   "parent": "8060838a348c982ae6c7088ca726dcf6492038d6",
+   "map": "built in 146.0s",
+   "map_base": "8060838a348c982ae6c7088ca726dcf6492038d6",
+   "parent_map_test_failures": null,
+   "select": {
+    "count": 227,
+    "all": false,
+    "reasons": [
+     "bin/maeng-review: code_bundle -> 195 tests",
+     "bin/maeng-ship: merge -> 57 tests",
+     "bin/maeng-verify: cmd_bind -> 67 tests",
+     "lib/maeng/gates.py: check_merge_push -> 14 tests",
+     "lib/maeng/receipts.py: child_binding_rev -> 8 tests",
+     "tests/test_criteria_rev.py: test file itself",
+     "tests/test_subagent_context.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 227,
+    "fallback": null,
+    "tests_run": 266,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 76.7
+  },
+  {
+   "sha": "dddbb5c923327c0a27bcee3d908c2e801a6b73fb",
+   "parent": "a98b0fae82b95b3a0621ec249066a1398aa9ba68",
+   "map": "built in 147.4s",
+   "map_base": "a98b0fae82b95b3a0621ec249066a1398aa9ba68",
+   "parent_map_test_failures": null,
+   "select": {
+    "count": 187,
+    "all": false,
+    "reasons": [
+     "bin/maeng-review: apply_rounds -> 194 tests",
+     "lib/maeng/evidence.py: make_binding -> 41 tests",
+     "lib/maeng/receipts.py: plan_notices -> 102 tests",
+     "tests/test_plan_notices.py: test file itself",
+     "tests/test_review_rounds.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 187,
+    "fallback": null,
+    "tests_run": 232,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 70.6
+  },
+  {
+   "sha": "8c1198c5669253fdde2c150339899301e80c3835",
+   "parent": "b864b2874a27940346d30cd3ccb88c0d1b2aa2a9",
+   "map": "built in 140.0s",
+   "map_base": "b864b2874a27940346d30cd3ccb88c0d1b2aa2a9",
+   "parent_map_test_failures": null,
+   "select": {
+    "count": 1,
+    "all": false,
+    "reasons": [
+     "tests/test_stop_hooks.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 1,
+    "fallback": null,
+    "tests_run": 37,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 7.7
+  },
+  {
+   "sha": "b864b2874a27940346d30cd3ccb88c0d1b2aa2a9",
+   "parent": "cc1968225816cc2f0416ee8803ca45ff1f138906",
+   "map": "built in 134.7s",
+   "map_base": "cc1968225816cc2f0416ee8803ca45ff1f138906",
+   "parent_map_test_failures": null,
+   "select": {
+    "count": 32,
+    "all": false,
+    "reasons": [
+     "bin/maeng-review: run_review -> 200 tests",
+     "lib/maeng/handlers.py: static graph -> 26 test files",
+     "lib/maeng/receipts.py: static graph -> 31 test files",
+     "skills/execute-code-brief/SKILL.md: doc/skill -> doc tests",
+     "skills/harness-run/SKILL.md: doc/skill -> doc tests",
+     "skills/harness-run/references/org-chart.md: doc/skill -> doc tests",
+     "skills/harness-run/references/review-and-ship.md: doc/skill -> doc tests",
+     "skills/harness-run/references/spec-plan.md: doc/skill -> doc tests",
+     "skills/harness-run/references/verification.md: doc/skill -> doc tests",
+     "skills/task-brief/SKILL.md: doc/skill -> doc tests",
+     "tests/test_boundary.py: test file itself",
+     "tests/test_docs_sync.py: test file itself",
+     "tests/test_interview.py: test file itself",
+     "tests/test_plan_notices.py: test file itself",
+     "tests/test_status.py: test file itself",
+     "tests/test_stop_hooks.py: test file itself",
+     "tests/test_workflow_contracts.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 32,
+    "fallback": null,
+    "tests_run": 699,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 119.4
+  },
+  {
+   "sha": "cc1968225816cc2f0416ee8803ca45ff1f138906",
+   "parent": "c519c4254953b84d3ea95bebbc6b1b38727f00dc",
+   "map": "built in 116.5s",
+   "map_base": "c519c4254953b84d3ea95bebbc6b1b38727f00dc",
+   "parent_map_test_failures": null,
+   "select": {
+    "count": 29,
+    "all": false,
+    "reasons": [
+     "bin/maeng-review: static graph -> 20 test files",
+     "lib/maeng/receipts.py: static graph -> 29 test files",
+     "tests/test_decisions_wiring.py: test file itself",
+     "tests/test_plan_review.py: test file itself",
+     "tests/test_review_policy.py: test file itself",
+     "tests/test_review_rounds.py: test file itself",
+     "tests/test_status.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 29,
+    "fallback": null,
+    "tests_run": 658,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 117.4
+  }
+ ],
+ "summary": {
+  "cases": 16,
+  "completed": 16,
+  "selector_errors": [],
+  "parent_map_failures": [
+   {
+    "sha": "1fac3e50f9bf",
+    "reason": "unbuilt: impact build: the suite failed; the map is only built from a passing run",
+    "map_base": "1fac3e50f9bfd0bf6521ba88fc81119310bfad43",
+    "test_failures": 2
+   }
+  ],
+  "fallbacks": [],
+  "all_by_rule": [
+   "dd020a7335aa",
+   "53450a77a253",
+   "d6201ee2da92",
+   "86b802001093",
+   "e98253b24e29"
+  ],
+  "test_failures": [],
+  "count_unavailable": [],
+  "median_tests_run": 462,
+  "median_tests_run_narrow_only": 232
+ },
+ "static_graph_measurement": {
+  "source_sha": "dd020a7335aa367d2c84a6f9caed29bb1f4b2243",
+  "test_files": 41,
+  "source_reach_test_files": {
+   "bin/maeng-eta-isolate": 3,
+   "bin/maeng-interview": 2,
+   "bin/maeng-review": 22,
+   "bin/maeng-ship": 8,
+   "bin/maeng-verify": 17,
+   "config/notion-databases.json": 34,
+   "hooks/maeng_hooks.py": 29,
+   "lib/maeng/canon.py": 34,
+   "lib/maeng/cli_common.py": 28,
+   "lib/maeng/common.py": 35,
+   "lib/maeng/evidence.py": 35,
+   "lib/maeng/gates.py": 34,
+   "lib/maeng/ghcmd.py": 34,
+   "lib/maeng/guard.py": 34,
+   "lib/maeng/handlers.py": 29,
+   "lib/maeng/interview.py": 30,
+   "lib/maeng/quiz.py": 30,
+   "lib/maeng/readonly.py": 34,
+   "lib/maeng/receipts.py": 34,
+   "lib/maeng/recordcheck.py": 34,
+   "lib/maeng/remotecfg.py": 34,
+   "lib/maeng/routing.py": 22,
+   "lib/maeng/schema.py": 34,
+   "lib/maeng/shellparse.py": 35,
+   "lib/maeng/skillbytes.py": 1,
+   "lib/maeng/state.py": 35,
+   "lib/maeng/status.py": 34,
+   "lib/maeng/stub.py": 29,
+   "lib/maeng/tree.py": 35,
+   "schemas/verdict.schema.json": 34
+  },
+  "handler_imports_by_event": {
+   "SessionStart": "full closure: unresolved call",
+   "UserPromptSubmit": "full closure: unresolved call",
+   "PreToolUse": [
+    "maeng.common",
+    "maeng.evidence",
+    "maeng.gates",
+    "maeng.guard",
+    "maeng.interview",
+    "maeng.receipts",
+    "maeng.recordcheck",
+    "maeng.state",
+    "maeng.tree"
+   ],
+   "PostToolUse": "full closure: unresolved call",
+   "PostToolUseFailure": "full closure: unresolved call",
+   "Stop": "full closure: unresolved call",
+   "SubagentStop": [
+    "maeng.guard",
+    "maeng.state"
+   ],
+   "SessionEnd": [
+    "maeng.guard",
+    "maeng.state",
+    "maeng.status",
+    "maeng.stub"
+   ]
+  },
+  "proven_test_events": {}
+ },
+ "synthetic_event_fixture_reach": {
+  "synthetic_fixture_only": true,
+  "events": {
+   "SessionStart": {
+    "before": [
+     "lib/maeng/evidence.py",
+     "lib/maeng/gates.py",
+     "lib/maeng/guard.py",
+     "lib/maeng/handlers.py",
+     "lib/maeng/interview.py",
+     "lib/maeng/state.py",
+     "lib/maeng/status.py",
+     "lib/maeng/stub.py",
+     "lib/maeng/tree.py"
+    ],
+    "after": [
+     "lib/maeng/guard.py",
+     "lib/maeng/handlers.py",
+     "lib/maeng/interview.py",
+     "lib/maeng/state.py"
+    ]
+   },
+   "UserPromptSubmit": {
+    "before": [
+     "lib/maeng/evidence.py",
+     "lib/maeng/gates.py",
+     "lib/maeng/guard.py",
+     "lib/maeng/handlers.py",
+     "lib/maeng/interview.py",
+     "lib/maeng/state.py",
+     "lib/maeng/status.py",
+     "lib/maeng/stub.py",
+     "lib/maeng/tree.py"
+    ],
+    "after": [
+     "lib/maeng/guard.py",
+     "lib/maeng/handlers.py",
+     "lib/maeng/interview.py",
+     "lib/maeng/state.py"
+    ]
+   },
+   "PreToolUse": {
+    "before": [
+     "lib/maeng/evidence.py",
+     "lib/maeng/gates.py",
+     "lib/maeng/guard.py",
+     "lib/maeng/handlers.py",
+     "lib/maeng/interview.py",
+     "lib/maeng/state.py",
+     "lib/maeng/status.py",
+     "lib/maeng/stub.py",
+     "lib/maeng/tree.py"
+    ],
+    "after": [
+     "lib/maeng/gates.py",
+     "lib/maeng/guard.py",
+     "lib/maeng/handlers.py",
+     "lib/maeng/state.py"
+    ]
+   },
+   "PostToolUse": {
+    "before": [
+     "lib/maeng/evidence.py",
+     "lib/maeng/gates.py",
+     "lib/maeng/guard.py",
+     "lib/maeng/handlers.py",
+     "lib/maeng/interview.py",
+     "lib/maeng/state.py",
+     "lib/maeng/status.py",
+     "lib/maeng/stub.py",
+     "lib/maeng/tree.py"
+    ],
+    "after": [
+     "lib/maeng/evidence.py",
+     "lib/maeng/guard.py",
+     "lib/maeng/handlers.py",
+     "lib/maeng/state.py"
+    ]
+   },
+   "PostToolUseFailure": {
+    "before": [
+     "lib/maeng/evidence.py",
+     "lib/maeng/gates.py",
+     "lib/maeng/guard.py",
+     "lib/maeng/handlers.py",
+     "lib/maeng/interview.py",
+     "lib/maeng/state.py",
+     "lib/maeng/status.py",
+     "lib/maeng/stub.py",
+     "lib/maeng/tree.py"
+    ],
+    "after": [
+     "lib/maeng/evidence.py",
+     "lib/maeng/guard.py",
+     "lib/maeng/handlers.py",
+     "lib/maeng/state.py"
+    ]
+   },
+   "Stop": {
+    "before": [
+     "lib/maeng/evidence.py",
+     "lib/maeng/gates.py",
+     "lib/maeng/guard.py",
+     "lib/maeng/handlers.py",
+     "lib/maeng/interview.py",
+     "lib/maeng/state.py",
+     "lib/maeng/status.py",
+     "lib/maeng/stub.py",
+     "lib/maeng/tree.py"
+    ],
+    "after": [
+     "lib/maeng/guard.py",
+     "lib/maeng/handlers.py",
+     "lib/maeng/state.py",
+     "lib/maeng/stub.py"
+    ]
+   },
+   "SubagentStop": {
+    "before": [
+     "lib/maeng/evidence.py",
+     "lib/maeng/gates.py",
+     "lib/maeng/guard.py",
+     "lib/maeng/handlers.py",
+     "lib/maeng/interview.py",
+     "lib/maeng/state.py",
+     "lib/maeng/status.py",
+     "lib/maeng/stub.py",
+     "lib/maeng/tree.py"
+    ],
+    "after": [
+     "lib/maeng/guard.py",
+     "lib/maeng/handlers.py",
+     "lib/maeng/state.py",
+     "lib/maeng/status.py"
+    ]
+   },
+   "SessionEnd": {
+    "before": [
+     "lib/maeng/evidence.py",
+     "lib/maeng/gates.py",
+     "lib/maeng/guard.py",
+     "lib/maeng/handlers.py",
+     "lib/maeng/interview.py",
+     "lib/maeng/state.py",
+     "lib/maeng/status.py",
+     "lib/maeng/stub.py",
+     "lib/maeng/tree.py"
+    ],
+    "after": [
+     "lib/maeng/guard.py",
+     "lib/maeng/handlers.py",
+     "lib/maeng/state.py",
+     "lib/maeng/tree.py"
+    ]
+   }
+  }
+ },
+ "regression_evidence": {
+  "original_selector_sha256": "8feda1017e1610a1310f99224067eaf85207d3ed44063178cf57416e78cb65f5",
+  "original_replay_sha256": "677199087a89744c18fcf8cf541f142fe480597b9d6624ee76198da7f97e9b26",
+  "against_original": {
+   "event_graph": {
+    "tests": 5,
+    "failures": 5,
+    "errors": 0
+   },
+   "replay": {
+    "tests": 8,
+    "failures": 5,
+    "errors": 3
+   }
+  },
+  "deleted_event_edge": {
+   "edge": "PreToolUse -> maeng.gates",
+   "fixture_failures": 1
+  },
+  "focused_tests": {
+   "command": "python3 -m pytest -q plugins/maeng-harness/tests/test_impact.py plugins/maeng-harness/tests/test_impact_replay.py",
+   "passed": 39,
+   "source_sha256": {
+    "plugins/maeng-harness/tests/impact.py": "74d2eed706eb628d7a9bfaabb0f25bbe67fda5266937cf9bdd36fc2851e4b462",
+    "plugins/maeng-harness/tests/test_impact.py": "f9dc450fdcfd7ad47907c7af952238f69992bd08930f6ca3881be05f8f586755",
+    "tools/testperf/impact_replay.py": "e6d2522bad53807101091b4b7b87ac259e16dbe9caecd6ff6ceaad2e666332c7",
+    "plugins/maeng-harness/tests/test_impact_replay.py": "5393282ad77247b5161d2562a152fac8053cee946cb0617ba2e68631d77c9b7f"
+   }
+  }
+ },
+ "pytest_addopts": "-n auto",
+ "measurement_note": "The same 16 pinned SHA/parent pairs were executed with both selectors. Counts, including all-by-rule and fallback runs, are observations; the ceiling remains 610. Impact output is not ship evidence.",
+ "timing_note": "BEFORE used the runner defaults; AFTER used the existing pytest -n auto option for selected runs too. Compare executed-test counts, not duration_s as a timing benchmark.",
+ "narrowing_note": "Proven literal events use event-specific handler/function/global import closures. Unknown drivers, callbacks, imports, inheritance and dynamic dispatch retain full closure. The historical snapshot helper paths remain conservative full; process-boundary reach is explicitly retained. The eight synthetic event fixtures demonstrate the narrower closures separately from the historical replay.",
+ "prior_recording_attempts": [
+  {
+   "impact_sha256": "17740e05c99132fa377df18da0c7594dfd9526d127e2ee7000430bd13b71d42a",
+   "status": "interrupted",
+   "completed_cases": 0,
+   "phase": "first parent map build",
+   "reason": "Stopped before the first parent build completed to fix unknown external drivers and decorators."
+  },
+  {
+   "impact_sha256": "085fca84ad953f9ee0d9e4cdb2ff543cd455e5a69934cc30e5f270da4e65e944",
+   "status": "interrupted",
+   "completed_cases": 0,
+   "phase": "first parent map build",
+   "reason": "Stopped before the first parent build completed to finish callback-value and fixture-import guards."
+  },
+  {
+   "status": "interrupted",
+   "reason": "Stopped to fix ambiguous import bindings; these outputs were not relabeled.",
+   "recording": {
+    "recorded_at": "2026-11-08T08:03:03Z",
+    "partial": true,
+    "impact_sha256": "0b07a5f11950efd7988cf129f5f2180326b768d8c8e0a3b85677ada37d0db4d1",
+    "cases_from": "docs/design/MAE-323-b2-impact-cases.json",
+    "commits_selected_by": "pinned SHA/parent pairs",
+    "cases": [
+     {
+      "sha": "dd020a7335aa367d2c84a6f9caed29bb1f4b2243",
+      "parent": "d7c26cac286b1d7c448655f98e365fd0a68ef27c",
+      "map": "built in 137.8s",
+      "map_base": "d7c26cac286b1d7c448655f98e365fd0a68ef27c",
+      "parent_map_test_failures": null,
+      "select": {
+       "count": null,
+       "all": true,
+       "reasons": [
+        "tests/impact.py: shared test/plugin input -> all"
+       ],
+       "error": null
+      },
+      "summary": {
+       "mode": "all",
+       "selected": null,
+       "fallback": null,
+       "tests_run": 815,
+       "rc": 0
+      },
+      "rc": 0,
+      "selector_error": null,
+      "duration_s": 119.5
+     },
+     {
+      "sha": "e9671c0cca6821dc3bc1799a81aa0519689054c0",
+      "parent": "c1b5aea56311ebbe7aff8fbbf01ff5dcf099ead2",
+      "map": "built in 140.5s",
+      "map_base": "c1b5aea56311ebbe7aff8fbbf01ff5dcf099ead2",
+      "parent_map_test_failures": null,
+      "select": {
+       "count": 1,
+       "all": false,
+       "reasons": [
+        "tests/test_review_replay.py: test file itself"
+       ],
+       "error": null
+      },
+      "summary": {
+       "mode": "narrow",
+       "selected": 1,
+       "fallback": null,
+       "tests_run": 15,
+       "rc": 0
+      },
+      "rc": 0,
+      "selector_error": null,
+      "duration_s": 3.0
+     },
+     {
+      "sha": "53450a77a253795bb19611286b634d9df4f6182a",
+      "parent": "e87935f7fee2a9d547d6d2ecb2e13738b276bf6e",
+      "map": "built in 138.7s",
+      "map_base": "e87935f7fee2a9d547d6d2ecb2e13738b276bf6e",
+      "parent_map_test_failures": null,
+      "select": {
+       "count": null,
+       "all": true,
+       "reasons": [
+        "tests/impact.py: shared test/plugin input -> all"
+       ],
+       "error": null
+      },
+      "summary": {
+       "mode": "all",
+       "selected": null,
+       "fallback": null,
+       "tests_run": 805,
+       "rc": 0
+      },
+      "rc": 0,
+      "selector_error": null,
+      "duration_s": 121.3
+     },
+     {
+      "sha": "c6bc84395d4d0ba6ee9e6de9f66532b43868ff35",
+      "parent": "d6201ee2da92dcd6fdc0f9587f4885a918229ed1",
+      "map": "built in 145.6s",
+      "map_base": "d6201ee2da92dcd6fdc0f9587f4885a918229ed1",
+      "parent_map_test_failures": null,
+      "select": {
+       "count": 1,
+       "all": false,
+       "reasons": [
+        "tests/test_review_replay.py: test file itself"
+       ],
+       "error": null
+      },
+      "summary": {
+       "mode": "narrow",
+       "selected": 1,
+       "fallback": null,
+       "tests_run": 14,
+       "rc": 0
+      },
+      "rc": 0,
+      "selector_error": null,
+      "duration_s": 2.8
+     },
+     {
+      "sha": "d6201ee2da92dcd6fdc0f9587f4885a918229ed1",
+      "parent": "65283109f9fdd938ceb37a832750227d6c29bc5f",
+      "map": "built in 149.3s",
+      "map_base": "65283109f9fdd938ceb37a832750227d6c29bc5f",
+      "parent_map_test_failures": null,
+      "select": {
+       "count": null,
+       "all": true,
+       "reasons": [
+        "tests/impact.py: shared test/plugin input -> all"
+       ],
+       "error": null
+      },
+      "summary": {
+       "mode": "all",
+       "selected": null,
+       "fallback": null,
+       "tests_run": 799,
+       "rc": 0
+      },
+      "rc": 0,
+      "selector_error": null,
+      "duration_s": 133.1
+     },
+     {
+      "sha": "65283109f9fdd938ceb37a832750227d6c29bc5f",
+      "parent": "86b80200109336676cb4d2bd4cdc09887e083bc5",
+      "map": "built in 196.6s",
+      "map_base": "86b80200109336676cb4d2bd4cdc09887e083bc5",
+      "parent_map_test_failures": null,
+      "select": {
+       "count": 1,
+       "all": false,
+       "reasons": [
+        "tests/test_review_replay.py: test file itself"
+       ],
+       "error": null
+      },
+      "summary": {
+       "mode": "narrow",
+       "selected": 1,
+       "fallback": null,
+       "tests_run": 9,
+       "rc": 0
+      },
+      "rc": 0,
+      "selector_error": null,
+      "duration_s": 4.6
+     }
+    ],
+    "summary": {
+     "cases": 6,
+     "completed": 6,
+     "selector_errors": [],
+     "parent_map_failures": [],
+     "fallbacks": [],
+     "all_by_rule": [
+      "dd020a7335aa",
+      "53450a77a253",
+      "d6201ee2da92"
+     ],
+     "test_failures": [],
+     "count_unavailable": [],
+     "median_tests_run": 407,
+     "median_tests_run_narrow_only": 14
+    }
+   },
+   "interrupted_case": {
+    "sha": "86b80200109336676cb4d2bd4cdc09887e083bc5",
+    "parent": "e98253b24e2969ce6a26ec8f1ceeea2d648f4162",
+    "phase": "run",
+    "tests_run": "unavailable",
+    "rc": null
+   }
+  }
+ ]
+}
