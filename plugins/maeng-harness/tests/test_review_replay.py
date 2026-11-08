@@ -355,3 +355,106 @@ def test_pinned_plan_path_wins_and_the_cap_counts_utf8_bytes(world):
     path, how = rr.resolve_plan(repo, dict(case, plan_path="docs/design/absent-plan.md"))
     assert how != "pinned"
     assert len("한글".encode("utf-8")) == 6 and len("한글") == 2  # the unit the cap must use
+
+
+@pytest.fixture
+def strict_runs():
+    """Fresh synthetic results; historical outputs supply membership, never fabricated result hashes."""
+    frozen = json.loads((rr.ROOT / "docs/design/MAE-323-b2-review-replay-compare.json").read_text())
+    cases = json.loads((rr.ROOT / "docs/design/MAE-323-b2-review-cases.json").read_text())["cases"]
+    expected = {c["id"]: c["findings"] for c in cases}
+    rows = [{"id": c["id"], "status": "no_result" if c["id"] in frozen["cases_not_in_both"] else "ok",
+             "bundle_sha256": "test-bundle-" + c["id"],
+             "expected": [{**e, "matched": None} for e in c["findings"]]} for c in cases]
+    base = {"expected": expected, "cases": rows}
+    return base, json.loads(json.dumps(base))
+
+
+def strict_compare(tmp_path, base, new, *, cli=False):
+    import argparse
+    import io
+    from contextlib import redirect_stdout, redirect_stderr
+    b, n = tmp_path / "baseline.json", tmp_path / "new.json"
+    b.write_text(json.dumps(base))
+    n.write_text(json.dumps(new))
+    out, err = io.StringIO(), io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        if cli:
+            rc = rr.main(["compare", "--baseline", str(b), "--results", str(n), "--require-bundle-sha256"])
+        else:
+            # Call compare directly so pre-change failures exercise logic, not an unrecognised CLI flag.
+            rc = rr.compare(argparse.Namespace(baseline=str(b), results=str(n), max_lost=1000,
+                                               require_bundle_sha256=True))
+    return rc, json.loads(out.getvalue()), err.getvalue()
+
+
+def test_strict_compare_cli_accepts_frozen_membership(tmp_path, strict_runs):
+    rc, out, _ = strict_compare(tmp_path, *strict_runs, cli=True)
+    assert (rc, out["binding"], out["cases_compared"], out["expected"]) == (0, "bundle_sha256", 41, 97)
+    assert len(out["excluded"]) == 8
+
+
+def test_strict_compare_rejects_changed_frozen_counts(tmp_path, strict_runs, monkeypatch):
+    design = tmp_path / "docs/design"
+    design.mkdir(parents=True)
+    for name in ("MAE-323-b2-review-cases.json", "MAE-323-b2-review-replay-compare.json"):
+        data = json.loads((rr.ROOT / "docs/design" / name).read_text())
+        if name.endswith("compare.json"):
+            data["expected"] -= 1
+        (design / name).write_text(json.dumps(data))
+    monkeypatch.setattr(rr, "ROOT", tmp_path)
+    rc, _, err = strict_compare(tmp_path, *strict_runs)
+    assert rc == 1 and "FAIL: frozen comparison membership" in err
+
+
+@pytest.mark.parametrize("side", ["baseline", "new", "both"])
+@pytest.mark.parametrize("digest", [None, "", " ", "different"])
+def test_strict_compare_rejects_missing_or_changed_hashes(tmp_path, strict_runs, side, digest):
+    base, new = strict_runs
+    for run in ([base, new] if side == "both" else [base if side == "baseline" else new]):
+        run["cases"][0]["bundle_sha256"] = digest
+    if side == "both" and digest == "different":
+        new["cases"][0]["bundle_sha256"] = "another"
+    rc, out, err = strict_compare(tmp_path, base, new)
+    assert rc == 1 and out["bundle_mismatch"] == [base["cases"][0]["id"]]
+    assert (out["binding"], out["cases_compared"], out["expected"]) == ("bundle_sha256", 41, 97)
+    assert "FAIL: bundle mismatch" in err
+
+
+@pytest.mark.parametrize("change", ["remove", "replace", "duplicate", "waiver", "baseline_error",
+                                    "enrolled_expectation", "row_expectation", "reorder_expectations"])
+def test_strict_compare_rejects_membership_changes(tmp_path, strict_runs, change):
+    base, new = strict_runs
+    for run in (base, new):
+        if change == "remove":
+            run["cases"].pop(0)
+        elif change == "replace":
+            run["cases"][0]["id"] = "unexpected-case"
+        elif change == "duplicate":
+            run["cases"].append(run["cases"][0])
+        elif change == "waiver":
+            next(c for c in run["cases"] if c["status"] != "ok")["status"] = "ok"
+        elif change == "baseline_error":
+            run["cases"][0]["status"] = "error"
+        elif change == "enrolled_expectation":
+            run["expected"][run["cases"][0]["id"]][0]["title"] = "changed enrollment"
+        elif change == "row_expectation":
+            run["cases"][0]["expected"].pop()
+        else:
+            run["cases"][0]["expected"].reverse()
+    rc, _, err = strict_compare(tmp_path, base, new)
+    assert rc == 1 and "FAIL: frozen comparison membership" in err
+
+
+@pytest.mark.parametrize("status", ["error", "too_large", "would_run", "no_result", "absent"])
+def test_strict_compare_lists_failed_new_cases_without_shrinking_denominator(tmp_path, strict_runs, status):
+    base, new = strict_runs
+    case = new["cases"][0]
+    if status == "absent":
+        new["cases"].pop(0)
+    else:
+        case["status"] = status
+    rc, out, _ = strict_compare(tmp_path, base, new)
+    assert (rc, out["cases_compared"], out["expected"]) == (1, 41, 97)
+    assert out["cases_not_run"] == [{"id": case["id"], "status": "no_result" if status == "absent" else status}]
+    assert len(out["excluded"]) == 8

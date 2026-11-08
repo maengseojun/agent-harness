@@ -433,35 +433,59 @@ def compare(a):
         return 1
     bcase = {c["id"]: c for c in base["cases"]}
     ncase = {c["id"]: c for c in new["cases"]}
+    strict = getattr(a, "require_bundle_sha256", False)
     out = {"baseline_prompt": base.get("prompt_from"), "new_prompt": new.get("prompt_from"), "cases_compared": 0,
            "expected": 0, "kept_baseline": 0, "kept_new": 0, "lost_vs_baseline": [], "gained_vs_baseline": [],
            "lost_by_both": 0, "cases_not_in_both": [], "excluded": [], "bundle_mismatch": [],
-           "binding": "bundle_sha256"}
-    for cid in sorted(bcase.keys() | ncase.keys()):
+           "binding": "bundle_sha256", "cases_not_run": [], "membership_mismatch": []}
+    enrolled, members = {}, set()
+    if strict:
+        frozen = json.loads((ROOT / "docs/design/MAE-323-b2-review-replay-compare.json").read_text(encoding="utf-8"))
+        manifest = json.loads((ROOT / "docs/design/MAE-323-b2-review-cases.json").read_text(encoding="utf-8"))
+        enrolled = {c["id"]: c["findings"] for c in manifest["cases"]}
+        members = enrolled.keys() - set(frozen["cases_not_in_both"])
+        if (len(members), sum(len(enrolled[cid]) for cid in members)) != (frozen["cases_compared"], frozen["expected"]):
+            out["membership_mismatch"].append("frozen counts differ from enrollment")
+        for name, run, cases in (("baseline", base, bcase), ("new", new, ncase)):
+            if (run.get("expected") != enrolled or len(cases) != len(run["cases"])
+                    or cases.keys() - enrolled.keys()
+                    or (name == "baseline" and {cid for cid, c in cases.items() if c.get("status") == "ok"} != members)):
+                out["membership_mismatch"].append(name)
+            for cid in members & cases.keys():
+                if [{k: v for k, v in e.items() if k != "matched"} for e in cases[cid].get("expected", [])] != enrolled[cid]:
+                    out["membership_mismatch"].append(f"{name}:{cid}: expectations differ")
+    for cid in sorted(bcase.keys() | ncase.keys() | enrolled.keys()):
         bc, nc = bcase.get(cid), ncase.get(cid)
         bs, ns = (bc or {}).get("status", "no_result"), (nc or {}).get("status", "no_result")
-        if bs != "ok":
+        if bs != "ok" or (strict and cid not in members):
             out["cases_not_in_both"].append(cid)
             out["excluded"].append({"id": cid, "baseline_status": bs, "new_status": ns,
-                                    "reason": "baseline is not ok"})
+                                    "reason": "outside frozen comparison" if strict and cid not in members
+                                    else "baseline is not ok"})
             continue
-        if not bc.get("bundle_sha256") or not (nc or {}).get("bundle_sha256"):
+        missing_hash = any(not isinstance(h, str) or not h.strip()
+                           for h in (bc.get("bundle_sha256"), (nc or {}).get("bundle_sha256")))
+        if missing_hash and not strict:
             out["binding"] = "criteria_rev+plan"
-        if nc and (any(bc.get(k) != nc.get(k) for k in ("criteria_rev", "plan_path", "plan_resolution"))
-                   or ((bc.get("bundle_sha256") or nc.get("bundle_sha256"))
-                       and bc.get("bundle_sha256") != nc.get("bundle_sha256"))):
+        if ((strict and missing_hash)
+                or (nc and (any(bc.get(k) != nc.get(k) for k in ("criteria_rev", "plan_path", "plan_resolution"))
+                            or ((bc.get("bundle_sha256") or nc.get("bundle_sha256"))
+                                and bc.get("bundle_sha256") != nc.get("bundle_sha256"))))):
             out["bundle_mismatch"].append(cid)
-            if ns == "ok":
+            if ns == "ok" and not strict:
                 continue
+        if ns != "ok":
+            out["cases_not_run"].append({"id": cid, "status": ns})
         out["cases_compared"] += 1
-        for i, be in enumerate(bc["expected"]):
-            ne = nc["expected"][i] if ns == "ok" else {}
+        for i, exp in enumerate(enrolled[cid] if strict else bc["expected"]):
+            be = bc["expected"][i] if i < len(bc["expected"]) else {}
+            ne = nc["expected"][i] if ns == "ok" and i < len(nc["expected"]) else {}
             out["expected"] += 1
             kb, kn = bool(be.get("matched")), bool(ne.get("matched"))
             out["kept_baseline"] += kb
             out["kept_new"] += kn
             if kb and not kn:
-                lost = {"id": cid, "title": be.get("title")}
+                lost = {"id": cid, "title": exp.get("title")}
                 if ns != "ok":
                     lost["reason"] = ns
                 out["lost_vs_baseline"].append(lost)
@@ -471,11 +495,17 @@ def compare(a):
                 out["lost_by_both"] += 1
     print(json.dumps(out, indent=1))
     print(f"cases_not_in_both={len(out['cases_not_in_both'])}", file=sys.stderr)
+    if out["membership_mismatch"]:
+        print("FAIL: frozen comparison membership", file=sys.stderr)
+        return 1
     if out["bundle_mismatch"]:
         print("FAIL: bundle mismatch", file=sys.stderr)
         return 1
     if out["cases_compared"] == 0 or out["expected"] == 0:
         print("FAIL: empty comparison denominator", file=sys.stderr)
+        return 1
+    if strict and out["cases_not_run"]:
+        print("FAIL: new cases failed or not run", file=sys.stderr)
         return 1
     if a.max_lost is not None and len(out["lost_vs_baseline"]) > a.max_lost:
         print(f"FAIL: {len(out['lost_vs_baseline'])} blockers kept by the baseline prompt are lost by the new prompt "
@@ -491,6 +521,8 @@ def main(argv=None):
     c.add_argument("--baseline", required=True)
     c.add_argument("--results", required=True)
     c.add_argument("--max-lost", type=int)
+    c.add_argument("--require-bundle-sha256", action="store_true",
+                   help="require identical nonempty bundle hashes and the frozen bundle 2 comparison membership")
     sub.add_parser("build").add_argument("--out", required=True)
     sub.add_parser("check").add_argument("--manifest", required=True)
     r = sub.add_parser("replay")
