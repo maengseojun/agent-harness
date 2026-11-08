@@ -75,6 +75,7 @@ def _g(repo, *args):
 @pytest.fixture
 def world(tmp_path, monkeypatch):
     monkeypatch.setenv("MAENG_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(rr, "_PROMPT", None)
     repo = tmp_path / "repo"
     repo.mkdir()
     _g(repo, "init", "-q", "-b", "main")
@@ -102,11 +103,12 @@ def world(tmp_path, monkeypatch):
     w.repo, w.case, w.exp, w.man, w.tmp, w.c0, w.c1, w.c2, w.calls = repo, case, exp, man, tmp_path, c0, c1, c2, []
     w.enrolled = [case]
     w.found = [{"severity": "high", "title": "Totally different words", "body": "b", "file": "app.py", "line": 15}]
-    w.err = None
+    w.err, w.reviewers = None, []
     monkeypatch.setattr(rr, "enrolled_cases", lambda commit, path: w.enrolled)
 
-    def fake(case, prompt, out_schema, cwd):
+    def fake(case, prompt, out_schema, cwd, reviewer_override=None):
         w.calls.append(prompt)
+        w.reviewers.append(reviewer_override or case["reviewer"])
         if w.err:
             return None, w.err
         return {"verdict": "fail", "findings": w.found}, None
@@ -163,6 +165,102 @@ def test_expected_verbatim_and_no_rerun(world):
     assert len(world.calls) == 1
     world.go("--force")
     assert len(world.calls) == 2
+
+
+def test_replay_records_enrolled_reviewer_without_override(world):
+    rc, res = world.go()
+    saved = json.loads((world.tmp / "out/review-replay" / f"{world.case['id']}.json").read_text())
+    assert rc == 0 and world.reviewers == [world.case["reviewer"]]
+    for row in (saved, res["cases"][0]):
+        assert row["reviewer"] == world.case["reviewer"]
+        assert row["reviewer_override"] == {"applied": False}
+
+
+@pytest.mark.parametrize("prompt_from", [None, "a23f430"])
+def test_replay_override_only_selected_cases_and_discloses_enrollment(world, prompt_from):
+    world.case["reviewer"] = {"model": "claude-fable-5", "effort": "high"}
+    other = {**world.case, "id": "abc0000000000002", "reviewer": {"model": "gpt-x", "effort": "high"}}
+    world.enrolled.append(other)
+    world.man.write_text(json.dumps({"cases": world.enrolled}))
+    enrolled_bytes = world.man.read_bytes()
+    prompt_args = ["--prompt-from", prompt_from] if prompt_from else []
+    world.go(*prompt_args)
+    world.reviewers.clear()
+    rc, res = world.go(*prompt_args, "--reviewer-override", "claude-opus-5-5/medium", "--only", world.case["id"])
+    actual = {"model": "claude-opus-5-5", "effort": "medium"}
+    assert rc == 0 and world.reviewers == [actual]
+    assert ("V-1 to V-6" in world.calls[-1]) is (prompt_from is None)
+    assert world.man.read_bytes() == enrolled_bytes
+    for case, row in zip(world.enrolled, res["cases"]):
+        saved = json.loads((world.tmp / "out/review-replay" / f"{case['id']}.json").read_text())
+        expected_reviewer = actual if case is world.case else case["reviewer"]
+        expected_override = ({"applied": True, "enrolled": case["reviewer"]} if case is world.case
+                             else {"applied": False})
+        for result in (saved, row):
+            assert result["reviewer"] == expected_reviewer
+            assert result["reviewer_override"] == expected_override
+
+
+@pytest.mark.parametrize("model", ["claude-opus-5-5", "gpt-x"])
+def test_run_reviewer_uses_override_for_provider_dispatch(tmp_path, model):
+    case = {"reviewer": {"model": "claude-fable-5", "effort": "high"}}
+    override = {"model": model, "effort": "medium"}
+    mr = rr.maeng_review()
+    result = {"verdict": "pass", "findings": []}
+    with mock.patch.object(mr, "run_claude", return_value=(result, None, None)) as claude, \
+            mock.patch.object(mr, "codex_attempts", return_value=(result, None)) as codex:
+        assert rr.run_reviewer(case, "prompt", {}, str(tmp_path), reviewer_override=override) == (result, None)
+    called, unused = (claude, codex) if model.startswith("claude-") else (codex, claude)
+    assert called.call_count == 1 and called.call_args.args[:2] == (model, "medium")
+    unused.assert_not_called()
+    assert case["reviewer"] == {"model": "claude-fable-5", "effort": "high"}
+
+
+@pytest.mark.parametrize("value", ["claude-opus-5-5", "/medium", "model/", "model//medium", " /medium", "model/ "])
+def test_reviewer_override_rejects_malformed_pair(value, capsys):
+    with mock.patch.object(rr, "replay") as replay, pytest.raises(SystemExit) as err:
+        rr.main(["replay", "--manifest", "unused", "--results", "unused", "--reviewer-override", value])
+    assert err.value.code == 2 and "expected MODEL/EFFORT" in capsys.readouterr().err
+    replay.assert_not_called()
+
+
+@pytest.mark.parametrize("change", ["missing", "model", "effort"])
+def test_cached_result_from_another_reviewer_is_rerun(world, change):
+    world.go()
+    path = world.tmp / "out/review-replay" / f"{world.case['id']}.json"
+    cached = json.loads(path.read_text())
+    if change == "missing":
+        cached.pop("reviewer")
+    else:
+        cached["reviewer"][change] = "different"
+    path.write_text(json.dumps(cached))
+    rc, res = world.go()
+    assert rc == 0 and len(world.calls) == 2
+    assert res["cases"][0]["reviewer"] == json.loads(path.read_text())["reviewer"] == world.case["reviewer"]
+
+
+def test_reviewer_override_cache_follows_effective_reviewer(world):
+    for effort in ("medium", "high"):
+        for _ in range(2):
+            assert world.go("--reviewer-override", f"claude-opus-5-5/{effort}")[0] == 0
+    assert world.reviewers == [{"model": "claude-opus-5-5", "effort": e} for e in ("medium", "high")]
+    world.go()
+    assert world.reviewers[-1] == world.case["reviewer"] and len(world.calls) == 3
+
+
+def test_reviewer_override_disclosure_on_cache_reuse(world):
+    world.go()
+    path = world.tmp / "out/review-replay" / f"{world.case['id']}.json"
+    cached = json.loads(path.read_text())
+    cached.pop("reviewer_override", None)  # a cache from before disclosure was added
+    path.write_text(json.dumps(cached))
+    _, res = world.go()
+    assert len(world.calls) == 1
+    assert res["cases"][0]["reviewer_override"] == {"applied": False}
+    _, res = world.go("--reviewer-override", "gpt-x/high")
+    assert len(world.calls) == 1
+    assert res["cases"][0]["reviewer_override"] == {"applied": True, "enrolled": world.case["reviewer"]}
+    assert json.loads(path.read_text())["reviewer_override"] == res["cases"][0]["reviewer_override"]
 
 
 @pytest.mark.parametrize("cached_hash", [None, "different-prompt"])
@@ -365,6 +463,7 @@ def strict_runs():
     expected = {c["id"]: c["findings"] for c in cases}
     rows = [{"id": c["id"], "status": "no_result" if c["id"] in frozen["cases_not_in_both"] else "ok",
              "bundle_sha256": "test-bundle-" + c["id"],
+             "reviewer": c["reviewer"], "reviewer_override": {"applied": False},
              "expected": [{**e, "matched": None} for e in c["findings"]]} for c in cases]
     base = {"expected": expected, "cases": rows}
     return base, json.loads(json.dumps(base))
@@ -392,6 +491,39 @@ def test_strict_compare_cli_accepts_frozen_membership(tmp_path, strict_runs):
     rc, out, _ = strict_compare(tmp_path, *strict_runs, cli=True)
     assert (rc, out["binding"], out["cases_compared"], out["expected"]) == (0, "bundle_sha256", 41, 97)
     assert len(out["excluded"]) == 8
+
+
+@pytest.mark.parametrize("change", ["model", "effort", "missing"])
+def test_strict_compare_rejects_reviewer_mismatch(tmp_path, strict_runs, change):
+    base, new = strict_runs
+    row = new["cases"][0]
+    if change == "missing":
+        row.pop("reviewer")
+    else:
+        row["reviewer"][change] = "different"
+    rc, out, err = strict_compare(tmp_path, base, new)
+    assert rc == 1 and out["reviewer_mismatch"] == [row["id"]]
+    assert (out["cases_compared"], out["expected"]) == (41, 97)
+    assert "FAIL: reviewer mismatch" in err
+
+
+@pytest.mark.parametrize("side", ["baseline", "new", "both"])
+@pytest.mark.parametrize("excluded", [False, True])
+def test_strict_compare_discloses_overrides_without_failing(tmp_path, strict_runs, side, excluded):
+    base, new = strict_runs
+    before = next(c for c in base["cases"] if (c["status"] != "ok") == excluded)
+    after = next(c for c in new["cases"] if c["id"] == before["id"])
+    enrolled = dict(before["reviewer"])
+    for label, row in (("baseline", before), ("new", after)):
+        row["reviewer"] = {"model": "claude-opus-5-5", "effort": "medium"}
+        if side in (label, "both"):
+            row["reviewer_override"] = {"applied": True, "enrolled": enrolled}
+    rc, out, _ = strict_compare(tmp_path, base, new)
+    assert rc == 0 and out["reviewer_mismatch"] == []
+    assert out["reviewer_overrides"] == [{
+        "id": before["id"],
+        "baseline": {k: before[k] for k in ("reviewer", "reviewer_override")},
+        "new": {k: after[k] for k in ("reviewer", "reviewer_override")}}]
 
 
 def test_strict_compare_rejects_changed_frozen_counts(tmp_path, strict_runs, monkeypatch):
