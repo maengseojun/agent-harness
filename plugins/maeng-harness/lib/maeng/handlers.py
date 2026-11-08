@@ -162,7 +162,9 @@ def on_prompt(payload):
     iv = interview_note(payload)
     if world_of(payload, st) != guard.PERSONAL:
         return context_out("UserPromptSubmit", iv) if iv else None
-    out = record_approval(payload.get("prompt") or "", cwd) or record_task_waiver(payload.get("prompt") or "", cwd, sid)
+    prompt = payload.get("prompt")
+    text = (interview.users_text(prompt) if isinstance(prompt, str) else None) or ""
+    out = record_approval(text, cwd) or record_task_waiver(text, cwd, sid)
     tree, _ = treelib.tree_id(cwd)
     new_task = not st.get("task_id")
     pending = st.get("pending_notice")  # the last Stop's open work; delivered once, the obligation itself stays in state
@@ -200,8 +202,7 @@ def task_running(st, new_task):
 
 def record_approval(prompt, cwd):
     """`승인 #N` / `approve #N` from the user: approve PR N at its current head for maeng-ship."""
-    prompt = interview.user_text(prompt)
-    m = prompt and receipts.APPROVE.match(prompt)
+    m = receipts.APPROVE.match(prompt)
     if not m:
         return None
     pr = m.group(1)
@@ -224,7 +225,6 @@ def record_approval(prompt, cwd):
 
 def record_task_waiver(prompt, cwd, sid):
     """`해당 작업 면제 <사유>` / `작업 면제 취소` from the user: this session's PRs merge without approval (24h)."""
-    prompt = interview.user_text(prompt)
     off = prompt and receipts.TASK_WAIVE_OFF.fullmatch(prompt)
     on = prompt and not off and receipts.TASK_WAIVE.fullmatch(prompt)
     if not (on or off):
