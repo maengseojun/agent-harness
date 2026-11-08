@@ -1,9 +1,68 @@
 {
- "recorded_at": "2026-11-07T17:02:56Z",
+ "recorded_at": "2026-11-08T03:07:01Z",
  "partial": false,
- "impact_sha256": "558b3fa2a0a803c81f910644189ba9e567902a47954b2a1a072c2b0a09ade069",
+ "impact_sha256": "8feda1017e1610a1310f99224067eaf85207d3ed44063178cf57416e78cb65f5",
  "commits_selected_by": "newest commits whose diff against the first parent touches ^plugins/maeng-harness/(lib/|bin/|hooks/|tests/|schemas/|config/|policy/|requirements|\\.claude-plugin/)",
  "cases": [
+  {
+   "sha": "dd020a7335aa367d2c84a6f9caed29bb1f4b2243",
+   "parent": "d7c26cac286b1d7c448655f98e365fd0a68ef27c",
+   "subject": "fix(MAE-323): round-1 review findings on PR #104: quoted job name, missing map is a reported full fallback, failed map build fails the run, compound runner commands record no evidence, replay cache keyed by prompt hash, compare rejects an empty denominator",
+   "code_files": [
+    "plugins/maeng-harness/lib/maeng/evidence.py",
+    "plugins/maeng-harness/tests/impact.py",
+    "plugins/maeng-harness/tests/test_evidence.py",
+    "plugins/maeng-harness/tests/test_evidence_integrity.py",
+    "plugins/maeng-harness/tests/test_impact.py",
+    "plugins/maeng-harness/tests/test_review_replay.py"
+   ],
+   "map": "built in 236.7s",
+   "select": {
+    "count": null,
+    "all": true,
+    "reasons": [
+     "tests/impact.py: shared test/plugin input -> all"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "all",
+    "selected": null,
+    "fallback": null,
+    "tests_run": 815,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 188.3
+  },
+  {
+   "sha": "e9671c0cca6821dc3bc1799a81aa0519689054c0",
+   "parent": "c1b5aea56311ebbe7aff8fbbf01ff5dcf099ead2",
+   "subject": "fix(MAE-323): replay honours a pinned plan_path and measures the prompt cap in UTF-8 bytes (Codex findings on PR #104)",
+   "code_files": [
+    "plugins/maeng-harness/tests/test_review_replay.py"
+   ],
+   "map": "built in 218.5s",
+   "select": {
+    "count": 1,
+    "all": false,
+    "reasons": [
+     "tests/test_review_replay.py: test file itself"
+    ],
+    "error": null
+   },
+   "summary": {
+    "mode": "narrow",
+    "selected": 1,
+    "fallback": null,
+    "tests_run": 15,
+    "rc": 0
+   },
+   "rc": 0,
+   "selector_error": null,
+   "duration_s": 5.4
+  },
   {
    "sha": "53450a77a253795bb19611286b634d9df4f6182a",
    "parent": "e87935f7fee2a9d547d6d2ecb2e13738b276bf6e",
@@ -12,7 +71,7 @@
     "plugins/maeng-harness/tests/impact.py",
     "plugins/maeng-harness/tests/test_impact.py"
    ],
-   "map": "built in 129.7s",
+   "map": "cached",
    "select": {
     "count": null,
     "all": true,
@@ -30,7 +89,7 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 106.8
+   "duration_s": 177.4
   },
   {
    "sha": "c6bc84395d4d0ba6ee9e6de9f66532b43868ff35",
@@ -39,7 +98,7 @@
    "code_files": [
     "plugins/maeng-harness/tests/test_review_replay.py"
    ],
-   "map": "built in 136.0s",
+   "map": "cached",
    "select": {
     "count": 1,
     "all": false,
@@ -57,7 +116,7 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 3.1
+   "duration_s": 4.8
   },
   {
    "sha": "d6201ee2da92dcd6fdc0f9587f4885a918229ed1",
@@ -85,7 +144,7 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 111.4
+   "duration_s": 178.0
   },
   {
    "sha": "65283109f9fdd938ceb37a832750227d6c29bc5f",
@@ -112,7 +171,7 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 2.9
+   "duration_s": 4.9
   },
   {
    "sha": "86b80200109336676cb4d2bd4cdc09887e083bc5",
@@ -140,7 +199,7 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 116.1
+   "duration_s": 175.4
   },
   {
    "sha": "e98253b24e2969ce6a26ec8f1ceeea2d648f4162",
@@ -173,7 +232,7 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 108.0
+   "duration_s": 175.0
   },
   {
    "sha": "1f04c88caa2723b404abfb0dea8dd4e771be9415",
@@ -204,7 +263,7 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 64.7
+   "duration_s": 100.2
   },
   {
    "sha": "e0dc2830cc2558e9bbe8180da7ff14087c07c6f6",
@@ -271,7 +330,7 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 305.4
+   "duration_s": 517.7
   },
   {
    "sha": "1fac3e50f9bfd0bf6521ba88fc81119310bfad43",
@@ -300,7 +359,7 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 1.8
+   "duration_s": 2.3
   },
   {
    "sha": "b08b6556134cb91e4d350c4ac1987ee48f0b4736",
@@ -339,7 +398,7 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 68.5
+   "duration_s": 97.8
   },
   {
    "sha": "dddbb5c923327c0a27bcee3d908c2e801a6b73fb",
@@ -374,7 +433,7 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 60.2
+   "duration_s": 93.5
   },
   {
    "sha": "8c1198c5669253fdde2c150339899301e80c3835",
@@ -401,7 +460,7 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 12.4
+   "duration_s": 24.0
   },
   {
    "sha": "b864b2874a27940346d30cd3ccb88c0d1b2aa2a9",
@@ -453,7 +512,7 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 285.7
+   "duration_s": 486.8
   },
   {
    "sha": "cc1968225816cc2f0416ee8803ca45ff1f138906",
@@ -492,83 +551,7 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 277.3
-  },
-  {
-   "sha": "c519c4254953b84d3ea95bebbc6b1b38727f00dc",
-   "parent": "098b67bf7e5582feaf978205c2c59c8ce91e21ca",
-   "subject": "feat(MAE-323): route and reviewer resolver from roles.json; explicit Decisions model on the claim and duplicate routes (S2)",
-   "code_files": [
-    "plugins/maeng-harness/bin/maeng-review",
-    "plugins/maeng-harness/lib/maeng/routing.py",
-    "plugins/maeng-harness/policy/roles.json",
-    "plugins/maeng-harness/schemas/verdict.schema.json",
-    "plugins/maeng-harness/tests/test_cli.py",
-    "plugins/maeng-harness/tests/test_r2.py",
-    "plugins/maeng-harness/tests/test_review_roles.py",
-    "plugins/maeng-harness/tests/test_roles.py",
-    "plugins/maeng-harness/tests/test_route_enforcement.py"
-   ],
-   "map": "cached",
-   "select": {
-    "count": null,
-    "all": true,
-    "reasons": [
-     "policy/roles.json: unknown input -> all"
-    ],
-    "error": null
-   },
-   "summary": {
-    "mode": "all",
-    "selected": null,
-    "fallback": null,
-    "tests_run": 630,
-    "rc": 0
-   },
-   "rc": 0,
-   "selector_error": null,
-   "duration_s": 67.2
-  },
-  {
-   "sha": "098b67bf7e5582feaf978205c2c59c8ce91e21ca",
-   "parent": "a23f430b3a7fbf0ee6cd979a13aff34ab3d3f07b",
-   "subject": "feat(MAE-323): one criteria digest for bind, review, ship and the lease gate; receipt coverage fields and plan receipts (S1)",
-   "code_files": [
-    "plugins/maeng-harness/bin/maeng-review",
-    "plugins/maeng-harness/lib/maeng/evidence.py",
-    "plugins/maeng-harness/lib/maeng/receipts.py",
-    "plugins/maeng-harness/schemas/verdict.schema.json",
-    "plugins/maeng-harness/tests/test_cli.py",
-    "plugins/maeng-harness/tests/test_criteria_rev.py",
-    "plugins/maeng-harness/tests/test_merge.py",
-    "plugins/maeng-harness/tests/test_r2.py"
-   ],
-   "map": "cached",
-   "select": {
-    "count": 26,
-    "all": false,
-    "reasons": [
-     "bin/maeng-review: committed_plan, run_review -> 151 tests",
-     "lib/maeng/evidence.py: static graph -> 25 test files",
-     "lib/maeng/receipts.py: static graph -> 24 test files",
-     "schemas/verdict.schema.json: static graph -> 24",
-     "tests/test_cli.py: test file itself",
-     "tests/test_criteria_rev.py: test file itself",
-     "tests/test_merge.py: test file itself",
-     "tests/test_r2.py: test file itself"
-    ],
-    "error": null
-   },
-   "summary": {
-    "mode": "narrow",
-    "selected": 26,
-    "fallback": null,
-    "tests_run": 590,
-    "rc": 0
-   },
-   "rc": 0,
-   "selector_error": null,
-   "duration_s": 216.9
+   "duration_s": 472.0
   }
  ],
  "summary": {
@@ -577,15 +560,15 @@
   "selector_errors": [],
   "fallbacks": [],
   "all_by_rule": [
+   "dd020a7335aa",
    "53450a77a253",
    "d6201ee2da92",
    "86b802001093",
-   "e98253b24e29",
-   "c519c4254953"
+   "e98253b24e29"
   ],
   "test_failures": [],
   "count_unavailable": [],
-  "median_tests_run": 610,
-  "median_tests_run_narrow_only": 236
+  "median_tests_run": 462,
+  "median_tests_run_narrow_only": 232
  }
 }

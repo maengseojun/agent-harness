@@ -19,6 +19,7 @@ Replay fixed two defects: the parent plan's “rc 5” from uncollectable `_revi
 `tools/testperf/impact_replay.py`, using `docs/design/MAE-323-b2-impact-cases.json`, replayed the 16 newest plugin-changing commits, including 5 from 2b, on commit worktrees with cached parent coverage. Results: 16 completed; 0 selector errors, 0 fallbacks, 0 failures; 5 all by rule, 11 narrow.
 
 Executed counts: 805, 14, 799, 9, 791, 771, 236, 717, 24, 266, 232, 37, 699, 658, 630, 590. Median: 610; narrow-only: 236. The “median at most 100” bound is unmet. Observed reachability includes nearly every test through dispatcher imports and about 200 tests each through `apply_rounds` and `run_review`. This explains the broad selection. The bound came from expectation, not measurement. Earlier recordings had 7 exit-5 fallbacks and medians 601 and 611.5.
+Re-recorded 2026-11-08 after the round-1 fixes (dd020a7, `impact.py` hash changed; window shifted to the 16 newest code commits): 16 completed, 0 selector errors, 0 fallbacks, 0 test failures; 5 cases run the whole suite by rule (test-infrastructure commits); median executed 462, narrow-only 232, within the amended AC-7 bound of 610.
 
 ## Evidence integrity (AC-8)
 
