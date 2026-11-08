@@ -23,7 +23,8 @@ class Recognition(HarnessCase):
 
     def test_not_recognized(self):
         for cmd in ("ls", "git status", "pytest | tail", "pytest; echo done", "pytest || true", "pytest &", "echo pytest",
-                    "ruff format .", "npm install", "make", "python script.py"):
+                    "ruff format .", "npm install", "make", "python script.py",
+                    "pytest -q x && python3 -m unittest discover"):
             self.assertIsNone(evidence.recognize(cmd), cmd)
 
 

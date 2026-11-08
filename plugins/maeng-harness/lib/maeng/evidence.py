@@ -4,6 +4,7 @@ import hashlib
 import os
 import posixpath
 import re
+import sys
 from pathlib import Path
 
 from . import tree as treelib
@@ -41,9 +42,33 @@ NARROWING_REJECTED = ("--ignore", "--ignore-glob", "--deselect", "--lf", "--last
                       "--nf", "--new-first", "--sw", "--stepwise", "-short", "--skip", "--exact")
 
 
-def ran_zero_tests(text):
-    """True when the runner output shows that zero tests ran."""
+# Executed-test counts the runners print. pytest's summary line (`3 passed, 1 failed, 2 skipped in 0.1s`) and
+# unittest's `Ran N tests` (minus `skipped=N`). Skipped tests did not execute. Other runners: no count (unavailable).
+PYTEST_TALLY = re.compile(r"\b(\d+) (passed|failed|errors?|xfailed|xpassed|skipped|deselected)\b")
+PYTEST_EXECUTED = ("passed", "failed", "error", "errors", "xfailed", "xpassed")
+UNITTEST_RAN = re.compile(r"\bRan (\d+) tests?\b")
+UNITTEST_SKIPPED = re.compile(r"\bskipped=(\d+)")
+UNAVAILABLE = "unavailable"
+
+
+def test_count(text):
+    """Executed tests the runner output reports, or None when it prints no count (never a guessed zero)."""
     text = text or ""
+    tally = PYTEST_TALLY.findall(text)
+    if tally:
+        return sum(int(n) for n, what in tally if what in PYTEST_EXECUTED)
+    m = UNITTEST_RAN.search(text)
+    if m:
+        skipped = sum(int(n) for n in UNITTEST_SKIPPED.findall(text))
+        return max(int(m.group(1)) - skipped, 0)
+    return None
+
+
+def ran_zero_tests(text):
+    """True when the runner output shows that zero tests ran (an all-skipped run included)."""
+    text = text or ""
+    if test_count(text) == 0:
+        return True
     return bool(ZERO_TESTS.search(text)) and not RAN_SOME.search(text)
 
 
@@ -297,6 +322,10 @@ def recognize(command):
         if r is None:
             return None
         checks.append(r)
+    if len(checks) > 1:
+        print("maeng: multiple runner checks have inseparable output; no evidence recorded. Run each separately.",
+              file=sys.stderr)
+        return None
     return {"checks": checks, "cd": cd} if checks else None
 
 
@@ -322,7 +351,8 @@ def pre_runner(st, key, command, rec, tree_start, common, rel=""):
                           "dir": rel}
 
 
-def post_runner(st, key, ok, tree_finish):
+def post_runner(st, key, ok, tree_finish, count=None):
+    """`count`: executed tests the output reported (int), or None -> recorded as "unavailable", never 0."""
     pend = st["pending"].pop(key, None)
     if not pend:
         return []
@@ -331,8 +361,17 @@ def post_runner(st, key, ok, tree_finish):
         return []  # code changed during the check, or tree undecidable: no evidence
     added, rel = [], pend.get("dir") or ""
     for name, kind, identity in pend["checks"]:
-        added.append(add_evidence(st, name, kind, pend["cmd"], ok, started, tree_finish, pend["common"], "runner",
-                                  scoped_identity(identity, rel), rel))
+        ev = add_evidence(st, name, kind, pend["cmd"], ok, started, tree_finish, pend["common"], "runner",
+                          scoped_identity(identity, rel), rel)
+        ev["tests_run"] = count if isinstance(count, int) else UNAVAILABLE
+        # the same check passing and failing on one tree is flaky: both runs stay on record, both marked (P3-4)
+        twins = [e for e in st["evidence"][:-1] if e.get("source") == "runner" and e.get("tree_finish") == tree_finish
+                 and _identity(e) == _identity(ev) and e["ok"] != ev["ok"]]
+        if twins:
+            for e in twins:
+                e["flaky"] = True
+            ev["flaky"] = True
+        added.append(ev)
     return added
 
 
@@ -574,6 +613,10 @@ class Verifier:
         if missing:
             out.append("criteria not marked met: " + ", ".join(missing))
         return out
+
+    def flaky(self, tree):
+        """Identities with both a passing and a failing runner run on this tree (P3-4: recorded, not hidden)."""
+        return sorted({_identity(e) for e in self._evidence() if e.get("flaky") and self.eq(e.get("tree_finish"), tree)})
 
     def skipped(self, tree):
         return any(s.get("common") == self.common and self.eq(s["tree"], tree) for s in self.st["skips"])

@@ -175,8 +175,8 @@ class ExclusiveCopyTests(Base):
 
     def test_fallback_when_link_fails(self):
         import errno
-        for code in (errno.EPERM, errno.ENOTSUP, errno.EXDEV, errno.EOPNOTSUPP):
-            d = self.od / f"out{code}.bin"
+        for i, code in enumerate((errno.EPERM, errno.ENOTSUP, errno.EXDEV, errno.EOPNOTSUPP)):
+            d = self.od / f"out{i}.bin"
             with mock.patch.object(A.os, "link", side_effect=OSError(code, "no link")):
                 self.assertEqual(A.copy_file(self._src(), d, exclusive=True), "fallback")
             self.assertEqual(d.read_bytes(), b"twenty bytes of data")

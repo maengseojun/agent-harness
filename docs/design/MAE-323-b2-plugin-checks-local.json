@@ -1,0 +1,111 @@
+{
+  "lane": "gate",
+  "isolated": true,
+  "require_complete": true,
+  "aggregate_ok": true,
+  "parity": {
+    "ok": true,
+    "missing_lane": [],
+    "nonexistent": [],
+    "no_tests": []
+  },
+  "suites": [
+    {
+      "id": "maeng-harness",
+      "status": "ok",
+      "rc": 0,
+      "duration_s": 95.65,
+      "tests_run": 805,
+      "output_tail": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [  8%]\n........................................................................ [ 17%]\n........................................................................ [ 26%]\n........................................................................ [ 35%]\n........................................................................ [ 44%]\n........................................................................ [ 53%]\n........................................................................ [ 62%]\n........................................................................ [ 71%]\n........................................................................ [ 80%]\n........................................................................ [ 89%]\n........................................................................ [ 98%]\n.............                                                            [100%]\ntest sizes: small=214 medium=589 large=2\n805 passed in 95.22s (0:01:35)"
+    },
+    {
+      "id": "harness",
+      "status": "ok",
+      "rc": 0,
+      "duration_s": 3.73,
+      "tests_run": 205,
+      "output_tail": ".............................................................................................................................................................................................................\n----------------------------------------------------------------------\nRan 205 tests in 3.613s\n\nOK"
+    },
+    {
+      "id": "aside-collect",
+      "status": "ok",
+      "rc": 0,
+      "duration_s": 0.11,
+      "tests_run": 28,
+      "output_tail": "............................\n----------------------------------------------------------------------\nRan 28 tests in 0.068s\n\nOK"
+    },
+    {
+      "id": "baze",
+      "status": "ok",
+      "rc": 0,
+      "duration_s": 0.08,
+      "tests_run": 10,
+      "output_tail": "..........\n----------------------------------------------------------------------\nRan 10 tests in 0.002s\n\nOK"
+    },
+    {
+      "id": "cinematic-site",
+      "status": "ok",
+      "rc": 0,
+      "duration_s": 7.83,
+      "tests_run": 7,
+      "output_tail": ".......\n----------------------------------------------------------------------\nRan 7 tests in 7.748s\n\nOK"
+    },
+    {
+      "id": "decisions",
+      "status": "ok",
+      "rc": 0,
+      "duration_s": 0.56,
+      "tests_run": 234,
+      "output_tail": "2 claims: aside 1, live 1\nroute to the re-check: 2; other gaps: 0\nneeds the user: none\n/private/var/folders/tz/x1xkkbcx03b5808nh6j8n_c80000gn/T/plugin-checks-pc2i0ahv/tmpdit7dw6_/runs/r1/claims.json\n1 claims: aside 1\nroute to the re-check: 1; other gaps: 0\nneeds the user: none\n/private/var/folders/tz/x1xkkbcx03b5808nh6j8n_c80000gn/T/plugin-checks-pc2i0ahv/tmp4vtxxto0/runs/r1/claims.json\n2 claims: none 2\nroute to the re-check: 2; other gaps: 0\nneeds the user: 1 page(s), listed in /private/var/folders/tz/x1xkkbcx03b5808nh6j8n_c80000gn/T/plugin-checks-pc2i0ahv/tmpwp2pbl7a/runs/r1/needs-login.json\n/private/var/folders/tz/x1xkkbcx03b5808nh6j8n_c80000gn/T/plugin-checks-pc2i0ahv/tmpwp2pbl7a/runs/r1/claims.json\n5 claims: live 5\nroute to the re-check: 3; other gaps: 0\nneeds the user: none\n/private/var/folders/tz/x1xkkbcx03b5808nh6j8n_c80000gn/T/plugin-checks-pc2i0ahv/tmpk0gmw_se/runs/r1/claims.json\n2 claims: aside 1, none 1\nroute to the re-check: 2; other gaps: 0\nneeds the user: 1 page(s), listed in /private/var/folders/tz/x1xkkbcx03b5808nh6j8n_c80000gn/T/plugin-checks-pc2i0ahv/tmptt5ghu6f/runs/r1/needs-login.json\n/private/var/folders/tz/x1xkkbcx03b5808nh6j8n_c80000gn/T/plugin-checks-pc2i0ahv/tmptt5ghu6f/runs/r1/claims.json\n2 claims: aside 2\nroute to the re-check: 2; other gaps: 0\nneeds the user: none\n/private/var/folders/tz/x1xkkbcx03b5808nh6j8n_c80000gn/T/plugin-checks-pc2i0ahv/tmptt5ghu6f/runs/r1/claims.json\n1 claims: note 1\nroute to the re-check: 1; other gaps: 0\nneeds the user: none\n/private/var/folders/tz/x1xkkbcx03b5808nh6j8n_c80000gn/T/plugin-checks-pc2i0ahv/tmpgkoarrr0/runs/r1/claims.json\n1 claims: live 1\nroute to the re-check: 1; other gaps: 0\nneeds the user: none\n/private/var/folders/tz/x1xkkbcx03b5808nh6j8n_c80000gn/T/plugin-checks-pc2i0ahv/tmpmgpbtez6/runs/r1/claims.json\nopen 2 of 3: /private/var/folders/tz/x1xkkbcx03b5808nh6j8n_c80000gn/T/plugin-checks-pc2i0ahv/tmphrh9foeh/runs/r1/triage.json\n...........................................................................................................................................................................................................no ledger at /private/var/folders/tz/x1xkkbcx03b5808nh6j8n_c80000gn/T/plugin-checks-pc2i0ahv/tmpxgf_yqa_/none.jsonl\n...decisions: page cache write failed: 'utf-8' codec can't encode character '\\ud83d' in position 5: surrogates not allowed\n............................\n----------------------------------------------------------------------\nRan 234 tests in 0.416s\n\nOK"
+    },
+    {
+      "id": "easy-understanding",
+      "status": "ok",
+      "rc": 0,
+      "duration_s": 0.05,
+      "tests_run": 13,
+      "output_tail": "palette: house tokens only\npalette: house tokens only\npalette: house tokens only\noff-palette: #f5f5f5\npalette: house tokens only\npalette: house tokens only\noff-palette: red\noff-palette: white\noff-palette: hsl(0 100% 50%)\noff-palette: red\noff-palette: red\noff-palette: red\noff-palette: #ff5a36\noff-palette: #0a0f1c\npalette: house tokens only\npalette: house tokens only\noff-palette: rgb(12 3 4)\npalette: house tokens only\noff-palette: red\noff-palette: red\npalette: house tokens only\npalette: house tokens only\n.............\n----------------------------------------------------------------------\nRan 13 tests in 0.011s\n\nOK"
+    },
+    {
+      "id": "graphify-repository",
+      "status": "ok",
+      "rc": 0,
+      "duration_s": 2.98,
+      "tests_run": 19,
+      "output_tail": "...................\n----------------------------------------------------------------------\nRan 19 tests in 2.918s\n\nOK"
+    },
+    {
+      "id": "maeng-archive",
+      "status": "ok",
+      "rc": 0,
+      "duration_s": 0.49,
+      "tests_run": 69,
+      "output_tail": "........warning: 2 file(s) containing <private> excluded from backup: vault/secret.md, harness/h.json\n.............................................................\n----------------------------------------------------------------------\nRan 69 tests in 0.420s\n\nOK"
+    },
+    {
+      "id": "diagram-explainer",
+      "status": "ok",
+      "rc": 0,
+      "duration_s": 0.32,
+      "tests_run": 12,
+      "output_tail": "............                                                             [100%]\n12 passed in 0.06s"
+    },
+    {
+      "id": "motion-studio",
+      "status": "ok",
+      "rc": 0,
+      "duration_s": 1.44,
+      "tests_run": 1,
+      "output_tail": ".                                                                        [100%]\n1 passed in 1.19s"
+    },
+    {
+      "id": "obsidian-workspace",
+      "status": "ok",
+      "rc": 0,
+      "duration_s": 4.05,
+      "tests_run": 83,
+      "output_tail": ".......invalid pdf header: b'not a'\nEOF marker not found\n............................................................................\n----------------------------------------------------------------------\nRan 83 tests in 3.382s\n\nOK"
+    }
+  ],
+  "generated_at": "2026-11-07T17:05:27.159479+00:00"
+}

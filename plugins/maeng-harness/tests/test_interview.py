@@ -553,7 +553,7 @@ class FailsOpen(GateCase):
 
     def test_the_eta_side_effect_test_is_unedited(self):
         path = "plugins/maeng-harness/tests/test_stop_hooks.py"
-        before = run(["git", "show", f"ad5c6e9:{path}"], cwd=ROOT.parents[1], env=self.env).stdout
+        before = run(["git", "show", f"94e1436:{path}"], cwd=ROOT.parents[1], env=self.env).stdout
         after = (ROOT / "tests/test_stop_hooks.py").read_text()
 
         def eta_test(source):
