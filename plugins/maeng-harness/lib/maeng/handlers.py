@@ -8,7 +8,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from . import evidence, gates, guard, interview, receipts, recordcheck, state, status, stub
+from . import evidence, gates, guard, interview, receipts, recordcheck, remotecfg, state, status, stub
 from . import tree as treelib
 from .common import git_out, home_dir, now_iso, read_json, sha256, vault_dir
 from .shellparse import ParseError, program, split_segments
@@ -162,7 +162,7 @@ def on_prompt(payload):
     iv = interview_note(payload)
     if world_of(payload, st) != guard.PERSONAL:
         return context_out("UserPromptSubmit", iv) if iv else None
-    out = record_approval(payload.get("prompt") or "", cwd)
+    out = record_approval(payload.get("prompt") or "", cwd) or record_task_waiver(payload.get("prompt") or "", cwd, sid)
     tree, _ = treelib.tree_id(cwd)
     new_task = not st.get("task_id")
     pending = st.get("pending_notice")  # the last Stop's open work; delivered once, the obligation itself stays in state
@@ -220,6 +220,29 @@ def record_approval(prompt, cwd):
     return context_out("UserPromptSubmit", f"maeng: the user approved PR #{pr} at head {head[:10]}. "
                                            f"`maeng-ship merge {pr}` accepts this approval in place of a review "
                                            f"receipt, for this head only.")
+
+
+def record_task_waiver(prompt, cwd, sid):
+    """`해당 작업 면제 <사유>` / `작업 면제 취소` from the user: this session's PRs merge without approval (24h)."""
+    prompt = interview.user_text(prompt)
+    off = prompt and receipts.TASK_WAIVE_OFF.fullmatch(prompt)
+    on = prompt and not off and receipts.TASK_WAIVE.fullmatch(prompt)
+    if not (on or off):
+        return None
+    if interview.headless():  # A-11: a `claude -p` child could waive its own PRs
+        return context_out("UserPromptSubmit", "maeng: a task waiver counts only when the user types it in an "
+                                               "interactive session; NOT recorded.")
+    repo, err = remotecfg.plain_remote(cwd, "origin")
+    repo = None if err else guard.normalize_repo(repo)
+    if not repo:
+        return context_out("UserPromptSubmit", "maeng: no origin remote here, so the task waiver was NOT recorded.")
+    if off:
+        receipts.clear_task_waiver(repo, sid)
+        return context_out("UserPromptSubmit", "maeng: the user cancelled this session's task waiver.")
+    receipts.store_task_waiver(repo, sid, on.group(1).strip())
+    return context_out("UserPromptSubmit", "maeng: the user waived this session's merges for 24 hours: `maeng-ship "
+                                           "merge` needs no review receipt, 승인 or merge quiz. G1 and ship "
+                                           "verification still apply.")
 
 
 # ---- PreToolUse ----------------------------------------------------------

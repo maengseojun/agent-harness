@@ -187,7 +187,7 @@ def capture(key, sid, prompt):
         if wait == "retry" and text.startswith("이의") and text[2:].strip():
             rec["appeal"] = text[2:].strip()
             note = "maeng: the user's appeal was recorded. Run `maeng-interview appeal`."
-        elif wait in ("answer", "choice") and not receipts.APPROVE.match(prompt):
+        elif wait in ("answer", "choice") and not (receipts.APPROVE.match(prompt) or receipts.TASK_WAIVE.fullmatch(prompt)):
             rec["answer"] = prompt if rec.get("answer") is None else rec["answer"] + "\n\n" + prompt
             note = ("maeng: the user's message was recorded as their answer. Run `maeng-interview next`." if wait == "answer"
                     else "maeng: the user's choice was recorded. Run `maeng-interview reveal <digest>`.")

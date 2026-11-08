@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import time
 from pathlib import Path
 
 from . import schema
@@ -452,6 +453,34 @@ def store_approval(repo, pr, head, prompt):
 def find_approval(repo, pr, head):
     rec = load(approval_key(repo, str(pr), head))
     return rec if rec and rec["status"] == UNCONSUMED else None
+
+
+# `해당 작업 면제 <사유>`: for one session, maeng-ship merges without review receipt, 승인 or merge quiz. Written only by
+# the UserPromptSubmit hook; it lapses after WAIVER_TTL or on `작업 면제 취소`.
+TASK_WAIVE = re.compile(r"\s*(?:해당\s+)?작업\s+면제\s+(\S.*)", re.S)
+TASK_WAIVE_OFF = re.compile(r"\s*(?:해당\s+)?작업\s+면제\s+취소\s*")
+WAIVER_TTL = 24 * 3600
+
+
+def _task_waiver_path(repo, sid):
+    return _path("taskwaiver-" + sha256(f"{repo}|{sid}")[:24])
+
+
+def store_task_waiver(repo, sid, reason):
+    write_json(_task_waiver_path(repo, sid), {"repo": repo, "session": sid, "reason": reason[:200], "at": now_iso(),
+                                              "until": time.time() + WAIVER_TTL})
+
+
+def clear_task_waiver(repo, sid):
+    p = _task_waiver_path(repo, sid)
+    had = p.exists()
+    p.unlink(missing_ok=True)
+    return had
+
+
+def find_task_waiver(repo, sid):
+    rec = read_json(_task_waiver_path(repo, sid))
+    return rec if rec and rec.get("until", 0) > time.time() else None
 
 
 def pending_code():
