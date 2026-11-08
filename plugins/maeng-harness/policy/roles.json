@@ -347,6 +347,22 @@
       "decidedBy": "MAE-296, MAE-323",
       "verifiedAt": "2026-11-06"
     },
+    "quality_check": {
+      "when": "independent quality check of a non-code result against its conditions (quality-layer P-5, P-7, P-8)",
+      "resource": "gpt_pro",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "standby": [
+        {
+          "resource": "claude_code",
+          "note": "a Claude subagent with no conversation; record independence unknown"
+        }
+      ],
+      "enforcedBy": "skill",
+      "where": "plugins/maeng-harness/skills/quality-layer/SKILL.md",
+      "decidedBy": "MAE-324 D-19 (provisional 2026-11-09)",
+      "verifiedAt": "2026-11-09"
+    },
     "bulk_reading": {
       "when": "reading many files or pages to the end",
       "resource": "claude_code",

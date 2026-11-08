@@ -185,6 +185,14 @@ class RolesSync(unittest.TestCase):
         self.assertEqual(problems(ROLES, AGENTS, SKILL, REVIEW, COLLECT, TEMPLATE), [])
         self.assertEqual(self.check(), [])
 
+    def test_quality_skill_matches_route(self):
+        route = json.loads(ROLES.read_text())["routes"]["quality_check"]
+        skill = REPO / route["where"]
+        self.assertTrue(skill.is_file(), f"quality-layer SKILL.md missing: {skill}")
+        text = skill.read_text()
+        flags = f"codex exec -m {route['model']} -c model_reasoning_effort={route['effort']}"
+        self.assertIn(flags, text, f"quality-layer SKILL.md does not carry {flags!r} of routes.quality_check")
+
     def test_definition_effort_changed(self):
         self.edit("agents/standard.md", lambda t: t.replace("effort: medium", "effort: high"))
         self.assertTrue(any("standard.md: effort" in p for p in self.check()))
