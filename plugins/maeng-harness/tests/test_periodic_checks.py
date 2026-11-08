@@ -263,7 +263,8 @@ def test_incomplete_attempt_history_invalid_counts_and_deferral_fail():
             observation.validate(report)
 
 
-def test_seed_record_is_pending_and_defers_enforcement():
+def test_committed_record_is_pending_and_defers_enforcement():
     report = json.loads((REPO / "docs/design/MAE-323-b3-ci-observation.json").read_text())
-    assert observation.validate(report)["state"] == "pending"
-    assert report["runs"] == [] and "gh run list" in report["note"]
+    summary = observation.validate(report)
+    assert summary["state"] == "pending" and report["judgment"] == "pending"
+    assert summary["attempts"] == len(report["runs"]) > 0 and "gh run list" in report["note"]

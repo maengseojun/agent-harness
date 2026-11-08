@@ -367,6 +367,33 @@ def static_graph():
         if "lib/maeng/gates.py" in reach:
             reach.add("config/notion-databases.json")
         graph[rel(t)] = reach
+
+    test_imports = {}
+    for test in graph:
+        try:
+            tree = ast.parse((PLUGIN / test).read_text())
+        except SyntaxError:
+            graph[test] |= closure({"hook"})
+            continue
+        modules = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                if node.level == 1:
+                    modules |= {node.module} if node.module else {a.name for a in node.names}
+                elif node.level == 0 and (node.module or "").startswith("tests."):
+                    modules.add(node.module[len("tests."):])
+            elif isinstance(node, ast.Import):
+                modules |= {a.name[len("tests."):] for a in node.names if a.name.startswith("tests.")}
+        test_imports[test] = {f"tests/{name}.py" for name in modules} & graph.keys()
+
+    changed = True
+    while changed:
+        changed = False
+        for test, imports in test_imports.items():
+            before = len(graph[test])
+            for imported in imports:
+                graph[test] |= graph[imported]
+            changed |= len(graph[test]) != before
     return graph
 
 

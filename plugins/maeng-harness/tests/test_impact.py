@@ -316,6 +316,47 @@ HANDLERS = {
         helper.write_text("not valid python !")
         self.assertIn("lib/maeng/stub.py", impact.static_graph()["tests/test_pre.py"])
 
+    def test_sibling_fixture_imports_inherit_reach_transitively(self):
+        fixture = self.root / "tests/test_z_fixture.py"
+        fixture.write_text('from .helpers import HarnessCase\nclass Fixture(HarnessCase):\n'
+                           '    def setUp(self):\n        self.start(".")\n')
+        cases = [("from . import test_z_fixture as fixture", "fixture.Fixture"),
+                 ("from .test_z_fixture import Fixture", "Fixture"),
+                 ("from tests.test_z_fixture import Fixture", "Fixture"),
+                 ("import tests.test_z_fixture", "tests.test_z_fixture.Fixture"),
+                 ("from .test_import0 import Case", "Case")]
+        for i, (statement, base) in enumerate(cases):
+            (self.root / f"tests/test_import{i}.py").write_text(f"{statement}\nclass Case({base}):\n    pass\n")
+        graph = impact.static_graph()
+        for i in range(len(cases)):
+            reach = graph[f"tests/test_import{i}.py"]
+            self.assertEqual(reach, graph["tests/test_z_fixture.py"])
+            self.assertIn("hooks/maeng_hooks.py", reach)
+            self.assertIn("lib/maeng/handlers.py", reach)
+            self.assertIn("lib/maeng/interview.py", reach)
+            self.assertNotIn("lib/maeng/gates.py", reach)
+
+    def test_sibling_import_cycles_propagate_reach(self):
+        for name, source in {"a": "from . import test_b\n", "b": "from .test_c import Case\n",
+                             "c": 'from . import test_a\nclass Case:\n    def setUp(self):\n        self.start(".")\n',
+                             "unrelated": "pass\n"}.items():
+            (self.root / f"tests/test_{name}.py").write_text(source)
+        graph = impact.static_graph()
+        for name in ("a", "b", "c"):
+            self.assertIn("hooks/maeng_hooks.py", graph[f"tests/test_{name}.py"])
+            self.assertIn("lib/maeng/handlers.py", graph[f"tests/test_{name}.py"])
+        self.assertEqual(graph["tests/test_unrelated.py"], set())
+
+    def test_unparseable_test_keeps_full_hook_closure_for_importers(self):
+        (self.root / "tests/test_broken.py").write_text("not valid python !")
+        (self.root / "tests/test_inherited.py").write_text("from .test_broken import Fixture\n")
+        graph = impact.static_graph()
+        for name in ("broken", "inherited"):
+            reach = graph[f"tests/test_{name}.py"]
+            for source in ("hooks/maeng_hooks.py", "lib/maeng/handlers.py", "lib/maeng/gates.py",
+                           "lib/maeng/interview.py", "lib/maeng/stub.py"):
+                self.assertIn(source, reach)
+
     def test_unknown_dynamic_aliases_raw_input_and_inherited_tests_keep_full_closure(self):
         known = self.make_source("known", 'self.hook("Stop", ".")')
         bodies = ['self.hook(event, ".")', 'self.hook("FutureEvent", ".")', 'self.run_hook_text(raw)',
