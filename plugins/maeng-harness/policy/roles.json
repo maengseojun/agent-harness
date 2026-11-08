@@ -239,7 +239,7 @@
         "gpt-6.1-sol",
         "gpt-6-astra"
       ],
-      "note": "the default model is set in the Aside app and is not visible from the CLI; pass --model"
+      "note": "the default model is Aside's own setting (~/.aside/u/0/settings.json defaultModel): the ChatGPT subscription route openai-codex/gpt-6.1-sol high, raised by the launchd job com.maeng.aside-sol-latest. An explicit --model overrides it and the openai/ form bills the OpenAI API, so pass --model only when the user names a model (user, 2026-11-08)"
     },
     "baze": {
       "plan": "school BAZE gateway",
@@ -264,23 +264,23 @@
     "research_collect_light": {
       "when": "quick, bulk or watch research: one fact, bulk gathering, re-check of a known scope. No judgment; the range is fixed",
       "resource": "aside",
-      "model": "gpt-6.1-sol",
-      "effort": "high",
+      "model": null,
+      "effort": null,
       "standby": [],
       "enforcedBy": "skill",
       "where": "plugins/maeng-tools/skills/aside-collect/SKILL.md",
-      "decidedBy": "user 2026-11-07 (effort stated; the model follows from Astra being named for deep research)",
-      "verifiedAt": null
+      "decidedBy": "user 2026-11-08: Aside default (subscription route); --model only when the user names a model",
+      "verifiedAt": "2026-11-08"
     },
     "research_collect_deep": {
       "when": "deep research, from the start or built on the facts of a light run",
       "resource": "aside",
-      "model": "gpt-6-astra",
-      "effort": "medium",
+      "model": null,
+      "effort": null,
       "standby": [],
       "enforcedBy": "skill",
       "where": "plugins/maeng-tools/skills/aside-collect/SKILL.md",
-      "decidedBy": "user 2026-11-07",
+      "decidedBy": "user 2026-11-08: Aside default (subscription route); --model only when the user names a model",
       "verifiedAt": null
     },
     "research_triage": {

@@ -43,7 +43,8 @@ def _pair(cell):
 
 def route_problems(d, collect_md):
     """resources and routes: every route names a listed resource, says what forces it, and the
-    collection skill carries the same model and effort as the two research routes."""
+    collection skill carries the same model and effort as the two research routes: the flag when a
+    route names a model, no pinned OpenAI API model when the route is null (Aside's default)."""
     out = []
     resources, routes = d.get("resources", {}), d.get("routes", {})
     if not resources or not routes:
@@ -67,11 +68,13 @@ def route_problems(d, collect_md):
         if not r:
             out.append(f"routes.{name} missing")
             continue
+        if r.get("model") is None:
+            if "--model openai/" in text:
+                out.append(f"aside-collect SKILL.md pins an OpenAI API model while routes.{name} uses Aside's default")
+            continue
         flag = f"--model openai/{r.get('model')} --effort {r.get('effort')}"
         if flag not in text:
             out.append(f"aside-collect SKILL.md does not carry {flag!r} of routes.{name}")
-    if "aside exec --effort low" in text:
-        out.append("aside-collect SKILL.md still runs aside exec without a model")
     return out
 
 
@@ -207,8 +210,16 @@ class RolesSync(unittest.TestCase):
         self.assertTrue(any("Child-task PR" in p for p in self.check()))
 
 
-    def test_collect_effort_changed(self):
-        self.edit("collect.md", lambda t: t.replace("openai/gpt-6-astra --effort medium", "openai/gpt-6-astra --effort low"))
+    def test_collect_pins_api_model_again(self):
+        self.edit("collect.md", lambda t: t.replace('aside exec "<prompt>"', 'aside exec --model openai/gpt-6-astra --effort medium "<prompt>"'))
+        self.assertTrue(any("pins an OpenAI API model" in p for p in self.check()))
+
+    def test_collect_misses_route_model(self):
+        def f(t):
+            d = json.loads(t)
+            d["routes"]["research_collect_deep"].update(model="gpt-6-astra", effort="medium")
+            return json.dumps(d)
+        self.edit("roles.json", f)
         self.assertTrue(any("routes.research_collect_deep" in p for p in self.check()))
 
     def test_route_names_unknown_resource(self):
