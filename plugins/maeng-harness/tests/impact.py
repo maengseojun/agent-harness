@@ -6,7 +6,7 @@
   impact.py run [REV] [-- pytest args]   select, then run them with pytest (-n auto when xdist is installed)
 
 `run` and `select` build the map themselves when coverage is installed and the map is missing or was built at a
-commit that is no longer an ancestor of HEAD; without coverage they use the static graph and say so. `run` falls
+commit that is no longer an ancestor of HEAD; without a usable map they fall back to the full suite and say so. `run` falls
 back to the full suite, and says why on stderr, when the selection is empty, names a file that no longer exists,
 cannot be computed, or when pytest collects nothing from it (exit 5) or rejects a node id (exit 4). A genuine test
 failure (exit 1) is returned as is: no full rerun hides it. The last stderr line is `impact-summary: {...}` with
@@ -260,9 +260,12 @@ def load_map():
         cov = json.loads(MAP.read_text())
         if not isinstance(cov.get("files"), dict) or not cov.get("base"):
             raise ValueError("missing base/files")
+        if subprocess.run(["git", "merge-base", "--is-ancestor", cov["base"], "HEAD"], cwd=PLUGIN,
+                          capture_output=True).returncode != 0:
+            return None, f"coverage map base {cov['base'][:12]} is not an ancestor of HEAD"
         return cov, None
     except (ValueError, OSError) as exc:
-        return None, f"coverage map unreadable ({exc}): static graph only"
+        return None, f"coverage map unreadable ({exc})"
 
 
 def _have_coverage():
@@ -277,23 +280,21 @@ def ensure_map():
     """Build or refresh the map when coverage is installed and the map is missing or built off-history -> note."""
     cov, note = load_map()
     if cov is not None:
-        on_history = subprocess.run(["git", "merge-base", "--is-ancestor", cov["base"], "HEAD"], cwd=PLUGIN,
-                                    capture_output=True).returncode == 0
-        if on_history:
-            return None
-        note = f"coverage map base {cov['base'][:12]} is not an ancestor of HEAD"
+        return None
     if not _have_coverage():
-        return f"{note}; coverage not installed, static graph only (pip install -r requirements-dev.txt)"
+        return f"{note}; coverage not installed (pip install -r requirements-dev.txt)"
     try:
         build()
     except SystemExit as exc:
-        return f"{note}; map not rebuilt ({exc}); static graph only"
+        raise SystemExit(f"{note}; map not rebuilt ({exc})") from exc
     return f"{note}; map rebuilt"
 
 
 def select(base=None, changes=None):
     """-> (sorted node ids or [ALL], reasons). `changes` ({path: old-side lines}) replaces the git diff."""
     cov, note = load_map()
+    if cov is None:
+        return [ALL], [note]
     base = base or (cov or {}).get("base") or "HEAD"
     graph = static_graph()
     picked, why = set(), [note] if note else []
@@ -399,11 +400,11 @@ def run_pytest(args):
     return p.wait(), test_count("".join(tail))
 
 
-def run_selected(ids, extra, runner=None):
+def run_selected(ids, extra, runner=None, fallback=None):
     """Run the selected tests, or the full suite with a stated reason -> (rc, summary dict).
     A failure of the selected tests (rc 1) is final; only an unusable selection falls back."""
     runner = runner or run_pytest  # looked up at call time, so a test can replace the module's runner
-    fallback, count, rc = None, None, None
+    count, rc = None, None
     if ids == [ALL]:
         mode, targets = "all", ["tests"]
     elif not ids:
@@ -440,7 +441,17 @@ def main(argv):
     if cmd == "build":
         build()
         return 0
-    note = ensure_map()
+    try:
+        note = ensure_map()
+    except SystemExit as exc:
+        error = f"coverage map build failed: {exc}"
+        print("# " + error, file=sys.stderr)
+        if cmd == "run":
+            print("impact-summary: " + json.dumps({"mode": "fallback", "selected": None, "fallback": error,
+                                                   "tests_run": "unavailable", "rc": 1}), file=sys.stderr)
+        elif as_json:
+            print(json.dumps({"ids": [ALL], "all": True, "reasons": [error], "error": error, "map_note": error}))
+        return 1
     if note:
         print("# " + note, file=sys.stderr)
     try:
@@ -464,7 +475,8 @@ def main(argv):
         rc, summary = run_selected([], extra)
         summary["fallback"] = error
     else:
-        rc, summary = run_selected(ids, extra)
+        fallback = "; ".join(why) if ids == [ALL] and load_map()[0] is None else None
+        rc, summary = run_selected(ids, extra, fallback=fallback)
     print("impact-summary: " + json.dumps(summary), file=sys.stderr)
     return rc
 

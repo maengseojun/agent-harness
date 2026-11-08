@@ -41,9 +41,10 @@ class Counting(HarnessCase):
 class HookCounts(ShipBase):
     def respond(self, output, cmd="pytest -q", **extra):
         tuid = "tu-" + uuid.uuid4().hex[:6]
-        self.hook("PreToolUse", self.repo, tool_name="Bash", tool_input={"command": cmd}, tool_use_id=tuid)
+        pre = self.hook("PreToolUse", self.repo, tool_name="Bash", tool_input={"command": cmd}, tool_use_id=tuid)
         self.hook("PostToolUse", self.repo, tool_name="Bash", tool_input={"command": cmd}, tool_use_id=tuid,
                   tool_response={"stdout": output, "stderr": "", **extra})
+        return pre
 
     def status(self):
         return json.loads(self.cli("maeng-verify", ["status"], self.repo).stdout)
@@ -62,6 +63,13 @@ class HookCounts(ShipBase):
         self.assertEqual([e["tests_run"] for e in evs], [5, "unavailable"])
         self.assertTrue(all(e["ok"] for e in evs))
         self.assertTrue(self.status()["ship_verified"])            # unknown count is not zero
+
+    def test_compound_output_cannot_grant_evidence_to_an_all_skipped_runner(self):
+        _, _, err = self.respond("1 passed in 0.1s\nRan 4 tests in 0.1s\n\nOK (skipped=4)",
+                                 "pytest -q x && python3 -m unittest discover", returnCode=0)
+        self.assertIn("no evidence recorded", err)
+        self.assertEqual(self.load_state()["evidence"], [])
+        self.assertFalse(self.status()["ship_verified"])
 
     def test_impact_run_output_is_never_runner_evidence(self):
         self.respond("collected 40 items\n\n40 passed in 3.0s", IMPACT_RUN)

@@ -4,6 +4,7 @@ import hashlib
 import os
 import posixpath
 import re
+import sys
 from pathlib import Path
 
 from . import tree as treelib
@@ -321,6 +322,10 @@ def recognize(command):
         if r is None:
             return None
         checks.append(r)
+    if len(checks) > 1:
+        print("maeng: multiple runner checks have inseparable output; no evidence recorded. Run each separately.",
+              file=sys.stderr)
+        return None
     return {"checks": checks, "cd": cd} if checks else None
 
 

@@ -346,12 +346,16 @@ def replay(a):
     cases = [c for c in m["cases"] if not a.only or c["id"] in a.only]
     full = schema.load_schema()
     out_schema = {**full["$defs"]["reviewer_output"], "$defs": full["$defs"]}
+    prompt_sha256 = hashlib.sha256(review_prompt(a).encode()).hexdigest()
 
     def one(c):
         f = rdir / f"{c['id']}.json"
         if f.exists() and not (a.force or a.dry_run):
-            return json.loads(f.read_text(encoding="utf-8"))
+            cached = json.loads(f.read_text(encoding="utf-8"))
+            if cached.get("prompt_sha256") == prompt_sha256:
+                return cached
         r = run_case(c, a, repo, out_schema)
+        r["prompt_sha256"] = prompt_sha256
         if not a.dry_run:
             rdir.mkdir(parents=True, exist_ok=True)
             write_json(f, r)
@@ -370,10 +374,13 @@ def replay(a):
 
 def aggregate(a, m, rdir):
     mr = maeng_review()
+    prompt_sha256 = hashlib.sha256(review_prompt(a).encode()).hexdigest()
     rows, lost, verdicts, not_run = [], [], {}, []
     for c in m["cases"]:
         f = rdir / f"{c['id']}.json"
         r = json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
+        if r and r.get("prompt_sha256") != prompt_sha256:
+            r = None
         status = r["status"] if r else "no_result"
         if r and status == "ok":
             verdicts[r["verdict"]] = verdicts.get(r["verdict"], 0) + 1
@@ -388,7 +395,7 @@ def aggregate(a, m, rdir):
     out = {"cases_total": len(m["cases"]), "cases_reconstructable": sum(bool(c["reconstructable"]) for c in m["cases"]),
            "cases_run": ran, "cases_not_run": not_run, "verdicts": verdicts, "lost_blockers": [
                {"id": i, "title": t} for i, t in lost], "rule": RULE, "kind_note": KIND_NOTE,
-           "prompt_sha256": hashlib.sha256(review_prompt(a).encode()).hexdigest(),
+           "prompt_sha256": prompt_sha256,
            "prompt_from": getattr(a, "prompt_from", None) or "working tree", "enrolled_at": a.enrolled_at,
            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "cases": rows,
            "expected": {c["id"]: c["findings"] for c in m["cases"]}}
@@ -421,9 +428,9 @@ def compare(a):
     out = {"baseline_prompt": base.get("prompt_from"), "new_prompt": new.get("prompt_from"), "cases_compared": 0,
            "expected": 0, "kept_baseline": 0, "kept_new": 0, "lost_vs_baseline": [], "gained_vs_baseline": [],
            "lost_by_both": 0, "cases_not_in_both": []}
-    for cid, nc in ncase.items():
-        bc = bcase.get(cid)
-        if not bc or bc.get("status") != "ok" or nc.get("status") != "ok":
+    for cid in sorted(bcase.keys() | ncase.keys()):
+        bc, nc = bcase.get(cid), ncase.get(cid)
+        if not bc or not nc or bc.get("status") != "ok" or nc.get("status") != "ok":
             out["cases_not_in_both"].append(cid)
             continue
         out["cases_compared"] += 1
@@ -439,6 +446,10 @@ def compare(a):
             elif not kb and not kn:
                 out["lost_by_both"] += 1
     print(json.dumps(out, indent=1))
+    print(f"cases_not_in_both={len(out['cases_not_in_both'])}", file=sys.stderr)
+    if out["cases_compared"] == 0 or out["expected"] == 0:
+        print("FAIL: empty comparison denominator", file=sys.stderr)
+        return 1
     if a.max_lost is not None and len(out["lost_vs_baseline"]) > a.max_lost:
         print(f"FAIL: {len(out['lost_vs_baseline'])} blockers kept by the baseline prompt are lost by the new prompt "
               f"(> {a.max_lost})", file=sys.stderr)

@@ -1,5 +1,5 @@
 """impact.py (MAE-323 AC-7): an unusable selection falls back to the full suite with a stated reason, a genuine
-failure of the selected tests is never hidden by a full rerun, and a missing or unreadable map is a note."""
+failure of the selected tests is never hidden by a full rerun, and a missing or unreadable map forces a full fallback."""
 import io
 import json
 import tempfile
@@ -97,15 +97,25 @@ class MapNotes(unittest.TestCase):
             with mock.patch.object(impact, "MAP", missing):
                 self.assertIsNone(impact.load_map()[0])
 
-    def test_selection_without_a_map_uses_the_static_graph_and_reports_the_note(self):
+    def test_selection_without_a_map_falls_back_to_all_and_reports_the_note(self):
         with tempfile.TemporaryDirectory() as d:
             bad = Path(d, "map.json")
             bad.write_text("{not json")
             with mock.patch.object(impact, "MAP", bad):
                 ids, why = impact.select(changes={"lib/maeng/evidence.py": {40}})
-        self.assertTrue(ids)
+        self.assertEqual(ids, [impact.ALL])
         self.assertIn("unreadable", why[0])
-        self.assertTrue(ids == [impact.ALL] or all(i.startswith("tests/test_") for i in ids))
+
+    def test_off_history_map_without_coverage_falls_back_to_all(self):
+        with tempfile.TemporaryDirectory() as d:
+            m = Path(d, "map.json")
+            m.write_text(json.dumps({"base": "0" * 40, "files": {}}))
+            with mock.patch.object(impact, "MAP", m), mock.patch.object(impact, "_have_coverage", return_value=False):
+                note = impact.ensure_map()
+                ids, why = impact.select(changes={"lib/maeng/evidence.py": {40}})
+        self.assertEqual(ids, [impact.ALL])
+        self.assertIn("not an ancestor", why[0])
+        self.assertIn("coverage not installed", note)
 
     def test_ensure_map_without_coverage_is_a_note_and_builds_nothing(self):
         with tempfile.TemporaryDirectory() as d, mock.patch.object(impact, "MAP", Path(d, "map.json")), \
@@ -125,11 +135,19 @@ class MapNotes(unittest.TestCase):
         self.assertIn("not an ancestor", note)
         self.assertIn("rebuilt", note)
 
+    def test_a_failed_build_is_not_downgraded_to_a_note(self):
+        with mock.patch.object(impact, "load_map", return_value=(None, "no coverage map")), \
+                mock.patch.object(impact, "_have_coverage", return_value=True), \
+                mock.patch.object(impact, "build", side_effect=SystemExit("the suite failed")):
+            with self.assertRaisesRegex(SystemExit, "map not rebuilt.*the suite failed"):
+                impact.ensure_map()
+
 
 class Main(unittest.TestCase):
     def run_main(self, argv, **patches):
         out, err = io.StringIO(), io.StringIO()
-        with mock.patch.multiple(impact, ensure_map=lambda: None, **patches), redirect_stdout(out), redirect_stderr(err):
+        with mock.patch.multiple(impact, **{"ensure_map": lambda: None, **patches}), \
+                redirect_stdout(out), redirect_stderr(err):
             rc = impact.main(argv)
         return rc, out.getvalue(), err.getvalue()
 
@@ -150,6 +168,28 @@ class Main(unittest.TestCase):
         rc, _, err = self.run_main(["run"], select=lambda base=None: ([T], ["x: 1 tests"]), run_pytest=r)
         self.assertEqual((rc, r.targets(0)), (0, [T]))
         self.assertEqual(self.summary(err), {"mode": "narrow", "selected": 1, "fallback": None, "tests_run": 3, "rc": 0})
+
+    def test_missing_map_runs_a_reported_full_fallback_and_select_json_says_all(self):
+        r = FakeRunner((0, 700))
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(impact, "MAP", Path(d, "map.json")):
+            rc, _, err = self.run_main(["run"], run_pytest=r)
+            select_rc, out, _ = self.run_main(["select", "--json"])
+        self.assertEqual((rc, r.targets(0)), (0, ["tests"]))
+        s = self.summary(err)
+        self.assertEqual(s["mode"], "fallback")
+        self.assertIn("no coverage map", s["fallback"])
+        self.assertEqual((select_rc, json.loads(out)["all"]), (0, True))
+        self.assertIn("no coverage map", json.loads(out)["reasons"])
+
+    def test_failed_map_build_returns_failure_without_a_green_rerun(self):
+        r = FakeRunner((0, 700))
+        rc, _, err = self.run_main(["run"],
+                                   ensure_map=mock.Mock(side_effect=SystemExit("the suite failed")), run_pytest=r)
+        self.assertEqual((rc, r.calls), (1, []))
+        s = self.summary(err)
+        self.assertEqual((s["mode"], s["rc"]), ("fallback", 1))
+        self.assertIn("coverage map build failed", s["fallback"])
+        self.assertIn("the suite failed", s["fallback"])
 
     def test_select_json_reports_ids_and_a_selector_error(self):
         rc, out, _ = self.run_main(["select", "--json"], select=lambda base=None: ([T], ["why"]))

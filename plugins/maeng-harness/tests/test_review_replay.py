@@ -56,6 +56,7 @@ def test_check_fails_on_empty(tmp_path):
 import importlib.util  # noqa: E402
 import tempfile  # noqa: E402
 import unittest  # noqa: E402
+from unittest import mock  # noqa: E402
 
 import pytest  # noqa: E402
 
@@ -164,6 +165,32 @@ def test_expected_verbatim_and_no_rerun(world):
     assert len(world.calls) == 2
 
 
+@pytest.mark.parametrize("cached_hash", [None, "different-prompt"])
+def test_cached_result_from_another_prompt_is_rerun(world, cached_hash):
+    world.go()
+    f = world.tmp / "out" / "review-replay" / f"{world.case['id']}.json"
+    cached = json.loads(f.read_text())
+    prompt_sha256 = cached.pop("prompt_sha256")
+    if cached_hash is not None:
+        cached["prompt_sha256"] = cached_hash
+    f.write_text(json.dumps(cached))
+    with mock.patch.object(rr, "run_case", wraps=rr.run_case) as run_case:
+        rc, res = world.go()
+    assert rc == 0 and run_case.call_count == 1 and len(world.calls) == 2
+    assert json.loads(f.read_text())["prompt_sha256"] == prompt_sha256 == res["prompt_sha256"]
+
+
+def test_aggregate_does_not_relabel_an_unselected_case_from_another_prompt(world):
+    world.go()
+    f = world.tmp / "out" / "review-replay" / f"{world.case['id']}.json"
+    cached = json.loads(f.read_text())
+    cached["prompt_sha256"] = "different-prompt"
+    f.write_text(json.dumps(cached))
+    rc, res = world.go("--only", "another-case")
+    assert rc == 0 and res["cases_run"] == 0 and res["cases"][0]["status"] == "no_result"
+    assert len(world.calls) == 1
+
+
 def test_plan_resolution(world):
     b, path, how = rr.reconstruct(world.repo, world.case)
     assert (path, how) == ("docs/design/MAE-9-plan.md", "changed-single")
@@ -213,8 +240,17 @@ class Compare(unittest.TestCase):
         self.assertEqual((rc, out["lost_vs_baseline"], out["lost_by_both"]), (0, [], 2))
 
     def test_a_case_missing_or_not_ok_in_one_run_is_not_compared(self):
-        rc, out, _ = self.run_compare([self.case({"x": 1}, {"x": 1}, status="error")], [self.case(None, None)], max_lost=0)
-        self.assertEqual((rc, out["cases_compared"], out["cases_not_in_both"]), (0, 0, ["c1"]))
+        rc, out, err = self.run_compare([self.case({"x": 1}, {"x": 1}, status="error")], [self.case(None, None)], max_lost=3)
+        self.assertEqual((rc, out["cases_compared"], out["cases_not_in_both"]), (1, 0, ["c1"]))
+        self.assertIn("FAIL: empty comparison denominator", err)
+        self.assertIn("cases_not_in_both=1", err)
+
+    def test_empty_cases_or_expectations_fail_even_with_a_loss_allowance(self):
+        empty = {**self.case(None, None), "expected": []}
+        for cases in ([], [empty]):
+            rc, _, err = self.run_compare(cases, cases, max_lost=3)
+            self.assertEqual(rc, 1)
+            self.assertIn("FAIL: empty comparison denominator", err)
 
     def test_runs_with_different_expectations_are_refused(self):
         with tempfile.TemporaryDirectory() as d:
