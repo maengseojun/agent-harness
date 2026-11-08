@@ -1,14 +1,14 @@
 {
- "recorded_at": "2026-11-08T09:30:31Z",
+ "recorded_at": "2026-11-08T15:10:37Z",
  "partial": false,
- "impact_sha256": "74d2eed706eb628d7a9bfaabb0f25bbe67fda5266937cf9bdd36fc2851e4b462",
+ "impact_sha256": "b260f172342e32ab7a8374cdb1e644e2447955b6e8d5026762917cefe6434a1a",
  "cases_from": "docs/design/MAE-323-b2-impact-cases.json",
  "commits_selected_by": "pinned SHA/parent pairs",
  "cases": [
   {
    "sha": "dd020a7335aa367d2c84a6f9caed29bb1f4b2243",
    "parent": "d7c26cac286b1d7c448655f98e365fd0a68ef27c",
-   "map": "built in 199.0s",
+   "map": "built in 138.2s",
    "map_base": "d7c26cac286b1d7c448655f98e365fd0a68ef27c",
    "parent_map_test_failures": null,
    "select": {
@@ -28,12 +28,12 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 143.6
+   "duration_s": 109.9
   },
   {
    "sha": "e9671c0cca6821dc3bc1799a81aa0519689054c0",
    "parent": "c1b5aea56311ebbe7aff8fbbf01ff5dcf099ead2",
-   "map": "built in 143.6s",
+   "map": "built in 137.6s",
    "map_base": "c1b5aea56311ebbe7aff8fbbf01ff5dcf099ead2",
    "parent_map_test_failures": null,
    "select": {
@@ -53,12 +53,12 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 3.2
+   "duration_s": 3.5
   },
   {
    "sha": "53450a77a253795bb19611286b634d9df4f6182a",
    "parent": "e87935f7fee2a9d547d6d2ecb2e13738b276bf6e",
-   "map": "built in 142.5s",
+   "map": "built in 136.5s",
    "map_base": "e87935f7fee2a9d547d6d2ecb2e13738b276bf6e",
    "parent_map_test_failures": null,
    "select": {
@@ -78,12 +78,12 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 122.5
+   "duration_s": 132.6
   },
   {
    "sha": "c6bc84395d4d0ba6ee9e6de9f66532b43868ff35",
    "parent": "d6201ee2da92dcd6fdc0f9587f4885a918229ed1",
-   "map": "built in 147.7s",
+   "map": "built in 133.7s",
    "map_base": "d6201ee2da92dcd6fdc0f9587f4885a918229ed1",
    "parent_map_test_failures": null,
    "select": {
@@ -108,7 +108,7 @@
   {
    "sha": "d6201ee2da92dcd6fdc0f9587f4885a918229ed1",
    "parent": "65283109f9fdd938ceb37a832750227d6c29bc5f",
-   "map": "built in 143.3s",
+   "map": "built in 131.3s",
    "map_base": "65283109f9fdd938ceb37a832750227d6c29bc5f",
    "parent_map_test_failures": null,
    "select": {
@@ -128,12 +128,12 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 133.6
+   "duration_s": 103.8
   },
   {
    "sha": "65283109f9fdd938ceb37a832750227d6c29bc5f",
    "parent": "86b80200109336676cb4d2bd4cdc09887e083bc5",
-   "map": "built in 291.6s",
+   "map": "built in 134.7s",
    "map_base": "86b80200109336676cb4d2bd4cdc09887e083bc5",
    "parent_map_test_failures": null,
    "select": {
@@ -153,12 +153,12 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 4.5
+   "duration_s": 3.4
   },
   {
    "sha": "86b80200109336676cb4d2bd4cdc09887e083bc5",
    "parent": "e98253b24e2969ce6a26ec8f1ceeea2d648f4162",
-   "map": "built in 274.5s",
+   "map": "built in 132.2s",
    "map_base": "e98253b24e2969ce6a26ec8f1ceeea2d648f4162",
    "parent_map_test_failures": null,
    "select": {
@@ -178,12 +178,12 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 209.9
+   "duration_s": 108.0
   },
   {
    "sha": "e98253b24e2969ce6a26ec8f1ceeea2d648f4162",
    "parent": "1f04c88caa2723b404abfb0dea8dd4e771be9415",
-   "map": "built in 290.0s",
+   "map": "built in 127.4s",
    "map_base": "1f04c88caa2723b404abfb0dea8dd4e771be9415",
    "parent_map_test_failures": null,
    "select": {
@@ -203,12 +203,12 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 169.3
+   "duration_s": 104.1
   },
   {
    "sha": "1f04c88caa2723b404abfb0dea8dd4e771be9415",
    "parent": "e0dc2830cc2558e9bbe8180da7ff14087c07c6f6",
-   "map": "built in 264.7s",
+   "map": "built in 129.4s",
    "map_base": "e0dc2830cc2558e9bbe8180da7ff14087c07c6f6",
    "parent_map_test_failures": null,
    "select": {
@@ -230,12 +230,12 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 141.5
+   "duration_s": 63.9
   },
   {
    "sha": "e0dc2830cc2558e9bbe8180da7ff14087c07c6f6",
    "parent": "1fac3e50f9bfd0bf6521ba88fc81119310bfad43",
-   "map": "built in 220.2s",
+   "map": "built in 133.8s",
    "map_base": "1fac3e50f9bfd0bf6521ba88fc81119310bfad43",
    "parent_map_test_failures": null,
    "select": {
@@ -275,7 +275,7 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 196.9
+   "duration_s": 557.3
   },
   {
    "sha": "1fac3e50f9bfd0bf6521ba88fc81119310bfad43",
@@ -301,12 +301,12 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 2.6
+   "duration_s": 3.4
   },
   {
    "sha": "b08b6556134cb91e4d350c4ac1987ee48f0b4736",
    "parent": "8060838a348c982ae6c7088ca726dcf6492038d6",
-   "map": "built in 146.0s",
+   "map": "built in 270.6s",
    "map_base": "8060838a348c982ae6c7088ca726dcf6492038d6",
    "parent_map_test_failures": null,
    "select": {
@@ -332,12 +332,12 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 76.7
+   "duration_s": 85.6
   },
   {
    "sha": "dddbb5c923327c0a27bcee3d908c2e801a6b73fb",
    "parent": "a98b0fae82b95b3a0621ec249066a1398aa9ba68",
-   "map": "built in 147.4s",
+   "map": "built in 178.0s",
    "map_base": "a98b0fae82b95b3a0621ec249066a1398aa9ba68",
    "parent_map_test_failures": null,
    "select": {
@@ -361,12 +361,12 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 70.6
+   "duration_s": 79.4
   },
   {
    "sha": "8c1198c5669253fdde2c150339899301e80c3835",
    "parent": "b864b2874a27940346d30cd3ccb88c0d1b2aa2a9",
-   "map": "built in 140.0s",
+   "map": "built in 165.1s",
    "map_base": "b864b2874a27940346d30cd3ccb88c0d1b2aa2a9",
    "parent_map_test_failures": null,
    "select": {
@@ -386,12 +386,12 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 7.7
+   "duration_s": 19.9
   },
   {
    "sha": "b864b2874a27940346d30cd3ccb88c0d1b2aa2a9",
    "parent": "cc1968225816cc2f0416ee8803ca45ff1f138906",
-   "map": "built in 134.7s",
+   "map": "built in 189.5s",
    "map_base": "cc1968225816cc2f0416ee8803ca45ff1f138906",
    "parent_map_test_failures": null,
    "select": {
@@ -399,7 +399,7 @@
     "all": false,
     "reasons": [
      "bin/maeng-review: run_review -> 200 tests",
-     "lib/maeng/handlers.py: static graph -> 26 test files",
+     "lib/maeng/handlers.py: static graph -> 30 test files",
      "lib/maeng/receipts.py: static graph -> 31 test files",
      "skills/execute-code-brief/SKILL.md: doc/skill -> doc tests",
      "skills/harness-run/SKILL.md: doc/skill -> doc tests",
@@ -427,19 +427,19 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 119.4
+   "duration_s": 487.9
   },
   {
    "sha": "cc1968225816cc2f0416ee8803ca45ff1f138906",
    "parent": "c519c4254953b84d3ea95bebbc6b1b38727f00dc",
-   "map": "built in 116.5s",
+   "map": "built in 143.7s",
    "map_base": "c519c4254953b84d3ea95bebbc6b1b38727f00dc",
    "parent_map_test_failures": null,
    "select": {
     "count": 29,
     "all": false,
     "reasons": [
-     "bin/maeng-review: static graph -> 20 test files",
+     "bin/maeng-review: static graph -> 26 test files",
      "lib/maeng/receipts.py: static graph -> 29 test files",
      "tests/test_decisions_wiring.py: test file itself",
      "tests/test_plan_review.py: test file itself",
@@ -458,7 +458,7 @@
    },
    "rc": 0,
    "selector_error": null,
-   "duration_s": 117.4
+   "duration_s": 386.9
   }
  ],
  "summary": {
@@ -942,6 +942,12 @@
     "tests_run": "unavailable",
     "rc": null
    }
+  },
+  {
+   "recorded_at": "2026-11-08T09:30:31Z",
+   "impact_sha256": "74d2eed706eb628d7a9bfaabb0f25bbe67fda5266937cf9bdd36fc2851e4b462",
+   "summary_median": 462,
+   "reason": "superseded: tests/impact.py changed in d96a5fb (reach propagates through sibling test-module imports, PR review P2)"
   }
  ]
 }
