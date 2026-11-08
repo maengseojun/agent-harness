@@ -1,6 +1,7 @@
 """Hosting CLI observations and out-of-hook compatibility verification (AC-2)."""
 import importlib.util
 import json
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -30,7 +31,8 @@ class SessionCli(HarnessCase):
 
     def host(self, version="9.9.9"):
         exe = self.tmp / "embedded-claude"
-        exe.write_text(f"#!{sys.executable}\nprint({(version + ' (Claude Code)')!r})\n")
+        # /bin/sh, not Python: interpreter start-up under parallel load can exceed the 1 s probe timeout.
+        exe.write_text(f"#!/bin/sh\necho {shlex.quote(version + ' (Claude Code)')}\n")
         exe.chmod(0o755)
         self.env["CLAUDE_CODE_EXECPATH"] = str(exe)
         return exe
