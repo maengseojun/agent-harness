@@ -33,7 +33,7 @@ Any session may explain or give reasons at any time: the user can ask you, anoth
 
 ## Merge quiz
 
-A PR over 150 changed lines, or one touching a mapped path, needs the user's quiz before `maeng-ship merge` (personal) or `gh pr merge` and the merge MCP tool (eta, denied without it). `승인 #N` replaces only the review. Start the quiz last, after the review passed and the head is final: a changed diff asks again, a rebase with the same diff keeps the pass.
+A PR over 150 changed lines, or one touching a mapped path, needs the user's quiz before `maeng-ship merge` (personal) or `gh pr merge` and the merge MCP tool (eta, denied without it). `승인 #N` replaces only the review; the user's `해당 작업 면제 <사유>` replaces review and quiz for this session's merges for 24 hours (harness-run review-and-ship). Start the quiz last, after the review passed and the head is final: a changed diff asks again, a rebase with the same diff keeps the pass.
 
 In a clean checkout of the PR head: `maeng-interview start --stage merge --pr <N> [--material <plan file>]`. It runs the project's tests in a throwaway copy, which can take minutes: use a long timeout or run it in the background. The user gets four short-answer items whose answers come from running the code (a predicted value, the changed line, a failing test or `없음`), then one written question on what differs from the design. If the tests give fewer than two items, it asks two written questions instead. When an older pass of the same PR sits on an ancestor head, it asks one item about the change. Relay each question and call `next` exactly as above. A headless run cannot start it: end with `needs input:`.
 

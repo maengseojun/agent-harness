@@ -2,8 +2,9 @@ import hashlib
 import json
 import stat
 import sys
+import unittest.mock
 
-from maeng import receipts
+from maeng import interview, receipts
 from .helpers import HarnessCase
 
 
@@ -398,3 +399,62 @@ class ExactLeaseThroughHook(MergeBase):
         self.hook("PreToolUse", self.repo, tool_use_id="m3", **body)
         self.hook("PostToolUse", self.repo, tool_use_id="m3", tool_response={"stdout": ""}, **body)
         self.assertEqual(self.status(key), "consumed")
+
+
+class TaskWaiver(MergeBase):
+    """`해당 작업 면제 <사유>`: this session's PRs merge without receipt, 승인 or quiz for 24 hours."""
+
+    def setUp(self):
+        super().setUp()
+        patcher = unittest.mock.patch.object(interview, "_ps", return_value=("", ""))  # an interactive parent, as in CI
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def waive(self, prompt="해당 작업 면제 오타 수정"):
+        return json.dumps(self.hook("UserPromptSubmit", self.repo, prompt=prompt)[1], ensure_ascii=False)
+
+    def next_pr(self, name):
+        (self.repo / name).write_text("z = 3\n")
+        h2 = self.commit_all(self.repo, name)
+        self.git(self.repo, "push", "-q", "origin", "feat")
+        self.set_pr(self.remote_main(), h2)
+        self.run_check(self.repo, "pytest -q")
+        self.cli("maeng-verify", ["plan", "--met", "AC-1"], self.repo)
+        return h2
+
+    def test_one_waiver_merges_every_pr_of_the_session_until_cancelled(self):
+        self.assertNotEqual(self.ship().returncode, 0)
+        self.assertIn("waived this session", self.waive())
+        r = self.ship()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        h2 = self.next_pr("second.py")
+        r = self.ship()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.remote_main(), h2)
+        self.assertIn("cancelled", self.waive("작업 면제 취소"))
+        self.next_pr("third.py")
+        self.assertNotEqual(self.ship().returncode, 0)
+
+    def test_an_approval_left_by_a_rejected_push_dies_with_the_waiver(self):
+        self.waive()
+        r = self.ship(MAENG_GIT=self.fake_git("reject-git", "sys.stderr.write('! [rejected] non-fast-forward\\n'); sys.exit(1)"))
+        self.assertNotEqual(r.returncode, 0)
+        self.waive("작업 면제 취소")
+        self.assertNotEqual(self.ship().returncode, 0)            # the minted approval is not found without the waiver
+        self.assertEqual(self.remote_main(), self.base)
+
+    def test_it_lapses_after_24_hours(self):
+        self.assertIn("waived this session", self.waive("<system-reminder>\nx\n</system-reminder>\n\n\n작업 면제 저위험"))  # behind the app's note
+        p = receipts._task_waiver_path(str(self.remote.resolve()), self.sid)
+        rec = json.loads(p.read_text())
+        rec["until"] -= receipts.WAIVER_TTL + 1
+        p.write_text(json.dumps(rec))
+        self.assertNotEqual(self.ship().returncode, 0)
+        self.assertEqual(self.remote_main(), self.base)
+
+    def test_a_headless_session_or_a_bare_keyword_records_nothing(self):
+        self.assertEqual(self.waive("작업 면제"), "null")             # a reason is required
+        self.assertEqual(self.waive("이 작업 면제 해줘"), "null")      # only a message that starts with it counts
+        self.env["MAENG_TASK_ID"] = "t1"
+        self.assertIn("NOT recorded", self.waive())
+        self.assertNotEqual(self.ship().returncode, 0)

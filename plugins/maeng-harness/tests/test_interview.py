@@ -797,6 +797,13 @@ class ShipGate(MergeBase):
         self.assertIn(self.patch(self.base, head)[:12], r.stderr)
         self.assertEqual(self.remote_main(), self.base)
 
+    def test_the_task_waiver_also_covers_the_merge_quiz(self):
+        self.grow(160)
+        with unittest.mock.patch.object(interview, "_ps", return_value=("", "")):  # an interactive parent
+            self.hook("UserPromptSubmit", self.repo, prompt="해당 작업 면제 저위험 문서 정리")
+        r = self.ship()
+        self.assertEqual(r.returncode, 0, r.stderr)
+
     def test_exactly_150_changed_lines_ships(self):
         # c1 changes app.py (1 line added, 1 removed) and c2 adds lib.py (1 line): 3 changed lines, so 147 more make 150
         self.grow(147)
@@ -1289,7 +1296,7 @@ class Docs(unittest.TestCase):
         self.assertIn("seal your recommendation before asking for my choice", text)
         self.assertIn("comprehension-gate", (ROOT.parents[1] / "README.md").read_text())
 
-    def test_the_plugin_is_0_4_14(self):
+    def test_the_plugin_is_0_4_19(self):
         self.assertEqual(json.loads((ROOT / ".claude-plugin/plugin.json").read_text())["version"], "0.4.19")
 
 
