@@ -2,7 +2,7 @@
 
 Linear: MAE-326 (parent MAE-323). Written 2026-11-08 from the recorded runs; drafted by Codex Sol from the planner's measured facts and corrected by the planner.
 
-Bundle 2 (Linear MAE-326) rebuilt the code loop. Recorded results support the changes below, but AC-7 and AC-13 are unmet. Final-tree checks passed; the real CI aggregate and the release observations are pending. The CEO must decide whether to amend those criteria before approving release.
+Bundle 2 (Linear MAE-326) rebuilt the code loop. PR 2a (#103) merged 2026-11-07 and PR 2b (#104) merged 2026-11-08 at 4c14443 after the CEO amended AC-7 and AC-13 to the measured basis (R-17); all four 2b criteria are met on the merged tree, the real CI plugin-suites job passes 12/12, and both plugins are released as maeng-harness 0.4.14 and maeng-tools 0.3.22 with this commit. Post-release observations (parent 5, AC-11) remain pending.
 
 ## What bundle 2 changed
 
