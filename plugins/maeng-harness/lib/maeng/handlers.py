@@ -230,13 +230,15 @@ def task_running(st, new_task):
 
 
 def record_approval(prompt, cwd):
-    """`승인 #N` / `approve #N` from the user: approve PR N at its current head for maeng-ship."""
+    """`승인 #N` / `approve #N` from the user: approve PR N at its current head for maeng-ship. `승인 owner/name#N`
+    names the repository, for a PR outside the session's own."""
     m = receipts.APPROVE.match(prompt)
     if not m:
         return None
-    pr = m.group(1)
+    named, pr = m.group(1), m.group(2)
     try:
-        proc = subprocess.run([os.environ.get("MAENG_GH", "gh"), "pr", "view", pr, "--json", "headRefOid,url"],
+        proc = subprocess.run([os.environ.get("MAENG_GH", "gh"), "pr", "view", pr, "--json", "headRefOid,url",
+                               *(["--repo", named] if named else [])],
                               cwd=cwd, capture_output=True, text=True, timeout=8)
         info = json.loads(proc.stdout) if proc.returncode == 0 else {}
     except (OSError, ValueError, subprocess.TimeoutExpired):
@@ -247,7 +249,7 @@ def record_approval(prompt, cwd):
         return context_out("UserPromptSubmit", f"maeng: could not read PR #{pr} with gh, so the approval was NOT "
                                                f"recorded; tell the user.")
     receipts.store_approval(repo, pr, head, prompt)
-    return context_out("UserPromptSubmit", f"maeng: the user approved PR #{pr} at head {head[:10]}. "
+    return context_out("UserPromptSubmit", f"maeng: the user approved PR #{pr} ({repo}) at head {head[:10]}. "
                                            f"`maeng-ship merge {pr}` accepts this approval in place of a review "
                                            f"receipt, for this head only.")
 

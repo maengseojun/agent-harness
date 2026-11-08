@@ -430,7 +430,8 @@ def reject(key, note):
 
 # The user's own approval of a PR head, written only by the UserPromptSubmit hook from the user's message (an agent
 # cannot author a user prompt). maeng-ship accepts it in place of review receipts for exactly that head.
-APPROVE = re.compile(r"\s*(?:승인|approve)\s+(?:PR\s*)?#(\d+)\b", re.I)
+# `owner/name#N` names the PR's repository when the session runs in another one; bare `#N` means the session's own.
+APPROVE = re.compile(r"\s*(?:승인|approve)\s+(?:PR\s*)?([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#(\d+)\b", re.I)
 
 
 def approval_key(repo, pr, head):

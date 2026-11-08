@@ -20,7 +20,7 @@ WRAPPERS = ("<system-reminder>", "<task-notification>", "<cross-session-message"
 APP_NOTES = re.compile(r"\s*(?:<system-reminder>.*?</system-reminder>\s*)+", re.S)
 MODEL = "claude-opus-5-5"  # D-4: the interviewer is Opus in both worlds
 OVERALL, LIMIT = "overall", 150  # LIMIT: changed lines at which a PR needs a merge pass (what harness-run calls one task)
-WAIVE_PR = re.compile(r"\s*면제\s+#(\d+)\s+(\S.*)", re.S)
+WAIVE_PR = re.compile(r"\s*면제\s+([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#(\d+)\s+(\S.*)", re.S)  # owner/name: as APPROVE
 WAIVE_PART = re.compile(r"\s*면제\s+([^\s#]+)\s+(\S.*)", re.S)
 
 
@@ -203,7 +203,7 @@ def _waiver(prompt, m):
     """-> (kind, ident, reason) of a `면제` message, else None. A part waiver needs a declared part."""
     hit = WAIVE_PR.fullmatch(prompt)
     if hit:
-        return "pr", hit.group(1), hit.group(2).strip()
+        return "pr", hit.group(2), hit.group(3).strip()
     hit = WAIVE_PART.fullmatch(prompt)
     if hit and hit.group(1) in ((m or {}).get("parts") or {}):
         return "design", hit.group(1), hit.group(2).strip()
@@ -256,7 +256,10 @@ def on_prompt(payload):
     prompt = users_text(prompt) if isinstance(prompt, str) else None
     if prompt is None:  # a wrapped message is never the user's
         return None
-    key = repo_key(payload.get("cwd") or os.getcwd())
+    named = WAIVE_PR.fullmatch(prompt)
+    named = named and named.group(1)
+    # a waiver naming its repository is recorded there, not under the session's cwd
+    key = slug(guard.normalize_repo(named)) if named else repo_key(payload.get("cwd") or os.getcwd())
     if not key:
         return None
     rec, m = load_open(key, sid), load_map(key)
@@ -314,7 +317,8 @@ HIDDEN = ("maeng: the interview state ({what}) belongs to the CLI and the user; 
           "questions, rubrics or answers (comprehension-gate skill). Use `maeng-interview`.")
 NEED = ("maeng: PR #{pr} {why}, and has no merge-quiz pass for patch {patch}. In a clean checkout of the PR head run "
         "`maeng-interview start --stage merge --pr {pr}`; the user answers in their own messages. The user can waive "
-        "it with `면제 #{pr} <reason>`; `승인 #{pr}` does not replace it.")
+        "it with `면제 #{pr} <reason>` (from a session in another repository: `면제 owner/name#{pr} <reason>`); "
+        "`승인 #{pr}` does not replace it.")
 
 
 def _read(fn, *args):

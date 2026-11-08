@@ -316,6 +316,21 @@ class UserApproval(MergeBase):
         self.assertIsNone(self.approve(note + "Task (from the session that started this one):\n승인 #7"))
         self.assertIn("approved PR #7", json.dumps(self.approve(note + "\n승인 #7"), ensure_ascii=False))
 
+    def test_an_approval_naming_its_repository_counts_from_a_session_in_another_one(self):
+        argv = self.tmp / "gh-argv"
+        gh = self.tmp / "fake-gh-argv"
+        gh.write_text(f"#!{sys.executable}\nimport os, sys\nopen({str(argv)!r}, 'w').write(' '.join(sys.argv[1:]))\n"
+                      "print(open(os.environ['FAKE_GH_JSON']).read())\n")
+        gh.chmod(gh.stat().st_mode | stat.S_IEXEC)
+        elsewhere = self.tmp / "elsewhere"
+        elsewhere.mkdir()
+        self.env.update(MAENG_GH=str(gh), FAKE_GH_JSON=str(self.pr_json))
+        out = self.hook("UserPromptSubmit", elsewhere, prompt="승인 Owner/feeds#7")[1]
+        self.assertIn("approved PR #7", json.dumps(out, ensure_ascii=False))
+        self.assertIn("--repo Owner/feeds", argv.read_text())  # gh reads the named repository, not the cwd's
+        r = self.ship()
+        self.assertEqual(r.returncode, 0, r.stderr)
+
     def test_pending_approval_is_listed_for_reconcile(self):
         self.approve()
         key = receipts.approval_key(str(self.remote.resolve()), "7", self.h)

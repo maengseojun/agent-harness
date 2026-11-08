@@ -66,7 +66,8 @@ def merge(a, cwd):
     if not recs:
         approval = receipts.find_approval(repo, a.pr, head)
         if not approval:
-            die(f"merge denied: {problem} (or the user approves this head by sending `승인 #{a.pr}`)")
+            die(f"merge denied: {problem} (or the user approves this head by sending `승인 #{a.pr}`, or `승인 owner/name#{a.pr}` from a "
+                f"session in another repository)")
         recs = [approval]
     for rec in recs:
         pr_subject = rec["verdict"]["subject"].get("pr")

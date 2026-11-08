@@ -222,6 +222,12 @@ class Waivers(InterviewCase):
         passes = json.loads((self.maeng_home / "interviews" / self.key / "passes.json").read_text())
         self.assertEqual(passes["waivers"]["pr"]["7"]["reason"], "hotfix for prod, no time")
 
+    def test_a_pr_waiver_naming_its_repository_is_recorded_there(self):
+        self.assertIn("PR #9", self.prompt("면제 Owner/Feeds#9 not urgent"))
+        other = interview.slug(guard.normalize_repo("owner/feeds"))
+        self.assertTrue(interview.passed(other, 9, "merge", "any-patch"))
+        self.assertFalse(interview.passed(self.key, 9, "merge", "any-patch"))
+
     def test_a_part_waiver_needs_a_declared_part(self):
         self.declare()
         self.assertIsNone(self.prompt("면제 ghost because"))
@@ -1284,7 +1290,7 @@ class Docs(unittest.TestCase):
         self.assertIn("comprehension-gate", (ROOT.parents[1] / "README.md").read_text())
 
     def test_the_plugin_is_0_4_14(self):
-        self.assertEqual(json.loads((ROOT / ".claude-plugin/plugin.json").read_text())["version"], "0.4.17")
+        self.assertEqual(json.loads((ROOT / ".claude-plugin/plugin.json").read_text())["version"], "0.4.19")
 
 
 if __name__ == "__main__":
