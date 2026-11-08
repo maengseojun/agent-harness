@@ -1,0 +1,249 @@
+{
+ "baseline_prompt": "a23f430",
+ "new_prompt": "working tree",
+ "cases_compared": 41,
+ "expected": 97,
+ "kept_baseline": 9,
+ "kept_new": 9,
+ "lost_vs_baseline": [
+  {
+   "id": "4685548794e13d39",
+   "title": "Redact multiline secret values in pre-flight inputs"
+  },
+  {
+   "id": "86cb07badb21eca6",
+   "title": "Declared checks bypass runner requirements"
+  },
+  {
+   "id": "8dc630d35e7a13a1",
+   "title": "`maeng-review store <file>` turns any local JSON into a pass receipt"
+  }
+ ],
+ "gained_vs_baseline": [
+  {
+   "id": "4717bcc48a339ef3",
+   "title": "Preserve unmet rubric items after a successful follow-up"
+  },
+  {
+   "id": "4717bcc48a339ef3",
+   "title": "Confirm each prediction rather than trusting suite success"
+  },
+  {
+   "id": "583f85ad28def0de",
+   "title": "Malformed operation fields still fail open"
+  }
+ ],
+ "lost_by_both": 85,
+ "cases_not_in_both": [
+  "299658f6f1963faa",
+  "5daf343b358e99b4",
+  "6fded583e7d72f9d",
+  "9c2636729f93f5df",
+  "a15b0dd9c3c9abc6",
+  "bd47635d113daa00",
+  "cfe2a202e7d0ed82",
+  "f5b829efec903b55"
+ ],
+ "excluded": [
+  {
+   "id": "299658f6f1963faa",
+   "baseline_status": "no_result",
+   "new_status": "no_result",
+   "reason": "outside frozen comparison"
+  },
+  {
+   "id": "5daf343b358e99b4",
+   "baseline_status": "no_result",
+   "new_status": "no_result",
+   "reason": "outside frozen comparison"
+  },
+  {
+   "id": "6fded583e7d72f9d",
+   "baseline_status": "no_result",
+   "new_status": "no_result",
+   "reason": "outside frozen comparison"
+  },
+  {
+   "id": "9c2636729f93f5df",
+   "baseline_status": "no_result",
+   "new_status": "no_result",
+   "reason": "outside frozen comparison"
+  },
+  {
+   "id": "a15b0dd9c3c9abc6",
+   "baseline_status": "no_result",
+   "new_status": "no_result",
+   "reason": "outside frozen comparison"
+  },
+  {
+   "id": "bd47635d113daa00",
+   "baseline_status": "no_result",
+   "new_status": "no_result",
+   "reason": "outside frozen comparison"
+  },
+  {
+   "id": "cfe2a202e7d0ed82",
+   "baseline_status": "no_result",
+   "new_status": "no_result",
+   "reason": "outside frozen comparison"
+  },
+  {
+   "id": "f5b829efec903b55",
+   "baseline_status": "no_result",
+   "new_status": "no_result",
+   "reason": "outside frozen comparison"
+  }
+ ],
+ "bundle_mismatch": [],
+ "binding": "bundle_sha256",
+ "cases_not_run": [],
+ "membership_mismatch": [],
+ "reviewer_mismatch": [],
+ "reviewer_overrides": [
+  {
+   "id": "61427df531adf650",
+   "baseline": {
+    "reviewer": {
+     "effort": "medium",
+     "model": "claude-opus-5-5"
+    },
+    "reviewer_override": {
+     "applied": true,
+     "enrolled": {
+      "effort": "medium",
+      "model": "claude-fable-5-1"
+     }
+    }
+   },
+   "new": {
+    "reviewer": {
+     "effort": "medium",
+     "model": "claude-opus-5-5"
+    },
+    "reviewer_override": {
+     "applied": true,
+     "enrolled": {
+      "effort": "medium",
+      "model": "claude-fable-5-1"
+     }
+    }
+   }
+  },
+  {
+   "id": "8dc630d35e7a13a1",
+   "baseline": {
+    "reviewer": {
+     "effort": "medium",
+     "model": "claude-opus-5-5"
+    },
+    "reviewer_override": {
+     "applied": true,
+     "enrolled": {
+      "effort": "xhigh",
+      "model": "claude-fable-5-1"
+     }
+    }
+   },
+   "new": {
+    "reviewer": {
+     "effort": "medium",
+     "model": "claude-opus-5-5"
+    },
+    "reviewer_override": {
+     "applied": true,
+     "enrolled": {
+      "effort": "xhigh",
+      "model": "claude-fable-5-1"
+     }
+    }
+   }
+  },
+  {
+   "id": "c77d1838a2473a6b",
+   "baseline": {
+    "reviewer": {
+     "effort": "medium",
+     "model": "claude-opus-5-5"
+    },
+    "reviewer_override": {
+     "applied": true,
+     "enrolled": {
+      "effort": "xhigh",
+      "model": "claude-fable-5-1"
+     }
+    }
+   },
+   "new": {
+    "reviewer": {
+     "effort": "medium",
+     "model": "claude-opus-5-5"
+    },
+    "reviewer_override": {
+     "applied": true,
+     "enrolled": {
+      "effort": "xhigh",
+      "model": "claude-fable-5-1"
+     }
+    }
+   }
+  },
+  {
+   "id": "c8dd868a50855bb9",
+   "baseline": {
+    "reviewer": {
+     "effort": "medium",
+     "model": "claude-opus-5-5"
+    },
+    "reviewer_override": {
+     "applied": true,
+     "enrolled": {
+      "effort": "medium",
+      "model": "claude-fable-5-1"
+     }
+    }
+   },
+   "new": {
+    "reviewer": {
+     "effort": "medium",
+     "model": "claude-opus-5-5"
+    },
+    "reviewer_override": {
+     "applied": true,
+     "enrolled": {
+      "effort": "medium",
+      "model": "claude-fable-5-1"
+     }
+    }
+   }
+  },
+  {
+   "id": "ea146d1bb24de89d",
+   "baseline": {
+    "reviewer": {
+     "effort": "medium",
+     "model": "claude-opus-5-5"
+    },
+    "reviewer_override": {
+     "applied": true,
+     "enrolled": {
+      "effort": "high",
+      "model": "claude-opus-5-5"
+     }
+    }
+   },
+   "new": {
+    "reviewer": {
+     "effort": "medium",
+     "model": "claude-opus-5-5"
+    },
+    "reviewer_override": {
+     "applied": true,
+     "enrolled": {
+      "effort": "high",
+      "model": "claude-opus-5-5"
+     }
+    }
+   }
+  }
+ ]
+}

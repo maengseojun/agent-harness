@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from maeng import receipts, routing
+from maeng import receipts, routing, state
 from . import test_cli
 
 REPO = Path(__file__).resolve().parents[3]
@@ -129,6 +129,42 @@ class RouteRuns(test_cli.ReviewRunFixture):
         self.assertEqual(out["verdict"], "blocked")
         self.assertEqual([s["model"] for s in out["reviewer"]["skipped"]], [SOL, OPUS, FABLE])
         self.assertTrue(all(s["reason"].startswith("unavailable") for s in out["reviewer"]["skipped"]))
+
+    def test_bound_author_is_skipped_after_the_first_candidate_fails(self):
+        state.update(self.sid, lambda st: st["binding"].update(author_model=OPUS), self.repo)
+        fake, claude_log, _ = self.fake_claude(model=FABLE)
+        r = self.cli("maeng-review", ["run", "--kind", "code", "--pr", "7", "--base", self.base, "--head", self.h,
+                                      "--base-ref", "main"], self.repo,
+                     extra_env={"MAENG_CLAUDE": str(fake), "MAENG_CODEX": str(self.dead_codex())})
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(self.reviewer(r)["model"], FABLE)
+        self.assertEqual([(s["model"], s.get("match")) for s in self.reviewer(r)["skipped"]],
+                         [(SOL, None), (OPUS, "model")])
+        argv = json.loads(claude_log.read_text())
+        self.assertEqual(argv[argv.index("--model") + 1], FABLE)
+
+    def test_both_bound_exclusions_survive_every_availability_fallback(self):
+        for author, planner, excluded in ((SOL, OPUS, "planner"), (OPUS, SOL, "author")):
+            with self.subTest(excluded=excluded):
+                state.update(self.sid, lambda st: st["binding"].update(author_model=author, planner_model=planner), self.repo)
+                fake, _, _ = self.fake_claude(model=FABLE, is_error=True)
+                r = self.cli("maeng-review", ["run", "--kind", "parent", "--pr", "7", "--base", self.base,
+                                              "--head", self.h, "--base-ref", "main"], self.repo,
+                             extra_env={"MAENG_CLAUDE": str(fake), "MAENG_CODEX": str(self.dead_codex())})
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                out = json.loads(r.stdout)
+                self.assertEqual(out["verdict"], "blocked")
+                skipped = out["reviewer"]["skipped"]
+                self.assertEqual([s["model"] for s in skipped], [FABLE, ASTRA, OPUS])
+                self.assertTrue(all(s["reason"].startswith("unavailable") for s in skipped[:2]))
+                self.assertEqual(skipped[2]["reason"], f"same model as the {excluded} ({OPUS})")
+                self.assertFalse(self.log.exists(), "Astra failed via the stub; Opus must never start")
+
+    def test_unknown_explicit_author_is_refused_instead_of_disabling_exclusion(self):
+        r = self.run_review("code", "--author-model", "unknown")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("--author-model", r.stderr)
+        self.assertFalse(self.log.exists())
 
     def test_eta_world_is_still_refused_before_any_reviewer(self):
         eta = self.make_repo("eta_v1")

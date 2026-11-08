@@ -20,10 +20,11 @@ ORG = REFS / "org-chart.md"
 SPEC = REFS / "spec-plan.md"
 VERIFY = REFS / "verification.md"
 REVIEW = REFS / "review-and-ship.md"
+ONBOARD = REFS / "model-onboarding.md"
 BRIEFS = [REPO / "plugins/maeng-harness/skills/task-brief/SKILL.md",
           REPO / "plugins/maeng-harness/skills/execute-code-brief/SKILL.md", ORG]
 DEFS = [AGENTS / f"{n}.md" for n in ("quick", "standard", "design")]
-DOCS = [SKILL, SPEC, ORG, VERIFY, REVIEW, *BRIEFS[:2], *DEFS]
+DOCS = [SKILL, SPEC, ORG, VERIFY, REVIEW, ONBOARD, *BRIEFS[:2], *DEFS]
 
 STAGES = [("interview", "doc"), ("spec/plan", "doc"), ("bind", "code"), ("implement", "doc"), ("verify", "code"),
           ("review", "code"), ("merge", "code"), ("records", "doc")]
@@ -134,6 +135,67 @@ class ReviewRules(unittest.TestCase):
             for pat in RETIRED:
                 with self.subTest(doc=path.name, pattern=pat):
                     self.assertIsNone(re.search(pat, path.read_text()))
+
+
+class ModelOnboarding(unittest.TestCase):
+    def step(self, number, title):
+        match = re.search(rf"(?ms)^## {number}\. {title}\n(.*?)(?=^## |\Z)", ONBOARD.read_text())
+        self.assertIsNotNone(match, f"missing onboarding step {number}: {title}")
+        return match.group(1)
+
+    def test_response_probe_rejects_unusable_responses(self):
+        t = self.step(1, "Probe the response")
+        for term in ("response probe", "exact model ID", "effort", "CLI", "observed model ID"):
+            with self.subTest(term=term):
+                self.assertIn(term, t)
+        self.assertRegex(t, r"Mark[^.]*`invalid`[^.]*refusal[^.]*empty[^.]*malformed[^.]*failed[^.]*wrong model")
+        self.assertRegex(t, r"Stop[^.]*until[^.]*valid response")
+
+    def test_official_documentation_and_deprecation_checks(self):
+        t = self.step(2, "Check official sources")
+        for term in ("official model documentation", "CLI documentation", "deprecation", "incumbent", "candidate",
+                     "source URLs", "checked-at dates", "retirement dates", "`unknown`"):
+            with self.subTest(term=term):
+                self.assertIn(term, t)
+
+    def test_candidate_row_stays_outside_policy(self):
+        t = self.step(3, "Record the candidate")
+        self.assertRegex(t, r"outside[^.]*`[^`]*roles\.json`")
+        rows = table(t, "| Status |")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0][0], "candidate")
+        self.assertEqual(len(rows[0]), 9)
+        self.assertTrue(all(rows[0]))
+
+    def test_fixed_pair_is_nonempty_and_identical_for_both_models(self):
+        t = self.step(4, "Compare a fixed task pair")
+        rows = table(t, "| Task ID | Representative task |")
+        self.assertEqual([r[0] for r in rows], ["implement", "review"])
+        self.assertTrue(all(len(r) == 3 and all(r) for r in rows))
+        for term in ("Freeze", "nonempty task IDs", "input bundles", "digests", "judging criteria", "Reject an empty pair",
+                     "both tasks", "incumbent", "candidate", "identical inputs and judging criteria", "Restart both models"):
+            with self.subTest(term=term):
+                self.assertIn(term, t)
+
+    def test_comparison_record_preserves_measurements_and_unknown_usage(self):
+        t = self.step(4, "Compare a fixed task pair")
+        header = next(l for l in t.splitlines() if l.startswith("| Task ID | Model ID |"))
+        self.assertEqual([c.strip() for c in header.strip("|").split("|")],
+                         ["Task ID", "Model ID", "CLI ID/version", "Effort", "Response validity", "Quality",
+                          "Elapsed seconds", "Usage", "Limitations", "Evidence"])
+        self.assertRegex(t, r"usage[^.]*when available[^.]*`unknown`[^.]*never zero")
+        self.assertIn("four result rows", t)
+
+    def test_approval_stop_precedes_replacement_and_recheck(self):
+        t = self.step(5, "Stop for user approval")
+        self.assertRegex(t, r"\*\*STOP[^*]*user approval[^*]*before[^*]*replacing[^*]*role[^*]*editing[^*]*roles\.json[^*]*\*\*")
+        self.assertRegex(t, r"candidate row[^.]*not approval")
+        self.assertRegex(t, r"After[^.]*approved replacement[^.]*recheck[^.]*sourceUrl[^.]*verifiedAt")
+        self.assertIn("python3 -m pytest -q plugins/maeng-harness/tests/test_roles.py plugins/maeng-harness/tests/test_docs_sync.py", t)
+        self.assertIn("Record the results", t)
+
+    def test_review_rules_link_to_the_procedure(self):
+        self.assertRegex(REVIEW.read_text(), r"\[[^\]]+\]\(model-onboarding\.md\)")
 
 
 FLAG = re.compile(r"(?:(?<=\s)|(?<=[\[|,]))(--?[A-Za-z][\w-]*)")

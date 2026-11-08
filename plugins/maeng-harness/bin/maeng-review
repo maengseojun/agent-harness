@@ -155,10 +155,23 @@ def role_for(kind, binding):
     return kind
 
 
+def identities(binding, a):
+    """Explicit model > legacy family > current task binding; never infer execution from a role default."""
+    binding = binding or {}
+    if getattr(a, "issue", None) and a.issue != binding.get("issue"):
+        binding = {}
+    author = a.author_model if a.author_model is not None else a.author
+    if author is None:
+        author = binding.get("author_model")
+    planner = a.planner_model if a.planner_model is not None else binding.get("planner_model")
+    return author, planner
+
+
 def select(data, kind, binding, a, unavailable=None):
     """The next reviewer candidate for this run (routing.resolve); a RoutingError means nothing may start."""
     role = role_for(kind, binding)
-    sel = routing.resolve(data, role, route="review", author=a.author_model or a.author, planner=a.planner_model,
+    author, planner = identities(binding, a)
+    sel = routing.resolve(data, role, route="review", author=author, planner=planner,
                           only="claude" if backend() == "claude" else None, unavailable=unavailable)
     if role == "parent" and sel["model"] == data["roles"]["parent"]["model"]:  # plan A-7: the override stays, changed only on the user's request
         sel["effort"] = os.environ.get("MAENG_FABLE_EFFORT") or sel["effort"]
@@ -622,9 +635,13 @@ def run_review(a, cwd):
     if a.kind in ("code", "parent"):  # P9: notices only, the review runs either way
         for line in receipts.plan_notices(st.get("binding")):
             print(line, file=sys.stderr)
-    if not (a.author or a.author_model):  # nothing in the state records the author, so it must be named
-        die("the author of the change must be named, so its own model is not chosen to review it: "
-            "--author-model <exact model id> or --author claude|codex", 2)
+    author, planner = identities(st.get("binding"), a)
+    required = [("author", author)] + ([("planner", planner)] if a.kind in routing.PLANNER_ROLES else [])
+    for name, model in required:
+        if (not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", model) or
+                model.lower() in ("unknown", "unavailable", "none", "null")):
+            die(f"{name} identity is missing or invalid (blank/unknown): refresh maeng-verify bind with "
+                f"--{name}-model <model id> or pass --{name}-model <model id> to maeng-review run", 2)
     try:  # before any bundle work: a missing row, resource or planner model starts nothing
         sel = select(roles, a.kind, st.get("binding"), a)
     except ValueError as exc:
@@ -714,8 +731,8 @@ def run_review(a, cwd):
             if sel["model"] is None:
                 return blocked_no_candidate(subject, sel)
     result = settle(result, a.kind)
-    author_family = a.author or next((f for f, pre in routing.FAMILIES.items()
-                                      if (a.author_model or "").startswith(pre)), None)
+    author_family = author if author in routing.FAMILIES else next(
+        (f for f, pre in routing.FAMILIES.items() if author.startswith(pre)), None)
     verdict = {"verdict": result["verdict"], "subject": subject,
                "reviewer": {"model": model, "effort": effort, "provenance": "review-run",
                             "resource": sel["resource"], "row": sel["row"], "route": sel["route"],
@@ -889,8 +906,8 @@ def main(argv=None):
                    help="model family that wrote the change; its candidates are skipped (codex on a code review "
                         "sends it to Opus high instead of Sol); --author-model is exact")
     r.add_argument("--author-model", help="exact id of the model that wrote the change (skips that candidate)")
-    r.add_argument("--planner-model", help="exact id of the planner's model; required for --kind parent (and plan): "
-                                           "that candidate is skipped")
+    r.add_argument("--planner-model", help="planner's model id; overrides the binding; required for parent/plan "
+                                           "when unbound; that candidate is skipped")
     r.add_argument("--plan", help="repo path of the Spec/Plan file, read at --head; used when the session has no "
                                   "binding (background or dots-run sessions)")
     r.add_argument("--issue", help="task id a plan review is keyed by (default: the session binding's issue)")

@@ -490,6 +490,16 @@ class ClaudeBackend(ReviewRunFixture):
 
 
 class VerifyCli(HarnessCase):
+    def test_bind_model_flags_round_trip_through_status(self):
+        repo = self.make_repo()
+        self.start(repo)
+        r = self.cli("maeng-verify", ["bind", "MAE-5", "--planner-model", "claude-opus-5-5",
+                                      "--author-model", "gpt-6.1-sol"], repo)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        binding = json.loads(self.cli("maeng-verify", ["status"], repo).stdout)["binding"]
+        self.assertEqual((binding["planner_model"], binding["author_model"]), ("claude-opus-5-5", "gpt-6.1-sol"))
+        self.assertEqual(binding["criteria"], [])
+
     def test_bind_status_and_suggestions(self):
         repo = self.make_repo()
         self.start(repo)

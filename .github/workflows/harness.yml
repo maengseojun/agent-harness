@@ -20,18 +20,15 @@ on:
       - 'pytest.ini'
       - '.github/workflows/harness.yml'
   workflow_dispatch:
-    inputs:
-      lane:
-        description: Plugin suite lane
-        type: choice
-        options: [gate, periodic]
-        default: gate
+  schedule:
+    - cron: '0 0 * * 0'
 
 permissions:
   contents: read
 
 jobs:
   verify:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -49,6 +46,7 @@ jobs:
 
   plugin-suites:
     name: 'Plugin suites (informational: ship does not read it)'
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -65,10 +63,35 @@ jobs:
           PIP="$(python3 tools/testperf/plugin_checks.py --lane gate --print-pip)"
           if [ -n "$PIP" ]; then pip install $PIP; fi
       - name: Run every enrolled plugin suite in isolation
-        run: python3 tools/testperf/plugin_checks.py --lane ${{ inputs.lane || 'gate' }} --isolated --require-complete --json plugin-checks.json
+        run: python3 tools/testperf/plugin_checks.py --lane gate --isolated --require-complete --json plugin-checks.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: plugin-checks
           path: plugin-checks.json
+          if-no-files-found: warn
+
+  periodic:
+    name: 'Plugin periodic (informational: separate from gate)'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.13'
+      - name: Install periodic dependencies
+        run: pip install -r plugins/maeng-harness/requirements-dev.txt
+      - name: Run the periodic lane on disposable copies
+        run: python3 tools/testperf/plugin_checks.py --lane periodic --isolated --require-complete --timeout 13800 --json plugin-checks-periodic.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: plugin-checks-periodic
+          path: |
+            plugin-checks-periodic.json
+            periodic-results/
           if-no-files-found: warn

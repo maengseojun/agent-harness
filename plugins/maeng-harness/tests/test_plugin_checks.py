@@ -205,6 +205,69 @@ class Deps(Base):
         self.assertEqual(p.stdout.split(), ["alpha", "mid", "zeta"])
 
 
+class Periodic(Base):
+    def test_periodic_never_accepts_an_empty_manual_missing_or_unknown_run(self):
+        ok = suite("m", self.script("unknown.py", "unavailable counts"), required=False)
+        manual = {**ok, "manual": "not wired"}
+        missing = {**ok, "deps": [Deps.MISSING]}
+        skipped = {**ok, "command": [sys.executable, self.script("skip.py", "2 skipped in 0.1s")],
+                   "skips_allowed": 2, "skips_reason": "fixture"}
+        for entries in ([], [manual], [missing], [ok], [skipped]):
+            with self.subTest(entries=entries):
+                p, data = self.run_checks([], entries, "--lane", "periodic")
+                # Coverage belongs to the gate inventory even when only periodic runs.
+                if not entries:
+                    p, data = self.run_checks([suite("gate", "unused.py")], [], "--lane", "periodic")
+                self.assertEqual(p.returncode, 1)
+                self.assertFalse(data["aggregate_ok"])
+
+        self.assert_periodic_separation()
+
+    def assert_periodic_separation(self):
+        gate = suite("gate", self.script("gate.py", "1 passed in 0.1s"))
+        for rc in (0, 1):
+            periodic = suite("m", self.script("periodic.py", "2 passed in 0.1s", rc), covers=[], required=False)
+            p, data = self.run_checks([gate], [periodic])
+            self.assertEqual(p.returncode, 0)
+            self.assertEqual([r["id"] for r in data["suites"]], ["gate"])
+            p, data = self.run_checks([gate], [periodic], "--lane", "periodic")
+            self.assertEqual(p.returncode, rc)
+            self.assertEqual([r["id"] for r in data["suites"]], ["m"])
+
+    def test_mutation_report_must_be_fresh_complete_and_known(self):
+        record = {"status": "ok", "selected": 2, "executed": 2, "tests_run": 3, "tests_skipped": 0,
+                  "cleanup": True, "checkout_unchanged": True, "restored": True, "failures": [],
+                  "source_revision": "a" * 40, "seed": "mae232"}
+        for change in ({}, {"selected": 0}, {"executed": None}, {"cleanup": False}, {"restored": False},
+                       {"checkout_unchanged": False}, {"status": "incomplete"}, {"tests_run": 0},
+                       {"tests_skipped": 3}, {"failures": ["missing dependency"]}):
+            with self.subTest(change=change):
+                (self.root / "writer.py").write_text("import json\nfrom pathlib import Path\n"
+                    f"Path('mutation.json').write_text(json.dumps({dict(record, **change)!r}))\n")
+                s = {**suite("m", "writer.py", required=False), "report": "mutation.json"}
+                p, data = self.run_checks([suite("gate", "unused.py")], [s], "--lane", "periodic")
+                self.assertEqual(p.returncode, 1 if change else 0)
+                self.assertEqual(data["suites"][0]["status"], "incomplete" if change else "ok")
+        (self.root / "mutation.json").write_text(json.dumps(record))
+        s = {**suite("m", self.script("noop.py"), required=False), "report": "mutation.json"}
+        p, data = self.run_checks([suite("gate", "unused.py")], [s], "--lane", "periodic")
+        self.assertEqual(p.returncode, 1, "a leftover report cannot establish execution")
+
+    def test_workflow_routes_sunday_and_dispatch_separately(self):
+        workflow = (REPO / ".github/workflows/harness.yml").read_text()
+        self.assertIn("cron: '0 0 * * 0'", workflow)
+        gate, periodic = workflow.split("  periodic:\n")
+        self.assertIn("if: github.event_name == 'push' || github.event_name == 'pull_request'", gate)
+        self.assertIn("--lane gate --isolated --require-complete", gate)
+        self.assertNotIn("inputs.lane", workflow)
+        self.assertIn("if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'", periodic)
+        self.assertIn("--lane periodic --isolated --require-complete", periodic)
+        self.assertNotIn("needs:", periodic)
+        entry = json.loads((REPO / "plugins/maeng-harness/tests/lanes.json").read_text())["lanes"]["periodic"][0]
+        self.assertNotIn("manual", entry)
+        self.assertIn("tools/testperf/periodic_checks.py", entry["command"])
+
+
 class Isolation(Base):
     DUMP = "import json, os\nprint(json.dumps(dict(os.environ)))\n"
 
