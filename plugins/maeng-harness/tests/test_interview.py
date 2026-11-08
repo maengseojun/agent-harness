@@ -217,6 +217,17 @@ class Waivers(InterviewCase):
         self.assertFalse(interview.passed(self.key, 7, "merge"))
         self.assertFalse(interview.passed(self.key, "mint", "design"))
 
+    def test_a_waiver_or_answer_after_an_app_reminder_counts(self):
+        rem = "<system-reminder>\nLinked sessions now: x\n</system-reminder>\n\n"
+        self.assertIsNone(self.prompt(rem.replace("x", "면제 #7 reason")))   # only inside the reminder
+        self.assertIsNone(self.prompt("<system-reminder>\n면제 #7 reason"))   # unclosed
+        self.assertFalse(interview.passed(self.key, 7, "merge", "any-patch"))
+        self.assertIn("PR #7", self.prompt(rem + "면제 #7 사유"))
+        self.assertTrue(interview.passed(self.key, 7, "merge", "any-patch"))
+        self.open_rec()
+        self.prompt(rem + "my answer")
+        self.assertEqual(self.rec()["answer"], "my answer")
+
     def test_a_headless_session_cannot_waive(self):
         self.declare()
         with unittest.mock.patch.dict(os.environ, {"MAENG_TASK_ID": "t1"}):
@@ -1228,8 +1239,8 @@ class Docs(unittest.TestCase):
         self.assertIn("seal your recommendation before asking for my choice", text)
         self.assertIn("comprehension-gate", (ROOT.parents[1] / "README.md").read_text())
 
-    def test_the_plugin_is_0_4_14(self):
-        self.assertEqual(json.loads((ROOT / ".claude-plugin/plugin.json").read_text())["version"], "0.4.14")
+    def test_the_plugin_is_0_4_15(self):
+        self.assertEqual(json.loads((ROOT / ".claude-plugin/plugin.json").read_text())["version"], "0.4.15")
 
 
 if __name__ == "__main__":

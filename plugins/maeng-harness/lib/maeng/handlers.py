@@ -200,7 +200,8 @@ def task_running(st, new_task):
 
 def record_approval(prompt, cwd):
     """`승인 #N` / `approve #N` from the user: approve PR N at its current head for maeng-ship."""
-    m = receipts.APPROVE.match(prompt)
+    prompt = interview.user_text(prompt)
+    m = prompt and receipts.APPROVE.match(prompt)
     if not m:
         return None
     pr = m.group(1)

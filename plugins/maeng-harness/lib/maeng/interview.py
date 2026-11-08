@@ -15,6 +15,7 @@ from .shellparse import SHELLS, ParseError, program, split_segments
 
 WRAPPERS = ("<system-reminder>", "<task-notification>", "<cross-session-message", "Another Claude session sent a message:",
             "<side-sessions-event>", "<ci-monitor-event>")
+_CLOSE = re.compile(r"</(?:system-reminder|task-notification|cross-session-message|side-sessions-event|ci-monitor-event)>")
 MODEL = "claude-opus-5-5"  # D-4: the interviewer is Opus in both worlds
 OVERALL, LIMIT = "overall", 150  # LIMIT: changed lines at which a PR needs a merge pass (what harness-run calls one task)
 WAIVE_PR = re.compile(r"\s*면제\s+#(\d+)\s+(\S.*)", re.S)
@@ -231,12 +232,27 @@ def _naming_note(key, sid, prompt, m):
     return None
 
 
+def user_text(prompt):
+    """The text the user typed: the desktop app may put closed tag wrappers (a `<system-reminder>` block) in front of it.
+    Everything up to the last closing wrapper tag counts as wrapper, so a fake closing tag inside one exposes nothing.
+    -> None for a non-string, an untagged or unclosed wrapper, or a message with nothing after its wrappers."""
+    if not isinstance(prompt, str) or not prompt.lstrip().startswith(WRAPPERS):
+        return prompt if isinstance(prompt, str) else None
+    if not prompt.lstrip().startswith("<"):  # "Another Claude session sent a message:" is wholly another session's
+        return None
+    last = None
+    for last in _CLOSE.finditer(prompt):
+        pass
+    rest = prompt[last.end():].lstrip() if last else ""
+    return rest if rest and not rest.startswith(WRAPPERS) else None
+
+
 def on_prompt(payload):
     """UserPromptSubmit: the user's message as an answer, an appeal, a stop or a waiver. -> a note for the agent, or
     None. Touches nothing when this session has no open record, the repository has no map and the message is not a
     waiver (the eta side-effect test)."""
-    prompt, sid = payload.get("prompt"), payload.get("session_id", "")
-    if not isinstance(prompt, str) or prompt.lstrip().startswith(WRAPPERS):  # a wrapped message is never the user's
+    prompt, sid = user_text(payload.get("prompt")), payload.get("session_id", "")
+    if prompt is None:  # a wrapped message with nothing the user typed is never the user's
         return None
     key = repo_key(payload.get("cwd") or os.getcwd())
     if not key:
