@@ -1,6 +1,6 @@
 ---
 name: motion-studio
-description: Use when the user wants a short startup video made in code - product intro, launch, feature explainer, demo, investor/IR, onboarding or social clip (제품 소개 영상, 런칭 영상, 설명 영상, 데모 영상, 모션 그래픽, 숏폼, motion graphics, explainer video). Runs a studio loop on HeyGen HyperFrames - director brief, style guide, beat shot list, motion weights, contact-sheet critique with top-3 local fixes, separate 16:9 and 9:16 projects, and a company lessons file so each video improves the next. 3Blue1Brown-style concept lessons go to tutorial-video, still diagrams to diagram-explainer, web decks to frontend-slides.
+description: "Make short startup videos in code: product intro, launch, feature explainer, demo, investor/IR, onboarding, social clip (제품 소개 영상, 런칭 영상, 설명 영상, 데모 영상, 모션 그래픽, 숏폼, motion graphics, explainer video). HeyGen HyperFrames loop: director brief, style guide, beat shot list, motion weights, contact-sheet critique with top-3 fixes, separate 16:9 and 9:16 projects, company lessons. Concept lessons in 3Blue1Brown style go to tutorial-video; still diagrams to diagram-explainer; web decks to frontend-slides."
 ---
 
 # Motion studio
@@ -36,6 +36,8 @@ One studio folder per company, a git repo outside this harness. Ask for its path
 - `hyperframes check` must end with 0 errors before you trust its layout and contrast numbers, because a lint error switches those audits off.
 
 ## Flow
+
+Quality layer: for a non-code result the user will show or submit, follow `maeng-harness:quality-layer` (criteria from real examples, independent check, closing walkthrough).
 
 1. **Read the studio.** `brand/frame.md`, `lessons.md` and the general findings in [references/huashu/experience.md](references/huashu/experience.md). With no brand yet, write `brand/frame.md` from the user's site, Figma or assets before the first film.
 2. **Director brief.** Fill [references/brief-ko.md](references/brief-ko.md). Ask only what the request leaves open, one question at a time; record inferred answers apart from stated ones. Write `BRIEF.md`.

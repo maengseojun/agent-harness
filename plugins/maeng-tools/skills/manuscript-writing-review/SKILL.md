@@ -1,14 +1,6 @@
 ---
 name: manuscript-writing-review
-description: >
-  Use this skill when asked to review, edit, or improve the writing quality of a
-  scientific or engineering manuscript. Triggers include: "review my writing,"
-  "check my manuscript," "improve clarity," "clean up the prose," "edit for
-  journal submission," "writing review," or any request to evaluate sentence-level
-  quality, eliminate clutter, fix passive voice, or enforce keyword consistency in
-  a research paper draft. Also triggers when asked to prepare a manuscript for
-  submission to a specific journal. Do NOT use for content/technical review of
-  methods or results, statistical analysis, or citation formatting.
+description: "Review, edit or improve scientific or engineering manuscript prose. Triggers: review my writing, check my manuscript, improve clarity, clean up the prose, edit for journal submission, writing review; sentence quality, clutter, passive voice and keyword consistency in research drafts. Includes preparation for a specific journal. Excludes technical methods/results review, statistical analysis and citation formatting."
 ---
 
 # Manuscript Writing Review — Scientific Clarity and Precision

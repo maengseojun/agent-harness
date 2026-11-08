@@ -1,6 +1,6 @@
 ---
 name: easy-understanding
-description: Use when the user asks to explain a concept, a system or research, is learning something, or faces a decision and wants it made easy to understand - /easy-understanding, 설명해줘, 쉽게 설명해줘, 이해하기 쉽게, 처음부터 설명, 교과서처럼, 기초부터, 리서치 정리, 내가 놓친 것, 결정해야 할 것 정리, 전체 흐름 그림으로, 구조도로 보여줘, explain this, help me understand, explain from first principles. Shows the whole flow as a map with what the user missed and what they must decide, then explains the logic from its first premise in textbook register, chapter by chapter, each building on the last. One design system (diagram-explainer) for every visual. Size follows the question - one concept stays in chat, research or a decision becomes one Artifact page, slides only on request. Not for a plain diagram request (diagram-explainer) or an answer the user asked to keep brief.
+description: "Explain concepts, systems, research or decisions - /easy-understanding, 설명해줘, 쉽게 설명해줘, 이해하기 쉽게, 처음부터 설명, 교과서처럼, 기초부터, 리서치 정리, 내가 놓친 것, 결정해야 할 것 정리, 전체 흐름 그림으로, 구조도로 보여줘, explain this, help me understand, explain from first principles. Map the flow, missed points and decisions, then explain from first premises in connected textbook chapters. Use diagram-explainer for visuals. One concept stays in chat; research or decisions use one Artifact page; slides only on request. Plain diagrams go to diagram-explainer; honor brief-answer requests."
 ---
 
 # Easy understanding

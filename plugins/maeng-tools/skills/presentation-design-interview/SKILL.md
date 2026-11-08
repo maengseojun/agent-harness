@@ -51,6 +51,8 @@ For the observed report-style case and production pitfalls, read [references/rep
 
 ## Produce and verify
 
+Quality layer: for a non-code result the user will show or submit, follow `maeng-harness:quality-layer` (criteria from real examples, independent check, closing walkthrough).
+
 Use the available presentation skill for native PowerPoint/Google Slides, PDF skill for PDF previews, or HTML-slide skill when HTML is requested. This skill coordinates design and content; it does not replace format-specific authoring. Don't force the user into HTML or claim a PDF is an editable PPTX.
 
 Render the actual artifact after material edits. Inspect every page for clipping, overlap, glyphs, line breaks, chart labels, emphasis and opacity; a successful build is insufficient. Check required figures, quotations and counts against the inspected source. Different analytical scopes may require separate denominators; don't imply raw counts are directly comparable.
