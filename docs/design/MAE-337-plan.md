@@ -22,7 +22,7 @@ A one-condition change in `plugins/maeng-harness/lib/maeng/interview.py` `captur
 
 ## Verification
 - AC-1: `python3 -m pytest -q plugins/maeng-harness/tests/test_interview.py -k approval`
-- AC-2: the existing `test_an_approval_is_not_an_answer_and_a_second_message_extends_the_first`
+- AC-2: `python3 -m pytest -q plugins/maeng-harness/tests/test_interview.py -k approval`
 - AC-3: `python3 -m pytest -q`
 
 ## Revisions
