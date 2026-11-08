@@ -1,0 +1,9 @@
+{
+  "verified": {
+    "cli_version": "2.1.314",
+    "plugin_revision": null,
+    "checked_at": null,
+    "checks": null,
+    "seed_evidence": "docs/design/MAE-323-b2-context.json"
+  }
+}
