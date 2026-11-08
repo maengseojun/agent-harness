@@ -33,7 +33,7 @@ def cmd_bind(a, cwd):
         die(why)
     binding = evidence.make_binding(
         a.issue, a.plan, a.plan_updated, a.criteria.split(",") if a.criteria else None, a.check or None, a.parent,
-        treelib.toplevel(cwd))
+        treelib.toplevel(cwd), planner_model=a.planner_model, author_model=a.author_model)
     state.update(sid, lambda st: st.update(binding=binding, cwd=st.get("cwd") or cwd), cwd)
     sugg_path = home_dir() / "last-bindings.json"
     try:
@@ -177,6 +177,8 @@ def main(argv=None):
     sub = p.add_subparsers(dest="cmd", required=True)
     b = sub.add_parser("bind"); b.add_argument("issue"); b.add_argument("--plan"); b.add_argument("--plan-updated")
     b.add_argument("--criteria"); b.add_argument("--check", action="append"); b.add_argument("--parent")
+    b.add_argument("--planner-model", help="actual planner model id for review exclusion; replaced on every bind")
+    b.add_argument("--author-model", help="actual author model id for review exclusion; replaced on every bind")
     r = sub.add_parser("ran"); g = r.add_mutually_exclusive_group(required=True)
     g.add_argument("--ok", action="store_true"); g.add_argument("--fail", action="store_true"); r.add_argument("what")
     s = sub.add_parser("skip"); s.add_argument("reason")

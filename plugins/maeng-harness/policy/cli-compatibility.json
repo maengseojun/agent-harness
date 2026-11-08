@@ -1,0 +1,40 @@
+{
+  "verified": {
+    "checked_at": "2026-11-08T22:30:07+0900",
+    "checks": {
+      "full_suite": {
+        "checked_at": "2026-11-08T22:30:07+0900",
+        "command": [
+          "python3",
+          "-m",
+          "pytest",
+          "-q",
+          "-n",
+          "8"
+        ],
+        "duration_s": 139.152,
+        "output_sha256": "d1ee918daf039d1dca24af7c84dd206dc6e5e973f067ab6a0abdd986ff8478d3",
+        "returncode": 0,
+        "tests_run": 1022
+      },
+      "hook_smoke": {
+        "checked_at": "2026-11-08T22:27:48+0900",
+        "command": [
+          "python3",
+          "-m",
+          "pytest",
+          "-q",
+          "plugins/maeng-harness/tests/test_boundary.py"
+        ],
+        "duration_s": 14.224,
+        "output_sha256": "6502903643e1b01305c4bbe8eced70fd56bab437fc208b5573d398a63f89e81f",
+        "returncode": 0,
+        "tests_run": 20
+      }
+    },
+    "cli_version": "2.1.317",
+    "observed_at": "2026-11-08T22:10:54+0900",
+    "plugin_revision": "4efb2a3f355aabe06e03ac751e76aca13d2ecb71a8aef60e118b38e8b1a82ffb",
+    "source": "CLAUDE_CODE_EXECPATH --version"
+  }
+}

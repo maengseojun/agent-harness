@@ -23,6 +23,14 @@ Rank: runner > declared > agent report.
 - Impact runs (`python3 plugins/maeng-harness/tests/impact.py run`) are working checks. They are never ship evidence and never satisfy the full-suite requirement.
 - Flaky: when one check shows both an ok run and a failed run on the same tree, record it as flaky. Keep the failed run on record next to the pass.
 
+## CI observation (D-14: Later small PR)
+
+Sunday 00:00 UTC and manual dispatch run the separate periodic lane; push/PR runs keep the gate lane. Periodic artifacts never satisfy or block the gate aggregate. Before closing periodic wiring, retain one actual scheduled/manual run with nonzero mutation execution and successful restoration/cleanup.
+
+The aggregate remains informational. A separate follow-up PR may add the `maeng-ship` read only after 2026-11-21, a full 14 days from the first plugin-suites run (later if needed), and explicit user judgment of a nonempty sample. Record runs and attempts separately, suite counts and classified causes; preserve first failures, same-head flaky reruns and unresolved failures. Require fixes/readbacks, no unresolved infrastructure/flaky failures, and verified triggers, published check name and exact-head matching. If approved, read the exact head's gate aggregate before receipt reservation; missing, stale, pending, cancelled, skipped, malformed, failed or unreadable results refuse merge. Ordinary code-test failures still refuse merge.
+
+Request user-authorized reversal to informational mode for a false green, a trigger/name change leaving eligible heads without checks, or repeated infrastructure/flaky failures blocking unchanged heads after a confirmed passing rerun. Record the cause, affected runs, authorization and reconsideration evidence. Local full verification, quiz, receipts and lease protection remain required; never silently ignore CI.
+
 ## Test trust
 
 - Expected values come from the AC or another independent source, never from running the code under test.
