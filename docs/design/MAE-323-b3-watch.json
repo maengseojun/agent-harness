@@ -1,4 +1,22 @@
 {
-  "registration": null,
-  "delivery": null
+  "registration": {
+    "task_id": "weekly-model-cli-changes",
+    "host": "Claude desktop scheduled task (local)",
+    "schedule": {"cron": "0 0 * * 1", "timezone": "UTC"},
+    "registered_cron_local": "0 9 * * 1 (Asia/Seoul)",
+    "registered_at": "2026-11-08T09:33:00Z",
+    "prompt_sha256": "2e2976b8ec34e1c27629b316629854840c01a75518806320807f9e8b3171bb2c",
+    "prompt_note": "prompt_sha256 is tools/watch/weekly-changes.md as committed; the registered task adds a private header naming the destinations and substitutes the two placeholders"
+  },
+  "delivery": {
+    "run_at": "2026-11-08T09:33:17Z",
+    "trigger": "manual first run (Run now) right after registration",
+    "window": {"start": "2026-10-26T00:00:00Z", "end": "2026-11-02T00:00:00Z"},
+    "sources_read": 6,
+    "coverage": "complete",
+    "issue_comment_url": "https://linear.app/maeng/issue/MAE-332#comment-4035393d",
+    "slack_message_url": "https://manegproject.slack.com/archives/C0CA2FBNDGR/p1794130601098219",
+    "readback": true,
+    "delivery_failures": []
+  }
 }
