@@ -15,3 +15,6 @@ Explanation diagrams drawn by diagram-explainer and easy-understanding use icons
 - AC-3: `explanation-design.md` has a `## Icons on nodes` section. It says when to use an icon (concrete things, outcomes next to a word label), when not to (abstract nodes), one style per figure, the label is never replaced, and how to add a missing Tabler icon.
 - AC-4: `diagram-explainer/SKILL.md` and `easy-understanding/references/look.md` link to `explanation-design.md#icons-on-nodes`, and the links resolve.
 - AC-5: `python3 -m pytest -q` passes on the final tree.
+
+## Release
+- AC-6: `plugins/maeng-tools/.claude-plugin/plugin.json` is bumped from 0.3.22 to 0.3.23 so installed copies pick up the icon rule. No other file pins the old version.
