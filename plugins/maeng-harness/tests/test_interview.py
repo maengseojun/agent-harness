@@ -361,6 +361,13 @@ class Seal(InterviewCase):
         self.assertIn("reveal", self.prompt(NOTE + "\nB please"))
         self.assertEqual(interview.reveal(self.key, self.sid, digest), self.DATA)
 
+    def test_reveal_opens_on_an_approval_typed_after_the_seal(self):
+        for text in ("승인 #116", NOTE + "\n승인 #116"):
+            with self.subTest(text=text):
+                digest = interview.seal(self.key, self.sid, self.DATA)
+                self.assertIn("reveal", self.prompt(text))
+                self.assertEqual(interview.reveal(self.key, self.sid, digest), self.DATA)
+
     def test_reveal_closes_the_seal_and_writes_a_ledger_line_without_the_text(self):
         digest = interview.seal(self.key, self.sid, self.DATA)
         self.prompt("A")
