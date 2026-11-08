@@ -2,8 +2,9 @@ import hashlib
 import json
 import stat
 import sys
+import unittest.mock
 
-from maeng import receipts
+from maeng import interview, receipts
 from .helpers import HarnessCase
 
 
@@ -387,6 +388,12 @@ class ExactLeaseThroughHook(MergeBase):
 
 class TaskWaiver(MergeBase):
     """`해당 작업 면제 <사유>`: this session's PRs merge without receipt, 승인 or quiz for 24 hours."""
+
+    def setUp(self):
+        super().setUp()
+        patcher = unittest.mock.patch.object(interview, "_ps", return_value=("", ""))  # an interactive parent, as in CI
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def waive(self, prompt="해당 작업 면제 오타 수정"):
         return json.dumps(self.hook("UserPromptSubmit", self.repo, prompt=prompt)[1], ensure_ascii=False)

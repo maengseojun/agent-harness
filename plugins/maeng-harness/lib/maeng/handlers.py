@@ -240,8 +240,8 @@ def record_task_waiver(prompt, cwd, sid):
         receipts.clear_task_waiver(repo, sid)
         return context_out("UserPromptSubmit", "maeng: the user cancelled this session's task waiver.")
     receipts.store_task_waiver(repo, sid, on.group(1).strip())
-    return context_out("UserPromptSubmit", "maeng: the user waived this session's merges for 24 hours: `maeng-ship "
-                                           "merge` needs no review receipt, 승인 or merge quiz. G1 and ship "
+    return context_out("UserPromptSubmit", "maeng: the user waived this session's merges to origin for 24 hours: "
+                                           "`maeng-ship merge` (to origin) needs no review receipt, 승인 or merge quiz. G1 and ship "
                                            "verification still apply.")
 
 

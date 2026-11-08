@@ -786,7 +786,8 @@ class ShipGate(MergeBase):
 
     def test_the_task_waiver_also_covers_the_merge_quiz(self):
         self.grow(160)
-        self.hook("UserPromptSubmit", self.repo, prompt="해당 작업 면제 저위험 문서 정리")
+        with unittest.mock.patch.object(interview, "_ps", return_value=("", "")):  # an interactive parent
+            self.hook("UserPromptSubmit", self.repo, prompt="해당 작업 면제 저위험 문서 정리")
         r = self.ship()
         self.assertEqual(r.returncode, 0, r.stderr)
 
