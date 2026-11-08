@@ -361,6 +361,13 @@ class Seal(InterviewCase):
         self.assertIn("reveal", self.prompt(NOTE + "\nB please"))
         self.assertEqual(interview.reveal(self.key, self.sid, digest), self.DATA)
 
+    def test_reveal_opens_on_an_approval_typed_after_the_seal(self):
+        for text in ("승인 #116", NOTE + "\n승인 #116"):
+            with self.subTest(text=text):
+                digest = interview.seal(self.key, self.sid, self.DATA)
+                self.assertIn("reveal", self.prompt(text))
+                self.assertEqual(interview.reveal(self.key, self.sid, digest), self.DATA)
+
     def test_reveal_closes_the_seal_and_writes_a_ledger_line_without_the_text(self):
         digest = interview.seal(self.key, self.sid, self.DATA)
         self.prompt("A")
@@ -1283,8 +1290,8 @@ class Docs(unittest.TestCase):
         self.assertIn("seal your recommendation before asking for my choice", text)
         self.assertIn("comprehension-gate", (ROOT.parents[1] / "README.md").read_text())
 
-    def test_the_plugin_is_0_4_17(self):
-        self.assertEqual(json.loads((ROOT / ".claude-plugin/plugin.json").read_text())["version"], "0.4.17")
+    def test_the_plugin_is_0_4_18(self):
+        self.assertEqual(json.loads((ROOT / ".claude-plugin/plugin.json").read_text())["version"], "0.4.18")
 
 
 if __name__ == "__main__":
