@@ -33,6 +33,12 @@ Before polishing, sketch the main comparison with actual labels and supported va
 
 For a diagram request, default to one coherent structure with a visible main relation and necessary branches. A report, deck or multi-page reference document is a separate requested genre. Keep production history, acceptance logs and long source registers in a companion instead of distributing them across the figure. First draw the relation, then add the labels that explain it. Inspect whether position, paths or geometry let the reader follow the structure; a set of equally styled text cards is not enough. The adapted [personal customization of the migrated skill](../../diagram-explainer/references/personal-additions.md) gives construction and removal checks while preserving direct Diagram Design HTML/SVG production.
 
+## Icons on nodes
+
+An icon helps when a node is a concrete thing the reader would picture: a document, a set of documents, a person or agent, a store, a message. Put one icon from [primitive-icons.md](primitive-icons.md) above or beside the node label, about 1.5–2× the label's cap height, in the node's ink. Mark an outcome (kept/lost, passed/failed) with the `ok`/`fail` icon next to its word label, never the icon alone. Repeat the same icon for the same kind of thing so the reader can count and compare (four agents, four pages).
+
+Leave abstract nodes (a rule, a property, a step name) as text; an icon there is decoration. Use one icon style per figure: the stroked Tabler set, not mixed with filled brand marks unless the brand is the point. An icon never replaces the label, and decorative icons keep `aria-hidden="true"`. If the needed icon is missing, take it from Tabler (`https://api.iconify.design/tabler.json?icons=<name>`), redraw it at stroke-width 1.5 and add it to the library with its source line.
+
 ## Give sections jobs
 
 Lead with the answer or question. Then arrange the needed material by the reader's next question: definition, comparison, evidence, calculation, mechanism, interpretation, consequence or limit. Use those roles only when needed. Select one dominant reading direction with aligned headings and whitespace; avoid an unmarked serpentine canvas. A prose column can be a primary part of the document. Named sections need not have visible enclosing boxes.
