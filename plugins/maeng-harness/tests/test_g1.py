@@ -220,6 +220,85 @@ class SlimGate(ShipBase):
             self.assertFalse(self.pre(self.repo, tool, tin)[0], tool)
 
 
+class PushRepo(ShipBase):
+    def test_repo_refspecs_and_option_values(self):
+        from maeng import gates
+
+        for repo in (["--repo", "origin"], ["--repo=origin"]):
+            for dst in ("main", "feat/x"):
+                with self.subTest(repo=repo, dst=dst):
+                    for opts in ([], ["-o", "HEAD:main"], ["--push-option=HEAD:main"],
+                                 ["--receive-pack", "main"], ["--exec=main"],
+                                 ["--recurse-submodules", "on-demand"]):
+                        args = [*repo, *opts, f"HEAD:{dst}"]
+                        self.assertEqual(gates.push_targets(args, self.repo), ("origin", [dst]))
+                        self.assertFalse(gates._state_dependent_push(["git", "push", *args]))
+            self.assertDenied(f"git push {' '.join(repo)} HEAD:main", "default branch")
+            self.assertAllowed(f"git push {' '.join(repo)} HEAD:feat/x")
+        self.assertEqual(gates.push_targets(["origin", "HEAD:feat/x"], self.repo), ("origin", ["feat/x"]))
+
+    def test_repo_default_and_protected_destinations(self):
+        (self.repo / ".maeng").mkdir(exist_ok=True)
+        (self.repo / ".maeng/verify.json").write_text('{"protected_branches": ["release"]}')
+        for repo in ("--repo origin", "--repo=origin"):
+            self.assertDenied(f"git push {repo} HEAD:release", "default branch")
+            self.assertDenied(f"git -c remote.origin.mirror=true push {repo} HEAD:feat/x", "default branch")
+            self.assertDenied(f"git push {repo} --all", "default branch")
+            self.assertDenied(f"git push {repo} HEAD:feat/x HEAD:main", "default branch")
+        self.git(self.repo, "remote", "set-head", "origin", "feat")
+        self.assertDenied("git push --repo origin HEAD:feat", "default branch")
+        url = self.git(self.repo, "remote", "get-url", "origin").stdout.strip()
+        self.assertDenied(f"git push --repo={url} HEAD:feat", "default branch")
+
+    def test_repo_malformed_operands_fail_closed(self):
+        for args in ("--repo", "--repo=", "--repo '' HEAD:feat/x", "--repo= HEAD:feat/x",
+                     "--repo --dry-run HEAD:feat/x", "--repo=-bad HEAD:feat/x", "--repo -- HEAD:feat/x",
+                     "--repo origin HEAD:feat/x --repo", '--repo="$REMOTE" HEAD:feat/x'):
+            with self.subTest(args=args):
+                self.assertDenied(f"git push {args}", "cannot tell")
+
+    def test_repo_end_of_options(self):
+        from maeng import gates
+
+        for repo in (["--repo", "origin"], ["--repo=origin"]):
+            args = [*repo, "--", "HEAD:main"]
+            self.assertEqual(gates.push_targets(args, self.repo), ("origin", ["main"]))
+            self.assertDenied(f"git push {' '.join(args)}", "default branch")
+            self.assertAllowed(f"git push {' '.join(repo)} -- HEAD:feat/x")
+            self.assertEqual(gates.push_targets([*repo, "--", "--all", "--repo=other"], self.repo),
+                             ("origin", ["--all", "--repo=other"]))
+        self.assertEqual(gates.push_targets(["--", "origin", "HEAD:main"], self.repo), ("origin", ["main"]))
+        self.assertEqual(gates.push_targets(["--", "--repo", "HEAD:feat/x"], self.repo),
+                         ("--repo", ["feat/x"]))
+
+    def test_repo_after_checkout_or_config(self):
+        for change in ("git checkout main", "git switch main", "git config user.name Agent"):
+            for repo in ("--repo origin", "--repo=origin"):
+                self.assertAllowed(f"{change} && git push {repo} HEAD:feat/x")
+                self.assertAllowed(f"{change} && git push {repo} -o HEAD:main -- HEAD:feat/x")
+                self.assertDenied(f"{change} && git push {repo} HEAD:main", "default branch")
+                for spec in ("", "HEAD", "@", "HEAD:", "feat:HEAD"):
+                    self.assertDenied(f"{change} && git push {repo} {spec}", "own command")
+
+    def test_repo_implicit_and_exact_lease(self):
+        from maeng import gates
+
+        for repo in (["--repo", "origin"], ["--repo=origin"]):
+            self.assertEqual(gates.push_targets([*repo, "HEAD"], self.repo), ("origin", ["feat"]))
+            self.assertAllowed(f"git push {' '.join(repo)}")
+            self.assertDenied(f"git -c remote.origin.push=HEAD:main push {' '.join(repo)}", "default branch")
+        self.git(self.repo, "checkout", "-q", "main")
+        self.assertDenied("git push --repo origin", "default branch")
+        self.git(self.repo, "checkout", "-q", "--detach")
+        self.assertDenied("git push --repo=origin", "cannot tell")
+        self.git(self.repo, "checkout", "-q", "feat")
+        sha = self.head(self.repo)
+        lease = f"--force-with-lease=refs/heads/main:{sha}"
+        self.assertDenied(f"git push {lease} origin {sha}:refs/heads/main", "merge push denied")
+        for repo in ("--repo origin", "--repo=origin"):
+            self.assertDenied(f"git push {lease} {repo} {sha}:refs/heads/main", "default branch")
+
+
 class GhRoutes(ShipBase):
     def test_gh_allowed_routes(self):
         for cmd in ("gh pr comment 1 -R o/r -b hi", "gh pr edit 1 -R o/r --title t", "gh pr review 1 -R o/r --approve",

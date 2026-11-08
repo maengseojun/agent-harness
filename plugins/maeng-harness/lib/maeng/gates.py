@@ -95,14 +95,17 @@ def _config(cwd, key, cfg=None, multi=False, boolean=False):
     return (out.splitlines() if multi else [out.strip()]) if rc == 0 and out.strip() else []  # values may hold spaces (aliases)
 
 
-def push_targets(args, cwd, cfg=None):
-    """-> (remote, [destination branch names]) of `git push <args>`; ['*'] for --all/--mirror, [''] when an
-    implicit destination cannot be determined (detached HEAD, unknown directory)."""
-    pos, skip, every, repo = [], None, False, None
+def _push_operands(args):
+    """-> (remote, refspecs, all_branches); None remote is implicit, ('', [''], False) is malformed --repo."""
+    pos, skip, every, repo, ended = [], None, False, None, False
     for a in args:
         if skip:
             repo = a if skip == "--repo" else repo
             skip = None
+        elif ended:
+            pos.append(a)
+        elif a == "--":
+            ended = True
         elif a in PUSH_VALUE_OPTS:
             skip = a
         elif a.startswith("--repo="):
@@ -111,10 +114,20 @@ def push_targets(args, cwd, cfg=None):
             every = True
         elif not a.startswith("-"):
             pos.append(a)
+    if skip == "--repo" or (repo is not None and (not repo or repo.startswith("-"))):
+        return "", [""], False
+    remote, specs = (repo, pos) if repo is not None else (pos[0], pos[1:]) if pos else (None, [])
+    return remote, specs, every
+
+
+def push_targets(args, cwd, cfg=None):
+    """-> (remote, [destination branch names]) of `git push <args>`; ['*'] for --all/--mirror, [''] when an
+    operand is malformed or an implicit destination cannot be determined (detached HEAD, unknown directory)."""
+    remote, specs, every = _push_operands(args)
     current = git_out(cwd, "symbolic-ref", "--short", "-q", "HEAD") or ""
-    remote, specs = (pos[0], pos[1:]) if pos else (repo, []) if repo else \
-        ((_config(cwd, f"branch.{current}.pushRemote", cfg) or _config(cwd, "remote.pushDefault", cfg)
-          or _config(cwd, f"branch.{current}.remote", cfg) or ["origin"])[0], [])
+    if remote is None:
+        remote = (_config(cwd, f"branch.{current}.pushRemote", cfg) or _config(cwd, "remote.pushDefault", cfg)
+                  or _config(cwd, f"branch.{current}.remote", cfg) or ["origin"])[0]
     rc, urls, _ = git(cwd, "config", "--get-regexp", r"^remote\..*\.url$")
     remote = next((k[7:-4] for k, _, u in (ln.partition(" ") for ln in urls.splitlines() if rc == 0)
                    if u == remote), remote)  # a URL operand that is a configured remote's URL is that remote
@@ -271,8 +284,8 @@ def check_git(toks, cwd, ctx):
 def _state_dependent_push(toks):
     """A push whose destination depends on the current branch or config: implicit, or a HEAD/@ refspec."""
     sub, args, _, _ = _parse_git_globals(toks)
-    pos = [a for i, a in enumerate(args) if not a.startswith("-") and not (i and args[i - 1] in PUSH_VALUE_OPTS)]
-    dsts = [p.lstrip("+").rpartition(":")[2] for p in pos[1:]]
+    _, specs, _ = _push_operands(args)
+    dsts = [p.lstrip("+").rpartition(":")[2] for p in specs]
     return sub == "push" and (not dsts or any(d in ("", "@") or d.startswith("HEAD") for d in dsts))
 
 
