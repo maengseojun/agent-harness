@@ -18,8 +18,22 @@ def check_pointer(text, target):
     """Keep one shared procedure: callers contain one pointer and no copied body."""
     if text.splitlines().count(PREFIX + target + SUFFIX) != 1:
         raise ValueError("expected exactly one quality-layer pointer line")
-    if re.search(r"^### P-|^Order:", text, re.M):
+    if re.search(r"^(?:### P-|Order:|Output:|You are an independent checker)", text, re.M):
         raise ValueError("copied quality-layer body in pointing skill")
+
+
+def check_evidence(component):
+    """Resolve every evidence path; verified statuses need at least one file."""
+    evidence = component.get("evidence", "")
+    if not isinstance(evidence, str):
+        raise ValueError("expected evidence text")
+    paths = re.findall(r"[\w./-]+/[\w.-]+\.[A-Za-z0-9]+", evidence)
+    for reference in paths:
+        path = Path(reference)
+        if path.is_absolute() or ".." in path.parts or not (REPO / path).is_file():
+            raise ValueError("unresolvable evidence path: " + reference)
+    if component["status"] != "unverified" and not paths:
+        raise ValueError("expected at least one existing evidence path")
 
 
 class QualityLayerLinks(unittest.TestCase):
@@ -34,9 +48,16 @@ class QualityLayerLinks(unittest.TestCase):
         target = "`maeng-harness:quality-layer`"
         valid = PREFIX + target + SUFFIX + "\n"
         check_pointer(valid, target)
-        for tampered in ("", valid * 2, valid + "### P-1: copied procedure\n", valid + "Order: copied steps\n"):
+        for tampered in ("", valid * 2, valid + "### P-1: copied procedure\n", valid + "Order: copied steps\n",
+                         valid + "Output: copied instructions\n", valid + "You are an independent checker.\n"):
             with self.subTest(tampered=tampered), self.assertRaises(ValueError):
                 check_pointer(tampered, target)
+        checker = (HARNESS / "skills/quality-layer/references/checker-prompt.md").read_text()
+        output = "Output:" + checker.split("Output:", 1)[1].split("\n## ", 1)[0]
+        coherent = (REPO / "plugins/maeng-tools/skills/coherent-writing/SKILL.md").read_text()
+        check_pointer(coherent, target)
+        with self.assertRaises(ValueError):
+            check_pointer(coherent + "\n" + output, target)
 
     def test_closing_understanding_in_ceo_brief_and_merge_quiz_unchanged(self):
         text = RUN.read_text()
@@ -73,9 +94,7 @@ class QualityLayerLinks(unittest.TestCase):
                 self.assertIsInstance(component["assumes"], str)
                 self.assertTrue(component["assumes"].strip())
                 self.assertEqual(len(component["assumes"].splitlines()), 1)
-                if component["status"] != "unverified":
-                    self.assertIsInstance(component.get("evidence"), str)
-                    self.assertTrue(component["evidence"].strip())
+                check_evidence(component)
         by_path = {c["path"]: c for c in components}
         for path in ("bin/maeng-verify", "bin/maeng-ship", "bin/maeng-review", "hooks/hooks.json"):
             component = by_path["plugins/maeng-harness/" + path]
@@ -85,6 +104,22 @@ class QualityLayerLinks(unittest.TestCase):
             for test in tests:
                 self.assertTrue((REPO / test).is_file(), test)
         self.assertEqual(by_path["plugins/maeng-harness/skills/quality-layer"]["status"], "unverified")
+
+    def test_evidence_helper_rejects_unsupported_claims_and_missing_references(self):
+        inventory = json.loads((HARNESS / "policy/inventory.json").read_text())
+        chart = next(c for c in inventory["components"] if c["path"].endswith("/chart-style"))
+        existing = "plugins/maeng-harness/tests/test_quality_layer_links.py"
+        missing = "docs/nonexistent-paired-results.json"
+        check_evidence(chart)
+        for status in ("helps", "no-effect", "safety", "unverified"):
+            check_evidence(dict(chart, status=status, evidence=f"`{existing}`; named behavior tests"))
+            for evidence in (missing, existing + "; " + missing):
+                with self.subTest(status=status, evidence=evidence), self.assertRaises(ValueError):
+                    check_evidence(dict(chart, status=status, evidence=evidence))
+            if status != "unverified":
+                for evidence in ("", "paired results exist", None):
+                    with self.subTest(status=status, evidence=evidence), self.assertRaises(ValueError):
+                        check_evidence(dict(chart, status=status, evidence=evidence))
 
     def test_audit_paths_proposal_and_paired_measurement_rule(self):
         text = AUDIT.read_text()

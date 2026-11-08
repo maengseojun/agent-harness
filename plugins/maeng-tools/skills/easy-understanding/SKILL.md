@@ -1,6 +1,6 @@
 ---
 name: easy-understanding
-description: "Explain concepts, systems, research or decisions - /easy-understanding, 설명해줘, 쉽게 설명해줘, 이해하기 쉽게, 처음부터 설명, 교과서처럼, 기초부터, 리서치 정리, 내가 놓친 것, 결정해야 할 것 정리, 전체 흐름 그림으로, 구조도로 보여줘, explain this, help me understand, explain from first principles. Map the flow, missed points and decisions, then explain from first premises in connected textbook chapters. Use diagram-explainer for visuals. One concept stays in chat; research or decisions use one Artifact page; slides only on request. Plain diagrams go to diagram-explainer; honor brief-answer requests."
+description: "Explain concepts, systems, research or decisions - /easy-understanding, 설명해줘, 쉽게 설명해줘, 이해하기 쉽게, 처음부터 설명, 교과서처럼, 기초부터, 리서치 정리, 내가 놓친 것, 결정해야 할 것 정리, 전체 흐름 그림으로, 구조도로 보여줘, explain this, help me understand, explain from first principles. Map the flow, missed points and decisions, then explain from first premises in connected textbook chapters. Use diagram-explainer for visuals. One concept stays in chat; research or decisions use one Artifact page; slides only on request. Plain diagrams go to diagram-explainer. Skip brief-answer requests."
 ---
 
 # Easy understanding
