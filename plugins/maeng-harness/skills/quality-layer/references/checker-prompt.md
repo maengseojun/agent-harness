@@ -5,7 +5,7 @@ Order:
 2. Name the weakest part. This is a ranking, not a finding; do not put it in the findings list.
 3. Check each condition. Result per condition: pass | fail | cannot-judge | not-applicable.
    Open the evidence yourself: open cited sources, recompute numbers, compare facts in the result letter by letter against their source, look at a rendering for visual results, put the result beside the real examples. If you ask for something to be added, say what to cut.
-4. Overall verdict = the lowest condition result, ordered fail < cannot-judge < pass; not-applicable does not count. If the receiver reading fails, the overall verdict is not pass.
+4. Overall verdict = the lowest condition result, ordered fail < cannot-judge < pass; not-applicable does not count. If no applicable conditions remain, return cannot-judge. If the receiver reading fails, the overall verdict is not pass.
 
 Output:
 - Top fixes: up to 3 evidenced findings with the largest effect, or "none".
