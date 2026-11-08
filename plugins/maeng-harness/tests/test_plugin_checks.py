@@ -92,6 +92,51 @@ class Results(Base):
         self.assertTrue(data["aggregate_ok"])
         self.assertEqual((data["suites"][0]["status"], data["suites"][0]["tests_run"]), ("ok", 3))
 
+    def test_skipped_tests_without_allowance_fail(self):
+        p, data = self.run_checks([suite("a", self.script("skip.py", "1 passed, 1 skipped in 0.1s"))])
+        self.assertEqual(p.returncode, 1)
+        self.assertFalse(data["aggregate_ok"])
+        self.assertEqual((data["suites"][0]["status"], data["suites"][0]["tests_skipped"]), ("skipped-tests", 1))
+        self.assertIn("skipped", p.stdout)
+
+    def test_documented_skip_allowance_passes_only_up_to_the_limit(self):
+        for skipped, status, rc in ((1, "ok", 0), (2, "skipped-tests", 1)):
+            with self.subTest(skipped=skipped):
+                s = suite("a", self.script("skip.py", f"1 passed, {skipped} skipped in 0.1s"))
+                s.update(skips_allowed=1, skips_reason="optional CLI is absent")
+                p, data = self.run_checks([s], (), "--require-complete")
+                self.assertEqual((p.returncode, data["suites"][0]["status"]), (rc, status))
+                self.assertEqual(data["aggregate_ok"], rc == 0)
+                self.assertEqual(data["suites"][0]["tests_skipped"], skipped)
+
+    def test_unittest_skips_are_recorded_and_enforced(self):
+        s = suite("a", self.script("skip.py", "Ran 3 tests in 0.1s\n\nOK (skipped=2)"))
+        p, data = self.run_checks([s])
+        r = data["suites"][0]
+        self.assertEqual((p.returncode, r["status"], r["tests_run"], r["tests_skipped"]), (1, "skipped-tests", 1, 2))
+
+    def test_all_skipped_still_fails_with_an_allowance(self):
+        s = suite("a", self.script("skip.py", "1 skipped in 0.1s"))
+        for allowed, status in ((0, "skipped-tests"), (1, "empty")):
+            with self.subTest(allowed=allowed):
+                s.update(skips_allowed=allowed, skips_reason="optional CLI is absent")
+                p, data = self.run_checks([s])
+                self.assertEqual((p.returncode, data["suites"][0]["status"]), (1, status))
+
+    def test_skip_allowance_requires_an_integer_and_reason(self):
+        ok = self.script("ok.py", "1 passed in 0.1s")
+        for fields in ({"skips_allowed": -1, "skips_reason": "r"},
+                       {"skips_allowed": True, "skips_reason": "r"},
+                       {"skips_allowed": 1.5, "skips_reason": "r"},
+                       {"skips_allowed": "1", "skips_reason": "r"},
+                       {"skips_allowed": 1}, {"skips_allowed": 0, "skips_reason": " "},
+                       {"skips_allowed": 1, "skips_reason": 1}):
+            with self.subTest(fields=fields):
+                s = {**suite("a", ok), **fields}
+                p, _ = self.run_checks([s])
+                self.assertEqual(p.returncode, 2)
+                self.assertIn("skips_", p.stderr)
+
     def test_failed_required_suite_fails_aggregate(self):
         p, data = self.run_checks([suite("a", self.script("bad.py", "1 failed, 2 passed in 0.1s", rc=1))])
         self.assertEqual(p.returncode, 1)
@@ -197,15 +242,20 @@ class Parsing(unittest.TestCase):
         self.assertEqual(pc.tests_run("3 failed, 4 passed, 1 error, 2 xfailed, 1 xpassed in 0.5s"), 11)
         self.assertEqual(pc.tests_run("12 passed in 0.06s"), 12)
         self.assertEqual(pc.tests_run("no tests ran in 0.01s"), 0)
+        self.assertEqual(pc.tests_skipped("5 passed, 1 skipped, 2 warnings in 1.2s"), 1)
+        self.assertEqual(pc.tests_skipped("12 passed in 0.06s"), 0)
 
     def test_unittest_summaries(self):
         self.assertEqual(pc.tests_run("Ran 28 tests in 0.069s\n\nOK"), 28)
         self.assertEqual(pc.tests_run("Ran 10 tests in 0.1s\n\nOK (skipped=3)"), 7)
         self.assertEqual(pc.tests_run("Ran 10 tests in 0.1s\n\nFAILED (failures=1, skipped=2)"), 8)
         self.assertEqual(pc.tests_run("Ran 1 test in 0.1s\n\nOK"), 1)
+        self.assertEqual(pc.tests_skipped("Ran 3 tests in 0.1s\n\nOK (skipped=2)"), 2)
+        self.assertEqual(pc.tests_skipped("Ran 10 tests in 0.1s\n\nFAILED (failures=1, skipped=2)"), 2)
 
     def test_unparseable_is_none(self):
         self.assertIsNone(pc.tests_run("something else entirely"))
+        self.assertIsNone(pc.tests_skipped("something else entirely"))
 
 
 class Summary(Base):
@@ -218,6 +268,8 @@ class Summary(Base):
         subprocess.run([sys.executable, str(SCRIPT), "--lane", "gate", "--root", str(self.root), "--lanes",
                         str(lanes)], capture_output=True, env=dict(os.environ, GITHUB_STEP_SUMMARY=str(f)))
         self.assertIn("| a | ok |", f.read_text())
+        self.assertIn("| tests | skipped | secs |", f.read_text())
+        self.assertIn("| a | ok | 0 | 2 | 0 |", f.read_text())
 
 
 if __name__ == "__main__":

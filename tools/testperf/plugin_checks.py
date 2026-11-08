@@ -67,6 +67,16 @@ def tests_run(output):
     return None
 
 
+def tests_skipped(output):
+    m = None
+    for m in PYTEST_LINE.finditer(output):
+        pass
+    if m:
+        return sum(int(n) for n, w in re.findall(r"(\d+) ([a-z]+)", m.group(1)) if w == "skipped")
+    skipped = re.findall(r"^(?:OK|FAILED) \(.*?skipped=(\d+)", output, re.M)
+    return int(skipped[-1]) if skipped else (0 if tests_run(output) is not None else None)
+
+
 def isolated_env(tmp):
     t = str(tmp)
     # PYTHONUSERBASE keeps the parent's user-site packages importable (read-only) while HOME is the temp dir
@@ -80,7 +90,7 @@ def isolated_env(tmp):
 
 def run_suite(suite, root, isolated, timeout):
     res = {"id": suite["id"], "status": "missing", "rc": None, "duration_s": 0.0, "tests_run": None,
-           "output_tail": ""}
+           "tests_skipped": None, "output_tail": ""}
     tmp = tempfile.mkdtemp(prefix="plugin-checks-")
     env = isolated_env(os.path.realpath(tmp)) if isolated else dict(os.environ)
     start = time.monotonic()
@@ -110,9 +120,12 @@ def run_suite(suite, root, isolated, timeout):
             res["output_tail"] = "\n".join(out.splitlines()[-40:])
             return res
         res["tests_run"] = tests_run(out)
+        res["tests_skipped"] = tests_skipped(out)
         res["output_tail"] = "\n".join(out.splitlines()[-40:])
         if res["rc"] != 0:
             res["status"] = "failed"
+        elif (res["tests_skipped"] or 0) > suite.get("skips_allowed", 0):
+            res["status"] = "skipped-tests"
         elif res["tests_run"] == 0 or ran_zero_tests(out):
             res["status"] = "empty"
         else:
@@ -128,9 +141,10 @@ def suite_passes(suite, res):
 
 
 def table(results):
-    rows = [("id", "status", "rc", "tests", "secs")]
-    rows += [(r["id"], r["status"], str(r["rc"]), str(r["tests_run"]), str(r["duration_s"])) for r in results]
-    w = [max(len(r[i]) for r in rows) for i in range(5)]
+    rows = [("id", "status", "rc", "tests", "skipped", "secs")]
+    rows += [(r["id"], r["status"], str(r["rc"]), str(r["tests_run"]), str(r["tests_skipped"]),
+              str(r["duration_s"])) for r in results]
+    w = [max(len(r[i]) for r in rows) for i in range(6)]
     return "\n".join("  ".join(c.ljust(w[i]) for i, c in enumerate(r)) for r in rows)
 
 
@@ -147,6 +161,13 @@ def main(argv=None):
     a = ap.parse_args(argv)
     root = Path(a.root)
     lanes = json.loads(Path(a.lanes or root / "plugins/maeng-harness/tests/lanes.json").read_text())["lanes"]
+    for lane in lanes.values():
+        for s in lane:
+            if "skips_allowed" in s:
+                if type(s["skips_allowed"]) is not int or s["skips_allowed"] < 0:
+                    ap.error(f"{s['id']}: skips_allowed must be a nonnegative integer")
+                if not isinstance(s.get("skips_reason"), str) or not s["skips_reason"].strip():
+                    ap.error(f"{s['id']}: skips_reason is required with skips_allowed")
     suites = lanes[a.lane]
     if a.print_pip:
         print("\n".join(sorted({p for s in suites for p in s["pip"]})))
@@ -166,8 +187,9 @@ def main(argv=None):
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
         md = ["### Plugin suites (%s lane): %s" % (a.lane, "ok" if ok else "NOT ok"), "",
-              "| suite | status | rc | tests | secs |", "|---|---|---|---|---|"]
-        md += ["| %s | %s | %s | %s | %s |" % (r["id"], r["status"], r["rc"], r["tests_run"], r["duration_s"])
+              "| suite | status | rc | tests | skipped | secs |", "|---|---|---|---|---|---|"]
+        md += ["| %s | %s | %s | %s | %s | %s |" % (r["id"], r["status"], r["rc"], r["tests_run"],
+                                                   r["tests_skipped"], r["duration_s"])
                for r in results]
         md.append("\nparity: " + ("ok" if par["ok"] else "FAILED " + json.dumps(par)))
         with open(summary, "a") as f:

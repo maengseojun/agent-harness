@@ -258,3 +258,4 @@ Close-out: filled when the bundle closes.
 
 Not read / not verified: no required input was inaccessible; repository-root `AGENTS.md` was absent, so the supplied instructions were used. Installed versions, bundle 1 completion evidence, historical review reconstruction, host timeout/context behavior, live model identities, starting context, tests, CI and release behavior were not verified.
 - S5 replay re-recorded 2026-11-08 (planner) after the round-1 fixes: `docs/design/MAE-323-b2-impact-cases.json` now pins `impact.py` at dd020a7; 16 completed, 0 fallbacks, 0 selector errors, median executed 462 (narrow-only 232), 5 all-by-rule cases; AC-7 check `--max-median 610` passes.
+- Review rounds 1 and 2 (2026-11-08, Astra high): fail/fail, 6 + 3 high, all fixed (dd020a7 and the following commit); first real run of CI job plugin-suites found three environment failures, fixed in the same commit; the review-round cap is reached, one confirmation run follows.

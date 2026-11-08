@@ -180,6 +180,35 @@ def test_cached_result_from_another_prompt_is_rerun(world, cached_hash):
     assert json.loads(f.read_text())["prompt_sha256"] == prompt_sha256 == res["prompt_sha256"]
 
 
+@pytest.mark.parametrize("cached_hash", [None, "different-bundle"])
+def test_cached_result_from_another_bundle_is_rerun(world, cached_hash):
+    world.go()
+    f = world.tmp / "out" / "review-replay" / f"{world.case['id']}.json"
+    cached = json.loads(f.read_text())
+    digest = cached.pop("bundle_sha256")
+    if cached_hash is not None:
+        cached["bundle_sha256"] = cached_hash
+    f.write_text(json.dumps(cached))
+    rc, res = world.go()
+    assert rc == 0 and len(world.calls) == 2
+    result = json.loads(f.read_text())
+    bundle, _, _ = rr.reconstruct(world.repo, world.case)
+    assert result["bundle_sha256"] == digest == rr.bundle_sha256(bundle)
+    for key in ("bundle_sha256", "bundle_bytes", "criteria_rev", "plan_path", "plan_resolution"):
+        assert res["cases"][0][key] == result[key]
+
+
+def test_cache_reconstructs_mutable_stored_scope(world):
+    world.go()
+    scope = {"files": ["app.py"], "excluded_files": ["docs/design/MAE-9-plan.md"],
+             "delegated_files": [], "exclusion_reason": "review code only"}
+    with mock.patch.object(rr, "stored_scope", return_value=scope):
+        world.go()
+        world.go()
+    assert len(world.calls) == 2
+    assert json.loads(world.calls[-1].split(rr.review_prompt(None), 1)[1])["files_reviewed"] == ["app.py"]
+
+
 def test_aggregate_does_not_relabel_an_unselected_case_from_another_prompt(world):
     world.go()
     f = world.tmp / "out" / "review-replay" / f"{world.case['id']}.json"
@@ -225,7 +254,31 @@ class Compare(unittest.TestCase):
         return rc, json.loads(out.getvalue()) if out.getvalue().startswith("{") else out.getvalue(), err.getvalue()
 
     def case(self, m1, m2, status="ok"):
-        return {"id": "c1", "status": status, "expected": [{"title": "t1", "matched": m1}, {"title": "t2", "matched": m2}]}
+        return {"id": "c1", "status": status, "criteria_rev": "rev1", "plan_path": "docs/design/MAE-9-plan.md",
+                "plan_resolution": "pinned", "expected": [{"title": "t1", "matched": m1}, {"title": "t2", "matched": m2}]}
+
+    def test_different_bundle_bindings_fail(self):
+        base = self.case({"x": 1}, None)
+        for key in ("criteria_rev", "plan_path", "plan_resolution"):
+            with self.subTest(key=key):
+                rc, out, err = self.run_compare([base], [{**base, key: "different"}])
+                self.assertEqual((rc, out["bundle_mismatch"]), (1, ["c1"]))
+                self.assertIn("FAIL: bundle mismatch", err)
+        base = {**base, "bundle_sha256": "digest"}
+        for new in (self.case({"x": 1}, None), {**base, "bundle_sha256": "different"}):
+            for before, after in ((base, new), (new, base)):
+                with self.subTest(before=before, after=after):
+                    rc, out, _ = self.run_compare([before], [after])
+                    self.assertEqual((rc, out["bundle_mismatch"]), (1, ["c1"]))
+
+    def test_binding_reports_digest_or_legacy_criteria_and_plan(self):
+        for digest, binding in ((None, "criteria_rev+plan"), ("digest", "bundle_sha256")):
+            with self.subTest(digest=digest):
+                case = self.case({"x": 1}, None)
+                if digest:
+                    case["bundle_sha256"] = digest
+                rc, out, _ = self.run_compare([case], [case])
+                self.assertEqual((rc, out["binding"], out["bundle_mismatch"]), (0, binding, []))
 
     def test_lost_is_kept_by_baseline_and_not_by_new(self):
         rc, out, err = self.run_compare([self.case({"x": 1}, None)], [self.case(None, {"y": 1})], max_lost=0)
@@ -239,9 +292,26 @@ class Compare(unittest.TestCase):
         rc, out, _ = self.run_compare([self.case(None, None)], [self.case(None, None)], max_lost=0)
         self.assertEqual((rc, out["lost_vs_baseline"], out["lost_by_both"]), (0, [], 2))
 
-    def test_a_case_missing_or_not_ok_in_one_run_is_not_compared(self):
+    def test_new_prompt_error_counts_baseline_kept_blockers_as_lost(self):
+        base = self.case({"x": 1}, {"y": 1})
+        for status in ("error", "too_large", "no_result"):
+            with self.subTest(status=status):
+                new = [] if status == "no_result" else [self.case(None, None, status=status)]
+                rc, out, err = self.run_compare([base], new, max_lost=1)
+                self.assertEqual((rc, out["cases_compared"], out["expected"], out["kept_baseline"]), (1, 1, 2, 2))
+                self.assertEqual(out["lost_vs_baseline"], [
+                    {"id": "c1", "title": title, "reason": status} for title in ("t1", "t2")])
+                self.assertEqual(out["excluded"], [])
+                self.assertIn("lost by the new prompt", err)
+        rc, out, _ = self.run_compare([{**base, "bundle_sha256": "digest"}],
+                                      [self.case(None, None, status="error")], max_lost=1)
+        self.assertEqual((rc, out["expected"], len(out["lost_vs_baseline"]), out["bundle_mismatch"]), (1, 2, 2, ["c1"]))
+
+    def test_a_case_not_ok_in_baseline_is_excluded(self):
         rc, out, err = self.run_compare([self.case({"x": 1}, {"x": 1}, status="error")], [self.case(None, None)], max_lost=3)
         self.assertEqual((rc, out["cases_compared"], out["cases_not_in_both"]), (1, 0, ["c1"]))
+        self.assertEqual(out["excluded"], [{"id": "c1", "baseline_status": "error", "new_status": "ok",
+                                            "reason": "baseline is not ok"}])
         self.assertIn("FAIL: empty comparison denominator", err)
         self.assertIn("cases_not_in_both=1", err)
 

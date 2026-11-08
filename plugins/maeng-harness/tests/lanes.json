@@ -4,6 +4,8 @@
     "gate": [
       {
         "id": "maeng-harness",
+        "skips_allowed": 1,
+        "skips_reason": "test_plugin.py:71 uses skipUnless(shutil.which(\"claude\")); Claude CLI is absent in isolation and CI.",
         "cwd": ".",
         "command": [
           "python3",
