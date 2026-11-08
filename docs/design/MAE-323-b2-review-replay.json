@@ -2604,7 +2604,7 @@
       }
     ]
   },
-  "generated_at": "2026-11-07T15:11:10Z",
+  "generated_at": "2026-11-07T17:03:24Z",
   "kind_note": "kind is 'code' for every replayed case: the manifest does not record code vs parent",
   "lost_blockers": [
     {
@@ -2968,6 +2968,7 @@
       "title": "Typed branch fields can write contents to the default branch"
     }
   ],
+  "prompt_from": "working tree",
   "prompt_sha256": "b3a866e111f2a684d77de3501a717505905f6e67d8bfb4339127d9c445f4576d",
   "rule": "An expected finding is matched by a new critical/high finding in the same file within 20 lines, or with title token Jaccard similarity >= 0.5 (lowercase alphanumeric tokens of 3+ characters); a finding without a file matches by title only.",
   "verdicts": {
