@@ -52,7 +52,7 @@ Keep references easy to resolve while reading. If “this”, “that”, “the
 
 ## Review the actual draft
 
-Quality layer: for a non-code result the user will show or submit, follow `maeng-harness:quality-layer` (criteria from real examples, independent check, closing walkthrough).
+Quality layer: for a non-code result the user will show or submit, follow `maeng-harness:quality-layer` when the maeng-harness plugin is enabled (criteria from real examples, independent check, closing walkthrough).
 
 For work that will become a report, deck or diagram, review the connected explanation before dividing it into visual units. Keep the claim, its support and the interpretation together; a neat arrangement cannot repair a missing reasoning step. Reuse accepted reader and interview decisions rather than asking about sentence order or conclusion placement again.
 

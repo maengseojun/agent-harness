@@ -42,10 +42,10 @@ class QualityLayerLinks(unittest.TestCase):
         for name in TOOLS_SKILLS:
             with self.subTest(skill=name):
                 path = REPO / "plugins/maeng-tools/skills" / name / "SKILL.md"
-                check_pointer(path.read_text(), "`maeng-harness:quality-layer`")
+                check_pointer(path.read_text(), "`maeng-harness:quality-layer` when the maeng-harness plugin is enabled")
 
     def test_pointer_helper_rejects_tampered_strings(self):
-        target = "`maeng-harness:quality-layer`"
+        target = "`maeng-harness:quality-layer` when the maeng-harness plugin is enabled"
         valid = PREFIX + target + SUFFIX + "\n"
         check_pointer(valid, target)
         for tampered in ("", valid * 2, valid + "### P-1: copied procedure\n", valid + "Order: copied steps\n",

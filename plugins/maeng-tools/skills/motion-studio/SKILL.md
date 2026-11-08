@@ -37,7 +37,7 @@ One studio folder per company, a git repo outside this harness. Ask for its path
 
 ## Flow
 
-Quality layer: for a non-code result the user will show or submit, follow `maeng-harness:quality-layer` (criteria from real examples, independent check, closing walkthrough).
+Quality layer: for a non-code result the user will show or submit, follow `maeng-harness:quality-layer` when the maeng-harness plugin is enabled (criteria from real examples, independent check, closing walkthrough).
 
 1. **Read the studio.** `brand/frame.md`, `lessons.md` and the general findings in [references/huashu/experience.md](references/huashu/experience.md). With no brand yet, write `brand/frame.md` from the user's site, Figma or assets before the first film.
 2. **Director brief.** Fill [references/brief-ko.md](references/brief-ko.md). Ask only what the request leaves open, one question at a time; record inferred answers apart from stated ones. Write `BRIEF.md`.
