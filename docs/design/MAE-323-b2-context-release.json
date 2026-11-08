@@ -1,0 +1,40 @@
+{
+  "standard": {
+    "nonce": "8103f58f7ec849f6",
+    "session_id": "7f0d841a-416a-443f-951e-ba3049287af6",
+    "plugin_dir": "/Users/maengseojun/.claude/plugins/cache/maeng/maeng-tools/0.3.22",
+    "definition_sha256": "30140e1d4766330101f3efa34f5c0ae0c4b62fc422893ba384ada3c78db31e9d",
+    "transcript": "/Users/maengseojun/.claude/projects/-Users-maengseojun-Documents-Project-agent-harness--claude-worktrees-harness-next-7251f7/7f0d841a-416a-443f-951e-ba3049287af6/subagents/agent-a1bc0b4e6fb1a0844.jsonl",
+    "agent_type": "maeng-tools:standard",
+    "model": "claude-sonnet-5-5",
+    "cli_version": "2.1.314",
+    "input_tokens": 2,
+    "claude_md_in_first_request": true,
+    "cache_creation_input_tokens": 10122,
+    "cache_read_input_tokens": 0,
+    "total_input_tokens": 10124,
+    "status": "observed"
+  },
+  "omit_claude_md_trial": {
+    "transcript": "/Users/maengseojun/.claude/projects/-Users-maengseojun-Documents-Project-agent-harness/d4405a2d-8e8f-45c7-b1ef-0b84c779ec2d/subagents/agent-ac44ef7cc64b57a38.jsonl",
+    "agent_type": "maeng-tools:design",
+    "model": "claude-opus-5-5",
+    "cli_version": "2.1.314",
+    "input_tokens": 2,
+    "claude_md_in_first_request": false,
+    "cache_creation_input_tokens": 5993,
+    "cache_read_input_tokens": 0,
+    "total_input_tokens": 5995,
+    "status": "observed",
+    "field": "omitClaudeMd",
+    "result": "supported",
+    "baseline_claude_md_in_first_request": true
+  },
+  "plugin": {
+    "name": "maeng-tools",
+    "version": "0.3.22",
+    "loaded_with": "--plugin-dir /Users/maengseojun/.claude/plugins/cache/maeng/maeng-tools/0.3.22"
+  },
+  "cli_version": "2.1.314",
+  "notes": "Probes: claude -p with --plugin-dir plugins/maeng-tools, one Agent call each, fresh --session-id, run from the repo root (prompt placed before the variadic --allowedTools). Totals add input, cache_creation and cache_read tokens of the first assistant usage record. The omitClaudeMd trial compares the CLAUDE.md block in the first request (present for standard, absent for design with the field); the baseline is a different definition, model and tool set, so the token totals of the two runs are not comparable. The sessions carried the user's global CLAUDE.md and a SubagentStart hook context; a first probe before the final definition edits measured 9744 tokens."
+}
