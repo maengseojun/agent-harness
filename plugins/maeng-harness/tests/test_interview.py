@@ -1284,7 +1284,7 @@ class Docs(unittest.TestCase):
         self.assertIn("comprehension-gate", (ROOT.parents[1] / "README.md").read_text())
 
     def test_the_plugin_is_0_4_14(self):
-        self.assertEqual(json.loads((ROOT / ".claude-plugin/plugin.json").read_text())["version"], "0.4.16")
+        self.assertEqual(json.loads((ROOT / ".claude-plugin/plugin.json").read_text())["version"], "0.4.17")
 
 
 if __name__ == "__main__":
