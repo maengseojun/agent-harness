@@ -1,12 +1,12 @@
 # Spec/Plan: MAE-324 track 2 — quality, closing comprehension and improvement
 
-Status: draft implementation plan. Date: 2026-11-09. AC-1 through AC-7 were approved by the user on 2026-11-06, with changes N-1 through N-5 approved on 2026-11-07. AC-8 through AC-10 and D-16 through D-20 are provisional overnight choices, made on 2026-11-09 under the relayed instruction to run track 2 in one pass; morning confirmation remains due. Sealed recommendation: 27e91a8bfa62.
+Status: draft implementation plan. Date: 2026-11-09. AC-1 through AC-7 were approved by the user on 2026-11-06, with changes N-1 through N-5 approved on 2026-11-07. AC-8 through AC-10 and D-16 through D-20 are provisional overnight choices made on 2026-11-09. Sealed recommendation: 27e91a8bfa62.
 
 Goal: improve substantial non-code deliverables through evidence-backed criteria and independent checking, offer closing comprehension, and make harness improvement repeatable.
 
 Deliverable: one implementation PR with a quality-layer skill, five pointers, a checker route and standard validator, closing questions, a component inventory and an audit procedure. Three genre standards and the trial record remain private. Prepare maeng-harness 0.4.16 and a maeng-tools patch release; this drafting task writes only this plan and makes no commit.
 
-Morning decisions: confirm or revise D-16 through D-20, AC-8 through AC-10 and A-1 through A-5; answer the trial's pending user steps and blind comparison. AC-6 remains open until those answers exist. I-4 is a proposal only. Nothing in this status claims the provisional additions were approved.
+Morning decisions: use this plan itself as the v3 trial (D-16); include the component inventory and audit procedure now, with the pass-definition rule only as a proposal (D-17); shorten other skill descriptions instead of raising the byte budget (D-18); use a skill-level checker route on gpt-6.1-sol high instead of a new review kind (D-19); keep genre standards in the private vault (D-20); also confirm the closing walkthrough item (AC-8) and assumptions A-1..A-5; answer the trial's pending steps and the blind comparison. Details in Decisions.
 
 Sources: repository examples [bundle 2](MAE-323-b2-plan.md), [bundle 3](MAE-323-b3-plan.md), the harness-run Spec/Plan template, budget and role tests, and local private trial records read on 2026-11-09. Source revision: local file contents; no service revision fetched. Private content is summarized in original English; no user quotations enter this repository.
 
@@ -19,7 +19,7 @@ All selected options below are provisional, covered by sealed recommendation 27e
 | Decision | Source | Selected provisionally | Alternative |
 |---|---|---|---|
 | D-16 Trial target | AC-6; procedure v3 | Apply v3 while writing this plan, from the start. User steps wait for morning; AC-6 stays open. Wrong if this cannot provide the required trial evidence. | Wait for the next real talk or video task. |
-| D-17 Improvement scope | I-1 through I-4 | Include inventory I-1 and audit I-2, with paired measurement I-3 inside the audit. Draft I-4 as proposal-only. This expands the earlier deferral; no trial established its effect. Wrong if the user retains that deferral. | Defer I-1 through I-3 as the approved draft did. |
+| D-17 Improvement scope | I-1 through I-4 | Include inventory I-1 and audit I-2, with paired measurement I-3 inside the audit. Draft I-4 as proposal-only. This expands the earlier deferral; no trial established its effect; see Evidence boundary. Wrong if the user retains that deferral. | Defer I-1 through I-3 as the approved draft did. |
 | D-18 Description budget | Current budget test | Shorten existing descriptions; retain BASE_BYTES = 20651. Wrong if required trigger meaning cannot fit without loss. | Raise the byte budget with user approval. |
 | D-19 Checker route | AC-3; current routes contract | Add routes.quality_check: resource gpt_pro, model gpt-6.1-sol, effort high, invoked with codex exec; standby a Claude subagent recorded as independence unknown. enforcedBy = skill; where = plugins/maeng-harness/skills/quality-layer/SKILL.md. Wrong if the actual checker is not independent or available. | Add a new maeng-review kind, with its additional receipt and gate coupling. |
 | D-20 Standard location | AC-4; public repository boundary | Keep wiki/standards/STD-<genre>.md and saved sources beside them in the private vault. Repository additions are the validator and synthetic fixtures, never real standards or user words. Wrong if private source readback is unavailable. | Put standards in the repository; rejected because they can contain private user wording. |
@@ -36,13 +36,15 @@ Owns: this task writes only docs/design/MAE-324-plan.md. Future implementation o
 
 Exclusions:
 
-- Q-4 score tracking is replaced by finding lists and user assessments; no score trend or numeric pass threshold.
-- Q-3 is not a forced question; demand evidence and precedent comparison belong in a product-genre standard when one exists.
-- U-3, putting quality conditions into closing questions, remains untested and is not added here.
-- I-4 adoption is excluded; only its proposal paragraph ships. I-5 change detection and onboarding already belong to MAE-327.
+- Q-4 (recording a quality score per task) is replaced by finding lists and user assessments; no score trend or numeric pass threshold.
+- Q-3 (forcing demand-evidence and prior-art questions) is excluded; demand evidence and precedent comparison belong in a product-genre standard when one exists.
+- U-3 (putting quality conditions into the closing questions) remains untested and is not added here.
+- I-4 (the user must approve any change to what counts as a pass; only a proposal paragraph ships) adoption is excluded. I-5 (weekly change watch and model onboarding) already belongs to MAE-327.
 - No hook reminder, gate, blocking quality judgment, new maeng-review kind, automatic invocation or time pass line.
 - No standards beyond business pitch talks, research talks and one-minute promotional videos. No quality-layer procedure for code tasks.
-- No new measurement framework, audit scheduler, provider benchmark or unrelated tool fixes. These omissions can be requested separately.
+- No new measurement framework, audit scheduler, provider benchmark or unrelated tool fixes.
+
+Any item above can be requested back.
 
 Evidence boundary:
 
@@ -52,7 +54,7 @@ The user found the largest defect every time. Independent checkers found real de
 
 Scores moved by up to six points across checking depths, so scores are not compared. Closing Q&A was offered three times and never used as Q&A; once it became an explanation from first principles. Extra time was about 1.8 times and 2.2 times work time in trials 1 and 2, and the user still judged it worthwhile. Trial 3 had no measured work-time denominator; later rework was not fully included.
 
-The trials did not support I-1 through I-4, Q-4 score tracking or U-3. AC-8 preserves a requested default without claiming demonstrated learning; AC-9 and AC-10 are provisional procedure additions, not proven improvements. Procedure v3 and N-1 through N-5 still require the new trial.
+The trials did not support I-1 through I-4, Q-4 score tracking or U-3. AC-8 preserves a requested default without claiming demonstrated learning; AC-9 and AC-10 are provisional procedure additions, not proven improvements. Procedure v3 and N-1 through N-5 still require the new trial. The user's relayed instruction for this overnight run was to carry track 2 through in one pass, which is why the untrialed AC-8..AC-10 ship; they are provisional, live in separate commits (S6, S7), and dropping them leaves AC-1..AC-7 intact.
 
 must_haves:
 
@@ -62,7 +64,11 @@ must_haves:
 - T4 A complete new trial records user judgment, paired comparison, checker controls and invocation: AC-6; its decision conditions are fixed in advance: AC-7.
 - T5 Finished work includes a default structure/design walkthrough and questions, with user-only skipping: AC-8.
 - T6 Component assumptions and evidence are inventoried; an approved, paired audit can be repeated: AC-9, AC-10.
-- Artifacts and links: skill -> checker prompt and policy route (AC-1, AC-3); validator -> private standards and synthetic fixtures (AC-4); harness-run -> closing item and audit -> inventory (AC-8 through AC-10).
+- A1 Quality-layer skill and checker prompt (AC-1, AC-3).
+- A2 Validator, private standards and synthetic fixtures (AC-4).
+- A3 Closing item, component inventory and audit procedure (AC-8 through AC-10).
+- K1 Skill -> checker prompt and policy route (AC-1, AC-3).
+- K2 Validator -> private standards and synthetic fixtures (AC-4); harness-run -> closing item and audit -> inventory (AC-8 through AC-10).
 
 Procedure contract (AC-1):
 
@@ -197,9 +203,10 @@ Review focus: can vacuous structure pass; can copied procedure text escape point
 
 ## Revisions
 
-- R-1 plan scope, 2026-11-09: under the relayed one-pass instruction, provisionally selected D-16 this-plan trial, D-17 inventory/audit expansion with I-4 proposal-only, D-18 description trims, D-19 skill-enforced checker route and D-20 private standards. Seal 27e91a8bfa62. AC-8 through AC-10 are provisional additions. Morning confirmation list: those five decisions, those three criteria and A-1 through A-5; no user agreement is inferred.
+- R-1 plan scope, 2026-11-09: under the relayed one-pass instruction, provisionally selected D-16 this-plan trial, D-17 inventory/audit expansion with I-4 proposal-only, D-18 description trims, D-19 skill-enforced checker route and D-20 private standards. Seal 27e91a8bfa62. AC-8 through AC-10 are provisional additions. Morning confirmation list: those five decisions, those three criteria and A-1 through A-5; no user agreement is inferred. ADR: private vault wiki/decisions/ADR-MAE-324-track2-overnight.md.
 - R-2 trial record, 2026-11-09: the private record has started v3 plus N-1 through N-5 for this plan, using the 2026-11-07 revision. User confirmation, feedback, final assessment and blind choice wait for morning. This file does not complete or update that record; AC-6 remains open.
 - R-3 plan review, 2026-11-09: `maeng-review --kind plan` (gpt-6-astra high) passed with one medium finding (S6/S7 prerequisites contradicted overnight execution); fixed: they run overnight as provisional and need the morning confirmation before merge. Budget trims widened to any existing description (actual trims: diagram-explainer, easy-understanding, manuscript-writing-review, motion-studio). Tests split into two files so rows could run in parallel.
+- R-4 plan quality, 2026-11-09: quality-layer P-7 check (claude-sonnet-5-5 subagent, author gpt-6.1-sol) gave cannot-judge on C2 with one high and two medium findings; applied once (P-8): one-pass instruction cited for AC-8..AC-10, plain morning decision list, ADR pointer, glossed exclusions, typed must_haves.
 - Approved baseline retained: N-1 structural tests/order/failure lines and pointer nonduplication; N-2 literal saved-source quotation checks; N-3 blind with/without comparison; N-4 planted/empty/off-topic/clean checker controls; N-5 separate skill-read and skill-followed evidence.
 
 Close-out: fill only when the work closes.
