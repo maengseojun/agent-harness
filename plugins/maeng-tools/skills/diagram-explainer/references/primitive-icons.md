@@ -815,6 +815,118 @@ Plain text file.
 
 Source: Tabler Icons / `file-type-txt` (MIT)
 
+## Concepts
+
+Generic objects and outcomes for explanation diagrams (see [explanation-design.md § Icons on nodes](explanation-design.md#icons-on-nodes)).
+
+### document
+A document or page with content (report, wiki page, contract text).
+
+```svg
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4" /> <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2M9 9h1m-1 4h6m-6 4h6" /></svg>
+```
+
+Source: Tabler Icons / `file-text` (MIT)
+
+### documents
+Several documents or a corpus.
+
+```svg
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3v4a1 1 0 0 0 1 1h4" /> <path d="M18 17h-7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4l5 5v7a2 2 0 0 1-2 2" /> <path d="M16 17v2a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2" /></svg>
+```
+
+Source: Tabler Icons / `files` (MIT)
+
+### write
+Writing or editing.
+
+```svg
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18.5 9.5a2.828 2.828 0 1 0-4-4L4 16zm9.5-13.5l4 4" /></svg>
+```
+
+Source: Tabler Icons / `pencil` (MIT)
+
+### read
+Reading, review or observation.
+
+```svg
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0-4 0" /> <path d="M21 12q-3.6 6-9 6t-9-6q3.6-6 9-6t9 6" /></svg>
+```
+
+Source: Tabler Icons / `eye` (MIT)
+
+### ok
+Success, kept, passed.
+
+```svg
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0" /> <path d="m9 12l2 2l4-4" /></svg>
+```
+
+Source: Tabler Icons / `circle-check` (MIT)
+
+### fail
+Failure, lost, rejected, collision.
+
+```svg
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0m7-2l4 4m0-4l-4 4" /></svg>
+```
+
+Source: Tabler Icons / `circle-x` (MIT)
+
+### link
+A reference or link between items.
+
+```svg
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 15l6-6m-4-3l.463-.536a5 5 0 0 1 7.071 7.072L18 13m-5 5l-.397.534a5.07 5.07 0 0 1-7.127 0a4.97 4.97 0 0 1 0-7.071L6 11" /></svg>
+```
+
+Source: Tabler Icons / `link` (MIT)
+
+### merge
+Merging or combining results.
+
+```svg
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18a2 2 0 1 0 4 0a2 2 0 1 0-4 0M5 6a2 2 0 1 0 4 0a2 2 0 1 0-4 0m10 6a2 2 0 1 0 4 0a2 2 0 1 0-4 0M7 8v8" /> <path d="M7 8a4 4 0 0 0 4 4h4" /></svg>
+```
+
+Source: Tabler Icons / `git-merge` (MIT)
+
+### agreement
+Agreement, contract or signed terms.
+
+```svg
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21H6a3 3 0 0 1-3-3v-1h5.5M17 8.5V5a2 2 0 1 1 2 2h-2" /> <path d="M19 3H8a3 3 0 0 0-3 3v11M9 7h4m-4 4h4m5.42 1.61a2.1 2.1 0 0 1 2.97 2.97L15 22h-3v-3z" /></svg>
+```
+
+Source: Tabler Icons / `contract` (MIT)
+
+### message
+A message, prompt or chat turn.
+
+```svg
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9h8m-8 4h6m4-9a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-5l-5 3v-3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3z" /></svg>
+```
+
+Source: Tabler Icons / `message` (MIT)
+
+### model
+A model, reasoning or judgment.
+
+```svg
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 13a3.5 3.5 0 0 0-3.5 3.5v1a3.5 3.5 0 0 0 7 0v-1.8M8.5 13a3.5 3.5 0 0 1 3.5 3.5v1a3.5 3.5 0 0 1-7 0v-1.8" /> <path d="M17.5 16a3.5 3.5 0 0 0 0-7H17" /> <path d="M19 9.3V6.5a3.5 3.5 0 0 0-7 0M6.5 16a3.5 3.5 0 0 1 0-7H7" /> <path d="M5 9.3V6.5a3.5 3.5 0 0 1 7 0v10" /></svg>
+```
+
+Source: Tabler Icons / `brain` (MIT)
+
+### time
+Time, waiting or a deadline.
+
+```svg
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0-18 0" /> <path d="M12 7v5l3 3" /></svg>
+```
+
+Source: Tabler Icons / `clock` (MIT)
+
 ---
 
 ## License attribution
