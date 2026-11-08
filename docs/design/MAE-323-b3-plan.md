@@ -150,6 +150,7 @@ Verification tier: gate-code for later implementation. Working checks use affect
 
 ## Revisions
 
+- R-3 AC-9 reviewer (2026-11-08): the user chose to run the 5 Claude-reviewer replay cases with `claude-opus-5-5` medium instead of their enrolled reviewers (`replay --reviewer-override`, both prompts). The 41-case / 97-finding set is unchanged; results and the compare disclose each override and fail on a reviewer mismatch. Strict compare: 41 compared, lost vs baseline 3, gained 3, lost by both 85, 5 reviewer overrides disclosed, no bundle, membership or reviewer mismatch.
 - R-2 decisions (2026-11-08): the user chose D-13 Scheduled Claude task (S1 writes no `weekly_changes.py`), D-14 Later small PR (S7 delivers the periodic schedule and the CI observation record now; the aggregate read in `maeng-ship` moves to a follow-up PR after 2026-11-21 and the user's judgment), D-15 Separate follow-up (S6 records identities only; C-59 is deferred). Plan approved.
 - R-1 plan scope (2026-11-08): draft eight rows for P8-1 through P8-3, P2-6 and all named bundle 2 carry-overs. Pair periodic execution with the CI decision work because they share workflow/inventory files. Keep C-59 conditional in D-15 and S6. No decision, criterion change, implementation or operational improvement is claimed.
 
