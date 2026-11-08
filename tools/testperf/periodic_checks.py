@@ -100,9 +100,10 @@ def run(root, output, seed="mae232"):
         with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as con:
             rows = con.execute("SELECT file,line,idx,suite,killed,rc,n_selected FROM mutants").fetchall()
         result["executed"] = len(rows)
+        # rc 2: `pytest -x -n` (xdist) exits 2 when it stops at the first failure, i.e. killed.
         for file, line, idx, name, killed, rc, selected in rows:
             if (file != FILE or name != "periodic" or type(line) is not int or line < 1 or
-                    type(idx) is not int or idx < 0 or type(rc) is not int or rc not in (0, 1) or
+                    type(idx) is not int or idx < 0 or type(rc) is not int or rc not in (0, 1, 2) or
                     type(killed) is not int or killed != int(rc != 0) or selected != -1):
                 raise ValueError("unknown, skipped, timed-out or invalid mutant result")
         if len({r[:4] for r in rows}) != len(rows):

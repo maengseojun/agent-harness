@@ -108,7 +108,7 @@ def test_disposable_contract_retains_results_without_changing_checkout(mutation)
     {"selected": 0, "rows": 0}, {"rows": 0}, {"rows": 1}, {"rc": 1}, {"restore": False},
     {"baseline": "3 skipped in 0.1s"}, {"baseline": "unknown counts"},
     {"baseline_rc": 1}, {"dependency_rc": 1}, {"timeout": True},
-    {"row_rc": 5}, {"row_rc": -9}, {"killed": None}, {"killed": 0, "row_rc": 1},
+    {"row_rc": 5}, {"row_rc": -9}, {"killed": None}, {"killed": 0, "row_rc": 1}, {"killed": 0, "row_rc": 2}, {"row_rc": 3},
     {"clone_rc": 1}, {"revision_rc": 1}, {"revision": "unknown"},
     {"mutation_output": "unknown selection"}, {"no_db": True}, {"selected": 51, "rows": 51},
 ])
@@ -116,6 +116,12 @@ def test_empty_skipped_unknown_missing_failed_or_unrestored_is_incomplete(mutati
     mutation[3].update(change)
     result = execute(mutation)
     assert result["status"] == "incomplete" and result["failures"]
+
+
+def test_xdist_stop_after_first_failure_counts_as_killed(mutation):
+    mutation[3].update(row_rc=2)
+    result = execute(mutation)
+    assert result["status"] == "ok" and result["killed"] == 2
 
 
 def test_survivors_are_measurements_not_runner_failures(mutation):
