@@ -464,9 +464,10 @@ def criteria_rev(text):
 
 
 def make_binding(issue, plan_doc=None, plan_updated=None, criteria=None, checks=None, parent=None, repo=None,
-                 world="personal"):
+                 world="personal", planner_model=None, author_model=None):
     b = {"issue": issue, "plan_doc": plan_doc, "plan_updated_at": plan_updated, "criteria": criteria or [],
-         "checks": checks or [], "parent": parent, "repo": repo, "world": world, "plan_hash": None}
+         "checks": checks or [], "parent": parent, "repo": repo, "world": world, "plan_hash": None,
+         "planner_model": planner_model, "author_model": author_model}
     if plan_doc and Path(plan_doc).is_file():
         text = Path(plan_doc).read_text(encoding="utf-8")
         c, ch = parse_plan_text(text)
