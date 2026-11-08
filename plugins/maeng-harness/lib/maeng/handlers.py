@@ -162,7 +162,8 @@ def on_prompt(payload):
     iv = interview_note(payload)
     if world_of(payload, st) != guard.PERSONAL:
         return context_out("UserPromptSubmit", iv) if iv else None
-    out = record_approval(payload.get("prompt") or "", cwd)
+    prompt = payload.get("prompt")
+    out = record_approval((interview.users_text(prompt) if isinstance(prompt, str) else None) or "", cwd)
     tree, _ = treelib.tree_id(cwd)
     new_task = not st.get("task_id")
     def mark(s):
