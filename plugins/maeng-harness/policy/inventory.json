@@ -1,0 +1,165 @@
+{
+  "_comment": "Component inventory: unverified means no measured model effect; safety evidence names behavior tests, not a causal performance claim. Change helps/no-effect only with fixed-task, order-swapped with/without evidence.",
+  "components": [
+    {
+      "path": "plugins/maeng-harness/skills/chart-style",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model applies the selected chart style to the actual data and output format"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/comprehension-gate",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model asks the user to explain decisions without supplying their answers"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/error-fix-manual-1",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model traces the original response and execution path before retrying a failed operation"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/execute-code-brief",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model follows the supplied file scope and verification command without expanding the brief"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/foundry-testing",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model selects relevant Solidity test patterns and checks meaningful failure cases"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/harness-run",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model reads the workflow when a substantial task matches its description"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/html-prototype-interview",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model uses observed prototype feedback to resolve product decisions"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/linear",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model checks the target identity and current state before changing an issue"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/notion-authoring",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model verifies the saved document against the requested content and layout"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/orca-big-task",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model assigns independent tasks without overlapping write sets"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/orca-race",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model keeps competing bug hypotheses independent until comparing evidence"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/proof-guided-optimization",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model states invariants and verifies correctness before claiming an optimization"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/quality-layer",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model derives criteria from real examples and gives an independent checker the actual artifact"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/skill-feedback",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model distinguishes reusable feedback from a one-off task correction"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/solidity-habits",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model recognizes applicable Solidity conventions at the changed call sites"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/task-brief",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model converts the request into explicit deliverables, scope and checks without inventing requirements"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/work-records",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model distinguishes working progress from a verified completed outcome"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/writing-a-vault",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model checks share accounting and rounding against the vault invariants"
+    },
+    {
+      "path": "plugins/maeng-harness/skills/writing-an-auction",
+      "kind": "skill",
+      "status": "unverified",
+      "assumes": "the model checks auction pricing and fills against the accounting invariants"
+    },
+    {
+      "path": "plugins/maeng-harness/bin/maeng-eta-isolate",
+      "kind": "bin",
+      "status": "unverified",
+      "assumes": "the model invokes checkout isolation on the intended repository"
+    },
+    {
+      "path": "plugins/maeng-harness/bin/maeng-interview",
+      "kind": "bin",
+      "status": "unverified",
+      "assumes": "the model uses captured user answers when running comprehension checks"
+    },
+    {
+      "path": "plugins/maeng-harness/bin/maeng-review",
+      "kind": "bin",
+      "status": "safety",
+      "assumes": "the model routes review through the review CLI for the current artifact",
+      "evidence": "plugins/maeng-harness/tests/test_cli.py; plugins/maeng-harness/tests/test_review_policy.py test review routing and receipt requirements; model benefit is unmeasured"
+    },
+    {
+      "path": "plugins/maeng-harness/bin/maeng-ship",
+      "kind": "bin",
+      "status": "safety",
+      "assumes": "the model routes merges through the shipping CLI",
+      "evidence": "plugins/maeng-harness/tests/test_merge.py tests refusal without current verification and review evidence; model benefit is unmeasured"
+    },
+    {
+      "path": "plugins/maeng-harness/bin/maeng-verify",
+      "kind": "bin",
+      "status": "safety",
+      "assumes": "the model uses the verification CLI and supplies checks for the current tree",
+      "evidence": "plugins/maeng-harness/tests/test_evidence.py; plugins/maeng-harness/tests/test_cli.py test verification evidence and binding behavior; model benefit is unmeasured"
+    },
+    {
+      "path": "plugins/maeng-harness/hooks/hooks.json",
+      "kind": "hooks",
+      "status": "safety",
+      "assumes": "the model uses a host that loads the configured hooks for protected operations",
+      "evidence": "plugins/maeng-harness/tests/test_stop_hooks.py; plugins/maeng-harness/tests/test_evidence.py; plugins/maeng-harness/tests/test_merge.py test hook notices, evidence capture and merge enforcement; model benefit is unmeasured"
+    },
+    {
+      "path": "plugins/maeng-harness/policy/roles.json",
+      "kind": "policy",
+      "status": "unverified",
+      "assumes": "the model uses the role policy for task routing and reports unavailable execution resources"
+    }
+  ]
+}
