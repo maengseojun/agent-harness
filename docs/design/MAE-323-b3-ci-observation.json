@@ -3,8 +3,8 @@
   "state": "pending",
   "judgment": "pending",
   "decision": "D-14 Later small PR",
-  "window_start": null,
-  "window_end": null,
+  "window_start": "2026-11-08T03:18:24Z",
+  "window_end": "2026-11-22T03:18:24Z",
   "window_start_source": "first plugin-suites run",
   "earliest_judgment": "2026-11-21",
   "follow_up": {
@@ -12,6 +12,763 @@
     "earliest": "2026-11-21",
     "scope": "A separate follow-up PR adds the exact-head gate aggregate read to maeng-ship before receipt reservation, only after the full observation window and explicit user judgment. Periodic results cannot substitute for gate results."
   },
-  "runs": [],
-  "note": "The lead fills the first plugin-suites run timestamp and run entries from gh run list and check/suite readbacks. Local sources only establish 2026-11-07/08, so window_start is not guessed; set window_end at least 14 days later. Empty observations establish neither stability nor enforcement. Record each run_id, attempt, event, head_sha, published check_name, lane, outcome, suite_counts (total, ok, failed, skipped, unavailable, tests_run) and failure_cause. Retain first failures and every rerun attempt. No service history was fetched for this record."
+  "runs": [
+    {
+      "run_id": 42442157980,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "9d573ebd44c94d700b953a4a00bd4a348059c04a",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "failure",
+      "suite_counts": {
+        "total": 12,
+        "ok": 9,
+        "failed": 3,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1495
+      },
+      "failure_cause": "test-regression"
+    },
+    {
+      "run_id": 42442159970,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "9d573ebd44c94d700b953a4a00bd4a348059c04a",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "failure",
+      "suite_counts": {
+        "total": 12,
+        "ok": 9,
+        "failed": 3,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1495
+      },
+      "failure_cause": "test-regression"
+    },
+    {
+      "run_id": 42444586297,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "34a248b6faf18b690c3c56e2f628cb17bf14619c",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "failure",
+      "suite_counts": {
+        "total": 12,
+        "ok": 11,
+        "failed": 1,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1506
+      },
+      "failure_cause": "test-regression"
+    },
+    {
+      "run_id": 42444588082,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "34a248b6faf18b690c3c56e2f628cb17bf14619c",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "failure",
+      "suite_counts": {
+        "total": 12,
+        "ok": 11,
+        "failed": 1,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1506
+      },
+      "failure_cause": "test-regression"
+    },
+    {
+      "run_id": 42444855431,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "4c14443c18e965547562c60d17b46c10e03d9fb7",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1506
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42444858540,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "4c14443c18e965547562c60d17b46c10e03d9fb7",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1506
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42445695170,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "4c14443c18e965547562c60d17b46c10e03d9fb7",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1506
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42445744972,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "a6990702df2248e75a0c885b73df74990a521e2b",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "failure",
+      "suite_counts": {
+        "total": 12,
+        "ok": 11,
+        "failed": 1,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1506
+      },
+      "failure_cause": "test-regression"
+    },
+    {
+      "run_id": 42445747835,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "a6990702df2248e75a0c885b73df74990a521e2b",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "failure",
+      "suite_counts": {
+        "total": 12,
+        "ok": 11,
+        "failed": 1,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1506
+      },
+      "failure_cause": "test-regression"
+    },
+    {
+      "run_id": 42445953943,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "ecfb360c4c29fc63ccec41a3cefc66bdd0543e66",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1506
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42445958668,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "ecfb360c4c29fc63ccec41a3cefc66bdd0543e66",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1506
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42447030393,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "da767b8b97b500ecd7dc856b34353907b42d10b2",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1507
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42447032073,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "da767b8b97b500ecd7dc856b34353907b42d10b2",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1507
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42447055832,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "ecfb360c4c29fc63ccec41a3cefc66bdd0543e66",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1506
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42447407426,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "3a44f3194b8b82a688c392b1675ad0993d8c50e0",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1507
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42447414553,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "3a44f3194b8b82a688c392b1675ad0993d8c50e0",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1507
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42447765515,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "3a44f3194b8b82a688c392b1675ad0993d8c50e0",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1507
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42461115506,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "952a89908d63a5ad92d9ad4adc49c999feee7632",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "failure",
+      "suite_counts": {
+        "total": 12,
+        "ok": 11,
+        "failed": 1,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1507
+      },
+      "failure_cause": "test-regression"
+    },
+    {
+      "run_id": 42461119286,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "952a89908d63a5ad92d9ad4adc49c999feee7632",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1507
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42462193875,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "e14f93fd476ccd0e1666da22e99a3550865d0931",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1507
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42463474591,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "e14f93fd476ccd0e1666da22e99a3550865d0931",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1507
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42463782112,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "065e908c5b689de6ae26728423b271964110df59",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1507
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42463786863,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "065e908c5b689de6ae26728423b271964110df59",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1507
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42463938297,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "9636a11f2a1f79b5a6800cdfa000057a52aae0a0",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1507
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42467680321,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "e53034e0a7f0ae3ce1d764a816f5abe3385c95e2",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "failure",
+      "suite_counts": {
+        "total": 12,
+        "ok": 11,
+        "failed": 1,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1626
+      },
+      "failure_cause": "test-regression"
+    },
+    {
+      "run_id": 42467682393,
+      "attempt": 1,
+      "event": "workflow_dispatch",
+      "head_sha": "e53034e0a7f0ae3ce1d764a816f5abe3385c95e2",
+      "check_name": "Plugin periodic (informational: separate from gate)",
+      "lane": "periodic",
+      "outcome": "failure",
+      "suite_counts": {
+        "total": 1,
+        "ok": 0,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 1,
+        "tests_run": 945
+      },
+      "failure_cause": "unavailable-unknown-data"
+    },
+    {
+      "run_id": 42469047373,
+      "attempt": 1,
+      "event": "workflow_dispatch",
+      "head_sha": "cc60c97e9ba5bb59b79fbebb2301541d4b6ebd98",
+      "check_name": "Plugin periodic (informational: separate from gate)",
+      "lane": "periodic",
+      "outcome": "failure",
+      "suite_counts": {
+        "total": 1,
+        "ok": 0,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 1,
+        "tests_run": 962
+      },
+      "failure_cause": "unavailable-unknown-data"
+    },
+    {
+      "run_id": 42469047405,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "cc60c97e9ba5bb59b79fbebb2301541d4b6ebd98",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1643
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42476688881,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "3f477b6ad0fd1cf0d30887469bc5ce32dcb39385",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1507
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42476719781,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "3f477b6ad0fd1cf0d30887469bc5ce32dcb39385",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1507
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42476927103,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "cec2ce6b69809b530011f1396338e649297bab79",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1509
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42476932271,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "cec2ce6b69809b530011f1396338e649297bab79",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1509
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42477376206,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "ef511a5332f9bd05be32728d13a8a769d3e4aa46",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1509
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42477380133,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "ef511a5332f9bd05be32728d13a8a769d3e4aa46",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1509
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42478370856,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "abcb9a7be2fdd25f954b2bac4f8771bc8d2beebc",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1513
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42478685812,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "1987e2634a7046e86d254fecd2eeae02f40de544",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1695
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42479220027,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "fa0d2a92574c03816c041c924c1bc087b6575ac5",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1507
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42479539323,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "edb0f5953bcfeaa5a73c981de9d3d4602c794847",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1695
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42480131111,
+      "attempt": 1,
+      "event": "workflow_dispatch",
+      "head_sha": "708ec989de0f4896a740ce8516843c38c9d54278",
+      "check_name": "Plugin periodic (informational: separate from gate)",
+      "lane": "periodic",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 1,
+        "ok": 1,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1017
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42480131848,
+      "attempt": 1,
+      "event": "push",
+      "head_sha": "708ec989de0f4896a740ce8516843c38c9d54278",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1698
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42482531700,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "708ec989de0f4896a740ce8516843c38c9d54278",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1698
+      },
+      "failure_cause": null
+    },
+    {
+      "run_id": 42482633649,
+      "attempt": 1,
+      "event": "pull_request",
+      "head_sha": "df9728be696aaf5f8d8a687201ad1e7b71621117",
+      "check_name": "Plugin suites (informational: ship does not read it)",
+      "lane": "gate",
+      "outcome": "success",
+      "suite_counts": {
+        "total": 12,
+        "ok": 12,
+        "failed": 0,
+        "skipped": 0,
+        "unavailable": 0,
+        "tests_run": 1698
+      },
+      "failure_cause": null
+    }
+  ],
+  "note": "Runs filled from gh run list and job/artifact readbacks on 2026-11-08 (every harness.yml run since 2026-11-07, all branches, every attempt). window_start is the first run with a plugin-suites job; window_end is 14 days later. failure_cause is assigned by rule from the suite statuses (failed -> test-regression, timeout -> timeout, missing/incomplete/unavailable or no artifact -> unavailable-unknown-data). Periodic 42469047373 was incomplete because the wrapper rejected xdist rc 2 (fixed in 708ec98); 42467682393 failed on the intentional S1 evidence test before its evidence was committed. No enforcement judgment before 2026-11-21."
 }

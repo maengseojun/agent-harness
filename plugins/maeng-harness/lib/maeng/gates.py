@@ -96,7 +96,7 @@ def _config(cwd, key, cfg=None, multi=False, boolean=False):
 
 
 def _push_operands(args):
-    """-> (remote, refspecs, all_branches); None remote is implicit, ('', [''], False) is malformed --repo."""
+    """-> (remote, refspecs, all_branches); None remote is implicit, ('', [''], False) is malformed or ambiguous --repo."""
     pos, skip, every, repo, ended = [], None, False, None, False
     for a in args:
         if skip:
@@ -114,7 +114,7 @@ def _push_operands(args):
             every = True
         elif not a.startswith("-"):
             pos.append(a)
-    if skip == "--repo" or (repo is not None and (not repo or repo.startswith("-"))):
+    if skip == "--repo" or (repo is not None and (not repo or repo.startswith("-") or pos)):
         return "", [""], False
     remote, specs = (repo, pos) if repo is not None else (pos[0], pos[1:]) if pos else (None, [])
     return remote, specs, every
