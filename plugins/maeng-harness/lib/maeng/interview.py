@@ -243,7 +243,9 @@ def user_text(prompt):
     last = None
     for last in _CLOSE.finditer(prompt):
         pass
-    rest = prompt[last.end():].lstrip() if last else ""
+    if not last or any(w in prompt[:last.end()] for w in WRAPPERS if not w.startswith("<")):
+        return None  # unclosed, or a relayed message sits among the wrappers: its trailer is not the user's
+    rest = prompt[last.end():].lstrip()
     return rest if rest and not rest.startswith(WRAPPERS) else None
 
 

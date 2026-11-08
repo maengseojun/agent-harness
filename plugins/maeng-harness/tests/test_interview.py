@@ -221,10 +221,14 @@ class Waivers(InterviewCase):
         rem = "<system-reminder>\nLinked sessions now: x\n</system-reminder>\n\n"
         self.assertIsNone(self.prompt(rem.replace("x", "면제 #7 reason")))   # only inside the reminder
         self.assertIsNone(self.prompt("<system-reminder>\n면제 #7 reason"))   # unclosed
+        for relayed in WRAPPED[4:5]:  # a reminder, then another session's message and its trailer
+            self.assertIsNone(self.prompt(rem + relayed + "\n면제 #7 reason"))
         self.assertFalse(interview.passed(self.key, 7, "merge", "any-patch"))
         self.assertIn("PR #7", self.prompt(rem + "면제 #7 사유"))
         self.assertTrue(interview.passed(self.key, 7, "merge", "any-patch"))
         self.open_rec()
+        self.assertIsNone(self.prompt(rem + WRAPPED[4]))  # the relayed trailer is not an answer
+        self.assertIsNone(self.rec()["answer"])
         self.prompt(rem + "my answer")
         self.assertEqual(self.rec()["answer"], "my answer")
 
