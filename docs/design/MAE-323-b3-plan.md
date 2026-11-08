@@ -1,6 +1,6 @@
 # Spec: MAE-323 bundle 3 — change checks (MAE-327, parent MAE-323)
 
-Status: draft. Date: 2026-11-08. Approval: none. Sources: `docs/design/MAE-323-plan.md`, `docs/design/MAE-323-b2-plan.md`, `docs/design/MAE-323-b2-report.md`. Source revision: local files read on 2026-11-08; no service revision fetched. This draft does not authorize implementation or scheduling.
+Status: approved. Date: 2026-11-08. Approval: user, 2026-11-08. Sources: `docs/design/MAE-323-plan.md`, `docs/design/MAE-323-b2-plan.md`, `docs/design/MAE-323-b2-report.md`. Source revision: local files read on 2026-11-08; no service revision fetched. This draft does not authorize implementation or scheduling.
 
 Parent decisions D-1 through D-9 remain in force. Bundle 2 decisions D-10 through D-12 remain unchanged. Parent criteria are cited as “parent 17”, rather than as criterion IDs belonging to this document.
 
@@ -10,7 +10,7 @@ Deliverable: one small implementation PR, an onboarding procedure, and measured 
 
 Decisions:
 
-All choices below are open. The user chooses before the affected work starts.
+Chosen 2026-11-08 by the user: D-13 Scheduled Claude task; D-14 Later small PR; D-15 Separate follow-up. Each matches the planner's recommendation sealed before asking (79ba2f39fcf7). The plan was approved the same day.
 
 | Decision | Source | Option | Option |
 |---|---|---|---|
@@ -150,6 +150,7 @@ Verification tier: gate-code for later implementation. Working checks use affect
 
 ## Revisions
 
+- R-2 decisions (2026-11-08): the user chose D-13 Scheduled Claude task (S1 writes no `weekly_changes.py`), D-14 Later small PR (S7 delivers the periodic schedule and the CI observation record now; the aggregate read in `maeng-ship` moves to a follow-up PR after 2026-11-21 and the user's judgment), D-15 Separate follow-up (S6 records identities only; C-59 is deferred). Plan approved.
 - R-1 plan scope (2026-11-08): draft eight rows for P8-1 through P8-3, P2-6 and all named bundle 2 carry-overs. Pair periodic execution with the CI decision work because they share workflow/inventory files. Keep C-59 conditional in D-15 and S6. No decision, criterion change, implementation or operational improvement is claimed.
 
 Failure / change handling: preserve the current repair limit. Failed selection keeps full fallback; failed smoke keeps pending compatibility; failed source access/delivery keeps an incomplete report; missing CI data never grants merge; replay loss or denominator changes stop for the user. Log ordinary sequencing changes here. Criterion, Owns, policy or judgment changes require user agreement before affected work.
