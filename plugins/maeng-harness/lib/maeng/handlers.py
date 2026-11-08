@@ -132,7 +132,7 @@ def on_session_start(payload):
     version, executable = None, os.environ.get("CLAUDE_CODE_EXECPATH", "")
     if executable and Path(executable).is_absolute():
         try:
-            proc = subprocess.run([executable, "--version"], capture_output=True, text=True, timeout=1)
+            proc = subprocess.run([executable, "--version"], capture_output=True, text=True, timeout=3)  # real host answers in <0.1 s; headroom for a loaded machine
             match = re.fullmatch(r"(\d+\.\d+\.\d+(?:-[\w.-]+)?) \(Claude Code\)", proc.stdout.strip())
             if proc.returncode == 0 and match:
                 version = match.group(1)

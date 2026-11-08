@@ -31,7 +31,7 @@ class SessionCli(HarnessCase):
 
     def host(self, version="9.9.9"):
         exe = self.tmp / "embedded-claude"
-        # /bin/sh, not Python: interpreter start-up under parallel load can exceed the 1 s probe timeout.
+        # /bin/sh, not Python: interpreter start-up under parallel load can exceed the probe timeout.
         exe.write_text(f"#!/bin/sh\necho {shlex.quote(version + ' (Claude Code)')}\n")
         exe.chmod(0o755)
         self.env["CLAUDE_CODE_EXECPATH"] = str(exe)
@@ -91,7 +91,7 @@ class SessionCli(HarnessCase):
                        OSError("unavailable"), subprocess.TimeoutExpired([], 1)):
             def probe(cmd, **kw):
                 if cmd[-1:] == ["--version"]:
-                    self.assertLessEqual(kw["timeout"], 1)
+                    self.assertLessEqual(kw["timeout"], 3)
                     if isinstance(result, Exception):
                         raise result
                     return result

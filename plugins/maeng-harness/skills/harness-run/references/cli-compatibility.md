@@ -38,7 +38,7 @@ Inspected on 2026-11-08:
 The implemented source is **`CLAUDE_CODE_EXECPATH --version`**, using an argument
 list without a shell or PATH fallback. It accepts only an absolute path,
 exit 0 and a complete `<version> (Claude Code)` response. The subprocess has a
-one-second timeout within the hook's five-second budget. Missing, relative,
+three-second timeout within the hook's five-second budget. Missing, relative,
 unavailable, timed-out or malformed results remain unknown and pending.
 
 This establishes the version of the executable designated by the host environment,
