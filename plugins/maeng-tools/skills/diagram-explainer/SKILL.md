@@ -1,6 +1,6 @@
 ---
 name: diagram-explainer
-description: Use when the user asks for a diagram, chart or visual explanation (다이어그램, 도식화, 구조도, 흐름도, architecture, flow, sequence, ER, timeline). Creates branded architecture, architecture delta, IT current-state, flowchart, sequence, state machine, ER/data model, timeline, swimlane, quadrant, radar/spider, polar chart (polar/radial lollipop), loop/flywheel, nested, tree, org chart, layer stack, exploded axonometric, axonometric plan, Venn, pyramid/funnel, treemap and marimekko, heatmap, bar and dumbbell, waterfall, line (slopegraph, ridgeline, streamgraph, bump), Gantt and scatter charts (bubble, beeswarm), high-level, process, medallion, data flow, DP integration, DP security matrix, Sankey, fishbone, Wardley map, kanban, user journey, service blueprint, deployment, dependency graph, UML class, story map, or database schema diagrams as HTML/SVG/PNG, with .drawio, Mermaid, and .excalidraw import, plus lifecycle phase maps, block decomposition trees, and onboarding guidance.
+description: "Use for diagrams, charts or visual explanations (다이어그램, 도식화, 구조도, 흐름도, architecture, flow, sequence, ER, timeline). Creates branded HTML/SVG/PNG: architecture, architecture delta, IT current-state, flowchart, sequence, state machine, ER/data model, timeline, swimlane, quadrant, radar/spider, polar chart (polar/radial lollipop), loop/flywheel, nested, tree, org chart, layer stack, exploded axonometric, axonometric plan, Venn, pyramid/funnel, treemap, marimekko, heatmap, bar, dumbbell, waterfall, line/slopegraph/ridgeline/streamgraph/bump, Gantt, scatter/bubble/beeswarm, high-level, process, medallion, data flow, DP integration, DP security matrix, Sankey, fishbone, Wardley map, kanban, user journey, service blueprint, deployment, dependency graph, UML class, story map, database schema, lifecycle phase maps and block decomposition trees. Imports .drawio, Mermaid and .excalidraw; includes onboarding guidance."
 license: MIT
 metadata:
   version: "2.6"
@@ -145,7 +145,7 @@ Universal building blocks. Type-specialized primitives (lifeline, activation bar
 
 - Editorial callouts → [primitive-annotation.md](references/primitive-annotation.md)
 - Hand-drawn variant → [primitive-sketchy.md](references/primitive-sketchy.md)
-- Icon set (laptop, server, DB, K8s, Docker, AWS, …) → [primitive-icons.md](references/primitive-icons.md). Browse the gallery at [`assets/icons.html`](assets/icons.html).
+- Icon set (laptop, server, DB, K8s, Docker, AWS, documents, agents, ok/fail, …; when to use them: [explanation-design.md § Icons on nodes](references/explanation-design.md#icons-on-nodes)) → [primitive-icons.md](references/primitive-icons.md). Browse the gallery at [`assets/icons.html`](assets/icons.html).
 - Terminal / CLI-window variant → [primitive-terminal.md](references/primitive-terminal.md)
 - Optional explanatory motion → [animation.md](references/animation.md)
 - Explorable diagram (focus, route, lens, finder, steps) → [archify-methods.md § Exploring a diagram](references/archify-methods.md#exploring-a-diagram), starting from `assets/template-explore.html`

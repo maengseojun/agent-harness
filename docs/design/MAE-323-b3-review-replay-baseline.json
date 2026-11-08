@@ -1,0 +1,3295 @@
+{
+  "cases": [
+    {
+      "bundle_bytes": 869216,
+      "bundle_sha256": "65f8a153e3769d65f682c5e9fa9af971d66a63e075d002a115a5af94b68104d0",
+      "criteria_rev": "1e05da1f7f1a016aaebe46876bf912e0387bd627b18e30e3c950a836089f968d",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 367,
+          "matched": null,
+          "severity": "high",
+          "title": "PR creation can verify a different repository's head"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/ghcmd.py",
+          "line": 127,
+          "matched": null,
+          "severity": "high",
+          "title": "Issue transfers omit the destination repository from G3"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 263,
+          "matched": null,
+          "severity": "high",
+          "title": "Git clone and worktree destinations bypass eta isolation"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+          "line": 43,
+          "matched": {
+            "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+            "line": 43,
+            "severity": "high",
+            "title": "Replace evidence flag denylists with closed allowlists"
+          },
+          "severity": "high",
+          "title": "Dry runs still satisfy default test verification"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 469,
+          "matched": null,
+          "severity": "high",
+          "title": "Invalid Notion configuration silently disables G2"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 473,
+          "matched": null,
+          "severity": "high",
+          "title": "UUID capitalization bypasses Notion publication checks"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+          "line": 235,
+          "matched": null,
+          "severity": "high",
+          "title": "Reservation can authorize a newly revoked receipt"
+        }
+      ],
+      "id": "013535f665d38a73",
+      "plan_path": "docs/design/MAE-216-plan.md",
+      "plan_resolution": "changed-single",
+      "reviewer": {
+        "effort": "xhigh",
+        "model": "gpt-6-astra"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "fail"
+    },
+    {
+      "bundle_bytes": 184896,
+      "bundle_sha256": "07f5a0f16035f7d57857a2881ba392d7f9668b0f23eb90d7745ec025cf903bbf",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 276,
+          "matched": null,
+          "severity": "high",
+          "title": "Guard implicit gh pushes after same-command branch changes"
+        }
+      ],
+      "id": "16a2e34d0c5f63cd",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": 198099,
+      "bundle_sha256": "c0e6ac05f58a40e1522aadf1833e1bb4cd28c5da034d67a42da89257ed44fda3",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+          "line": 286,
+          "matched": null,
+          "severity": "high",
+          "title": "Comment apostrophes let background tests become successful evidence"
+        }
+      ],
+      "id": "20b4224e3d25df57",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": 190109,
+      "bundle_sha256": "58b51504631450e45a472f65da621aa6740918264575e971d43d7b1c8aa37eb2",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Command-local checkout aliases bypass the later push check"
+        }
+      ],
+      "id": "285596c224b49d10",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": null,
+      "bundle_sha256": null,
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 114,
+          "matched": null,
+          "severity": "high",
+          "title": "Matching refspec `:` (and push.default=matching) pushes the default branch but is allowed"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 106,
+          "matched": null,
+          "severity": "high",
+          "title": "Command-line config overrides of push destinations are ignored (git -c / --config-env / GIT_CONFIG_*), and mirror/pushDefault config is not resolved"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 57,
+          "matched": null,
+          "severity": "high",
+          "title": "Default-branch determination fails open when it cannot decide"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 182,
+          "matched": null,
+          "severity": "high",
+          "title": "Uninspectable `gh api graphql` mutations are allowed (fail open)"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 198,
+          "matched": null,
+          "severity": "high",
+          "title": "Known push/merge routes other than `git push` / `gh pr merge` are not gated"
+        }
+      ],
+      "id": "299658f6f1963faa",
+      "plan_path": null,
+      "plan_resolution": null,
+      "reviewer": null,
+      "reviewer_override": null,
+      "status": "no_result",
+      "verdict": null
+    },
+    {
+      "bundle_bytes": 811967,
+      "bundle_sha256": "0758c347c578fe4c48e480a6f121d61e2c8b787b12b39980c2a787b8b39fe74c",
+      "criteria_rev": "c9ef60bf779f407a443d9a03e6883a32a1cada35a0f9721572a0567df92231e4",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-tools/skills/decisions/scripts/decisions_client.py",
+          "line": 53,
+          "matched": {
+            "file": "plugins/maeng-tools/skills/decisions/scripts/decisions_client.py",
+            "line": 53,
+            "severity": "high",
+            "title": "Blank lines let YAML secrets escape pre-flight redaction"
+          },
+          "severity": "high",
+          "title": "Quoted next-line secrets survive pre-flight redaction"
+        }
+      ],
+      "id": "38a8ada46771509c",
+      "plan_path": "docs/design/MAE-306-plan.md",
+      "plan_resolution": "issue",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "fail"
+    },
+    {
+      "bundle_bytes": 178805,
+      "bundle_sha256": "9a97fb050d03c331269c0502efe01dd913a789344016329d7d7d452259971717",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 267,
+          "matched": null,
+          "severity": "high",
+          "title": "Checkout-before-push protection is lost across shell wrappers"
+        }
+      ],
+      "id": "39005757ad4b6d6a",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": 801639,
+      "bundle_sha256": "7a24b0c30227aa192bc8088b8b76149349317bd93e06a2c46d3a8ff36aef5c90",
+      "criteria_rev": "c9ef60bf779f407a443d9a03e6883a32a1cada35a0f9721572a0567df92231e4",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-tools/skills/decisions/scripts/decisions_client.py",
+          "line": 47,
+          "matched": {
+            "file": "plugins/maeng-tools/skills/decisions/scripts/decisions_client.py",
+            "line": 47,
+            "severity": "high",
+            "title": "Redact multiline secret values before sending pre-flight input"
+          },
+          "severity": "high",
+          "title": "Redact multiline secret values in pre-flight inputs"
+        }
+      ],
+      "id": "4685548794e13d39",
+      "plan_path": "docs/design/MAE-306-plan.md",
+      "plan_resolution": "issue",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "fail"
+    },
+    {
+      "bundle_bytes": 565635,
+      "bundle_sha256": "41c3eb06278a0f75c2f4a5a7ab1ec6bc639f6ab815714021b48374e08393e3ce",
+      "criteria_rev": "f88a530c72d177d3862a8ae4619a8e1feb51bec6b82f020f702507ea1e0bd3bb",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/interview.py",
+          "line": 333,
+          "matched": {
+            "file": "plugins/maeng-harness/lib/maeng/interview.py",
+            "line": 334,
+            "severity": "high",
+            "title": "Check model overrides before applying the CLI exemption"
+          },
+          "severity": "high",
+          "title": "Check model overrides before exempting the interview CLI"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/bin/maeng-interview",
+          "line": 394,
+          "matched": null,
+          "severity": "high",
+          "title": "Preserve unmet rubric items after a successful follow-up"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/quiz.py",
+          "line": 90,
+          "matched": null,
+          "severity": "high",
+          "title": "Confirm each prediction rather than trusting suite success"
+        }
+      ],
+      "id": "4717bcc48a339ef3",
+      "plan_path": "docs/design/MAE-313-plan.md",
+      "plan_resolution": "issue",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "fail"
+    },
+    {
+      "bundle_bytes": 134466,
+      "bundle_sha256": "223a83dfcd5c5aad1b20ee836a86e707d2bbb22b0e84209956c3091c67b2abfc",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-tools/skills/decisions/scripts/decisions_client.py",
+          "line": 287,
+          "matched": {
+            "file": "plugins/maeng-tools/skills/decisions/scripts/decisions_client.py",
+            "line": 287,
+            "severity": "high",
+            "title": "Check eta restrictions before redaction removes their markers"
+          },
+          "severity": "high",
+          "title": "Check for eta material before redaction removes its markers"
+        }
+      ],
+      "id": "48deca985fcecfa7",
+      "plan_path": "docs/design/MAE-315-plan.md",
+      "plan_resolution": "issue",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "fail"
+    },
+    {
+      "bundle_bytes": 126418,
+      "bundle_sha256": "90c3f0e988724d90f98a6ab3cf345c47bcc31f40114bbec8a41ca737326add3d",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/shellparse.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Shell comments bypass implicit default-branch push protection"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/shellparse.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Line continuations hide push and merge subcommands"
+        }
+      ],
+      "id": "533b14fe6d8656e0",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": 818860,
+      "bundle_sha256": "1617053b724382f6e3809935f0108c00e7844f9f5eb8851814f7f6a3ca4f40b0",
+      "criteria_rev": "1e05da1f7f1a016aaebe46876bf912e0387bd627b18e30e3c950a836089f968d",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 350,
+          "matched": null,
+          "severity": "high",
+          "title": "Bind gh authorization to its effective repository"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/remotecfg.py",
+          "line": 20,
+          "matched": null,
+          "severity": "high",
+          "title": "A stale origin/HEAD permits direct default-branch pushes"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/remotecfg.py",
+          "line": 52,
+          "matched": null,
+          "severity": "high",
+          "title": "Recursive push configuration expands shipment beyond the checked repository"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+          "line": 59,
+          "matched": null,
+          "severity": "high",
+          "title": "Failed Notion re-reviews leave earlier passes usable"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+          "line": 83,
+          "matched": null,
+          "severity": "high",
+          "title": "Launcher-only invocations still become passing test evidence"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 486,
+          "matched": null,
+          "severity": "high",
+          "title": "Malformed operation fields still fail open"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 195,
+          "matched": null,
+          "severity": "high",
+          "title": "Bare filesystem destinations bypass eta isolation"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/ghcmd.py",
+          "line": 17,
+          "matched": null,
+          "severity": "high",
+          "title": "Locally mutating gh commands bypass G3 as reads"
+        }
+      ],
+      "id": "583f85ad28def0de",
+      "plan_path": "docs/design/MAE-216-plan.md",
+      "plan_resolution": "changed-single",
+      "reviewer": {
+        "effort": "xhigh",
+        "model": "gpt-6-astra"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "fail"
+    },
+    {
+      "bundle_bytes": null,
+      "bundle_sha256": null,
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-tools/skills/ai-loop-design/SKILL.md",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "AC-3 is not backed by runner evidence: the pytest and plugin-validate results are self-declared"
+        }
+      ],
+      "id": "5daf343b358e99b4",
+      "plan_path": null,
+      "plan_resolution": null,
+      "reviewer": null,
+      "reviewer_override": null,
+      "status": "no_result",
+      "verdict": null
+    },
+    {
+      "bundle_bytes": 688491,
+      "bundle_sha256": "518cd4b441a75fc674e1331fad808cebd96816530f988bc6055c3930b07c63b9",
+      "criteria_rev": "1e05da1f7f1a016aaebe46876bf912e0387bd627b18e30e3c950a836089f968d",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "tests/live/assert_smoke.py",
+          "line": 62,
+          "matched": null,
+          "severity": "high",
+          "title": "AC-4 is not met: the attached fresh staging run shows S2 failing three checks"
+        }
+      ],
+      "id": "61427df531adf650",
+      "plan_path": "docs/design/MAE-216-plan.md",
+      "plan_resolution": "changed-largest",
+      "reviewer": {
+        "effort": "medium",
+        "model": "claude-opus-5-5"
+      },
+      "reviewer_override": {
+        "applied": true,
+        "enrolled": {
+          "effort": "medium",
+          "model": "claude-fable-5-1"
+        }
+      },
+      "status": "ok",
+      "verdict": "fail"
+    },
+    {
+      "bundle_bytes": 107134,
+      "bundle_sha256": "72c57589901c73bb80c838cc9b496f35e2bb7ff926c5e5aa2349920633e175a2",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 225,
+          "matched": null,
+          "severity": "high",
+          "title": "Git aliases can hide gated gh API writes"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "File-write checks use the wrong repository's default branch"
+        },
+        {
+          "expected_blocking": true,
+          "file": null,
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Required evidence and merge authorization sources are missing"
+        }
+      ],
+      "id": "6416293ee666b0fe",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": 104557,
+      "bundle_sha256": "63308644d85fbb5d4f2a77c4d6661c45f67721d3b001120d451388afd33f0027",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "MCP file writes ignore policy-protected branches"
+        },
+        {
+          "expected_blocking": true,
+          "file": null,
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Bundle lacks sources required to complete the mandated audit"
+        }
+      ],
+      "id": "64a95d2139d1515d",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": 451032,
+      "bundle_sha256": "fc650f0dbb57687e5db3213f193cefb1e41e07787a6674861dec021d7d939164",
+      "criteria_rev": "1e05da1f7f1a016aaebe46876bf912e0387bd627b18e30e3c950a836089f968d",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+          "line": 461,
+          "matched": null,
+          "severity": "high",
+          "title": "Relative restore validates one file but modifies another"
+        }
+      ],
+      "id": "659d371f29f7b3ae",
+      "plan_path": "docs/design/MAE-216-plan.md",
+      "plan_resolution": "changed-single",
+      "reviewer": {
+        "effort": "medium",
+        "model": "gpt-6-astra"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "fail"
+    },
+    {
+      "bundle_bytes": 180400,
+      "bundle_sha256": "d89a9400e704481b820fee27919f4809982e6d9a27a2a9cb2495709290e5373d",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Wrapped repository changes bypass the subsequent-push check"
+        }
+      ],
+      "id": "65c03f558a825ab7",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": null,
+      "bundle_sha256": null,
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/tests/test_merge.py",
+          "line": 218,
+          "matched": null,
+          "severity": "high",
+          "title": "Exact lease push through the hook is never tested with a non-fast-forward head (and lacks remote-config pins)"
+        }
+      ],
+      "id": "6fded583e7d72f9d",
+      "plan_path": null,
+      "plan_resolution": null,
+      "reviewer": null,
+      "reviewer_override": null,
+      "status": "no_result",
+      "verdict": null
+    },
+    {
+      "bundle_bytes": 124405,
+      "bundle_sha256": "a1e66fa53312f1b559f0827a87be6f35e180300b85f24b3c8ba369e87d5af146",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 209,
+          "matched": null,
+          "severity": "high",
+          "title": "Block REST merge endpoints containing shell variables"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 257,
+          "matched": null,
+          "severity": "high",
+          "title": "Inspect default-branch pushes used as shell conditions"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 199,
+          "matched": null,
+          "severity": "high",
+          "title": "Apply the implicit-push check to gh pr new"
+        }
+      ],
+      "id": "713d7fccdb03890e",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": 97360,
+      "bundle_sha256": "8b22875202fc711b46714b8f9eab31424dac102b1afd8dc2d1959e03c6b8c6fb",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/bin/maeng-ship",
+          "line": 63,
+          "matched": null,
+          "severity": "high",
+          "title": "Approval fallback removes the required review-run authorization"
+        }
+      ],
+      "id": "732aba7b814a7d89",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": 951542,
+      "bundle_sha256": "1ef8332bc5e3874e4ffe1b33fd07fb9fb89e36a9928270ce50807902d256d8c8",
+      "criteria_rev": "1e05da1f7f1a016aaebe46876bf912e0387bd627b18e30e3c950a836089f968d",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 443,
+          "matched": null,
+          "severity": "high",
+          "title": "MCP PR creation still bypasses remote-validation failures"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+          "line": 88,
+          "matched": null,
+          "severity": "high",
+          "title": "Zero-count Go runs satisfy test verification"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 172,
+          "matched": null,
+          "severity": "high",
+          "title": "The G3 read-only allowlist admits file compilation"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+          "line": 420,
+          "matched": {
+            "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+            "line": 411,
+            "severity": "high",
+            "title": "Do not let declarations substitute for runner evidence"
+          },
+          "severity": "high",
+          "title": "Declared checks bypass runner requirements"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/state.py",
+          "line": 33,
+          "matched": null,
+          "severity": "high",
+          "title": "Corrupt session state can disable cross-world gating"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+          "line": 420,
+          "matched": null,
+          "severity": "high",
+          "title": "Malformed Notion registry data silently removes protection"
+        }
+      ],
+      "id": "86cb07badb21eca6",
+      "plan_path": "docs/design/MAE-216-plan.md",
+      "plan_resolution": "changed-single",
+      "reviewer": {
+        "effort": "xhigh",
+        "model": "gpt-6-astra"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "fail"
+    },
+    {
+      "bundle_bytes": 192604,
+      "bundle_sha256": "767afec790f2d40167437c7dfe82c3a6d57e55acd0922b59c350a6f9fa0d6639",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Checkout aliases inside shell wrappers bypass the subsequent-push check"
+        }
+      ],
+      "id": "8722a33acc9df665",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": 621548,
+      "bundle_sha256": "7cf03ae4d1704db26125bfd59c88754bb0b00195605b617b4596f15f60285cea",
+      "criteria_rev": "1e05da1f7f1a016aaebe46876bf912e0387bd627b18e30e3c950a836089f968d",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "tests/live/assert_smoke.py",
+          "line": 167,
+          "matched": null,
+          "severity": "high",
+          "title": "AC-4 live evidence for S6\u2013S8 (and S5, GF1\u2013GF4) predates the gate rewrite; only S1\u2013S4 and S9 were re-run"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 120,
+          "matched": null,
+          "severity": "high",
+          "title": "check_bash fails open on ParseError: unparseable commands skip every G3/G1 check"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/bin/maeng-review",
+          "line": 343,
+          "matched": {
+            "file": "plugins/maeng-harness/bin/maeng-review",
+            "line": 343,
+            "severity": "high",
+            "title": "`maeng-review store` turns any verdict file into a valid merge receipt"
+          },
+          "severity": "high",
+          "title": "`maeng-review store <file>` turns any local JSON into a pass receipt"
+        }
+      ],
+      "id": "8dc630d35e7a13a1",
+      "plan_path": "docs/design/MAE-216-plan.md",
+      "plan_resolution": "changed-largest",
+      "reviewer": {
+        "effort": "medium",
+        "model": "claude-opus-5-5"
+      },
+      "reviewer_override": {
+        "applied": true,
+        "enrolled": {
+          "effort": "xhigh",
+          "model": "claude-fable-5-1"
+        }
+      },
+      "status": "ok",
+      "verdict": "fail"
+    },
+    {
+      "bundle_bytes": null,
+      "bundle_sha256": null,
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": null,
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Required acceptance evidence is missing"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/handlers.py",
+          "line": 128,
+          "matched": null,
+          "severity": "high",
+          "title": "Receipt reservation failures allow the mutation"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+          "line": 84,
+          "matched": null,
+          "severity": "high",
+          "title": "Partial review receipts authorize the entire PR"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 400,
+          "matched": null,
+          "severity": "high",
+          "title": "Merge authorization is not bound to the target repository"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 379,
+          "matched": null,
+          "severity": "high",
+          "title": "Configured push refspecs bypass the default-branch gate"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 164,
+          "matched": null,
+          "severity": "high",
+          "title": "Shell conditionals bypass shipping checks"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 575,
+          "matched": null,
+          "severity": "high",
+          "title": "GitHub file uploads are unrelated to the verified tree"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+          "line": 182,
+          "matched": null,
+          "severity": "high",
+          "title": "Verification discards whether the required tests actually ran"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 144,
+          "matched": null,
+          "severity": "high",
+          "title": "Relative redirections bypass eta isolation"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 154,
+          "matched": null,
+          "severity": "high",
+          "title": "Read-only command exemptions permit filesystem writes"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/handlers.py",
+          "line": 355,
+          "matched": null,
+          "severity": "high",
+          "title": "Ambiguous Notion failures release single-use receipts"
+        }
+      ],
+      "id": "9c2636729f93f5df",
+      "plan_path": null,
+      "plan_resolution": null,
+      "reviewer": null,
+      "reviewer_override": null,
+      "status": "no_result",
+      "verdict": null
+    },
+    {
+      "bundle_bytes": 189026,
+      "bundle_sha256": "3c927c1055510be9285f481468f2be9d9ddf4d632e3288012af4cea2fc9cb9a8",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 242,
+          "matched": null,
+          "severity": "high",
+          "title": "Simple checkout aliases bypass protection of a subsequent implicit push"
+        }
+      ],
+      "id": "9c4690b1b7015471",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": null,
+      "bundle_sha256": null,
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/skills/harness-run/references/spec-plan.md",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "AC-3: the Plan template (spec-plan.md) is not in the diff; only the SKILL.md column glossary gained a Grade row"
+        }
+      ],
+      "id": "a15b0dd9c3c9abc6",
+      "plan_path": null,
+      "plan_resolution": null,
+      "reviewer": null,
+      "reviewer_override": null,
+      "status": "no_result",
+      "verdict": null
+    },
+    {
+      "bundle_bytes": 188401,
+      "bundle_sha256": "a9aee74dcad2b223a64ddc9ec6ec2a88fcdadccaf1ccc0f3c259e165c06010d6",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 223,
+          "matched": null,
+          "severity": "high",
+          "title": "Variable-supplied GraphQL fields bypass query inspection"
+        }
+      ],
+      "id": "a24ba22f004e53a2",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": 691010,
+      "bundle_sha256": "4666f02fe60e3b740a0cf07e5e6a51fd37e0f00d5733c18f293f582a1ac67e19",
+      "criteria_rev": "1e05da1f7f1a016aaebe46876bf912e0387bd627b18e30e3c950a836089f968d",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": null,
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Required acceptance evidence remains incomplete"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+          "line": 134,
+          "matched": null,
+          "severity": "high",
+          "title": "Parent exclusions still bypass outstanding scoped reviews"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 129,
+          "matched": null,
+          "severity": "high",
+          "title": "Combined commit-and-push checks the wrong commit"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 337,
+          "matched": null,
+          "severity": "high",
+          "title": "Repository binding ignores effective push destinations"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 384,
+          "matched": null,
+          "severity": "high",
+          "title": "Configured mirror pushes escape the push restrictions"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/shellparse.py",
+          "line": 171,
+          "matched": null,
+          "severity": "high",
+          "title": "Ordinary wrapper options bypass shipping checks"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 238,
+          "matched": null,
+          "severity": "high",
+          "title": "Explicit Git repository selectors bypass eta isolation"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 53,
+          "matched": null,
+          "severity": "high",
+          "title": "Unknown default branches are treated as safe destinations"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+          "line": 56,
+          "matched": {
+            "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+            "line": 39,
+            "severity": "high",
+            "title": "Replace evidence flag blacklists with closed allowlists"
+          },
+          "severity": "high",
+          "title": "npx help invocations become passing test evidence"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+          "line": 112,
+          "matched": null,
+          "severity": "high",
+          "title": "Test working directories are omitted from verification scope"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+          "line": 224,
+          "matched": null,
+          "severity": "high",
+          "title": "Compound verification requirements use OR instead of AND"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/bin/maeng-review",
+          "line": 195,
+          "matched": null,
+          "severity": "high",
+          "title": "Failed re-reviews leave earlier pass receipts usable"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 658,
+          "matched": null,
+          "severity": "high",
+          "title": "PR creation verification is unrelated to the actual remote head"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 618,
+          "matched": null,
+          "severity": "high",
+          "title": "GitHub URL arguments bypass eta target checks"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 141,
+          "matched": null,
+          "severity": "high",
+          "title": "Unknown checkout classification permits Bash mutations"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/handlers.py",
+          "line": 125,
+          "matched": null,
+          "severity": "high",
+          "title": "Unknown-world Notion calls skip receipt reservation"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/hooks/maeng_hooks.py",
+          "line": 18,
+          "matched": null,
+          "severity": "high",
+          "title": "Unreadable gate input silently allows execution"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/tree.py",
+          "line": 53,
+          "matched": null,
+          "severity": "high",
+          "title": "Malformed verification policies weaken the gate"
+        }
+      ],
+      "id": "a56dcafe600916a9",
+      "plan_path": "docs/design/MAE-216-plan.md",
+      "plan_resolution": "changed-single",
+      "reviewer": {
+        "effort": "xhigh",
+        "model": "gpt-6-astra"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "fail"
+    },
+    {
+      "bundle_bytes": 92502,
+      "bundle_sha256": "3a18f7b977fbf0844e9113ad831a409dbe743fc07f02aa7b24f8c8df12362ce6",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Preserve the repository supplied through git push --repo"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Check resolved typed branch values for contents writes"
+        }
+      ],
+      "id": "ae4f9e240c15939c",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "pass"
+    },
+    {
+      "bundle_bytes": 471265,
+      "bundle_sha256": "060d1b592f7526aea7a8e05152ff42213f08c81335825e1f65936cb3eae60ed0",
+      "criteria_rev": "1e05da1f7f1a016aaebe46876bf912e0387bd627b18e30e3c950a836089f968d",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-tools/skills/aside-collect/scripts/parse_aside.py",
+          "line": 147,
+          "matched": null,
+          "severity": "high",
+          "title": "Raw capture route persists private spans without filtering"
+        }
+      ],
+      "id": "b3a840dc7e1f5aa5",
+      "plan_path": "docs/design/MAE-216-plan.md",
+      "plan_resolution": "changed-single",
+      "reviewer": {
+        "effort": "medium",
+        "model": "gpt-6-astra"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "fail"
+    },
+    {
+      "bundle_bytes": 178165,
+      "bundle_sha256": "70f0bbbdf1e8a579e244200ea383c0bda3b1b77b9e27fd12184e502c46538d35",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 277,
+          "matched": null,
+          "severity": "high",
+          "title": "Implicit pushes remain allowed after gh changes the branch"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 271,
+          "matched": null,
+          "severity": "high",
+          "title": "Subshell directory changes can hide a default-branch push"
+        }
+      ],
+      "id": "b668d731d6ef7edc",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": null,
+      "bundle_sha256": null,
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 153,
+          "matched": null,
+          "severity": "high",
+          "title": "AC-2 bypass: the MAENG_* rule is gone, so the documented fixture switch lets a self-stored receipt authorize a merge"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 171,
+          "matched": null,
+          "severity": "high",
+          "title": "Known non-disguised merge routes outside maeng-ship are no longer gated"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 157,
+          "matched": null,
+          "severity": "high",
+          "title": "Bash gate fails open on unparseable commands"
+        }
+      ],
+      "id": "bd47635d113daa00",
+      "plan_path": null,
+      "plan_resolution": null,
+      "reviewer": null,
+      "reviewer_override": null,
+      "status": "no_result",
+      "verdict": null
+    },
+    {
+      "bundle_bytes": 117228,
+      "bundle_sha256": "9fcf9c5bb460c03e04a00cf76fe7ffd85a2f6b546f6bc3abd0533c84d8a7dcd9",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Shell-variable destinations can write to the default branch"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Embedded GraphQL variables escape the unreadable-query guard"
+        }
+      ],
+      "id": "c3203d07cf96b43a",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": 566396,
+      "bundle_sha256": "86892c4ef5bad4a25c5a852de4e38df16b6fae88dbe9b6d123721721d3fe5f61",
+      "criteria_rev": "1e05da1f7f1a016aaebe46876bf912e0387bd627b18e30e3c950a836089f968d",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/tests/test_r7.py",
+          "line": 40,
+          "matched": null,
+          "severity": "high",
+          "title": "Fixture-receipt switch: production default (variable absent) is never exercised, and the agent-settable path to enable it is not pinned as denied"
+        }
+      ],
+      "id": "c77d1838a2473a6b",
+      "plan_path": "docs/design/MAE-216-plan.md",
+      "plan_resolution": "changed-largest",
+      "reviewer": {
+        "effort": "medium",
+        "model": "claude-opus-5-5"
+      },
+      "reviewer_override": {
+        "applied": true,
+        "enrolled": {
+          "effort": "xhigh",
+          "model": "claude-fable-5-1"
+        }
+      },
+      "status": "ok",
+      "verdict": "pass"
+    },
+    {
+      "bundle_bytes": 121249,
+      "bundle_sha256": "5a6b513bc5694fc77a80344a6b639ebedf8030b723bde40aab6f3901a1d87645",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 193,
+          "matched": null,
+          "severity": "high",
+          "title": "Gate default-branch pushes performed by gh pr create"
+        }
+      ],
+      "id": "c7b0788757c58211",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": 629730,
+      "bundle_sha256": "ac3ebde2f4770b2a9d51bb2511386a23886da909ae3726ddc2c029a31dd37967",
+      "criteria_rev": "1e05da1f7f1a016aaebe46876bf912e0387bd627b18e30e3c950a836089f968d",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": null,
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "AC-4 not met: the attached final staging run shows S2 failing three assertions, yet 'live staging smoke' was declared ok at the head tree"
+        }
+      ],
+      "id": "c8dd868a50855bb9",
+      "plan_path": "docs/design/MAE-216-plan.md",
+      "plan_resolution": "changed-largest",
+      "reviewer": {
+        "effort": "medium",
+        "model": "claude-opus-5-5"
+      },
+      "reviewer_override": {
+        "applied": true,
+        "enrolled": {
+          "effort": "medium",
+          "model": "claude-fable-5-1"
+        }
+      },
+      "status": "ok",
+      "verdict": "pass"
+    },
+    {
+      "bundle_bytes": 504819,
+      "bundle_sha256": "99899861ddcc62a583999de94d2672ca31d58773bf5eaa654365aac9aa525bce",
+      "criteria_rev": "1e05da1f7f1a016aaebe46876bf912e0387bd627b18e30e3c950a836089f968d",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": null,
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "AC-6 still lacks a verifiable binding to the reviewed head"
+        }
+      ],
+      "id": "cb24e6b485aced8a",
+      "plan_path": "docs/design/MAE-216-plan.md",
+      "plan_resolution": "changed-largest",
+      "reviewer": {
+        "effort": "medium",
+        "model": "gpt-6-astra"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "fail"
+    },
+    {
+      "bundle_bytes": null,
+      "bundle_sha256": null,
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": null,
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Required evidence for AC-1 and AC-5 is missing"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-tools/skills/obsidian-workspace/scripts/private_filter.py",
+          "line": 21,
+          "matched": null,
+          "severity": "high",
+          "title": "Nested private tags leak protected content"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-tools/skills/aside-collect/scripts/parse_aside.py",
+          "line": 83,
+          "matched": null,
+          "severity": "high",
+          "title": "Transcript blocks can be promoted as collected sources"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+          "line": 224,
+          "matched": null,
+          "severity": "high",
+          "title": "Moving a binary silently overwrites an existing stub"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+          "line": 174,
+          "matched": null,
+          "severity": "high",
+          "title": "Archive moves can modify files outside the vault"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+          "line": 261,
+          "matched": null,
+          "severity": "high",
+          "title": "Missing source roots can produce successful backups that prune valid copies"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+          "line": 263,
+          "matched": null,
+          "severity": "high",
+          "title": "Cloud backups bypass the declared private-content restriction"
+        }
+      ],
+      "id": "cfe2a202e7d0ed82",
+      "plan_path": null,
+      "plan_resolution": null,
+      "reviewer": null,
+      "reviewer_override": null,
+      "status": "no_result",
+      "verdict": null
+    },
+    {
+      "bundle_bytes": 430591,
+      "bundle_sha256": "fe233f38b6cbd6a0d5696d2220a3f3acb5252c16d4bc6f1f9a0b5ded970dd8a2",
+      "criteria_rev": "1e05da1f7f1a016aaebe46876bf912e0387bd627b18e30e3c950a836089f968d",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-tools/skills/aside-collect/scripts/parse_aside.py",
+          "line": 88,
+          "matched": null,
+          "severity": "high",
+          "title": "EOF check still accepts snapshot content as a final answer"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Backup completeness check fails open on directory read errors"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Retrying a binary move still destroys an existing populated stub"
+        }
+      ],
+      "id": "d11be4f2254ee6db",
+      "plan_path": "docs/design/MAE-216-plan.md",
+      "plan_resolution": "changed-single",
+      "reviewer": {
+        "effort": "medium",
+        "model": "gpt-6-astra"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "fail"
+    },
+    {
+      "bundle_bytes": 496359,
+      "bundle_sha256": "0467a937b1f96031fd4466d808c29eb88ef8dc7702b3aa2791c43304a7279392",
+      "criteria_rev": "1e05da1f7f1a016aaebe46876bf912e0387bd627b18e30e3c950a836089f968d",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": null,
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "AC-6 lacks qualifying runner invocation evidence"
+        }
+      ],
+      "id": "d133f700f0ef79d7",
+      "plan_path": "docs/design/MAE-216-plan.md",
+      "plan_resolution": "changed-single",
+      "reviewer": {
+        "effort": "medium",
+        "model": "gpt-6-astra"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "fail"
+    },
+    {
+      "bundle_bytes": 814906,
+      "bundle_sha256": "17a8145f526b9f269f18557b2b236fd9384e57bfd475bf5f1daf81530123ef3e",
+      "criteria_rev": "396dd87a16ba525d3744cef9b30d3f259cec6cd00d4c5d618890e312cfdade4c",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-tools/skills/decisions/scripts/related_eval.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Related eval can send notes identified as eta by their source"
+        }
+      ],
+      "id": "d87a24299a91c020",
+      "plan_path": "docs/design/MAE-306-plan.md",
+      "plan_resolution": "issue",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "fail"
+    },
+    {
+      "bundle_bytes": 181643,
+      "bundle_sha256": "ce7d66d2759f6eb32b80fac4c74c0f6529b6457f7bfe167990dc53e932a10f16",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 52,
+          "matched": null,
+          "severity": "high",
+          "title": "A stale remote HEAD permits pushes to the actual default branch"
+        }
+      ],
+      "id": "dc497d5f890480ff",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": 625046,
+      "bundle_sha256": "22683f2eaf9a94984930a8d01b3d6d154738f7d47ea4388756e0fc67d52a3a5a",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/guard.py",
+          "line": 175,
+          "matched": null,
+          "severity": "high",
+          "title": "Resolving paths inside .git to the owning repo newly allows Edit/Write/redirect writes to .git/config and .git/hooks, getting around the GIT_EXEC_CONFIG gate"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 172,
+          "matched": null,
+          "severity": "high",
+          "title": "Settings gate misses enabledPlugins[\"eta-rules@eta\"], which makes the harness inert"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 608,
+          "matched": null,
+          "severity": "high",
+          "title": "`claude plugin disable|uninstall maeng-harness@maeng` (the CLI route for the same settings write) is not gated"
+        },
+        {
+          "expected_blocking": true,
+          "file": null,
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "AC-1 to AC-6 cannot be verified from the bundle (perf.db results missing)"
+        }
+      ],
+      "id": "ea146d1bb24de89d",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "medium",
+        "model": "claude-opus-5-5"
+      },
+      "reviewer_override": {
+        "applied": true,
+        "enrolled": {
+          "effort": "high",
+          "model": "claude-opus-5-5"
+        }
+      },
+      "status": "ok",
+      "verdict": "pass"
+    },
+    {
+      "bundle_bytes": 842001,
+      "bundle_sha256": "eb131d866e1f7b7d1463d3ba467f27dac0b6c8cf6930c19bdcf43f600b28fc93",
+      "criteria_rev": "c9ef60bf779f407a443d9a03e6883a32a1cada35a0f9721572a0567df92231e4",
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-tools/skills/decisions/scripts/decisions_client.py",
+          "line": 56,
+          "matched": {
+            "file": "plugins/maeng-tools/skills/decisions/scripts/decisions_client.py",
+            "line": 48,
+            "severity": "high",
+            "title": "Multiline credentials survive pre-flight redaction"
+          },
+          "severity": "high",
+          "title": "Wrapped secret assignments survive pre-flight redaction"
+        }
+      ],
+      "id": "edaf361c225b763c",
+      "plan_path": "docs/design/MAE-306-plan.md",
+      "plan_resolution": "issue",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "fail"
+    },
+    {
+      "bundle_bytes": 191536,
+      "bundle_sha256": "21c555b2cb6953ce5ca3146c5e2734f2f4a52fac889dc729e6aee23e3af78ad3",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": 264,
+          "matched": null,
+          "severity": "high",
+          "title": "Reject positional parameter expansion in GraphQL queries"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+          "line": 288,
+          "matched": null,
+          "severity": "high",
+          "title": "Exclude background subshells from verification evidence"
+        }
+      ],
+      "id": "f3169081a20c5308",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": 137149,
+      "bundle_sha256": "820eba2665bad7458f3b41075b57a6fc1dfa76effcd213dcdfd9179a22ca1122",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Multiple cd segments bind verification evidence to the wrong directory"
+        }
+      ],
+      "id": "f4c35649b630cc0b",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "blocked"
+    },
+    {
+      "bundle_bytes": null,
+      "bundle_sha256": null,
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": null,
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Acceptance criteria are missing their definitions"
+        }
+      ],
+      "id": "f5b829efec903b55",
+      "plan_path": null,
+      "plan_resolution": null,
+      "reviewer": null,
+      "reviewer_override": null,
+      "status": "no_result",
+      "verdict": null
+    },
+    {
+      "bundle_bytes": 92502,
+      "bundle_sha256": "3a18f7b977fbf0844e9113ad831a409dbe743fc07f02aa7b24f8c8df12362ce6",
+      "criteria_rev": null,
+      "expected": [
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Push option operands can hide a default-branch destination"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/ghcmd.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "The --preview option bypasses unreadable GraphQL rejection"
+        },
+        {
+          "expected_blocking": true,
+          "file": "plugins/maeng-harness/lib/maeng/gates.py",
+          "line": null,
+          "matched": null,
+          "severity": "high",
+          "title": "Typed branch fields can write contents to the default branch"
+        }
+      ],
+      "id": "fcea5fb9b87e3d16",
+      "plan_path": null,
+      "plan_resolution": "none",
+      "reviewer": {
+        "effort": "high",
+        "model": "gpt-6.1-sol"
+      },
+      "reviewer_override": null,
+      "status": "ok",
+      "verdict": "pass"
+    }
+  ],
+  "cases_not_run": [
+    {
+      "id": "299658f6f1963faa",
+      "status": "no_result"
+    },
+    {
+      "id": "5daf343b358e99b4",
+      "status": "no_result"
+    },
+    {
+      "id": "6fded583e7d72f9d",
+      "status": "no_result"
+    },
+    {
+      "id": "9c2636729f93f5df",
+      "status": "no_result"
+    },
+    {
+      "id": "a15b0dd9c3c9abc6",
+      "status": "no_result"
+    },
+    {
+      "id": "bd47635d113daa00",
+      "status": "no_result"
+    },
+    {
+      "id": "cfe2a202e7d0ed82",
+      "status": "no_result"
+    },
+    {
+      "id": "f5b829efec903b55",
+      "status": "no_result"
+    }
+  ],
+  "cases_reconstructable": 49,
+  "cases_run": 41,
+  "cases_total": 49,
+  "enrolled_at": "a23f430",
+  "expected": {
+    "013535f665d38a73": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 367,
+        "severity": "high",
+        "title": "PR creation can verify a different repository's head"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/ghcmd.py",
+        "line": 127,
+        "severity": "high",
+        "title": "Issue transfers omit the destination repository from G3"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 263,
+        "severity": "high",
+        "title": "Git clone and worktree destinations bypass eta isolation"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+        "line": 43,
+        "severity": "high",
+        "title": "Dry runs still satisfy default test verification"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 469,
+        "severity": "high",
+        "title": "Invalid Notion configuration silently disables G2"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 473,
+        "severity": "high",
+        "title": "UUID capitalization bypasses Notion publication checks"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+        "line": 235,
+        "severity": "high",
+        "title": "Reservation can authorize a newly revoked receipt"
+      }
+    ],
+    "16a2e34d0c5f63cd": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 276,
+        "severity": "high",
+        "title": "Guard implicit gh pushes after same-command branch changes"
+      }
+    ],
+    "20b4224e3d25df57": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+        "line": 286,
+        "severity": "high",
+        "title": "Comment apostrophes let background tests become successful evidence"
+      }
+    ],
+    "285596c224b49d10": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": null,
+        "severity": "high",
+        "title": "Command-local checkout aliases bypass the later push check"
+      }
+    ],
+    "299658f6f1963faa": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 114,
+        "severity": "high",
+        "title": "Matching refspec `:` (and push.default=matching) pushes the default branch but is allowed"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 106,
+        "severity": "high",
+        "title": "Command-line config overrides of push destinations are ignored (git -c / --config-env / GIT_CONFIG_*), and mirror/pushDefault config is not resolved"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 57,
+        "severity": "high",
+        "title": "Default-branch determination fails open when it cannot decide"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 182,
+        "severity": "high",
+        "title": "Uninspectable `gh api graphql` mutations are allowed (fail open)"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 198,
+        "severity": "high",
+        "title": "Known push/merge routes other than `git push` / `gh pr merge` are not gated"
+      }
+    ],
+    "38a8ada46771509c": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-tools/skills/decisions/scripts/decisions_client.py",
+        "line": 53,
+        "severity": "high",
+        "title": "Quoted next-line secrets survive pre-flight redaction"
+      }
+    ],
+    "39005757ad4b6d6a": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 267,
+        "severity": "high",
+        "title": "Checkout-before-push protection is lost across shell wrappers"
+      }
+    ],
+    "4685548794e13d39": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-tools/skills/decisions/scripts/decisions_client.py",
+        "line": 47,
+        "severity": "high",
+        "title": "Redact multiline secret values in pre-flight inputs"
+      }
+    ],
+    "4717bcc48a339ef3": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/interview.py",
+        "line": 333,
+        "severity": "high",
+        "title": "Check model overrides before exempting the interview CLI"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/bin/maeng-interview",
+        "line": 394,
+        "severity": "high",
+        "title": "Preserve unmet rubric items after a successful follow-up"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/quiz.py",
+        "line": 90,
+        "severity": "high",
+        "title": "Confirm each prediction rather than trusting suite success"
+      }
+    ],
+    "48deca985fcecfa7": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-tools/skills/decisions/scripts/decisions_client.py",
+        "line": 287,
+        "severity": "high",
+        "title": "Check for eta material before redaction removes its markers"
+      }
+    ],
+    "533b14fe6d8656e0": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/shellparse.py",
+        "line": null,
+        "severity": "high",
+        "title": "Shell comments bypass implicit default-branch push protection"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/shellparse.py",
+        "line": null,
+        "severity": "high",
+        "title": "Line continuations hide push and merge subcommands"
+      }
+    ],
+    "583f85ad28def0de": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 350,
+        "severity": "high",
+        "title": "Bind gh authorization to its effective repository"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/remotecfg.py",
+        "line": 20,
+        "severity": "high",
+        "title": "A stale origin/HEAD permits direct default-branch pushes"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/remotecfg.py",
+        "line": 52,
+        "severity": "high",
+        "title": "Recursive push configuration expands shipment beyond the checked repository"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+        "line": 59,
+        "severity": "high",
+        "title": "Failed Notion re-reviews leave earlier passes usable"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+        "line": 83,
+        "severity": "high",
+        "title": "Launcher-only invocations still become passing test evidence"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 486,
+        "severity": "high",
+        "title": "Malformed operation fields still fail open"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 195,
+        "severity": "high",
+        "title": "Bare filesystem destinations bypass eta isolation"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/ghcmd.py",
+        "line": 17,
+        "severity": "high",
+        "title": "Locally mutating gh commands bypass G3 as reads"
+      }
+    ],
+    "5daf343b358e99b4": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-tools/skills/ai-loop-design/SKILL.md",
+        "line": null,
+        "severity": "high",
+        "title": "AC-3 is not backed by runner evidence: the pytest and plugin-validate results are self-declared"
+      }
+    ],
+    "61427df531adf650": [
+      {
+        "expected_blocking": true,
+        "file": "tests/live/assert_smoke.py",
+        "line": 62,
+        "severity": "high",
+        "title": "AC-4 is not met: the attached fresh staging run shows S2 failing three checks"
+      }
+    ],
+    "6416293ee666b0fe": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 225,
+        "severity": "high",
+        "title": "Git aliases can hide gated gh API writes"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": null,
+        "severity": "high",
+        "title": "File-write checks use the wrong repository's default branch"
+      },
+      {
+        "expected_blocking": true,
+        "file": null,
+        "line": null,
+        "severity": "high",
+        "title": "Required evidence and merge authorization sources are missing"
+      }
+    ],
+    "64a95d2139d1515d": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": null,
+        "severity": "high",
+        "title": "MCP file writes ignore policy-protected branches"
+      },
+      {
+        "expected_blocking": true,
+        "file": null,
+        "line": null,
+        "severity": "high",
+        "title": "Bundle lacks sources required to complete the mandated audit"
+      }
+    ],
+    "659d371f29f7b3ae": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+        "line": 461,
+        "severity": "high",
+        "title": "Relative restore validates one file but modifies another"
+      }
+    ],
+    "65c03f558a825ab7": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": null,
+        "severity": "high",
+        "title": "Wrapped repository changes bypass the subsequent-push check"
+      }
+    ],
+    "6fded583e7d72f9d": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/tests/test_merge.py",
+        "line": 218,
+        "severity": "high",
+        "title": "Exact lease push through the hook is never tested with a non-fast-forward head (and lacks remote-config pins)"
+      }
+    ],
+    "713d7fccdb03890e": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 209,
+        "severity": "high",
+        "title": "Block REST merge endpoints containing shell variables"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 257,
+        "severity": "high",
+        "title": "Inspect default-branch pushes used as shell conditions"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 199,
+        "severity": "high",
+        "title": "Apply the implicit-push check to gh pr new"
+      }
+    ],
+    "732aba7b814a7d89": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/bin/maeng-ship",
+        "line": 63,
+        "severity": "high",
+        "title": "Approval fallback removes the required review-run authorization"
+      }
+    ],
+    "86cb07badb21eca6": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 443,
+        "severity": "high",
+        "title": "MCP PR creation still bypasses remote-validation failures"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+        "line": 88,
+        "severity": "high",
+        "title": "Zero-count Go runs satisfy test verification"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 172,
+        "severity": "high",
+        "title": "The G3 read-only allowlist admits file compilation"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+        "line": 420,
+        "severity": "high",
+        "title": "Declared checks bypass runner requirements"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/state.py",
+        "line": 33,
+        "severity": "high",
+        "title": "Corrupt session state can disable cross-world gating"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+        "line": 420,
+        "severity": "high",
+        "title": "Malformed Notion registry data silently removes protection"
+      }
+    ],
+    "8722a33acc9df665": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": null,
+        "severity": "high",
+        "title": "Checkout aliases inside shell wrappers bypass the subsequent-push check"
+      }
+    ],
+    "8dc630d35e7a13a1": [
+      {
+        "expected_blocking": true,
+        "file": "tests/live/assert_smoke.py",
+        "line": 167,
+        "severity": "high",
+        "title": "AC-4 live evidence for S6\u2013S8 (and S5, GF1\u2013GF4) predates the gate rewrite; only S1\u2013S4 and S9 were re-run"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 120,
+        "severity": "high",
+        "title": "check_bash fails open on ParseError: unparseable commands skip every G3/G1 check"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/bin/maeng-review",
+        "line": 343,
+        "severity": "high",
+        "title": "`maeng-review store <file>` turns any local JSON into a pass receipt"
+      }
+    ],
+    "9c2636729f93f5df": [
+      {
+        "expected_blocking": true,
+        "file": null,
+        "line": null,
+        "severity": "high",
+        "title": "Required acceptance evidence is missing"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/handlers.py",
+        "line": 128,
+        "severity": "high",
+        "title": "Receipt reservation failures allow the mutation"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+        "line": 84,
+        "severity": "high",
+        "title": "Partial review receipts authorize the entire PR"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 400,
+        "severity": "high",
+        "title": "Merge authorization is not bound to the target repository"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 379,
+        "severity": "high",
+        "title": "Configured push refspecs bypass the default-branch gate"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 164,
+        "severity": "high",
+        "title": "Shell conditionals bypass shipping checks"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 575,
+        "severity": "high",
+        "title": "GitHub file uploads are unrelated to the verified tree"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+        "line": 182,
+        "severity": "high",
+        "title": "Verification discards whether the required tests actually ran"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 144,
+        "severity": "high",
+        "title": "Relative redirections bypass eta isolation"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 154,
+        "severity": "high",
+        "title": "Read-only command exemptions permit filesystem writes"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/handlers.py",
+        "line": 355,
+        "severity": "high",
+        "title": "Ambiguous Notion failures release single-use receipts"
+      }
+    ],
+    "9c4690b1b7015471": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 242,
+        "severity": "high",
+        "title": "Simple checkout aliases bypass protection of a subsequent implicit push"
+      }
+    ],
+    "a15b0dd9c3c9abc6": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/skills/harness-run/references/spec-plan.md",
+        "line": null,
+        "severity": "high",
+        "title": "AC-3: the Plan template (spec-plan.md) is not in the diff; only the SKILL.md column glossary gained a Grade row"
+      }
+    ],
+    "a24ba22f004e53a2": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 223,
+        "severity": "high",
+        "title": "Variable-supplied GraphQL fields bypass query inspection"
+      }
+    ],
+    "a56dcafe600916a9": [
+      {
+        "expected_blocking": true,
+        "file": null,
+        "line": null,
+        "severity": "high",
+        "title": "Required acceptance evidence remains incomplete"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/receipts.py",
+        "line": 134,
+        "severity": "high",
+        "title": "Parent exclusions still bypass outstanding scoped reviews"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 129,
+        "severity": "high",
+        "title": "Combined commit-and-push checks the wrong commit"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 337,
+        "severity": "high",
+        "title": "Repository binding ignores effective push destinations"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 384,
+        "severity": "high",
+        "title": "Configured mirror pushes escape the push restrictions"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/shellparse.py",
+        "line": 171,
+        "severity": "high",
+        "title": "Ordinary wrapper options bypass shipping checks"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 238,
+        "severity": "high",
+        "title": "Explicit Git repository selectors bypass eta isolation"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 53,
+        "severity": "high",
+        "title": "Unknown default branches are treated as safe destinations"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+        "line": 56,
+        "severity": "high",
+        "title": "npx help invocations become passing test evidence"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+        "line": 112,
+        "severity": "high",
+        "title": "Test working directories are omitted from verification scope"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+        "line": 224,
+        "severity": "high",
+        "title": "Compound verification requirements use OR instead of AND"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/bin/maeng-review",
+        "line": 195,
+        "severity": "high",
+        "title": "Failed re-reviews leave earlier pass receipts usable"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 658,
+        "severity": "high",
+        "title": "PR creation verification is unrelated to the actual remote head"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 618,
+        "severity": "high",
+        "title": "GitHub URL arguments bypass eta target checks"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 141,
+        "severity": "high",
+        "title": "Unknown checkout classification permits Bash mutations"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/handlers.py",
+        "line": 125,
+        "severity": "high",
+        "title": "Unknown-world Notion calls skip receipt reservation"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/hooks/maeng_hooks.py",
+        "line": 18,
+        "severity": "high",
+        "title": "Unreadable gate input silently allows execution"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/tree.py",
+        "line": 53,
+        "severity": "high",
+        "title": "Malformed verification policies weaken the gate"
+      }
+    ],
+    "ae4f9e240c15939c": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": null,
+        "severity": "high",
+        "title": "Preserve the repository supplied through git push --repo"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": null,
+        "severity": "high",
+        "title": "Check resolved typed branch values for contents writes"
+      }
+    ],
+    "b3a840dc7e1f5aa5": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-tools/skills/aside-collect/scripts/parse_aside.py",
+        "line": 147,
+        "severity": "high",
+        "title": "Raw capture route persists private spans without filtering"
+      }
+    ],
+    "b668d731d6ef7edc": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 277,
+        "severity": "high",
+        "title": "Implicit pushes remain allowed after gh changes the branch"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 271,
+        "severity": "high",
+        "title": "Subshell directory changes can hide a default-branch push"
+      }
+    ],
+    "bd47635d113daa00": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 153,
+        "severity": "high",
+        "title": "AC-2 bypass: the MAENG_* rule is gone, so the documented fixture switch lets a self-stored receipt authorize a merge"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 171,
+        "severity": "high",
+        "title": "Known non-disguised merge routes outside maeng-ship are no longer gated"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 157,
+        "severity": "high",
+        "title": "Bash gate fails open on unparseable commands"
+      }
+    ],
+    "c3203d07cf96b43a": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": null,
+        "severity": "high",
+        "title": "Shell-variable destinations can write to the default branch"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": null,
+        "severity": "high",
+        "title": "Embedded GraphQL variables escape the unreadable-query guard"
+      }
+    ],
+    "c77d1838a2473a6b": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/tests/test_r7.py",
+        "line": 40,
+        "severity": "high",
+        "title": "Fixture-receipt switch: production default (variable absent) is never exercised, and the agent-settable path to enable it is not pinned as denied"
+      }
+    ],
+    "c7b0788757c58211": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 193,
+        "severity": "high",
+        "title": "Gate default-branch pushes performed by gh pr create"
+      }
+    ],
+    "c8dd868a50855bb9": [
+      {
+        "expected_blocking": true,
+        "file": null,
+        "line": null,
+        "severity": "high",
+        "title": "AC-4 not met: the attached final staging run shows S2 failing three assertions, yet 'live staging smoke' was declared ok at the head tree"
+      }
+    ],
+    "cb24e6b485aced8a": [
+      {
+        "expected_blocking": true,
+        "file": null,
+        "line": null,
+        "severity": "high",
+        "title": "AC-6 still lacks a verifiable binding to the reviewed head"
+      }
+    ],
+    "cfe2a202e7d0ed82": [
+      {
+        "expected_blocking": true,
+        "file": null,
+        "line": null,
+        "severity": "high",
+        "title": "Required evidence for AC-1 and AC-5 is missing"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-tools/skills/obsidian-workspace/scripts/private_filter.py",
+        "line": 21,
+        "severity": "high",
+        "title": "Nested private tags leak protected content"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-tools/skills/aside-collect/scripts/parse_aside.py",
+        "line": 83,
+        "severity": "high",
+        "title": "Transcript blocks can be promoted as collected sources"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+        "line": 224,
+        "severity": "high",
+        "title": "Moving a binary silently overwrites an existing stub"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+        "line": 174,
+        "severity": "high",
+        "title": "Archive moves can modify files outside the vault"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+        "line": 261,
+        "severity": "high",
+        "title": "Missing source roots can produce successful backups that prune valid copies"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+        "line": 263,
+        "severity": "high",
+        "title": "Cloud backups bypass the declared private-content restriction"
+      }
+    ],
+    "d11be4f2254ee6db": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-tools/skills/aside-collect/scripts/parse_aside.py",
+        "line": 88,
+        "severity": "high",
+        "title": "EOF check still accepts snapshot content as a final answer"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+        "line": null,
+        "severity": "high",
+        "title": "Backup completeness check fails open on directory read errors"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-tools/skills/maeng-archive/scripts/archive.py",
+        "line": null,
+        "severity": "high",
+        "title": "Retrying a binary move still destroys an existing populated stub"
+      }
+    ],
+    "d133f700f0ef79d7": [
+      {
+        "expected_blocking": true,
+        "file": null,
+        "line": null,
+        "severity": "high",
+        "title": "AC-6 lacks qualifying runner invocation evidence"
+      }
+    ],
+    "d87a24299a91c020": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-tools/skills/decisions/scripts/related_eval.py",
+        "line": null,
+        "severity": "high",
+        "title": "Related eval can send notes identified as eta by their source"
+      }
+    ],
+    "dc497d5f890480ff": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 52,
+        "severity": "high",
+        "title": "A stale remote HEAD permits pushes to the actual default branch"
+      }
+    ],
+    "ea146d1bb24de89d": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/guard.py",
+        "line": 175,
+        "severity": "high",
+        "title": "Resolving paths inside .git to the owning repo newly allows Edit/Write/redirect writes to .git/config and .git/hooks, getting around the GIT_EXEC_CONFIG gate"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 172,
+        "severity": "high",
+        "title": "Settings gate misses enabledPlugins[\"eta-rules@eta\"], which makes the harness inert"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 608,
+        "severity": "high",
+        "title": "`claude plugin disable|uninstall maeng-harness@maeng` (the CLI route for the same settings write) is not gated"
+      },
+      {
+        "expected_blocking": true,
+        "file": null,
+        "line": null,
+        "severity": "high",
+        "title": "AC-1 to AC-6 cannot be verified from the bundle (perf.db results missing)"
+      }
+    ],
+    "edaf361c225b763c": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-tools/skills/decisions/scripts/decisions_client.py",
+        "line": 56,
+        "severity": "high",
+        "title": "Wrapped secret assignments survive pre-flight redaction"
+      }
+    ],
+    "f3169081a20c5308": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": 264,
+        "severity": "high",
+        "title": "Reject positional parameter expansion in GraphQL queries"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+        "line": 288,
+        "severity": "high",
+        "title": "Exclude background subshells from verification evidence"
+      }
+    ],
+    "f4c35649b630cc0b": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/evidence.py",
+        "line": null,
+        "severity": "high",
+        "title": "Multiple cd segments bind verification evidence to the wrong directory"
+      }
+    ],
+    "f5b829efec903b55": [
+      {
+        "expected_blocking": true,
+        "file": null,
+        "line": null,
+        "severity": "high",
+        "title": "Acceptance criteria are missing their definitions"
+      }
+    ],
+    "fcea5fb9b87e3d16": [
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": null,
+        "severity": "high",
+        "title": "Push option operands can hide a default-branch destination"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/ghcmd.py",
+        "line": null,
+        "severity": "high",
+        "title": "The --preview option bypasses unreadable GraphQL rejection"
+      },
+      {
+        "expected_blocking": true,
+        "file": "plugins/maeng-harness/lib/maeng/gates.py",
+        "line": null,
+        "severity": "high",
+        "title": "Typed branch fields can write contents to the default branch"
+      }
+    ]
+  },
+  "generated_at": "2026-11-08T12:02:59Z",
+  "kind_note": "kind is 'code' for every replayed case: the manifest does not record code vs parent",
+  "lost_blockers": [
+    {
+      "id": "013535f665d38a73",
+      "title": "PR creation can verify a different repository's head"
+    },
+    {
+      "id": "013535f665d38a73",
+      "title": "Issue transfers omit the destination repository from G3"
+    },
+    {
+      "id": "013535f665d38a73",
+      "title": "Git clone and worktree destinations bypass eta isolation"
+    },
+    {
+      "id": "013535f665d38a73",
+      "title": "Invalid Notion configuration silently disables G2"
+    },
+    {
+      "id": "013535f665d38a73",
+      "title": "UUID capitalization bypasses Notion publication checks"
+    },
+    {
+      "id": "013535f665d38a73",
+      "title": "Reservation can authorize a newly revoked receipt"
+    },
+    {
+      "id": "16a2e34d0c5f63cd",
+      "title": "Guard implicit gh pushes after same-command branch changes"
+    },
+    {
+      "id": "20b4224e3d25df57",
+      "title": "Comment apostrophes let background tests become successful evidence"
+    },
+    {
+      "id": "285596c224b49d10",
+      "title": "Command-local checkout aliases bypass the later push check"
+    },
+    {
+      "id": "39005757ad4b6d6a",
+      "title": "Checkout-before-push protection is lost across shell wrappers"
+    },
+    {
+      "id": "4717bcc48a339ef3",
+      "title": "Preserve unmet rubric items after a successful follow-up"
+    },
+    {
+      "id": "4717bcc48a339ef3",
+      "title": "Confirm each prediction rather than trusting suite success"
+    },
+    {
+      "id": "533b14fe6d8656e0",
+      "title": "Shell comments bypass implicit default-branch push protection"
+    },
+    {
+      "id": "533b14fe6d8656e0",
+      "title": "Line continuations hide push and merge subcommands"
+    },
+    {
+      "id": "583f85ad28def0de",
+      "title": "Bind gh authorization to its effective repository"
+    },
+    {
+      "id": "583f85ad28def0de",
+      "title": "A stale origin/HEAD permits direct default-branch pushes"
+    },
+    {
+      "id": "583f85ad28def0de",
+      "title": "Recursive push configuration expands shipment beyond the checked repository"
+    },
+    {
+      "id": "583f85ad28def0de",
+      "title": "Failed Notion re-reviews leave earlier passes usable"
+    },
+    {
+      "id": "583f85ad28def0de",
+      "title": "Launcher-only invocations still become passing test evidence"
+    },
+    {
+      "id": "583f85ad28def0de",
+      "title": "Malformed operation fields still fail open"
+    },
+    {
+      "id": "583f85ad28def0de",
+      "title": "Bare filesystem destinations bypass eta isolation"
+    },
+    {
+      "id": "583f85ad28def0de",
+      "title": "Locally mutating gh commands bypass G3 as reads"
+    },
+    {
+      "id": "61427df531adf650",
+      "title": "AC-4 is not met: the attached fresh staging run shows S2 failing three checks"
+    },
+    {
+      "id": "6416293ee666b0fe",
+      "title": "Git aliases can hide gated gh API writes"
+    },
+    {
+      "id": "6416293ee666b0fe",
+      "title": "File-write checks use the wrong repository's default branch"
+    },
+    {
+      "id": "6416293ee666b0fe",
+      "title": "Required evidence and merge authorization sources are missing"
+    },
+    {
+      "id": "64a95d2139d1515d",
+      "title": "MCP file writes ignore policy-protected branches"
+    },
+    {
+      "id": "64a95d2139d1515d",
+      "title": "Bundle lacks sources required to complete the mandated audit"
+    },
+    {
+      "id": "659d371f29f7b3ae",
+      "title": "Relative restore validates one file but modifies another"
+    },
+    {
+      "id": "65c03f558a825ab7",
+      "title": "Wrapped repository changes bypass the subsequent-push check"
+    },
+    {
+      "id": "713d7fccdb03890e",
+      "title": "Block REST merge endpoints containing shell variables"
+    },
+    {
+      "id": "713d7fccdb03890e",
+      "title": "Inspect default-branch pushes used as shell conditions"
+    },
+    {
+      "id": "713d7fccdb03890e",
+      "title": "Apply the implicit-push check to gh pr new"
+    },
+    {
+      "id": "732aba7b814a7d89",
+      "title": "Approval fallback removes the required review-run authorization"
+    },
+    {
+      "id": "86cb07badb21eca6",
+      "title": "MCP PR creation still bypasses remote-validation failures"
+    },
+    {
+      "id": "86cb07badb21eca6",
+      "title": "Zero-count Go runs satisfy test verification"
+    },
+    {
+      "id": "86cb07badb21eca6",
+      "title": "The G3 read-only allowlist admits file compilation"
+    },
+    {
+      "id": "86cb07badb21eca6",
+      "title": "Corrupt session state can disable cross-world gating"
+    },
+    {
+      "id": "86cb07badb21eca6",
+      "title": "Malformed Notion registry data silently removes protection"
+    },
+    {
+      "id": "8722a33acc9df665",
+      "title": "Checkout aliases inside shell wrappers bypass the subsequent-push check"
+    },
+    {
+      "id": "8dc630d35e7a13a1",
+      "title": "AC-4 live evidence for S6\u2013S8 (and S5, GF1\u2013GF4) predates the gate rewrite; only S1\u2013S4 and S9 were re-run"
+    },
+    {
+      "id": "8dc630d35e7a13a1",
+      "title": "check_bash fails open on ParseError: unparseable commands skip every G3/G1 check"
+    },
+    {
+      "id": "9c4690b1b7015471",
+      "title": "Simple checkout aliases bypass protection of a subsequent implicit push"
+    },
+    {
+      "id": "a24ba22f004e53a2",
+      "title": "Variable-supplied GraphQL fields bypass query inspection"
+    },
+    {
+      "id": "a56dcafe600916a9",
+      "title": "Required acceptance evidence remains incomplete"
+    },
+    {
+      "id": "a56dcafe600916a9",
+      "title": "Parent exclusions still bypass outstanding scoped reviews"
+    },
+    {
+      "id": "a56dcafe600916a9",
+      "title": "Combined commit-and-push checks the wrong commit"
+    },
+    {
+      "id": "a56dcafe600916a9",
+      "title": "Repository binding ignores effective push destinations"
+    },
+    {
+      "id": "a56dcafe600916a9",
+      "title": "Configured mirror pushes escape the push restrictions"
+    },
+    {
+      "id": "a56dcafe600916a9",
+      "title": "Ordinary wrapper options bypass shipping checks"
+    },
+    {
+      "id": "a56dcafe600916a9",
+      "title": "Explicit Git repository selectors bypass eta isolation"
+    },
+    {
+      "id": "a56dcafe600916a9",
+      "title": "Unknown default branches are treated as safe destinations"
+    },
+    {
+      "id": "a56dcafe600916a9",
+      "title": "Test working directories are omitted from verification scope"
+    },
+    {
+      "id": "a56dcafe600916a9",
+      "title": "Compound verification requirements use OR instead of AND"
+    },
+    {
+      "id": "a56dcafe600916a9",
+      "title": "Failed re-reviews leave earlier pass receipts usable"
+    },
+    {
+      "id": "a56dcafe600916a9",
+      "title": "PR creation verification is unrelated to the actual remote head"
+    },
+    {
+      "id": "a56dcafe600916a9",
+      "title": "GitHub URL arguments bypass eta target checks"
+    },
+    {
+      "id": "a56dcafe600916a9",
+      "title": "Unknown checkout classification permits Bash mutations"
+    },
+    {
+      "id": "a56dcafe600916a9",
+      "title": "Unknown-world Notion calls skip receipt reservation"
+    },
+    {
+      "id": "a56dcafe600916a9",
+      "title": "Unreadable gate input silently allows execution"
+    },
+    {
+      "id": "a56dcafe600916a9",
+      "title": "Malformed verification policies weaken the gate"
+    },
+    {
+      "id": "ae4f9e240c15939c",
+      "title": "Preserve the repository supplied through git push --repo"
+    },
+    {
+      "id": "ae4f9e240c15939c",
+      "title": "Check resolved typed branch values for contents writes"
+    },
+    {
+      "id": "b3a840dc7e1f5aa5",
+      "title": "Raw capture route persists private spans without filtering"
+    },
+    {
+      "id": "b668d731d6ef7edc",
+      "title": "Implicit pushes remain allowed after gh changes the branch"
+    },
+    {
+      "id": "b668d731d6ef7edc",
+      "title": "Subshell directory changes can hide a default-branch push"
+    },
+    {
+      "id": "c3203d07cf96b43a",
+      "title": "Shell-variable destinations can write to the default branch"
+    },
+    {
+      "id": "c3203d07cf96b43a",
+      "title": "Embedded GraphQL variables escape the unreadable-query guard"
+    },
+    {
+      "id": "c77d1838a2473a6b",
+      "title": "Fixture-receipt switch: production default (variable absent) is never exercised, and the agent-settable path to enable it is not pinned as denied"
+    },
+    {
+      "id": "c7b0788757c58211",
+      "title": "Gate default-branch pushes performed by gh pr create"
+    },
+    {
+      "id": "c8dd868a50855bb9",
+      "title": "AC-4 not met: the attached final staging run shows S2 failing three assertions, yet 'live staging smoke' was declared ok at the head tree"
+    },
+    {
+      "id": "cb24e6b485aced8a",
+      "title": "AC-6 still lacks a verifiable binding to the reviewed head"
+    },
+    {
+      "id": "d11be4f2254ee6db",
+      "title": "EOF check still accepts snapshot content as a final answer"
+    },
+    {
+      "id": "d11be4f2254ee6db",
+      "title": "Backup completeness check fails open on directory read errors"
+    },
+    {
+      "id": "d11be4f2254ee6db",
+      "title": "Retrying a binary move still destroys an existing populated stub"
+    },
+    {
+      "id": "d133f700f0ef79d7",
+      "title": "AC-6 lacks qualifying runner invocation evidence"
+    },
+    {
+      "id": "d87a24299a91c020",
+      "title": "Related eval can send notes identified as eta by their source"
+    },
+    {
+      "id": "dc497d5f890480ff",
+      "title": "A stale remote HEAD permits pushes to the actual default branch"
+    },
+    {
+      "id": "ea146d1bb24de89d",
+      "title": "Resolving paths inside .git to the owning repo newly allows Edit/Write/redirect writes to .git/config and .git/hooks, getting around the GIT_EXEC_CONFIG gate"
+    },
+    {
+      "id": "ea146d1bb24de89d",
+      "title": "Settings gate misses enabledPlugins[\"eta-rules@eta\"], which makes the harness inert"
+    },
+    {
+      "id": "ea146d1bb24de89d",
+      "title": "`claude plugin disable|uninstall maeng-harness@maeng` (the CLI route for the same settings write) is not gated"
+    },
+    {
+      "id": "ea146d1bb24de89d",
+      "title": "AC-1 to AC-6 cannot be verified from the bundle (perf.db results missing)"
+    },
+    {
+      "id": "f3169081a20c5308",
+      "title": "Reject positional parameter expansion in GraphQL queries"
+    },
+    {
+      "id": "f3169081a20c5308",
+      "title": "Exclude background subshells from verification evidence"
+    },
+    {
+      "id": "f4c35649b630cc0b",
+      "title": "Multiple cd segments bind verification evidence to the wrong directory"
+    },
+    {
+      "id": "fcea5fb9b87e3d16",
+      "title": "Push option operands can hide a default-branch destination"
+    },
+    {
+      "id": "fcea5fb9b87e3d16",
+      "title": "The --preview option bypasses unreadable GraphQL rejection"
+    },
+    {
+      "id": "fcea5fb9b87e3d16",
+      "title": "Typed branch fields can write contents to the default branch"
+    }
+  ],
+  "prompt_from": "a23f430",
+  "prompt_sha256": "b258fcd45daab6c05e951bb6da047a5802f1789f13cd33ce17aa55413a96637f",
+  "rule": "An expected finding is matched by a new critical/high finding in the same file within 20 lines, or with title token Jaccard similarity >= 0.5 (lowercase alphanumeric tokens of 3+ characters); a finding without a file matches by title only.",
+  "verdicts": {
+    "blocked": 19,
+    "fail": 17,
+    "pass": 5
+  }
+}

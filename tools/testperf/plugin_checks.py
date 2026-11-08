@@ -8,6 +8,7 @@ Inventory parity: every directory under plugins/ and harness/ that holds test_*.
 some lane, and every `covers` entry must exist. A suite whose declared deps are missing is `unavailable` when
 required and `skipped` (with its declared reason) when optional. The aggregate is ok only when parity holds, every
 required suite is ok and every optional one is ok or skipped; --require-complete also forbids skipped gate suites.
+Periodic aggregates always require nonempty execution with known counts; optional/manual skips are incomplete.
 Exit code 1 when the aggregate is not ok.
 """
 import argparse
@@ -107,6 +108,9 @@ def run_suite(suite, root, isolated, timeout):
             res["output_tail"] = ("missing modules: " + ", ".join(absent) +
                                   ("" if suite["required"] else "; " + suite.get("reason", "")))
             return res
+        report = cwd / suite["report"] if suite.get("report") else None
+        if report:
+            report.unlink(missing_ok=True)  # stale results cannot establish this execution
         try:
             p = subprocess.run(suite["command"], cwd=cwd, env=env, capture_output=True, text=True, timeout=timeout,
                                errors="replace")
@@ -122,6 +126,25 @@ def run_suite(suite, root, isolated, timeout):
         res["tests_run"] = tests_run(out)
         res["tests_skipped"] = tests_skipped(out)
         res["output_tail"] = "\n".join(out.splitlines()[-40:])
+        if report:
+            try:
+                record = json.loads(report.read_text())
+                res["tests_run"], res["tests_skipped"] = record["tests_run"], record["tests_skipped"]
+                complete = (record["status"] == "ok" and type(record["selected"]) is int and
+                            record["selected"] > 0 and type(record["executed"]) is int and
+                            record["executed"] == record["selected"] and type(record["tests_run"]) is int and
+                            record["tests_run"] > 0 and type(record["tests_skipped"]) is int and
+                            0 <= record["tests_skipped"] <= suite.get("skips_allowed", 0) and
+                            record["cleanup"] is True and record["restored"] is True and
+                            record["checkout_unchanged"] is True and record["failures"] == [] and
+                            isinstance(record["source_revision"], str) and
+                            re.fullmatch(r"[0-9a-f]{40}", record["source_revision"]) and
+                            isinstance(record["seed"], str) and bool(record["seed"].strip()))
+                res["mutation"] = record
+                res["status"] = "ok" if res["rc"] == 0 and complete else "incomplete"
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                res["status"], res["output_tail"] = "incomplete", str(exc)
+            return res
         if res["rc"] != 0:
             res["status"] = "failed"
         elif (res["tests_skipped"] or 0) > suite.get("skips_allowed", 0):
@@ -175,6 +198,9 @@ def main(argv=None):
     par = parity(root, lanes)
     results = [run_suite(s, root, a.isolated, a.timeout) for s in suites]
     ok = par["ok"] and all(suite_passes(s, r) for s, r in zip(suites, results))
+    if a.lane == "periodic":
+        ok = par["ok"] and bool(results) and all(r["status"] == "ok" and type(r["tests_run"]) is int and
+                                                r["tests_run"] > 0 for r in results)
     if a.require_complete and a.lane == "gate" and any(r["status"] == "skipped" for r in results):
         ok = False
     print(table(results))

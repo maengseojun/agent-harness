@@ -129,15 +129,45 @@ def on_session_start(payload):
                            "`maeng-eta-isolate --apply` and restart this session.")
     if world == guard.UNKNOWN:
         return None
+    version, executable = None, os.environ.get("CLAUDE_CODE_EXECPATH", "")
+    if executable and Path(executable).is_absolute():
+        try:
+            proc = subprocess.run([executable, "--version"], capture_output=True, text=True, timeout=3)  # real host answers in <0.1 s; headroom for a loaded machine
+            match = re.fullmatch(r"(\d+\.\d+\.\d+(?:-[\w.-]+)?) \(Claude Code\)", proc.stdout.strip())
+            if proc.returncode == 0 and match:
+                version = match.group(1)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    try:
+        record = read_json(PLUGIN_ROOT / "policy/cli-compatibility.json", {})
+        verified = record.get("verified") if isinstance(record, dict) else None
+        verified = verified.get("cli_version") if isinstance(verified, dict) else None
+    except (OSError, ValueError):
+        verified = None
     def init(st):
         st["cwd"], st["world"] = cwd, world
         st["started_at"] = st.get("started_at") or now_iso()
-    state.update(sid, init, cwd)
+        previous = st.get("cli_compatibility") or {}
+        notified = previous.get("notified_versions", [])
+        pending, key = version is None or version != verified, version or "unknown"
+        notice = pending and key not in notified
+        st["cli_compatibility"] = {
+            "observed_version": version, "verified_version": verified, "executable": executable,
+            "source": "CLAUDE_CODE_EXECPATH --version" if version else "unknown", "observed_at": now_iso(),
+            "pending": pending, "notified_versions": notified + ([key] if notice else []),
+        }
+        return notice
+    notice = state.update(sid, init, cwd)
     env_file = os.environ.get("CLAUDE_ENV_FILE")
     if env_file:
         with open(env_file, "a") as f:
             f.write(f"export MAENG_SESSION_ID={sid}\n")
-    return context_out("SessionStart", build_context(cwd))
+    out = context_out("SessionStart", build_context(cwd))
+    if notice:
+        observed = f"{version} differs from verified {verified or 'unknown'}" if version else "version unknown"
+        out["systemMessage"] = (f"maeng: hosting CLI {observed}; compatibility pending; run "
+                                "`python3 tools/testperf/cli_compat.py verify --session <session_id>` outside the hook.")
+    return out
 
 
 # ---- UserPromptSubmit ----------------------------------------------------
@@ -162,7 +192,8 @@ def on_prompt(payload):
     iv = interview_note(payload)
     if world_of(payload, st) != guard.PERSONAL:
         return context_out("UserPromptSubmit", iv) if iv else None
-    out = record_approval(payload.get("prompt") or "", cwd)
+    prompt = payload.get("prompt")
+    out = record_approval((interview.users_text(prompt) if isinstance(prompt, str) else None) or "", cwd)
     tree, _ = treelib.tree_id(cwd)
     new_task = not st.get("task_id")
     pending = st.get("pending_notice")  # the last Stop's open work; delivered once, the obligation itself stays in state

@@ -60,6 +60,7 @@ Defaults for this skill:
 - **Decision map:** a tree (`type-tree.md`). Grilling calls it a *design tree*: the destination is the root, and each decision branches into the decisions that hang off it.
 - **Logic chain:** a left-to-right flowchart, from the first premise to the conclusion.
 - **Comparison of options:** a table with good, caution and bad cells.
+- When a node is a concrete thing (a document, an agent, a store) or an outcome (kept/lost), add an icon by diagram-explainer's [Icons on nodes](../../diagram-explainer/references/explanation-design.md#icons-on-nodes) rule.
 - Use the figure rules owned by visual-explainer ([SKILL.upstream.md § Show, don't tell](../upstream/visual-explainer/SKILL.upstream.md)). Take only the rules: one claim per figure, a verb on every arrow, draw the difference, and never encode state by color alone. Do not take its kit, registers, `ve-` tags or fonts.
 
 ### State on the decision map

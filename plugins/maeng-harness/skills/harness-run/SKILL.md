@@ -20,6 +20,8 @@ Records are autonomous, code is strict: write Linear and Obsidian without asking
 
 ## The workflow
 
+Quality layer: for a non-code result the user will show or submit, follow [quality-layer](../quality-layer/SKILL.md) (criteria from real examples, independent check, closing walkthrough).
+
 Scale it down for small work: a small task can skip the interview and tree but keeps Spec/Plan-lite (a goal, a Deliverable line, Assumptions or "none", 1-3 `AC-n`, a Verification line, the Revisions log and the Close-out), verification, review and recording.
 
 1. **Interview** only for what changes architecture or workflow and cannot be read from the repo or issue. Settled decisions are not reopened. Detail: [workflow.md](references/workflow.md). When the work starts from a new product or AI-system idea, run the `maeng-tools:ai-loop-design` checklist here and carry its design note into the parent Spec. When the big picture is settled, propose a part map and run the user's design interviews ([comprehension-gate](../comprehension-gate/SKILL.md)); code in a mapped part waits for them. Architecture and workflow recommendations are sealed before the user chooses.
@@ -87,6 +89,7 @@ Do not ask mid-task what a sensible default or the Spec already answers; note th
 4. **Evidence**: checks run with results, review verdict, backend and rounds, open findings with severity, wildcards used and dissent rulings (org-chart.md).
 5. **Risk and rollback**: what could break, and how to undo it.
 6. **The decision**: one whether-question (org-chart.md DRI layers), e.g. `승인 #N`, or a choice between named options; how-choices are already in Candidates and Result. A proposed direction (org-chart.md Wildcard) follows as its own yes/no.
+7. **Understanding**: offer this closing walkthrough by default for every finished task, including tasks without an approval request. First walk through the structure and design: what was decided and why, discarded alternatives, where the result differs from the request, and what to check before shipping. Then ask 3-5 questions on structure and design; only the user may skip it, and skipping blocks nothing. The forced merge quiz for PRs over 150 changed lines or touching a mapped part remains unchanged; follow [comprehension-gate](../comprehension-gate/SKILL.md).
 
 **dots and Slack.** dots (Slack bot `seojunmaeng-maestro`) injects work by running the local `claude` CLI through its Mac Work task, passing `MAENG_TASK_ID` or a `task_id: X` line. Slack `@Claude` mentions do not reach local sessions: read and post Slack yourself (`slack-maeng`). The hooks keep `~/Documents/maeng-harness/status/<task_id>.json` and `manifest.json` current for dots; end a run's last reply with one marker line (`result:`, `needs input:` or `failed:`), because the Stop hook reads it into the status file.
 
@@ -108,5 +111,7 @@ Do not ask mid-task what a sensible default or the Spec already answers; note th
 - Hooks are guardrails against mistakes, not a security boundary; do not look for ways around a denial. Use the sanctioned route (for merges, `maeng-ship merge`).
 
 ## Feedback
+
+Use [harness-audit.md](references/harness-audit.md) to measure effects and propose evidence-backed harness changes; I-4 remains a proposal awaiting the user's decision.
 
 One-off corrections stay in the task; reusable preferences go to the specialist skill through `skill-feedback`; deterministic defects go into code with a regression test; a CEO-approved decision that broke updates its ADR. The learning line of a broke `D-n` takes the same routes.
