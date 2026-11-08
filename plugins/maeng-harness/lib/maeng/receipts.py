@@ -434,12 +434,13 @@ def reject(key, note):
 APPROVE = re.compile(r"\s*(?:승인|approve)\s+(?:PR\s*)?#(\d+)\b", re.I)
 
 
-def approval_key(repo, pr, head):
-    return "approval-" + sha256(f"{repo}|{pr}|{head}")[:24]
+def approval_key(repo, pr, head, waiver=""):
+    """`waiver` (a task waiver's identity) keys an approval maeng-ship minted under it, so it dies with that waiver."""
+    return "approval-" + sha256(f"{repo}|{pr}|{head}" + (f"|{waiver}" if waiver else ""))[:24]
 
 
-def store_approval(repo, pr, head, prompt):
-    key = approval_key(repo, str(pr), head)
+def store_approval(repo, pr, head, prompt, waiver=""):
+    key = approval_key(repo, str(pr), head, waiver)
     p = _path(key)
     with locked(p):
         rec = read_json(p) or {"key": key, "status": UNCONSUMED, "history": []}
@@ -450,8 +451,8 @@ def store_approval(repo, pr, head, prompt):
     return key
 
 
-def find_approval(repo, pr, head):
-    rec = load(approval_key(repo, str(pr), head))
+def find_approval(repo, pr, head, waiver=""):
+    rec = load(approval_key(repo, str(pr), head, waiver))
     return rec if rec and rec["status"] == UNCONSUMED else None
 
 

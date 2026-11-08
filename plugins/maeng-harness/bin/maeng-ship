@@ -66,9 +66,10 @@ def merge(a, cwd):
     recs, problem = receipts.find_code(cwd, repo, base, head, ref, rev, issue=(st.get("binding") or {}).get("issue"))
     if not recs:
         approval = receipts.find_approval(repo, a.pr, head)
-        if not approval and waiver:
-            receipts.store_approval(repo, a.pr, head, "작업 면제: " + waiver["reason"])
-            approval = receipts.find_approval(repo, a.pr, head)
+        if not approval and waiver:  # keyed to this waiver: a cancelled or lapsed one leaves nothing usable behind
+            wid = f"{sid}|{waiver['at']}"
+            receipts.store_approval(repo, a.pr, head, "작업 면제: " + waiver["reason"], wid)
+            approval = receipts.find_approval(repo, a.pr, head, wid)
         if not approval:
             die(f"merge denied: {problem} (or the user approves this head by sending `승인 #{a.pr}`)")
         recs = [approval]

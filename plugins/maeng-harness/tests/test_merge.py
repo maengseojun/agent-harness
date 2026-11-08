@@ -420,6 +420,14 @@ class TaskWaiver(MergeBase):
         self.next_pr("third.py")
         self.assertNotEqual(self.ship().returncode, 0)
 
+    def test_an_approval_left_by_a_rejected_push_dies_with_the_waiver(self):
+        self.waive()
+        r = self.ship(MAENG_GIT=self.fake_git("reject-git", "sys.stderr.write('! [rejected] non-fast-forward\\n'); sys.exit(1)"))
+        self.assertNotEqual(r.returncode, 0)
+        self.waive("작업 면제 취소")
+        self.assertNotEqual(self.ship().returncode, 0)            # the minted approval is not found without the waiver
+        self.assertEqual(self.remote_main(), self.base)
+
     def test_it_lapses_after_24_hours(self):
         self.assertIn("waived this session", self.waive("<system-reminder>\nx\n</system-reminder>\n\n\n작업 면제 저위험"))  # behind the app's note
         p = receipts._task_waiver_path(str(self.remote.resolve()), self.sid)
