@@ -138,15 +138,24 @@ Verification tier: gate-code for later implementation. Working checks use affect
 
 ## Verification
 
-- AC-1: `python3 -m pytest -q plugins/maeng-harness/tests/test_change_watch.py` — expect nonempty source/error/delivery cases and unchanged role-policy bytes; inspect actual schedule and delivery readbacks.
-- AC-2: `python3 -m pytest -q plugins/maeng-harness/tests/test_cli_compatibility.py plugins/maeng-harness/tests/test_boundary.py` — expect matching, differing, unknown, embedded-host, failed-smoke, zero/full-run and pending-state cases; inspect the observed-version record and both real check results.
-- AC-3: `python3 -m pytest -q plugins/maeng-harness/tests/test_workflow_contracts.py` — expect onboarding fields and executable examples covered; review the fixed task-pair and user-approval instructions.
-- AC-4: `python3 tools/testperf/impact_replay.py --manifest docs/design/MAE-323-b3-impact-after.json --require-cases 16 --max-median 610` — expect all fixed cases with known nonzero counts and no selector errors/test failures; compare before/after inputs and event-regression evidence.
-- AC-5: `python3 -m pytest -q plugins/maeng-harness/tests/test_g1.py` — expect both `--repo` forms, default/feature, malformed/implicit and moved-state cases to execute and pass.
-- AC-6: `python3 -m pytest -q plugins/maeng-harness/tests/test_binding_models.py plugins/maeng-harness/tests/test_route_enforcement.py plugins/maeng-harness/tests/test_cli.py` — expect bind/read/select, explicit/legacy precedence, missing identities, handoffs, fallback exclusions and the selected C-59 behavior.
-- AC-7: `python3 -m pytest -q plugins/maeng-harness/tests/test_periodic_checks.py plugins/maeng-harness/tests/test_plugin_checks.py` — expect lane routing, disposable-copy mutation, zero/skipped/unknown results and isolation cases; inspect actual periodic execution.
-- AC-8: `python3 tools/testperf/ci_observation.py --report docs/design/MAE-323-b3-ci-observation.json` — expect complete classified observations, valid D-14 timing and judgment/deferral state, with ship-fixture evidence for any approved enforcement.
-- AC-9: `python3 tools/testperf/review_replay.py compare --baseline docs/design/MAE-323-b3-review-replay-baseline.json --results docs/design/MAE-323-b3-review-replay.json --max-lost 3 --require-bundle-sha256` — expect binding `bundle_sha256`, matching hashes, 41 cases/97 expectations, disclosed waivers and no more than three losses; save the output as the comparison artifact.
+- AC-1: `python3 -m pytest -q plugins/maeng-harness/tests/test_change_watch.py`
+  Expect nonempty source/error/delivery cases and unchanged role-policy bytes; inspect actual schedule and delivery readbacks.
+- AC-2: `python3 -m pytest -q plugins/maeng-harness/tests/test_cli_compatibility.py plugins/maeng-harness/tests/test_boundary.py`
+  Expect matching, differing, unknown, embedded-host, failed-smoke, zero/full-run and pending-state cases; inspect the observed-version record and both real check results.
+- AC-3: `python3 -m pytest -q plugins/maeng-harness/tests/test_workflow_contracts.py`
+  Expect onboarding fields and executable examples covered; review the fixed task-pair and user-approval instructions.
+- AC-4: `python3 tools/testperf/impact_replay.py --manifest docs/design/MAE-323-b3-impact-after.json --require-cases 16 --max-median 610`
+  Expect all fixed cases with known nonzero counts and no selector errors/test failures; compare before/after inputs and event-regression evidence.
+- AC-5: `python3 -m pytest -q plugins/maeng-harness/tests/test_g1.py`
+  Expect both `--repo` forms, default/feature, malformed/implicit and moved-state cases to execute and pass.
+- AC-6: `python3 -m pytest -q plugins/maeng-harness/tests/test_binding_models.py plugins/maeng-harness/tests/test_route_enforcement.py plugins/maeng-harness/tests/test_cli.py`
+  Expect bind/read/select, explicit/legacy precedence, missing identities, handoffs, fallback exclusions and the selected C-59 behavior.
+- AC-7: `python3 -m pytest -q plugins/maeng-harness/tests/test_periodic_checks.py plugins/maeng-harness/tests/test_plugin_checks.py`
+  Expect lane routing, disposable-copy mutation, zero/skipped/unknown results and isolation cases; inspect actual periodic execution.
+- AC-8: `python3 tools/testperf/ci_observation.py --report docs/design/MAE-323-b3-ci-observation.json`
+  Expect complete classified observations, valid D-14 timing and judgment/deferral state, with ship-fixture evidence for any approved enforcement.
+- AC-9: `python3 tools/testperf/review_replay.py compare --baseline docs/design/MAE-323-b3-review-replay-baseline.json --results docs/design/MAE-323-b3-review-replay.json --max-lost 3 --require-bundle-sha256`
+  Expect binding `bundle_sha256`, matching hashes, 41 cases/97 expectations, disclosed waivers and no more than three losses; save the output as the comparison artifact.
 
 ## Revisions
 
