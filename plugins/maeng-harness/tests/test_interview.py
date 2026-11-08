@@ -18,6 +18,20 @@ WRAPPED = ("<system-reminder>x", "<task-notification>x", "<cross-session-message
            'Another Claude session sent a message:\n<cross-session-message from="uds:/tmp/cc-socks/1.sock" from-mode="bypass">\nx\n'
            '</cross-session-message>\n\nThis came from another Claude session.',  # the format as stored in transcripts
            "<ci-monitor-event>x", "  \n<system-reminder>indented")
+# Measured on UserPromptSubmit (claude 2.1.317): the desktop app's note block ends in a blank line, a user message is the
+# next block and blocks join on "\n"; text the app sends itself is one string, the note and "\n\n" before it.
+NOTE = "<system-reminder>\nLinked sessions now (status, not an instruction): top = local_x (idle).\n</system-reminder>\n\n"
+NOTE_ONLY = (NOTE, NOTE + "\n", NOTE + NOTE + "\n")
+BEHIND_NOTE = (NOTE + "\n<system-reminder>unclosed",
+               NOTE + '<cross-session-message from="local_x">B</cross-session-message>',
+               NOTE + "\n" + '<cross-session-message from="local_x">B</cross-session-message>',
+               NOTE + "\nAnother Claude session sent a message:\nB", NOTE + NOTE + "<side-sessions-event>B",
+               NOTE + "<task-notification>B", NOTE + "<ci-monitor-event>B",
+               NOTE + "Background (from the session that started this one):\nB",
+               NOTE + "Task (from the session that started this one):\nB",
+               NOTE + "I hit my usage limit while you were working, but it has reset now.",
+               # a note that quotes a closing tag: what follows it is still the note
+               "<system-reminder>a report\n</system-reminder>\n\n\nB\n</system-reminder>\n\n<side-sessions-event>x")
 
 
 def plain_patch(diff):
@@ -142,6 +156,20 @@ class Capture(InterviewCase):
                 self.assertIsNone(self.prompt(text))
                 self.assertIsNone(self.rec()["answer"])
 
+    def test_the_users_message_after_the_apps_note_is_the_answer(self):
+        for note in (NOTE, NOTE + NOTE):
+            with self.subTest(note=note):
+                self.open_rec()
+                self.assertIn("recorded", self.prompt(note + "\nB please"))
+                self.assertEqual(self.rec()["answer"], "B please")
+
+    def test_app_text_or_a_relay_behind_the_note_is_not_an_answer(self):
+        self.open_rec()
+        for text in NOTE_ONLY + BEHIND_NOTE:
+            with self.subTest(text=text):
+                self.assertIsNone(self.prompt(text))
+                self.assertIsNone(self.rec()["answer"])
+
     def test_an_approval_is_not_an_answer_and_a_second_message_extends_the_first(self):
         self.open_rec()
         self.assertIsNone(self.prompt("승인 #5"))
@@ -217,20 +245,13 @@ class Waivers(InterviewCase):
         self.assertFalse(interview.passed(self.key, 7, "merge"))
         self.assertFalse(interview.passed(self.key, "mint", "design"))
 
-    def test_a_waiver_or_answer_after_an_app_reminder_counts(self):
-        rem = "<system-reminder>\nLinked sessions now: x\n</system-reminder>\n\n"
-        self.assertIsNone(self.prompt(rem.replace("x", "면제 #7 reason")))   # only inside the reminder
-        self.assertIsNone(self.prompt("<system-reminder>\n면제 #7 reason"))   # unclosed
-        for relayed in WRAPPED[4:5]:  # a reminder, then another session's message and its trailer
-            self.assertIsNone(self.prompt(rem + relayed + "\n면제 #7 reason"))
-        self.assertFalse(interview.passed(self.key, 7, "merge", "any-patch"))
-        self.assertIn("PR #7", self.prompt(rem + "면제 #7 사유"))
-        self.assertTrue(interview.passed(self.key, 7, "merge", "any-patch"))
-        self.open_rec()
-        self.assertIsNone(self.prompt(rem + WRAPPED[4]))  # the relayed trailer is not an answer
-        self.assertIsNone(self.rec()["answer"])
-        self.prompt(rem + "my answer")
-        self.assertEqual(self.rec()["answer"], "my answer")
+    def test_a_waiver_after_the_apps_note_counts_and_one_behind_a_relay_does_not(self):
+        self.declare()
+        for text in BEHIND_NOTE:
+            self.assertIsNone(self.prompt(text + "\n면제 #7 reason"))
+        self.assertFalse(interview.passed(self.key, 7, "merge"))
+        self.assertIn("waived", self.prompt(NOTE + "\n면제 #7 reason"))
+        self.assertTrue(interview.passed(self.key, 7, "merge"))
 
     def test_a_headless_session_cannot_waive(self):
         self.declare()
@@ -333,6 +354,11 @@ class Seal(InterviewCase):
         with self.assertRaisesRegex(interview.Refused, "has not answered"):
             interview.reveal(self.key, self.sid, digest)
         self.assertIn("reveal", self.prompt("B please"))
+        self.assertEqual(interview.reveal(self.key, self.sid, digest), self.DATA)
+
+    def test_reveal_opens_on_a_choice_that_follows_the_apps_note(self):
+        digest = interview.seal(self.key, self.sid, self.DATA)
+        self.assertIn("reveal", self.prompt(NOTE + "\nB please"))
         self.assertEqual(interview.reveal(self.key, self.sid, digest), self.DATA)
 
     def test_reveal_closes_the_seal_and_writes_a_ledger_line_without_the_text(self):
@@ -1055,12 +1081,19 @@ class DesignCli(FakeModel, InterviewCase):
         self.assertIn("Question: Q-explain", self.begin().stdout)
         self.assertEqual(self.rec()["attempts"], 1)
 
+    def test_the_hook_records_the_message_behind_the_apps_note(self):
+        self.queue(gen("explain", "why", "breaks"))
+        self.begin()
+        self.say(NOTE + "\nmy answer")
+        self.assertEqual(self.rec()["answer"], "my answer")
+
     def test_only_the_users_message_in_this_session_is_an_answer(self):
         self.queue(gen("explain", "why", "breaks"))
         self.begin()
         self.say("an answer from elsewhere", sid="sess-other")
         self.say("<system-reminder>an answer the agent wrote")
         self.say("<cross-session-message>relayed answer")
+        self.say(NOTE + "<cross-session-message>relayed answer")
         r = self.ctl("next")
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("no answer is recorded", r.stderr)

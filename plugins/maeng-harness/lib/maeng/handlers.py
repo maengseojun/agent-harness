@@ -162,7 +162,8 @@ def on_prompt(payload):
     iv = interview_note(payload)
     if world_of(payload, st) != guard.PERSONAL:
         return context_out("UserPromptSubmit", iv) if iv else None
-    out = record_approval(payload.get("prompt") or "", cwd)
+    prompt = payload.get("prompt")
+    out = record_approval((interview.users_text(prompt) if isinstance(prompt, str) else None) or "", cwd)
     tree, _ = treelib.tree_id(cwd)
     new_task = not st.get("task_id")
     pending = st.get("pending_notice")  # the last Stop's open work; delivered once, the obligation itself stays in state
@@ -200,8 +201,7 @@ def task_running(st, new_task):
 
 def record_approval(prompt, cwd):
     """`승인 #N` / `approve #N` from the user: approve PR N at its current head for maeng-ship."""
-    prompt = interview.user_text(prompt)
-    m = prompt and receipts.APPROVE.match(prompt)
+    m = receipts.APPROVE.match(prompt)
     if not m:
         return None
     pr = m.group(1)

@@ -15,7 +15,9 @@ from .shellparse import SHELLS, ParseError, program, split_segments
 
 WRAPPERS = ("<system-reminder>", "<task-notification>", "<cross-session-message", "Another Claude session sent a message:",
             "<side-sessions-event>", "<ci-monitor-event>")
-_CLOSE = re.compile(r"</(?:system-reminder|task-notification|cross-session-message|side-sessions-event|ci-monitor-event)>")
+# The desktop app's notes in front of a prompt. A user's message is the next content block: the last note ends in a
+# blank line and blocks join on "\n". Text the app sends itself is one string with "\n\n" after the note.
+APP_NOTES = re.compile(r"\s*(?:<system-reminder>.*?</system-reminder>\s*)+", re.S)
 MODEL = "claude-opus-5-5"  # D-4: the interviewer is Opus in both worlds
 OVERALL, LIMIT = "overall", 150  # LIMIT: changed lines at which a PR needs a merge pass (what harness-run calls one task)
 WAIVE_PR = re.compile(r"\s*면제\s+#(\d+)\s+(\S.*)", re.S)
@@ -232,29 +234,27 @@ def _naming_note(key, sid, prompt, m):
     return None
 
 
-def user_text(prompt):
-    """The text the user typed: the desktop app may put closed tag wrappers (a `<system-reminder>` block) in front of it.
-    Everything up to the last closing wrapper tag counts as wrapper, so a fake closing tag inside one exposes nothing.
-    -> None for a non-string, an untagged or unclosed wrapper, or a message with nothing after its wrappers."""
-    if not isinstance(prompt, str) or not prompt.lstrip().startswith(WRAPPERS):
-        return prompt if isinstance(prompt, str) else None
-    if not prompt.lstrip().startswith("<"):  # "Another Claude session sent a message:" is wholly another session's
+def users_text(prompt):
+    """A UserPromptSubmit prompt without the app's notes in front, or None when it is not the user's message.
+    shortcut: the payload has no origin, so the block join is the only mark of a user's message; if the app changes
+    it an answer is missed, never invented. Upgrade if the payload gets an origin."""
+    notes = APP_NOTES.match(prompt)
+    if not notes:
+        return None if prompt.lstrip().startswith(WRAPPERS) else prompt
+    text = prompt[notes.end():]
+    # a closing tag left in `text` means a note quoted one, so what follows it is still the note
+    if not text or not notes.group().endswith("\n\n\n") or text.startswith(WRAPPERS) or "</system-reminder>" in text:
         return None
-    last = None
-    for last in _CLOSE.finditer(prompt):
-        pass
-    if not last or any(w in prompt[:last.end()] for w in WRAPPERS if not w.startswith("<")):
-        return None  # unclosed, or a relayed message sits among the wrappers: its trailer is not the user's
-    rest = prompt[last.end():].lstrip()
-    return rest if rest and not rest.startswith(WRAPPERS) else None
+    return text
 
 
 def on_prompt(payload):
     """UserPromptSubmit: the user's message as an answer, an appeal, a stop or a waiver. -> a note for the agent, or
     None. Touches nothing when this session has no open record, the repository has no map and the message is not a
     waiver (the eta side-effect test)."""
-    prompt, sid = user_text(payload.get("prompt")), payload.get("session_id", "")
-    if prompt is None:  # a wrapped message with nothing the user typed is never the user's
+    prompt, sid = payload.get("prompt"), payload.get("session_id", "")
+    prompt = users_text(prompt) if isinstance(prompt, str) else None
+    if prompt is None:  # a wrapped message is never the user's
         return None
     key = repo_key(payload.get("cwd") or os.getcwd())
     if not key:
