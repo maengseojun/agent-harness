@@ -56,6 +56,7 @@ Every vendored reference appears in this table:
 4. **Page size only: run the blind-spot sweep** (method §6). Fold the answers in.
 5. **Build the output** in the one look (look.md).
    - Before each figure, check the 45-type guide to choose its type: one per structured phase, and one for the whole flow.
+   - After each figure is laid out, run the icon pass (look.md § Icons in every figure).
    - For the whole flow, also check the modes.
    - For chat, use text only, with the map as an indented tree.
 6. **Review** (review.md). The main agent checks look, content and the rendered result, fixes with small edits, and checks again.

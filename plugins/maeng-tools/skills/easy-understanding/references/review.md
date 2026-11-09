@@ -40,6 +40,7 @@ Fix what fails with small edits, then run the failing part again. Do not rewrite
   - Each structured phase has one figure, and the whole flow has one.
   - Each type was chosen from the 45-type guide, and you can name the guide row it matched.
   - A mode applied to the whole flow follows look.md § Modes. Under reduced motion and in print, the page shows the final state.
+- [ ] **Icons.** Every figure had the icon pass: each concrete node or outcome has its icon next to its word label; abstract nodes have none; one icon style per figure.
 - [ ] **No new facts in figures.** Every node, edge and number in a figure appears in the text draft.
 - [ ] **Nothing cut.** Every number, condition and hedge from the sources is still there.
 - [ ] **Analogies.** Each one is labelled and says where it stops being true.

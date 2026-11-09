@@ -35,6 +35,8 @@ For a diagram request, default to one coherent structure with a visible main rel
 
 ## Icons on nodes
 
+This applies to every structure figure, not only a requested diagram: a structure map, tree, flow, layer stack, page schematic, slide figure or interactive explainer, whichever skill draws it (easy-understanding and interactive-explainer link here). Run it as a pass after the figure is laid out: go through the nodes and region headers and mark which are concrete things.
+
 An icon helps when a node is a concrete thing the reader would picture: a document, a set of documents, a person or agent, a store, a message. Put one icon from [primitive-icons.md](primitive-icons.md) above or beside the node label, about 1.5–2× the label's cap height, in the node's ink. Mark an outcome (kept/lost, passed/failed) with the `ok`/`fail` icon next to its word label, never the icon alone. Repeat the same icon for the same kind of thing so the reader can count and compare (four agents, four pages).
 
 Leave abstract nodes (a rule, a property, a step name) as text; an icon there is decoration. Use one icon style per figure: the stroked Tabler set, not mixed with filled brand marks unless the brand is the point. An icon never replaces the label, and decorative icons keep `aria-hidden="true"`. If the needed icon is missing, take it from Tabler (`https://api.iconify.design/tabler.json?icons=<name>`), redraw it at stroke-width 1.5 and add it to the library with its source line.
