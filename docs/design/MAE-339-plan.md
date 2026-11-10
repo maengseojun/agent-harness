@@ -16,3 +16,6 @@ Structure figures drawn by easy-understanding and interactive-explainer (maps, p
 - AC-3: `explanation-design.md` § Icons on nodes says it applies to every structure figure, whichever skill draws it.
 - AC-4: `interactive-explainer/SKILL.md` links to `../diagram-explainer/references/explanation-design.md#icons-on-nodes`, and the link resolves.
 - AC-5: `python3 -m pytest -q` passes on the final tree.
+
+## Release
+- AC-6: `plugins/maeng-tools/.claude-plugin/plugin.json` is bumped from 0.3.25 to 0.3.26 so installed copies pick up the icon pass. No other file pins the old version.
