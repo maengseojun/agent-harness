@@ -64,7 +64,7 @@ Defaults for this skill:
 
 ### Icons in every figure
 
-Every figure in this skill gets the icon pass: the map, each phase figure, the whole-flow canvas, slide figures and interactive widgets. After the layout, go through the nodes and region headers. Where one is a concrete thing (a document, an agent or person, a store, a message, a tool) or an outcome (kept/lost, passed/failed), add an icon by diagram-explainer's [Icons on nodes](../../diagram-explainer/references/explanation-design.md#icons-on-nodes) rule. Abstract nodes (a rule, a property, a decision) stay text. Icons are inline SVG from [primitive-icons.md](../../diagram-explainer/references/primitive-icons.md) drawn with `currentColor`, so they follow the house tokens in light and dark.
+Every figure in this skill gets the icon pass: the map, each phase figure, the whole-flow canvas, slide figures and interactive widgets. After the layout, go through the nodes and region headers. Where one is a concrete thing (a document, an agent or person, a store, a message, a tool) or an outcome (kept/lost, passed/failed), add an icon by diagram-explainer's [Icons on nodes](../../diagram-explainer/references/explanation-design.md#icons-on-nodes) rule. Abstract nodes (a rule, a property, a decision) stay text. Icons are inline SVG from [primitive-icons.md](../../diagram-explainer/references/primitive-icons.md) drawn with `currentColor`, so they follow the house tokens in light and dark. A chat answer is exempt: its map stays a text-only indented tree (§ Chat), with no SVG.
 
 ### State on the decision map
 

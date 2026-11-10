@@ -11,7 +11,7 @@ Structure figures drawn by easy-understanding and interactive-explainer (maps, p
 - Out of scope: icons on abstract nodes (decisions, rules); version bump and release (separate change).
 
 ## Acceptance criteria
-- AC-1: `easy-understanding/references/look.md` has a `### Icons in every figure` section naming the map, phase figures, whole-flow canvas, slide figures and interactive widgets, linking to `explanation-design.md#icons-on-nodes`, and the old defaults bullet is gone.
+- AC-1: `easy-understanding/references/look.md` has a `### Icons in every figure` section naming the map, phase figures, whole-flow canvas, slide figures and interactive widgets, linking to `explanation-design.md#icons-on-nodes`, and the old defaults bullet is gone. A text-only chat map is exempt from the pass.
 - AC-2: `easy-understanding/SKILL.md` Flow step 5 has an icon-pass step, and `references/review.md` has an `**Icons.**` checklist item.
 - AC-3: `explanation-design.md` § Icons on nodes says it applies to every structure figure, whichever skill draws it.
 - AC-4: `interactive-explainer/SKILL.md` links to `../diagram-explainer/references/explanation-design.md#icons-on-nodes`, and the link resolves.
